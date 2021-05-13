@@ -1,5 +1,24 @@
 import numpy as np
 
+class monomer:
+    
+    radi=float()
+    type=int()
+    q=float()
+
+class titrable_monomer():
+
+    pKa=float()
+    protonated=monomer()
+    unprotonated=monomer()
+
+class aminoacid(titrable_monomer):
+
+    def __init__(self, name):
+
+        self.name=name
+
+    bondl=float()
 
 class protein():
 
@@ -10,15 +29,57 @@ class protein():
     N = int()
     Nm = int()
     ids = list()
-    pka = { "ASP" : 4.0,
-            "GLU" : 4.4,
-            "HIS" : 6.8,
-            "TYR" : 9.6,
-            "LYS" : 10.4,
-            "ARG" : 13.5,
-            "CYS" : 8.3,
-            "NH2" : 8.0,
-            "COOH": 3.6} # Values from DOI: 10.1146/annurev-biophys-083012-130351
+
+
+
+
+
+class molecule:
+
+    def __init__(self, radi, q, type):
+
+        self.radi=radi
+        self.q=q
+        self.type=type
+
+    bondl=float()
+    pKa=float()
+    N=int()
+    Nm=int()
+    Mmass=float()
+    ids=list()
+
+    class protonated:
+
+        radi=float()
+        q=float()
+        type=int()
+
+    class unprotonated:
+
+        radi=float()
+        q=float()
+        type=int()
+
+def setup_protein(protein, pKa=None):
+    
+
+    if pKa is None:
+
+        pka = { "D" : 4.0,
+            "E" : 4.4,
+            "H" : 6.8,
+            "Y" : 9.6,
+            "K" : 10.4,
+            "R" : 13.5,
+            "C" : 8.3,
+            "J" : 5.96,
+            "U" : 6.30,
+            "Z" : 5.96,
+            "n" : 8.0,
+            "c" : 3.6
+            } # Values from Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.
+
 
     q =    {"ARG" : 1,
             "NARG": 0,
@@ -114,34 +175,8 @@ class protein():
             "NNH2": 1./2.,
             "COOH": 1./2.,
             "NCOOH": 1./2.}
-
-class molecule:
-
-    def __init__(self, radi, q, type):
-
-        self.radi=radi
-        self.q=q
-        self.type=type
-
-    bondl=float()
-    pKa=float()
-    N=int()
-    Nm=int()
-    Mmass=float()
-    ids=list()
-
-    class protonated:
-
-        radi=float()
-        q=float()
-        type=int()
-
-    class unprotonated:
-
-        radi=float()
-        q=float()
-        type=int()
-
+    
+    return
 
 def create_protein(system, protein, harmonic_bond):
     '''
