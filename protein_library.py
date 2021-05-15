@@ -1,36 +1,220 @@
 import numpy as np
 
-class monomer:
+class particle:
     
-    radi=float()
-    type=int()
-    q=float()
+    radi=None
+    type=None
+    q=None
+    id=None
 
-class titrable_monomer():
-
-    pKa=float()
-    protonated=monomer()
-    unprotonated=monomer()
-
-class aminoacid(titrable_monomer):
+class aminoacid:
 
     def __init__(self, name):
 
         self.name=name
 
-    bondl=float()
+    bondl=None
+    pKa=None
+    part=[]
+    ids=[]
+
 
 class protein():
 
-    def __init__(self, sequence):
+    N = None
+    Nm = None
+    ids = []
+    bondl=None
+    
+    def __init__(self, sequence, beads_per_monomer, pKa_set=None, pKa_file=None):
 
-        self.sequence=sequence
+        clean_sequence=[]
+        self.sequence=[]
 
-    N = int()
-    Nm = int()
-    ids = list()
+        one_letter_key={"ALA": "A",
+                 "ARG": "R",
+                 "ASN": "N",
+                 "ASP": "D",
+                 "CYS": "C",
+                 "GLU": "E",
+                 "GLN": "Q",
+                 "GLY": "G",
+                 "HIS": "H",
+                 "ILE": "I",
+                 "LEU": "L",
+                 "LYS": "K",
+                 "MET": "M",
+                 "PHE": "F",
+                 "PRO": "P",
+                 "SER": "S",
+                 "THR": "T",
+                 "TRP": "W",
+                 "TYR": "Y",
+                 "VAL": "V",
+                 "pSER": "J",
+                 "pTHR": "U",
+                 "pTyr": "Z",
+                 "NH2": "n",
+                 "COOH": "c"}
+
+        if isinstance(sequence, str):
+                
+            if (sequence.find("-") != -1):
+
+                splited_sequence=sequence.split("-")
+
+                for residue in splited_sequence:
+
+                    if len(residue) == 1:
+
+                        if (residue in one_letter_key.values()):
+
+                            clean_sequence.append(residue)
+
+                        else:
+
+                            raise ValueError("Unknown one letter code for an aminoacid given: ", residue, " please review the input sequence")
+
+                    else:
+
+                        if (residue in one_letter_key.keys()):
+
+                            clean_sequence.append(one_letter_key[residue])
+
+                        else:
+
+                            raise ValueError("Unknown three letter code for an aminoacid given: ", residue, " please review the input sequence")
+
+            else:
+                for letter in sequence:
+
+                    if (letter in one_letter_key.values()):
+
+                        clean_sequence.append(letter)
+                        
+                    else:
+
+                        raise ValueError("Unknown one letter code for an aminoacid given: ", letter, " please review the input sequence")
+
+        if isinstance(sequence, list):
+
+            for item in sequence:
+
+                if item in one_letter_key.values():
+
+                    clean_sequence.append(item)
+
+                elif item in one_letter_key.keys():
+
+                    clean_sequence.append(one_letter_key[item])
+                
+                else:
+
+                    raise ValueError("Unknown code for an aminoacid given: ", item, " please review the input sequence")
+
+        if (beads_per_monomer == 1 or beads_per_monomer == 2):
+
+            self.beads_per_monomer=beads_per_monomer
+
+        else:
+
+            raise ValueError("The library is only ready for peptide models with 1 or 2 beads. Value provided for beads_per_monomer = ", beads_per_monomer , " not allowed.")
+
+# Values for the phosphorilated aminoacids J U and Z are always taken from Bienkiewicz & K.J. Lumb, J Biomol NMR 15: 203-206 (1999).
+
+        if pKa_set is None or pKa_set == "Hass": 
+
+# Values from Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.
+
+            pka = { "D" : 4.0,
+                    "E" : 4.4,
+                    "H" : 6.8,
+                    "Y" : 9.6,
+                    "K" : 10.4,
+                    "R" : 13.5,
+                    "C" : 8.3,
+                    "J" : 5.96,
+                    "U" : 6.30,
+                    "Z" : 5.96,
+                    "n" : 8.0,
+                    "c" : 3.6
+            } 
+
+        elif pKa_set == "Platzer": 
+
+# Platzer G, Okon M, McIntosh LP. 2014. pH-dependent random coil 1 H, 13 C, and 15 N chemical shifts of the ionizable amino acids: a guide for protein pK a measurements. J. Biomol. NMR 60:109–29
+
+            pka = { "D" : 3.86,
+                    "E" : 4.34,
+                    "H" : 6.45,
+                    "Y" : 9.76,
+                    "K" : 10.34,
+                    "R" : 13.9,
+                    "C" : 8.49,
+                    "J" : 5.96,
+                    "U" : 6.30,
+                    "Z" : 5.96,
+                    "n" : 8.23,
+                    "c" : 3.55
+            }
+
+        elif pKa_set == "CRCHandbook": # Values from Handbook of Chemistry and Physics, 72nd Edition, CRC Press, Boca Raton, FL, 1991.
+            
+            pka = { "D" : 3.65,
+                    "E" : 4.25,
+                    "H" : 6.00,
+                    "Y" : 10.07,
+                    "K" : 10.54,
+                    "R" : 12.48,
+                    "C" : 8.18,
+                    "J" : 5.96,
+                    "U" : 6.30,
+                    "Z" : 5.96,
+                    "n" : 8.23,
+                    "c" : 3.55
+            }
+
+        elif ( pKa_set == "Nozaki"): # Y. Nozaki and C. Tanford, Methods Enzymol., 1967, 11, 715–734.
+
+            pka = { "D" : 4.00,
+                    "E" : 4.40,
+                    "H" : 6.30,
+                    "Y" : 9.6,
+                    "K" : 10.4,
+                    "R" : 12.0,
+                    "C" : 9.5,
+                    "J" : 5.96,
+                    "U" : 6.30,
+                    "Z" : 5.96,
+                    "n" : 7.5,
+                    "c" : 3.8
+            }
 
 
+        elif ( pKa_set == "custom"):
+
+            if isinstance(pKa_file, str):
+                
+
+
+
+            else:
+
+                raise ValueError("The name of the input file for the pKa value must be given as a string, pKa_file = ",  pKa_file))
+
+        else:
+
+            raise ValueError("Unknown option for the desired pKa set: ", pKa_set, "Valid options are 'Hass', 'Platzer', 'CRCHandbook','Nozaki' or 'custom'")
+
+        for residue in clean_sequence:
+
+            monomer=aminoacid(name=residue)
+
+            for bead in range(beads_per_monomer):
+                
+                monomer.part.append(particle())
+            
+            self.sequence.append(monomer)
 
 
 
