@@ -1,4 +1,5 @@
 import numpy as np
+import pint
 
 class particle:
     
@@ -6,6 +7,7 @@ class particle:
     type=None
     q=None
     id=None
+    name=None
 
 class aminoacid:
 
@@ -24,14 +26,193 @@ class protein():
     N = None
     Nm = None
     ids = []
-    bondl=None
     
-    def __init__(self, sequence, beads_per_monomer, pKa_set=None, pKa_file=None):
+    def __init__(self, sequence, beads_per_monomer=1, pKa_set=None, pKa_custom=None):
 
         clean_sequence=[]
         self.sequence=[]
+        param=parameters()
+        self.bondl=0.388*param.ureg.nm
+    
+        if isinstance(sequence, str):
+                
+            if (sequence.find("-") != -1):
 
-        one_letter_key={"ALA": "A",
+                splited_sequence=sequence.split("-")
+
+                for residue in splited_sequence:
+
+                    if len(residue) == 1:
+
+                        if residue == "c" or residue == "n":
+
+                            residue_up=residue
+
+                        else:
+
+                            residue_up=residue.upper()
+
+                        if (residue_up in param.one_letter_key.values()):
+
+                            clean_sequence.append(residue_up)
+
+                        else:
+
+                            raise ValueError("Unknown one letter code for an aminoacid given: ", residue, " please review the input sequence")
+
+                    else:
+
+                        if (residue.upper() in one_letter_key.keys()):
+
+                            clean_sequence.append(param.one_letter_key[residue.upper()])
+
+                        else:
+
+                            raise ValueError("Unknown three letter code for an aminoacid given: ", residue, " please review the input sequence")
+
+            else:
+
+                for letter in sequence:
+
+                    if letter == "c" or letter == "n":
+
+                        letter_up=letter
+                    else:
+                        letter_up=letter.upper()
+                    
+                    if (letter_up in param.one_letter_key.values()):
+
+                        clean_sequence.append(letter_up)
+                        
+                    else:
+
+                        raise ValueError("Unknown one letter code for an aminoacid given: ", letter, " please review the input sequence")
+
+        if isinstance(sequence, list):
+
+            for item in sequence:
+               
+                if item == "c" or item == "n":
+
+                    item_up=item
+
+                else:
+
+                    item_up=item.upper()
+
+                if item_up in param.one_letter_key.values():
+
+                    clean_sequence.append(item_up)
+
+                elif item_up in param.one_letter_key.keys():
+
+                    clean_sequence.append(param.one_letter_key[item_up])
+                
+                else:
+
+                    raise ValueError("Unknown code for an aminoacid given: ", item, " please review the input sequence")
+
+        if (beads_per_monomer == 1 or beads_per_monomer == 2):
+
+            self.beads_per_monomer=beads_per_monomer
+
+        else:
+
+            raise ValueError("The library is only ready for peptide models with 1 or 2 beads. Value provided for beads_per_monomer = ", beads_per_monomer , " not allowed.")
+
+        if pKa_set is None or pKa_set.upper() == "HASS": # Default values 
+
+            pKa=param.pka_hass
+
+        elif pKa_set.upper() == "PLATZER": 
+
+            pKa=param.pka_platzer
+
+        elif pKa_set.upper() == "CRCHANDBOOK": 
+
+            pKa=param.pka_crc
+
+        elif ( pKa_set.upper() == "NOZAKI"): 
+
+            pKa=param.pka_nozaki
+
+
+        elif ( pKa_set.upper() == "CUSTOM"):
+
+            if isinstance(pKa_custom, dict):
+                
+                pKa=param.pka_hass
+
+                for custom_aa in pKa_custom.keys():
+
+                    if custom_aa == "n" or custom_aa == "c":
+
+                        custom_aa_up=custom_aa
+
+                    else:
+
+                        custom_aa_up=custom_aa.upper()
+
+                    if custom_aa_up in param.one_letter_key.keys():
+
+                        custom_aa_up=param.one_letter_key[custom_aa_up]
+
+                    if custom_aa_up in  pKa.keys():
+
+                        pKa[custom_aa_up]=pKa_custom[custom_aa_up]
+
+                    else:
+
+                        raise ValueError("Unknown aminoacid type given for custom pKa-value, please use the one letter aminoacide code as key. Key given: ",  custom_aa)
+
+            else:
+
+                raise ValueError("The custom pKa-values must be given as a dictionary such that pKa['one_letter_code'] = value. Given pKa = ",  pKa_custom)
+
+        else:
+
+            raise ValueError("Unknown option for the desired pKa set: ", pKa_set, "Valid options are 'Hass', 'Platzer', 'CRCHandbook','Nozaki' or 'custom'")
+
+        for residue in clean_sequence:
+
+            monomer=aminoacid(name=residue)
+           
+            if residue in pKa.keys():
+
+                monomer.pKa=pKa[residue]
+            
+            if beads_per_monomer == 2: # Create an alpha carbon bead
+
+                alpha_carbon=particle()
+                alpha_carbon.name="C_alpha"
+                alpha_carbon.q={"neutral": 0}
+                alpha_carbon.type={"neutral": 20}
+                alpha_carbon.radi={"neutral": 0.5*param.ureg.sigma}
+                monomer.part.append(alpha_carbon)
+
+            # Create the lateral chain bead
+
+            lateral_chain=particle()
+            lateral_chain.name=residue
+            lateral_chain.q=param.q[residue]
+            lateral_chain.type=param.type[residue]
+            lateral_chain.radi=param.radi[residue]
+            
+            if beads_per_monomer == 2: # distance to the alpha carbon
+
+                lateral_chain.bondl=param.bondl[residue]
+
+            monomer.part.append(lateral_chain)
+            
+            self.sequence.append(monomer)
+
+class parameters:
+
+    ureg = pint.UnitRegistry()
+    ureg.define('sigma = 0.35 * nm = sig')
+
+
+    one_letter_key={"ALA": "A",
                  "ARG": "R",
                  "ASN": "N",
                  "ASP": "D",
@@ -51,82 +232,16 @@ class protein():
                  "TRP": "W",
                  "TYR": "Y",
                  "VAL": "V",
-                 "pSER": "J",
-                 "pTHR": "U",
-                 "pTyr": "Z",
+                 "PSER": "J",
+                 "PTHR": "U",
+                 "PTyr": "Z",
                  "NH2": "n",
                  "COOH": "c"}
 
-        if isinstance(sequence, str):
-                
-            if (sequence.find("-") != -1):
-
-                splited_sequence=sequence.split("-")
-
-                for residue in splited_sequence:
-
-                    if len(residue) == 1:
-
-                        if (residue in one_letter_key.values()):
-
-                            clean_sequence.append(residue)
-
-                        else:
-
-                            raise ValueError("Unknown one letter code for an aminoacid given: ", residue, " please review the input sequence")
-
-                    else:
-
-                        if (residue in one_letter_key.keys()):
-
-                            clean_sequence.append(one_letter_key[residue])
-
-                        else:
-
-                            raise ValueError("Unknown three letter code for an aminoacid given: ", residue, " please review the input sequence")
-
-            else:
-                for letter in sequence:
-
-                    if (letter in one_letter_key.values()):
-
-                        clean_sequence.append(letter)
-                        
-                    else:
-
-                        raise ValueError("Unknown one letter code for an aminoacid given: ", letter, " please review the input sequence")
-
-        if isinstance(sequence, list):
-
-            for item in sequence:
-
-                if item in one_letter_key.values():
-
-                    clean_sequence.append(item)
-
-                elif item in one_letter_key.keys():
-
-                    clean_sequence.append(one_letter_key[item])
-                
-                else:
-
-                    raise ValueError("Unknown code for an aminoacid given: ", item, " please review the input sequence")
-
-        if (beads_per_monomer == 1 or beads_per_monomer == 2):
-
-            self.beads_per_monomer=beads_per_monomer
-
-        else:
-
-            raise ValueError("The library is only ready for peptide models with 1 or 2 beads. Value provided for beads_per_monomer = ", beads_per_monomer , " not allowed.")
-
 # Values for the phosphorilated aminoacids J U and Z are always taken from Bienkiewicz & K.J. Lumb, J Biomol NMR 15: 203-206 (1999).
-
-        if pKa_set is None or pKa_set == "Hass": 
-
 # Values from Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.
 
-            pka = { "D" : 4.0,
+    pka_hass = { "D" : 4.0,
                     "E" : 4.4,
                     "H" : 6.8,
                     "Y" : 9.6,
@@ -140,11 +255,9 @@ class protein():
                     "c" : 3.6
             } 
 
-        elif pKa_set == "Platzer": 
-
 # Platzer G, Okon M, McIntosh LP. 2014. pH-dependent random coil 1 H, 13 C, and 15 N chemical shifts of the ionizable amino acids: a guide for protein pK a measurements. J. Biomol. NMR 60:109–29
 
-            pka = { "D" : 3.86,
+    pka_platzer = { "D" : 3.86,
                     "E" : 4.34,
                     "H" : 6.45,
                     "Y" : 9.76,
@@ -158,9 +271,9 @@ class protein():
                     "c" : 3.55
             }
 
-        elif pKa_set == "CRCHandbook": # Values from Handbook of Chemistry and Physics, 72nd Edition, CRC Press, Boca Raton, FL, 1991.
+# Values from Handbook of Chemistry and Physics, 72nd Edition, CRC Press, Boca Raton, FL, 1991.
             
-            pka = { "D" : 3.65,
+    pka_crc = { "D" : 3.65,
                     "E" : 4.25,
                     "H" : 6.00,
                     "Y" : 10.07,
@@ -170,13 +283,13 @@ class protein():
                     "J" : 5.96,
                     "U" : 6.30,
                     "Z" : 5.96,
-                    "n" : 8.23,
-                    "c" : 3.55
+                    "n" : 8.0,
+                    "c" : 3.6
             }
 
-        elif ( pKa_set == "Nozaki"): # Y. Nozaki and C. Tanford, Methods Enzymol., 1967, 11, 715–734.
+# Y. Nozaki and C. Tanford, Methods Enzymol., 1967, 11, 715–734.
 
-            pka = { "D" : 4.00,
+    pka_nozaki = { "D" : 4.00,
                     "E" : 4.40,
                     "H" : 6.30,
                     "Y" : 9.6,
@@ -189,178 +302,118 @@ class protein():
                     "n" : 7.5,
                     "c" : 3.8
             }
-
-
-        elif ( pKa_set == "custom"):
-
-            if isinstance(pKa_file, str):
-                
-
-
-
-            else:
-
-                raise ValueError("The name of the input file for the pKa value must be given as a string, pKa_file = ",  pKa_file))
-
-        else:
-
-            raise ValueError("Unknown option for the desired pKa set: ", pKa_set, "Valid options are 'Hass', 'Platzer', 'CRCHandbook','Nozaki' or 'custom'")
-
-        for residue in clean_sequence:
-
-            monomer=aminoacid(name=residue)
-
-            for bead in range(beads_per_monomer):
-                
-                monomer.part.append(particle())
-            
-            self.sequence.append(monomer)
-
-
-
-class molecule:
-
-    def __init__(self, radi, q, type):
-
-        self.radi=radi
-        self.q=q
-        self.type=type
-
-    bondl=float()
-    pKa=float()
-    N=int()
-    Nm=int()
-    Mmass=float()
-    ids=list()
-
-    class protonated:
-
-        radi=float()
-        q=float()
-        type=int()
-
-    class unprotonated:
-
-        radi=float()
-        q=float()
-        type=int()
-
-def setup_protein(protein, pKa=None):
     
+    q =    {"A": {"neutral": 0},
+            "R" : {"protonated": 1, "unprotonated": 0},
+            "H" : {"protonated": 1, "unprotonated": 0},
+            "K" : {"protonated": 1, "unprotonated": 0},
+            "D" : {"protonated": 0, "unprotonated": -1},
+            "E" : {"protonated": 0, "unprotonated": -1},
+            "S" : {"neutral": 0},
+            "T" : {"neutral": 0},
+            "N" : {"neutral": 0},
+            "Q" : {"neutral": 0},
+            "C" : {"protonated": 1, "unprotonated": 0},
+            "G" : {"neutral": 0},
+            "P" : {"neutral": 0},
+            "A" : {"neutral": 0},
+            "V" : {"neutral": 0},
+            "I" : {"neutral": 0},
+            "L" : {"neutral": 0},
+            "M" : {"neutral": 0},
+            "F" : {"neutral": 0},
+            "Y" : {"neutral": 0},
+            "W" : {"neutral": 0},
+            "n" : {"protonated": 1, "unprotonated": 0},
+            "c" : {"protonated": 0, "unprotonated": -1},
+            "J" : {"protonated": 0, "unprotonated": -1},
+            "U" : {"protonated": 0, "unprotonated": -1},
+            "Z" : {"protonated": 0, "unprotonated": -1},
+            }
 
-    if pKa is None:
+    type =    {"A": {"neutral": 21},
+            "R" : {"protonated": 22, "unprotonated": 23},
+            "H" : {"protonated": 24, "unprotonated": 25},
+            "K" : {"protonated": 26, "unprotonated": 27},
+            "D" : {"protonated": 28, "unprotonated": 29},
+            "E" : {"protonated": 30, "unprotonated": 31},
+            "S" : {"neutral": 32},
+            "T" : {"neutral": 33},
+            "N" : {"neutral": 34},
+            "Q" : {"neutral": 35},
+            "C" : {"protonated": 36, "unprotonated": 37},
+            "G" : {"neutral": 38},
+            "P" : {"neutral": 39},
+            "A" : {"neutral": 40},
+            "V" : {"neutral": 41},
+            "I" : {"neutral": 42},
+            "L" : {"neutral": 43},
+            "M" : {"neutral": 44},
+            "F" : {"neutral": 45},
+            "Y" : {"neutral": 46},
+            "W" : {"neutral": 47},
+            "n" : {"protonated": 48, "unprotonated": 49},
+            "c" : {"protonated": 50, "unprotonated": 51},
+            "J" : {"protonated": 52, "unprotonated": 53},
+            "U" : {"protonated": 54, "unprotonated": 55},
+            "Z" : {"protonated": 56, "unprotonated": 57},
+            }
 
-        pka = { "D" : 4.0,
-            "E" : 4.4,
-            "H" : 6.8,
-            "Y" : 9.6,
-            "K" : 10.4,
-            "R" : 13.5,
-            "C" : 8.3,
-            "J" : 5.96,
-            "U" : 6.30,
-            "Z" : 5.96,
-            "n" : 8.0,
-            "c" : 3.6
-            } # Values from Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.
+    radi =    {"A": {"neutral": 0.5*ureg.sigma},
+            "R" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            "H" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            "K" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            "D" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            "E" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            "S" : {"neutral": 0.5*ureg.sigma},
+            "T" : {"neutral": 0.5*ureg.sigma},
+            "N" : {"neutral": 0.5*ureg.sigma},
+            "Q" : {"neutral": 0.5*ureg.sigma},
+            "C" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            "G" : {"neutral": 0.5*ureg.sigma},
+            "P" : {"neutral": 0.5*ureg.sigma},
+            "A" : {"neutral": 0.5*ureg.sigma},
+            "V" : {"neutral": 0.5*ureg.sigma},
+            "I" : {"neutral": 0.5*ureg.sigma},
+            "L" : {"neutral": 0.5*ureg.sigma},
+            "M" : {"neutral": 0.5*ureg.sigma},
+            "F" : {"neutral": 0.5*ureg.sigma},
+            "Y" : {"neutral": 0.5*ureg.sigma},
+            "W" : {"neutral": 0.5*ureg.sigma},
+            "n" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            "c" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            "J" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            "U" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            "Z" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+            }
 
-
-    q =    {"ARG" : 1,
-            "NARG": 0,
-            "HIS" : 1,
-            "NHIS": 0,
-            "LYS" : 1,
-            "NLYS": 0,
-            "ASP" :-1,
-            "NASP": 0,
-            "GLU" :-1,
-            "NGLU": 0,
-            "SER" : 0,
-            "THR" : 0,
-            "ASN" : 0,
-            "GLN" : 0,
-            "CYS" : 1,
-            "NCYS": 0,
-            "GLY" : 0,
-            "PRO" : 0,
-            "ALA" : 0,
-            "VAL" : 0,
-            "ILE" : 0,
-            "LEU" : 0,
-            "MET" : 0,
-            "PHE" : 0,
-            "TYR" : 0,
-            "TRP" : 0,
-            "NH2" : 1,
-            "NNH2": 0,
-            "COOH":-1,
-            "NCOOH":0}
-
-    # types 10-39  are reserved for the protein
-
-    type ={"ARG" : 10,
-            "NARG": 11,
-            "HIS" : 12,
-            "NHIS": 13,
-            "LYS" : 14,
-            "NLYS": 15,
-            "ASP" : 16,
-            "NASP": 17,
-            "GLU" : 18,
-            "NGLU": 19,
-            "SER" : 20,
-            "THR" : 21,
-            "ASN" : 22,
-            "GLN" : 23,
-            "CYS" : 24,
-            "NCYS": 25,
-            "GLY" : 26,
-            "PRO" : 27,
-            "ALA" : 28,
-            "VAL" : 29,
-            "ILE" : 30,
-            "LEU" : 31,
-            "MET" : 32,
-            "PHE" : 33,
-            "TYR" : 34,
-            "TRP" : 35,
-            "NH2" : 36,
-            "NNH2": 37,
-            "COOH": 38,
-            "NCOOH":39}
-
-    radi  ={"ARG" : 1./2.,  # Provisional values
-            "NARG": 1./2.,
-            "HIS" : 1./2.,
-            "NHIS": 1./2.,
-            "LYS" : 1./2.,
-            "NLYS": 1./2.,
-            "ASP" : 1./2.,
-            "NASP": 1./2.,
-            "GLU" : 1./2.,
-            "NGLU": 1./2.,
-            "SER" : 1./2.,
-            "THR" : 1./2.,
-            "ASN" : 1./2.,
-            "GLN" : 1./2.,
-            "CYS" : 1./2.,
-            "NCYS": 1./2.,
-            "GLY" : 1./2.,
-            "PRO" : 1./2.,
-            "ALA" : 1./2.,
-            "VAL" : 1./2.,
-            "ILE" : 1./2.,
-            "LEU" : 1./2.,
-            "MET" : 1./2.,
-            "PHE" : 1./2.,
-            "TYR" : 1./2.,
-            "TRP" : 1./2.,
-            "NH2" : 1./2.,
-            "NNH2": 1./2.,
-            "COOH": 1./2.,
-            "NCOOH": 1./2.}
-    
-    return
+    bondl =    {"A": {"neutral": 1*ureg.sigma},
+            "R" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+            "H" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+            "K" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+            "D" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+            "E" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+            "S" : {"neutral": 1*ureg.sigma},
+            "T" : {"neutral": 1*ureg.sigma},
+            "N" : {"neutral": 1*ureg.sigma},
+            "Q" : {"neutral": 1*ureg.sigma},
+            "C" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+            "G" : {"neutral": 1*ureg.sigma},
+            "P" : {"neutral": 1*ureg.sigma},
+            "A" : {"neutral": 1*ureg.sigma},
+            "V" : {"neutral": 1*ureg.sigma},
+            "I" : {"neutral": 1*ureg.sigma},
+            "L" : {"neutral": 1*ureg.sigma},
+            "M" : {"neutral": 1*ureg.sigma},
+            "F" : {"neutral": 1*ureg.sigma},
+            "Y" : {"neutral": 1*ureg.sigma},
+            "W" : {"neutral": 1*ureg.sigma},
+            "n" : {"protonated":1*ureg.sigma, "unprotonated":  1*ureg.sigma},
+            "c" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+            "J" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+            "U" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+            "Z" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+            }
 
 def create_protein(system, protein, harmonic_bond):
     '''
