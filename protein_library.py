@@ -1,5 +1,6 @@
 import numpy as np
 import pint
+import math as mt
 
 class particle:
     
@@ -16,6 +17,7 @@ class aminoacid:
         self.name=name
 
     bondl=None
+    k=None
     pKa=None
     part=[]
     ids=[]
@@ -26,13 +28,16 @@ class protein():
     N = None
     Nm = None
     ids = []
-    
+    bondl = None
+    k = None
+
     def __init__(self, sequence, beads_per_monomer=1, pKa_set=None, pKa_custom=None):
 
         clean_sequence=[]
         self.sequence=[]
         param=parameters()
         self.bondl=0.388*param.ureg.nm
+        self.k=100/param.ureg.sigma**2
     
         if isinstance(sequence, str):
                 
@@ -176,19 +181,26 @@ class protein():
         for residue in clean_sequence:
 
             monomer=aminoacid(name=residue)
-           
+            monomer.bondl=param.bondl[residue]
+            monomer.k=param.k[residue]
+            
+            bead_list=[]
+
             if residue in pKa.keys():
 
                 monomer.pKa=pKa[residue]
             
-            if beads_per_monomer == 2: # Create an alpha carbon bead
+            # Create an alpha carbon bead
+
+
+            if beads_per_monomer == 2 and residue != "c" and residue != "n":
 
                 alpha_carbon=particle()
                 alpha_carbon.name="C_alpha"
                 alpha_carbon.q={"neutral": 0}
                 alpha_carbon.type={"neutral": 20}
-                alpha_carbon.radi={"neutral": 0.5*param.ureg.sigma}
-                monomer.part.append(alpha_carbon)
+                alpha_carbon.radi= 0.5*param.ureg.sigma
+                bead_list.append(alpha_carbon)
 
             # Create the lateral chain bead
 
@@ -198,12 +210,10 @@ class protein():
             lateral_chain.type=param.type[residue]
             lateral_chain.radi=param.radi[residue]
             
-            if beads_per_monomer == 2: # distance to the alpha carbon
 
-                lateral_chain.bondl=param.bondl[residue]
+            bead_list.append(lateral_chain)
+            monomer.part=bead_list
 
-            monomer.part.append(lateral_chain)
-            
             self.sequence.append(monomer)
 
 class parameters:
@@ -304,16 +314,16 @@ class parameters:
             }
     
     q =    {"A": {"neutral": 0},
-            "R" : {"protonated": 1, "unprotonated": 0},
-            "H" : {"protonated": 1, "unprotonated": 0},
-            "K" : {"protonated": 1, "unprotonated": 0},
-            "D" : {"protonated": 0, "unprotonated": -1},
-            "E" : {"protonated": 0, "unprotonated": -1},
+            "R" : {"charged": 1, "neutral": 0},
+            "H" : {"charged": 1, "neutral": 0},
+            "K" : {"charged": 1, "neutral": 0},
+            "D" : {"neutral": 0, "charged": -1},
+            "E" : {"neutral": 0, "charged": -1},
             "S" : {"neutral": 0},
             "T" : {"neutral": 0},
             "N" : {"neutral": 0},
             "Q" : {"neutral": 0},
-            "C" : {"protonated": 1, "unprotonated": 0},
+            "C" : {"charged": 1, "neutral": 0},
             "G" : {"neutral": 0},
             "P" : {"neutral": 0},
             "A" : {"neutral": 0},
@@ -324,24 +334,24 @@ class parameters:
             "F" : {"neutral": 0},
             "Y" : {"neutral": 0},
             "W" : {"neutral": 0},
-            "n" : {"protonated": 1, "unprotonated": 0},
-            "c" : {"protonated": 0, "unprotonated": -1},
-            "J" : {"protonated": 0, "unprotonated": -1},
-            "U" : {"protonated": 0, "unprotonated": -1},
-            "Z" : {"protonated": 0, "unprotonated": -1},
+            "n" : {"charged": 1, "neutral": 0},
+            "c" : {"neutral": 0, "charged": -1},
+            "J" : {"neutral": 0, "charged": -1},
+            "U" : {"neutral": 0, "charged": -1},
+            "Z" : {"neutral": 0, "charged": -1},
             }
 
     type =    {"A": {"neutral": 21},
-            "R" : {"protonated": 22, "unprotonated": 23},
-            "H" : {"protonated": 24, "unprotonated": 25},
-            "K" : {"protonated": 26, "unprotonated": 27},
-            "D" : {"protonated": 28, "unprotonated": 29},
-            "E" : {"protonated": 30, "unprotonated": 31},
+            "R" : {"neutral": 22, "charged": 23},
+            "H" : {"neutral": 24, "charged": 25},
+            "K" : {"neutral": 26, "charged": 27},
+            "D" : {"neutral": 28, "charged": 29},
+            "E" : {"neutral": 30, "charged": 31},
             "S" : {"neutral": 32},
             "T" : {"neutral": 33},
             "N" : {"neutral": 34},
             "Q" : {"neutral": 35},
-            "C" : {"protonated": 36, "unprotonated": 37},
+            "C" : {"neutral": 36, "charged": 37},
             "G" : {"neutral": 38},
             "P" : {"neutral": 39},
             "A" : {"neutral": 40},
@@ -352,180 +362,237 @@ class parameters:
             "F" : {"neutral": 45},
             "Y" : {"neutral": 46},
             "W" : {"neutral": 47},
-            "n" : {"protonated": 48, "unprotonated": 49},
-            "c" : {"protonated": 50, "unprotonated": 51},
-            "J" : {"protonated": 52, "unprotonated": 53},
-            "U" : {"protonated": 54, "unprotonated": 55},
-            "Z" : {"protonated": 56, "unprotonated": 57},
+            "n" : {"neutral": 48, "charged": 49},
+            "c" : {"neutral": 50, "charged": 51},
+            "J" : {"neutral": 52, "charged": 53},
+            "U" : {"neutral": 54, "charged": 55},
+            "Z" : {"neutral": 56, "charged": 57},
             }
 
-    radi =    {"A": {"neutral": 0.5*ureg.sigma},
-            "R" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
-            "H" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
-            "K" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
-            "D" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
-            "E" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
-            "S" : {"neutral": 0.5*ureg.sigma},
-            "T" : {"neutral": 0.5*ureg.sigma},
-            "N" : {"neutral": 0.5*ureg.sigma},
-            "Q" : {"neutral": 0.5*ureg.sigma},
-            "C" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
-            "G" : {"neutral": 0.5*ureg.sigma},
-            "P" : {"neutral": 0.5*ureg.sigma},
-            "A" : {"neutral": 0.5*ureg.sigma},
-            "V" : {"neutral": 0.5*ureg.sigma},
-            "I" : {"neutral": 0.5*ureg.sigma},
-            "L" : {"neutral": 0.5*ureg.sigma},
-            "M" : {"neutral": 0.5*ureg.sigma},
-            "F" : {"neutral": 0.5*ureg.sigma},
-            "Y" : {"neutral": 0.5*ureg.sigma},
-            "W" : {"neutral": 0.5*ureg.sigma},
-            "n" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
-            "c" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
-            "J" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
-            "U" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
-            "Z" : {"protonated": 0.5*ureg.sigma, "unprotonated": 0.5*ureg.sigma},
+    radi =    {"A":  0.5*ureg.sigma,
+            "R" :  0.5*ureg.sigma,
+            "H" :  0.5*ureg.sigma, 
+            "K" :  0.5*ureg.sigma, 
+            "D" :  0.5*ureg.sigma, 
+            "E" :  0.5*ureg.sigma, 
+            "S" :  0.5*ureg.sigma,
+            "T" :  0.5*ureg.sigma,
+            "N" :  0.5*ureg.sigma,
+            "Q" :  0.5*ureg.sigma,
+            "C" :  0.5*ureg.sigma, 
+            "G" :  0.5*ureg.sigma,
+            "P" :  0.5*ureg.sigma,
+            "A" :  0.5*ureg.sigma,
+            "V" :  0.5*ureg.sigma,
+            "I" :  0.5*ureg.sigma,
+            "L" :  0.5*ureg.sigma,
+            "M" :  0.5*ureg.sigma,
+            "F" :  0.5*ureg.sigma,
+            "Y" :  0.5*ureg.sigma,
+            "W" :  0.5*ureg.sigma,
+            "n" :  0.5*ureg.sigma, 
+            "c" :  0.5*ureg.sigma, 
+            "J" :  0.5*ureg.sigma, 
+            "U" :  0.5*ureg.sigma, 
+            "Z" :  0.5*ureg.sigma
             }
 
-    bondl =    {"A": {"neutral": 1*ureg.sigma},
-            "R" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
-            "H" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
-            "K" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
-            "D" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
-            "E" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
-            "S" : {"neutral": 1*ureg.sigma},
-            "T" : {"neutral": 1*ureg.sigma},
-            "N" : {"neutral": 1*ureg.sigma},
-            "Q" : {"neutral": 1*ureg.sigma},
-            "C" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
-            "G" : {"neutral": 1*ureg.sigma},
-            "P" : {"neutral": 1*ureg.sigma},
-            "A" : {"neutral": 1*ureg.sigma},
-            "V" : {"neutral": 1*ureg.sigma},
-            "I" : {"neutral": 1*ureg.sigma},
-            "L" : {"neutral": 1*ureg.sigma},
-            "M" : {"neutral": 1*ureg.sigma},
-            "F" : {"neutral": 1*ureg.sigma},
-            "Y" : {"neutral": 1*ureg.sigma},
-            "W" : {"neutral": 1*ureg.sigma},
-            "n" : {"protonated":1*ureg.sigma, "unprotonated":  1*ureg.sigma},
-            "c" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
-            "J" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
-            "U" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
-            "Z" : {"protonated": 1*ureg.sigma, "unprotonated": 1*ureg.sigma},
+    bondl =    {"A": 1*ureg.sigma,
+            "R" :  1*ureg.sigma,
+            "H" :  1*ureg.sigma, 
+            "K" :  1*ureg.sigma, 
+            "D" :  1*ureg.sigma, 
+            "E" :  1*ureg.sigma, 
+            "S" :  1*ureg.sigma,
+            "T" :  1*ureg.sigma,
+            "N" :  1*ureg.sigma,
+            "Q" :  1*ureg.sigma,
+            "C" :  1*ureg.sigma,
+            "G" :  1*ureg.sigma,
+            "P" :  1*ureg.sigma,
+            "A" :  1*ureg.sigma,
+            "V" :  1*ureg.sigma,
+            "I" :  1*ureg.sigma,
+            "L" :  1*ureg.sigma,
+            "M" :  1*ureg.sigma,
+            "F" :  1*ureg.sigma,
+            "Y" :  1*ureg.sigma,
+            "W" :  1*ureg.sigma,
+            "n" :  1*ureg.sigma,
+            "c" :  1*ureg.sigma,
+            "J" :  1*ureg.sigma,
+            "U" :  1*ureg.sigma,
+            "Z" :  1*ureg.sigma
+            }
+    
+    k  =    {"A": 100/ureg.sigma**2,
+            "R" :  100/ureg.sigma**2,
+            "H" :  100/ureg.sigma**2,
+            "K" :  100/ureg.sigma**2, 
+            "D" :  100/ureg.sigma**2, 
+            "E" :  100/ureg.sigma**2, 
+            "S" :  100/ureg.sigma**2,
+            "T" :  100/ureg.sigma**2,
+            "N" :  100/ureg.sigma**2,
+            "Q" :  100/ureg.sigma**2,
+            "C" :  100/ureg.sigma**2,
+            "G" :  100/ureg.sigma**2,
+            "P" :  100/ureg.sigma**2,
+            "A" :  100/ureg.sigma**2,
+            "V" :  100/ureg.sigma**2,
+            "I" :  100/ureg.sigma**2,
+            "L" :  100/ureg.sigma**2,
+            "M" :  100/ureg.sigma**2,
+            "F" :  100/ureg.sigma**2,
+            "Y" :  100/ureg.sigma**2,
+            "W" :  100/ureg.sigma**2,
+            "n" :  100/ureg.sigma**2,
+            "c" :  100/ureg.sigma**2,
+            "J" :  100/ureg.sigma**2,
+            "U" :  100/ureg.sigma**2,
+            "Z" :  100/ureg.sigma**2
             }
 
-def create_protein(system, protein, harmonic_bond):
+def create_protein(system, protein, initial_state='neutral'):
     '''
     Creates a protein chain in the system with the sequence stored in protein, joined by harmonic_bond)
     Inputs:
     system: espresso class object with all system variables
-    protein: class object as defined in this library, attributes:
-        .sequence: labels of the whole sequence of the protein
-        .type: dictionary containing the default types of each group
-        .q: dictionary containing the charge of each group
-        .Nm: number of monomers of the protein
-        .N:number of protein chain
-    harmonic_bond: espresso class containing the harmonic bond object
-
-    Outputs:
-    protein_ids: (list) contains all the ids of the protein particles
-
+    protein: class object as defined in this library
     '''
-
-
-    # Compute the number of particles needed for each protein chain and store it
-
-    protein.Nm=len(protein.sequence)
-
-    # Create polymer chains in the system
-
-    polymer=molecule(radi=protein.radi['GLY'], q=protein.q['GLY'], type=protein.type['GLY'])
-
-    polymer.Nm=protein.Nm
-    polymer.N=protein.N
-
-    protein_ids=create_linear_polymer(system,polymer,harmonic_bond)
-
-    # Transform the polymer chains into peptide chains by asigning the proper parameters
-
-    for protein_chain in protein_ids:
-
-        for index in range(protein.Nm):
-
-            label=protein.sequence[index]
-            id_group=protein_chain[index]
-            q_group=protein.q[label]
-            type_group=protein.type[label]
-
-            system.part[id_group].q=q_group
-            system.part[id_group].type=type_group
-
-    return protein_ids
-
-
-def check_protein_sequence(protein):
-    """
-    Checks that the protein sequence contained in 'protein' contains labels understandable for the library. Corrects capital letter missprints
-
-    Input:
-    protein: object by the protein class defined above
-    """
     
-    one_letter_key={"A": "ALA",
-                    "R": "ARG",
-                    "N": "ASN",
-                    "D": "ASP",
-                    "C": "CYS",
-                    "E": "GLU",
-                    "Q": "GLN",
-                    "G": "GLY",
-                    "H": "HIS",
-                    "I": "ILE",
-                    "L": "LEU",
-                    "K": "LYS",
-                    "M": "MET",
-                    "F": "PHE",
-                    "P": "PRO",
-                    "S": "SER",
-                    "T": "THR",
-                    "W": "TRP",
-                    "Y": "TYR",
-                    "V": "VAL"}
+    import espressomd
+    from espressomd import interactions
 
-    for ind_group in range(len(protein.sequence)):
+    param=parameters()
 
-        group=protein.sequence[ind_group]
+    if initial_state.lower() not in ['neutral', 'charged']:
 
-        if not isinstance(group, str):
+        raise ValueError("Unvalid key for the initial state of the aminoacid, valid options are 'neutral' or 'charged'. Key given: ",  initial_state)
 
-            raise ValueError("All labels in protein sequence must be strings, ", group, " is not a string")
+    if protein.N is None:
 
-        if not group.isupper():
+        protein.N=1
 
-            upper_label=group.upper()
+    # Create a director vector for the principal chain
 
-        else:
+    backbone_vec=generate_trialvectors(protein.bondl.to('sigma').magnitude)
 
-            upper_label=group
+    # Create the harmonic bond for the principal chain
 
-        if upper_label not in protein.type.keys():
+    backbone_bond = interactions.HarmonicBond(k=protein.k.to('sigma**-2').magnitude, r_0=protein.bondl.to('sigma').magnitude)
+    
+    system.bonded_inter.add(backbone_bond)
+    # If there are other particles in system, the first id = max(current ids) +1 else first id = 0
 
-            if upper_label in one_letter_key.keys():
+    if  not system.part[:].id:
 
-                correct_label= one_letter_key[upper_label]
+        bead_id=0
 
-            else:
+    else:
 
-                raise ValueError("Unknown label ", group)
+        bead_id=max(system.part[:].id)
 
-        else:
+    # create the protein chains in the espresso system
 
-            correct_label=upper_label
+    for pep_chain in range(protein.N):
 
-        protein.sequence[ind_group]=correct_label
+        first_monomer=True
+        ids_chain=[]
 
-    return
+        for aminoacid in protein.sequence:
+
+            n_bead=0
+
+            for bead in aminoacid.part:
+
+                bead_id+=1
+
+                if initial_state.lower() == 'charged':
+
+                    if initial_state.lower() in bead.q.keys():
+
+                        state=initial_state
+
+                    else:
+                        
+                        state='neutral'
+                else:
+
+                    state=initial_state
+
+                if first_monomer: # The first monomer is placed in a random place of the simulation box
+
+                    first_monomer=False
+                    pos_backbone=np.random.random((1, 3)) *np.copy(system.box_l)
+                    id_backbone=bead_id
+                    name_backbone=aminoacid.name
+                    system.part.add(id=[bead_id], pos=pos_backbone, type=[bead.type[state]], q=[bead.q[state]])
+                    bead.id=bead_id
+                    aminoacid.ids.append(bead_id)
+                    ids_chain.append(bead_id)
+
+                else:
+
+                    if n_bead ==0:
+
+                        pos_backbone+=backbone_vec
+                        system.part.add(id=[bead_id], pos=pos_backbone, type=[bead.type[state]], q=[bead.q[state]])
+                        
+                        if (protein.beads_per_monomer == 1):
+
+                            sidechain_bond = interactions.HarmonicBond(k=aminoacid.k.to('sigma**-2').magnitude, r_0=aminoacid.bondl.to('sigma').magnitude)
+                            system.bonded_inter.add(sidechain_bond)
+                            system.part[bead_id].add_bond((sidechain_bond, id_backbone))
+
+                        else:
+
+
+                            if (name_backbone =="n") or ( aminoacid.name == "n"):
+
+                                sidechain_bond = interactions.HarmonicBond(k=param.k["n"].to('sigma**-2').magnitude, r_0=param.bondl["n"].to('sigma').magnitude)
+                                system.bonded_inter.add(sidechain_bond)
+                                system.part[bead_id].add_bond((sidechain_bond, id_backbone))
+
+                            elif (name_backbone =="c") or ( aminoacid.name == "c"):
+                                sidechain_bond = interactions.HarmonicBond(k=param.k["c"].to('sigma**-2').magnitude, r_0=param.bondl["c"].to('sigma').magnitude)
+                                system.bonded_inter.add(sidechain_bond)
+                                system.part[bead_id].add_bond((sidechain_bond, id_backbone))
+
+                            else:
+
+                                system.part[bead_id].add_bond((backbone_bond, id_backbone))
+                        
+                        bead.id=bead_id
+                        aminoacid.ids.append(bead_id)
+                        ids_chain.append(bead_id)
+                        id_backbone=bead_id
+                        name_backbone=aminoacid.name
+
+                    elif n_bead ==1:
+                        
+                        
+                        rand_vec=generate_trialvectors(1)
+                        sidechain_vec=np.cross(rand_vec,backbone_vec)
+                        r = mt.sqrt(sum(x*x for x in sidechain_vec))
+                        sidechain=np.array([x/r for x in sidechain_vec])
+                        sidechain_vec=sidechain_vec*aminoacid.bondl.to('sigma').magnitude
+                        pos_sidechain=pos_backbone+sidechain_vec
+                        system.part.add(id=[bead_id], pos=pos_sidechain, type=[bead.type[state]], q=[bead.q[state]])
+                        sidechain_bond = interactions.HarmonicBond(k=aminoacid.k.to('sigma**-2').magnitude, r_0=aminoacid.bondl.to('sigma').magnitude)
+                        system.bonded_inter.add(sidechain_bond)
+                        system.part[bead_id].add_bond((sidechain_bond, id_backbone))
+                        bead.id=bead_id
+                        aminoacid.ids.append(bead_id)
+                        ids_chain.append(bead_id)
+                
+                n_bead+=1
+
+        protein.ids.append(ids_chain)
+
+    return 
+
+
 
 def count_titrable_groups(protein):
     """
@@ -775,102 +842,6 @@ def calculate_HH(pH, protein):
 
     return Z_HH
 
-def create_linear_polymer(system,linear_polymer,harmonic_bond, inpt_pos=None, inpt_vec=None):
-    """
-    Creates a linear polymer in the system. 
-    
-    Inputs:
-    system: espresso class object with all system variables
-    linear_polymer: class variable defined above as "molecule"
-    harmonic_bond: espresso class containing the harmonic bond object
-    inpt_pos: (float*3) [x y z] position of the first monomer in the simulation box, by default is placed at random
-    inpt_vec: determines the growing direction of the chain, by default random
-
-    Output:
-    polymer_ids:(int list) list of all the ids of the polymer particles
-
-    Assumptions:
-    -All monomers  are equal
-    -All bonds are equal
-    """
-
-    # Parameters consistency check
-
-    bondl=harmonic_bond.params['r_0']
-
-    if ( bondl <= 0 ):
-
-        print("ERROR: the bond length must be a positive number bondl = ", bondl)
-        exit()
-
-    elif(linear_polymer.Nm <= 1) :
-
-        print("WARNING: The number of monomers per chain must be at least 2 to generate a linear polymer!")
-        print("Number of monomers: ", linear_polymer.Nm)
-
-        if(linear_polymer.Nm <= 0):
-
-            print("ERROR: the number of monomers must be larger than 0!")
-            exit()
-
-    elif(linear_polymer.N < 1):
-
-            print("ERROR: the number of chains must be 1 or more!")
-            exit()
-
-    all_ids=[]
-
-    for chain in range(linear_polymer.N):
-
-        if inpt_pos is None: # By default, the first monomer of the linear polymer is placed in a random position
-
-            ini_pos=np.random.random((1, 3)) * system.box_l
-
-        else:
-
-            ini_pos=[inpt_pos]
-
-        if ( (system.part[:].id).size == 0):
-
-            M_id=-1
-
-        else:
-
-            M_id=max(system.part[:].id)
-
-    # Generate the growing vector for the polymer (by default, random)
-
-        if inpt_vec is None:
-
-            grow_vec=generate_trialvectors(bondl)
-            grow_vec=[grow_vec]
-
-        else:
-
-            grow_vec=[inpt_vec]
-
-        polymer_ids=[]
-
-        for mon in range(linear_polymer.Nm):
-
-            M_id=M_id+1
-
-            if not polymer_ids: # First monomer
-
-                system.part.add(id=[M_id], pos=ini_pos, type=[linear_polymer.type], q=[linear_polymer.q])
-            else: # Rest of the monomers 
-
-                prev_id=polymer_ids[-1]
-                M_pos=system.part[prev_id].pos
-                M_pos=M_pos+grow_vec
-                system.part.add(id=[M_id], pos=M_pos, type=[linear_polymer.type], q=[linear_polymer.q])
-                system.part[prev_id].add_bond((harmonic_bond, M_id))
-
-            polymer_ids.append(M_id)
-
-        all_ids.append(polymer_ids)
-
-    return all_ids
 
 def create_counterions(system,cation,anion):
     """
