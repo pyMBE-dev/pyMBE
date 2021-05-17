@@ -600,7 +600,6 @@ def count_titrable_groups(protein):
 
     Input:
     protein: class object as defined in this library, attributes:
-        .sequence: labels of the whole sequence of the protein
 
     Output:
     N_ti: (int) number of titrable groups in the sequence
@@ -608,9 +607,9 @@ def count_titrable_groups(protein):
 
     N_ti=0
 
-    for group in protein.sequence:
+    for aminoacid in protein.sequence:
 
-        if group in protein.pka.keys():
+        if aminoacid.pKa is not None:
 
             N_ti+=1
 
@@ -623,133 +622,52 @@ def setup_protein_acidbase_reactions(RE, protein, cation):
     Inputs:
     RE: instance of the espresso class reaction_ensemble.ConstantpHEnsemble
     protein: class object as defined in this library, attributes:
-        .sequence: labels of the whole sequence of the protein
-        .type: dictionary containing the default types of each group
-        .q: dictionary containing the charge of each group
-    cation: class objects of the counter-ions,  with the following attributes:
+    cation: class objects of the cations,  with the following attributes:
         q: (int) charge of the ion
         type: (int) type of the ion
     """
 
-    reaction_present={ "ASP" : False,
-            "GLU" : False,
-            "HIS" : False,
-            "TYR" : False,
-            "LYS" : False,
-            "ARG" : False,
-            "CYS" : False,
-            "NH2" : False,
-            "COOH": False}
+    param=parameters()
+    reaction_absent={}
 
-    for group in protein.sequence:
+    for group in param.pka_hass.keys();
+        
+        reaction_absent[group]=True
 
-        if (group == "ASP" or group == "NASP") and (reaction_present["ASP"] == False):
+    for aminoacid in protein.sequence:
 
-            RE.add_reaction(gamma=10**-protein.pka["ASP"],
-                            reactant_types=[protein.type["NASP"]],
+        if aminoacid.pKa is not None:
+
+            if (reaction_absent[aminoacid.name]):
+
+                if (aminoacid.q["charged"] == 1) : # Basic aminoacid
+
+                    RE.add_reaction(gamma=10**-aminoacid.pKa,
+                            reactant_types=aminoacid.type["charged"],
                             reactant_coefficients=[1],
-                            product_types=[protein.type["ASP"], cation.type],
+                            product_types=[aminoacid.type["neutral"], cation.type],
+                            product_coefficients=[1,1],
+                            default_charges={aminoacid.type["neutral"]: aminoacid.q["neutral"],
+                                             aminoacid.type["charged"]: aminoacid.q["charged"],
+                                             cation.type: cation.q})
+                    reaction_absent[aminoacid.name] = False
+
+                elif (aminoacid.q["charged"] == -1) : # Acid aminoacid
+
+
+                    RE.add_reaction(gamma=10**-aminoacid.pka,
+                            reactant_types=[aminoacid.type["neutral"]],
+                            reactant_coefficients=[1],
+                            product_types=[aminoacid.type["charged"], cation.type],
                             product_coefficients=[1, 1],
-                            default_charges={protein.type["NASP"]: protein.q["NASP"],
-                                             protein.type["ASP"]: protein.q["ASP"],
+                            default_charges={aminoacid.type["neutral"]: aminoacid.q["neutral"],
+                                             aminoacid.type["charged"]: aminoacid.q["charged"],
                                              cation.type: cation.q})
-            reaction_present["ASP"] = True
+                    reaction_absent[aminoacid.name] = False
 
-        elif (group == "GLU" or group == "NGLU") and (reaction_present["GLU"] == False):
-
-            RE.add_reaction(gamma=10**-protein.pka["GLU"],
-                            reactant_types=[protein.type["NGLU"]],
-                            reactant_coefficients=[1],
-                            product_types=[protein.type["GLU"], cation.type],
-                            product_coefficients=[1, 1],
-                            default_charges={protein.type["NGLU"]: protein.q["NGLU"],
-                                             protein.type["GLU"]: protein.q["GLU"],
-                                             cation.type: cation.q})
-            reaction_present["GLU"] = True
-
-        elif (group == "COOH" or group == "NCOOH") and (reaction_present["COOH"] == False):
-
-            RE.add_reaction(gamma=10**-protein.pka["COOH"],
-                            reactant_types=[protein.type["NCOOH"]],
-                            reactant_coefficients=[1],
-                            product_types=[protein.type["COOH"], cation.type],
-                            product_coefficients=[1, 1],
-                            default_charges={protein.type["NCOOH"]: protein.q["NCOOH"],
-                                             protein.type["COOH"]: protein.q["COOH"],
-                                             cation.type: cation.q})
-            reaction_present["GLU"] = True
-
-        elif (group == "HIS" or group == "NHIS") and (reaction_present["HIS"] == False):
-
-            RE.add_reaction(gamma=10**-protein.pka["HIS"],
-                            reactant_types=[protein.type["HIS"]],
-                            reactant_coefficients=[1],
-                            product_types=[protein.type["NHIS"], cation.type],
-                            product_coefficients=[1,1],
-                            default_charges={protein.type["NHIS"]: protein.q["NHIS"],
-                                             protein.type["HIS"]: protein.q["HIS"],
-                                             cation.type: cation.q})
-            reaction_present["HIS"] = True
-
-        elif (group == "TYR" or group == "NTYR") and (reaction_present["TYR"] == False):
-
-            RE.add_reaction(gamma=10**-protein.pka["TYR"],
-                            reactant_types=[protein.type["TYR"]],
-                            reactant_coefficients=[1],
-                            product_types=[protein.type["NTYR"], cation.type],
-                            product_coefficients=[1,1],
-                            default_charges={protein.type["NTYR"]: protein.q["NTYR"],
-                                             protein.type["TYR"]: protein.q["TYR"],
-                                             cation.type: cation.q})
-            reaction_present["TYR"] = True
-
-        elif (group == "LYS" or group == "NLYS") and (reaction_present["LYS"] == False):
-
-            RE.add_reaction(gamma=10**-protein.pka["LYS"],
-                            reactant_types=[protein.type["LYS"]],
-                            reactant_coefficients=[1],
-                            product_types=[protein.type["NLYS"], cation.type],
-                            product_coefficients=[1,1],
-                            default_charges={protein.type["NLYS"]: protein.q["NLYS"],
-                                             protein.type["LYS"]: protein.q["LYS"],
-                                             cation.type: cation.q})
-            reaction_present["LYS"] = True
-
-        elif (group == "ARG" or group == "NARG") and (reaction_present["ARG"] == False):
-
-            RE.add_reaction(gamma=10**-protein.pka["ARG"],
-                            reactant_types=[protein.type["ARG"]],
-                            reactant_coefficients=[1],
-                            product_types=[protein.type["NARG"], cation.type],
-                            product_coefficients=[1,1],
-                            default_charges={protein.type["NARG"]: protein.q["NARG"],
-                                             protein.type["ARG"]: protein.q["ARG"],
-                                             cation.type: cation.q})
-            reaction_present["ARG"] = True
-
-        elif (group == "CYS" or group == "NCYS") and (reaction_present["CYS"] == False):
-
-            RE.add_reaction(gamma=10**-protein.pka["CYS"],
-                            reactant_types=[protein.type["CYS"], anion.type],
-                            reactant_coefficients=[1,1],
-                            product_types=[protein.type["NCYS"]],
-                            product_coefficients=[1],
-                            default_charges={protein.type["NCYS"]: protein.q["NCYS"],
-                                             protein.type["CYS"]: protein.q["CYS"],
-                                             cation.type: cation.q})
-            reaction_present["CYS"] = True
-
-        elif (group == "NH2" or group == "NH2") and (reaction_present["NH2"] == False):
-
-            RE.add_reaction(gamma=10**-protein.pka["NH2"],
-                            reactant_types=[protein.type["NH2"]],
-                            reactant_coefficients=[1],
-                            product_types=[protein.type["NNH2"], cation.type],
-                            product_coefficients=[1,1],
-                            default_charges={protein.type["NNH2"]: protein.q["NNH2"],
-                                             protein.type["NH2"]: protein.q["NH2"],
-                                             cation.type: cation.q})
-            reaction_present["NH2"] = True
+                else:
+    
+                    raise ValueError("This subrutine is concived for the acid/base equilibria of monovalent ions. Charge of aminoacid ", aminoacid.name, " = ", aminoacid.q["charged"])
 
     return
 
@@ -767,15 +685,10 @@ def calculate_protein_charge(system, protein):
     """
     
     Z_prot=0
-    checked_groups=[]
 
-    for group in protein.sequence:
+    for id in protein.ids:
 
-        if group not in checked_groups:
-
-            N_group=system.number_of_particles(type=protein.type[group])
-            Z_prot+=N_group*protein.q[group]
-            checked_groups.append(group)
+        Z_prot+=system.part[id].q
 
     Z_prot=Z_prot/protein.N
     Z2=Z_prot**2
@@ -794,9 +707,11 @@ def track_ionization(system, protein):
 
     types=[]
 
-    for group in protein.sequence:
+    for aminoacid in protein.sequence:
+        
+        for type in aminoacid.type.values():
 
-        types.append(protein.type[group])
+            types.append(type)
 
     system.setup_type_map(types)
 
@@ -820,24 +735,12 @@ def calculate_HH(pH, protein):
         
         Z=0
 
-        for group in protein.sequence:
+        for aminoacid in protein.sequence:
 
-            if group in protein.pka.keys():
+            if aminoacid.pKa is not None:
 
-                if protein.q[group] == 1: # Basic group
+                Z+=aminoacid.q["charged"]/(1+10**(aminoacid.q["charged"]*(pH_value-protein.pka[group])))
 
-                    psi=1
-
-                elif protein.q[group] == -1: # Acidic group
-                    
-                    psi=-1
-
-                else:
-
-                    raise ValueError("Unknown label ", group) 
-
-                Z+=psi/(1+10**(psi*(pH_value-protein.pka[group])))
-        
         Z_HH.append(Z)
 
     return Z_HH
