@@ -7,9 +7,11 @@ class particle:
     radi=None
     type=None
     q=None
-    id=None
+    ids=[]
     name=None
-
+    N=0
+    state=None
+    
 class aminoacid:
 
     def __init__(self, name):
@@ -67,7 +69,7 @@ class protein():
 
                     else:
 
-                        if (residue.upper() in one_letter_key.keys()):
+                        if (residue.upper() in param.one_letter_key.keys()):
 
                             clean_sequence.append(param.one_letter_key[residue.upper()])
 
@@ -164,7 +166,7 @@ class protein():
 
                     if custom_aa_up in  pKa.keys():
 
-                        pKa[custom_aa_up]=pKa_custom[custom_aa_up]
+                        pKa[custom_aa_up]=pKa_custom[custom_aa]
 
                     else:
 
@@ -339,6 +341,8 @@ class parameters:
             "J" : {"neutral": 0, "charged": -1},
             "U" : {"neutral": 0, "charged": -1},
             "Z" : {"neutral": 0, "charged": -1},
+            "cation": 1,
+            "anion": -1
             }
 
     type =    {"A": {"neutral": 21},
@@ -367,6 +371,8 @@ class parameters:
             "J" : {"neutral": 52, "charged": 53},
             "U" : {"neutral": 54, "charged": 55},
             "Z" : {"neutral": 56, "charged": 57},
+            "cation": 18,
+            "anion":  19
             }
 
     radi =    {"A":  0.5*ureg.sigma,
@@ -394,7 +400,9 @@ class parameters:
             "c" :  0.5*ureg.sigma, 
             "J" :  0.5*ureg.sigma, 
             "U" :  0.5*ureg.sigma, 
-            "Z" :  0.5*ureg.sigma
+            "Z" :  0.5*ureg.sigma,
+            "cation": 0.5*ureg.sigma,
+            "anion": 0.5*ureg.sigma
             }
 
     bondl =    {"A": 1*ureg.sigma,
@@ -503,10 +511,13 @@ def create_protein(system, protein, initial_state='neutral'):
         for aminoacid in protein.sequence:
 
             n_bead=0
+            list_ids_aa=aminoacid.ids.copy()
+            ids_aa=[]
 
             for bead in aminoacid.part:
 
                 bead_id+=1
+                list_ids_bead=bead.ids.copy()
 
                 if initial_state.lower() == 'charged':
 
@@ -528,8 +539,11 @@ def create_protein(system, protein, initial_state='neutral'):
                     id_backbone=bead_id
                     name_backbone=aminoacid.name
                     system.part.add(id=[bead_id], pos=pos_backbone, type=[bead.type[state]], q=[bead.q[state]])
-                    bead.id=bead_id
-                    aminoacid.ids.append(bead_id)
+                    bead.state=state
+                    bead.N+=1
+                    list_ids_bead.append([bead_id])
+                    bead.ids=list_ids_bead.copy()
+                    ids_aa.append(bead_id)
                     ids_chain.append(bead_id)
 
                 else:
@@ -563,8 +577,11 @@ def create_protein(system, protein, initial_state='neutral'):
 
                                 system.part[bead_id].add_bond((backbone_bond, id_backbone))
                         
-                        bead.id=bead_id
-                        aminoacid.ids.append(bead_id)
+                        list_ids_bead.append([bead_id])
+                        bead.ids=list_ids_bead.copy()
+                        bead.N+=1
+                        bead.state=state
+                        ids_aa.append(bead_id)
                         ids_chain.append(bead_id)
                         id_backbone=bead_id
                         name_backbone=aminoacid.name
@@ -582,12 +599,17 @@ def create_protein(system, protein, initial_state='neutral'):
                         sidechain_bond = interactions.HarmonicBond(k=aminoacid.k.to('sigma**-2').magnitude, r_0=aminoacid.bondl.to('sigma').magnitude)
                         system.bonded_inter.add(sidechain_bond)
                         system.part[bead_id].add_bond((sidechain_bond, id_backbone))
-                        bead.id=bead_id
-                        aminoacid.ids.append(bead_id)
+                        list_ids_bead.append([bead_id])
+                        bead.state=state
+                        bead.N+=1
+                        bead.ids=list_ids_bead.copy()
+                        ids_aa.append(bead_id)
                         ids_chain.append(bead_id)
                 
                 n_bead+=1
-
+            
+            list_ids_aa.append(ids_aa)
+            aminoacid.ids=list_ids_aa.copy()
         protein.ids.append(ids_chain)
 
     return 
@@ -630,7 +652,7 @@ def setup_protein_acidbase_reactions(RE, protein, cation):
     param=parameters()
     reaction_absent={}
 
-    for group in param.pka_hass.keys();
+    for group in param.pka_hass.keys():
         
         reaction_absent[group]=True
 
@@ -746,20 +768,19 @@ def calculate_HH(pH, protein):
     return Z_HH
 
 
-def create_counterions(system,cation,anion):
+def create_counterions(system,protein):
     """
-    Adds one counter-ion (cation or anion) of opposite charge per each charge in the system.
+    Adds one monovalent counter-ion (cation or anion) of opposite charge per each charge in the peptide.
 
     Inputs:
 
     system: espresso class object with all system variables.
-    cation/anion: class objects of the ions,  with the following attributes:
-        q: (int) charge of the ion
-        type: (int) type of the ion
+    protein: class object as defined in this library
 
     Outputs:
-    cation_ids: (list) contains the ids of the cations created
-    anion_ids: (list) contains the ids of the anions created
+    cation/anion: particle class objects of the counter-ions, as defined in this library
+        q: (int) charge of the ion
+        type: (int) type of the ion
 
     Assumptions:
 
@@ -768,50 +789,84 @@ def create_counterions(system,cation,anion):
 
     """
 
-    cation_ids=[]
-    anion_ids=[]
+    # Load the parameters
 
-    if any( abs(q) > 1 for q in system.part[:].q):
+    param=parameters()
 
-        print("ERROR: the subrutine for creating counter-ions is not prepared for multi-valent beads")
-        exit()
+    # Create and set-up the cation particle object
 
-    if (anion.q != -1) or (cation.q != 1):
-        print("ERROR: the charge of the cation/anion has to be monovalent and equal to +1/-1")
-        print("       Charge anion: ", anion.q ," Charge cation: ", cation.q )
-        exit()
+    cation=particle()
+    cation.name="cation"
+    cation.q=param.q[cation.name]
+    cation.type=param.type[cation.name]
+    cation.radi=param.radi[cation.name]
+    cation.state="charged"
 
-    N_cation=0
-    N_anion=0
+    # Create and set-up the cation particle object
 
-    for id in system.part[:].id:
+    anion=particle()
+    anion.name="anion"
+    anion.q=param.q[anion.name]
+    anion.type=param.type[anion.name]
+    anion.radi=param.radi[anion.name]
+    anion.state="charged"
 
-        if (system.part[id].q == 1): # Add an anion to the system (counter-ion)
+    # The ids of the counter ions are created to follow the ones of the peptide
 
-            I_id=max(system.part[:].id)+1
-            I_pos=np.random.random((1, 3)) * system.box_l
-            system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
-            N_anion+=1
-            anion_ids.append(I_id)
+    if  len(system.part[:].id) != 0:
 
-        if (system.part[id].q == -1): # Add an anion to the system (counter-ion)
+        I_id=max(system.part[:].id)
 
-            I_id=max(system.part[:].id)+1
-            I_pos=np.random.random((1, 3)) * system.box_l
-            system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
-            N_cation+=1
-            cation_ids.append(I_id)
+    total_q=0
 
-    if (abs(sum(system.part[:].q)) > 1e-10):
+    # Create a counter-ion for each charged group in the peptide
 
-        print("ERROR: System not electroneutral, consider revising the set-up unless working on ideal conditions ")
-        print("Global charge: ", sum(system.part[:].q))
-        exit()
+    cation_id=[]
+    anion_id=[]
 
-    cation.N=N_cation
-    anion.N=N_anion
+    for aminoacid in protein.sequence:
 
-    return cation_ids, anion_ids
+        for bead in aminoacid.part:
+           
+            if bead.state is None:
+
+                raise ValueError("The peptide chains must be created first in the system before creating their counter-ions")
+
+            else:
+
+                for npart in range(bead.N):
+
+                    if bead.q[bead.state] == 1: # Create an anion
+
+                        I_id+=1
+                        I_pos=np.random.random((1, 3)) * system.box_l
+                        system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
+                        anion.N+=1
+                        anion_id.append(I_id)
+                        total_q+=bead.q[bead.state]+anion.q
+
+                    elif bead.q[bead.state] == -1: # Create an anion
+
+                        I_id+=1
+                        I_pos=np.random.random((1, 3)) * system.box_l
+                        system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
+                        cation.N+=1
+                        cation_id.append(I_id)
+                        total_q+=bead.q[bead.state]+cation.q
+                    
+                    elif bead.q[bead.state] != 0:
+
+                        raise ValueError("This subroutine only considers the case of peptide chains with monovalent charged aminoacids")
+    
+    cation.ids=cation_id
+    anion.ids=anion_id
+
+    if total_q != 0:
+
+        raise ValueError("Subrutine attempted to create a not electroneutral system, please review your peptide set-ups")
+
+
+    return cation, anion
 
 def generate_trialvectors(mag):
     """
