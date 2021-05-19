@@ -635,6 +635,8 @@ def count_titrable_groups(protein):
 
             N_ti+=1
 
+    N_ti*=protein.N
+
     return N_ti
 
 def setup_protein_acidbase_reactions(RE, protein, cation):
@@ -659,37 +661,38 @@ def setup_protein_acidbase_reactions(RE, protein, cation):
     for aminoacid in protein.sequence:
 
         if aminoacid.pKa is not None:
+        
+            for bead in aminoacid.part:
 
-            if (reaction_absent[aminoacid.name]):
+                if (reaction_absent[aminoacid.name] and "charged" in bead.q.keys()): 
 
-                if (aminoacid.q["charged"] == 1) : # Basic aminoacid
-
-                    RE.add_reaction(gamma=10**-aminoacid.pKa,
-                            reactant_types=aminoacid.type["charged"],
+                    if (bead.q["charged"] == 1) : # Basic aminoacid
+                        
+                        RE.add_reaction(gamma=10**-aminoacid.pKa,
+                            reactant_types=[bead.type["charged"]],
                             reactant_coefficients=[1],
-                            product_types=[aminoacid.type["neutral"], cation.type],
+                            product_types=[bead.type["neutral"], cation.type],
                             product_coefficients=[1,1],
-                            default_charges={aminoacid.type["neutral"]: aminoacid.q["neutral"],
-                                             aminoacid.type["charged"]: aminoacid.q["charged"],
+                            default_charges={bead.type["neutral"]: bead.q["neutral"],
+                                             bead.type["charged"]: bead.q["charged"],
                                              cation.type: cation.q})
-                    reaction_absent[aminoacid.name] = False
+                        reaction_absent[aminoacid.name] = False
 
-                elif (aminoacid.q["charged"] == -1) : # Acid aminoacid
+                    elif (bead.q["charged"] == -1) : # Acid aminoacid
 
-
-                    RE.add_reaction(gamma=10**-aminoacid.pka,
-                            reactant_types=[aminoacid.type["neutral"]],
+                        RE.add_reaction(gamma=10**-aminoacid.pKa,
+                            reactant_types=[bead.type["neutral"]],
                             reactant_coefficients=[1],
-                            product_types=[aminoacid.type["charged"], cation.type],
+                            product_types=[bead.type["charged"], cation.type],
                             product_coefficients=[1, 1],
-                            default_charges={aminoacid.type["neutral"]: aminoacid.q["neutral"],
-                                             aminoacid.type["charged"]: aminoacid.q["charged"],
+                            default_charges={bead.type["neutral"]: bead.q["neutral"],
+                                             bead.type["charged"]: bead.q["charged"],
                                              cation.type: cation.q})
-                    reaction_absent[aminoacid.name] = False
+                        reaction_absent[aminoacid.name] = False
 
-                else:
+                    else:
     
-                    raise ValueError("This subrutine is concived for the acid/base equilibria of monovalent ions. Charge of aminoacid ", aminoacid.name, " = ", aminoacid.q["charged"])
+                        raise ValueError("This subrutine is concived for the acid/base equilibria of monovalent ions. Charge of aminoacid ", aminoacid.name, " = ", bead.q["charged"])
 
     return
 
@@ -708,9 +711,11 @@ def calculate_protein_charge(system, protein):
     
     Z_prot=0
 
-    for id in protein.ids:
+    for chain in protein.ids:
+        
+        for id in chain:
 
-        Z_prot+=system.part[id].q
+            Z_prot+=system.part[id].q
 
     Z_prot=Z_prot/protein.N
     Z2=Z_prot**2
@@ -731,9 +736,11 @@ def track_ionization(system, protein):
 
     for aminoacid in protein.sequence:
         
-        for type in aminoacid.type.values():
+        for bead in aminoacid.part:
 
-            types.append(type)
+            for type in bead.type.values():
+
+                types.append(type)
 
     system.setup_type_map(types)
 
@@ -761,7 +768,11 @@ def calculate_HH(pH, protein):
 
             if aminoacid.pKa is not None:
 
-                Z+=aminoacid.q["charged"]/(1+10**(aminoacid.q["charged"]*(pH_value-protein.pka[group])))
+                for bead in aminoacid.part:
+
+                    if "charged" in bead.q.keys():
+
+                        Z+=bead.q["charged"]/(1+10**(bead.q["charged"]*(pH_value-aminoacid.pKa)))
 
         Z_HH.append(Z)
 

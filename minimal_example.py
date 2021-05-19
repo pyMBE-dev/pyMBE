@@ -22,7 +22,8 @@ from protein_library import protein
 # Practically, to create a peptide object one only needs to provide the aminoacid sequence to the library
 # The prefered format is a single string using the one-letter aminoacid code of the peptide. The amino and carboxyl ends are denoted as 'c' and 'n' respectively and must be provided in lower case. 
 
-peptide1 = protein(sequence="cGHACCFVn")
+pep_sequence="cGHACCFVn"
+peptide1 = protein(sequence=pep_sequence)
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
@@ -67,7 +68,7 @@ print()
 # By default, the library assumes that the peptide is modelled as a linear chain with one bead per aminoacid.
 # However, the user can also choose to model the peptide as a chain with side chains, i.e. with two beads per aminoacid. 
 
-two_bead_peptide=protein(sequence="cGHACCFVn",  beads_per_monomer=2)
+two_bead_peptide=protein(sequence=pep_sequence,  beads_per_monomer=2)
 print("Example of a peptide with 2 beads per monomer:")
 write_protein_parameters(two_bead_peptide)
 print()
@@ -77,7 +78,7 @@ print()
 
 # By default, the library asumes the pKa-values provided in Ref. 1 (Hass et al.). However, the user can choose another set of pKa-values
 
-pKacrc_peptide=protein(sequence="cGHACCFVn",  pKa_set="crchandbook")
+pKacrc_peptide=protein(sequence=pep_sequence,  pKa_set="crchandbook")
 print("Example peptide with pKa-values from the CRC handbook:")
 write_protein_parameters(pKacrc_peptide)
 print()
@@ -86,7 +87,7 @@ print()
 
 dict_pKa={"c": 4.25, "CYS": 8.3999}
 
-custom_peptide=protein(sequence="cGHACCFVn",  pKa_set="custom", pKa_custom=dict_pKa)
+custom_peptide=protein(sequence=pep_sequence,  pKa_set="custom", pKa_custom=dict_pKa)
 print("Example peptide with custom pKa-values:")
 write_protein_parameters(custom_peptide)
 print()
@@ -97,7 +98,7 @@ print()
 # For instance, let us consider the case that you want to simulate two peptide chains of sequence "cGHACCFVn" using the two bead model and the default pKa-values. 
 
 
-peptide=protein(sequence="cGHACCFVn",  beads_per_monomer=2)
+peptide=protein(sequence=pep_sequence,  beads_per_monomer=2)
 peptide.N=2 # Number of protein chains desired in our system, by default 1. 
 system = espressomd.System(box_l=[len(peptide.sequence)*3] * 3) # Instance of the espresso simulation sistem
 
@@ -128,31 +129,50 @@ print("Cation info: charge = ", cation.q, " number of particles= ", cation.N , "
 print("anion info: charge = ", anion.q, " number of particles= ", anion.N , " type = ", anion.type, " ids : ", anion.ids)
 
 
-exit()
+# The library can be used to quickly set-up all the acid/base reactions present in the peptide
 
-
-N_ti=pl.count_titrable_groups(peptide)
-print()
-print("Number of titrable groups in the sequence: ", N_ti)
-
-
-# Set-up the reactions of the acid/base groups
-
-RE = reaction_ensemble.ConstantpHEnsemble(temperature=1, exclusion_radius=1, seed=SEED)
+RE = reaction_ensemble.ConstantpHEnsemble(temperature=1, exclusion_radius=1, seed=12345)
 pl.setup_protein_acidbase_reactions(RE, peptide, cation)
 
+# The library can also be used to calculate the total number of acidic/basic groups in peptide chains,
+
+pl.setup_protein_acidbase_reactions(RE, peptide, cation)
+
+# to calculate the number of acidic/basic groups in your peptide chains
+
+N_titrable_groups=pl.count_titrable_groups(peptide)
+print()
+print("Number of titrable groups in peptide chains: ", N_titrable_groups)
+
+# and to set-up espresso to track in which state are the ionizable groups during the simulation
 # Set-up espresso to track the ionizable groups
 
 pl.track_ionization(system, peptide)
 
+# At this stage, the system is ready to run a simulation with Espresso
+# Here, we ilustrate its use for a set of simulation done for pH values ranging from 2 to 12 
+
 pH = np.linspace(2, 12, num=20)
 Steps_per_sim= 1000
 steps_eq=int(Steps_per_sim/3)
-SEED=12345
+Z_pH=[] # Average charge list
 
-# Average charge list
+# The trajectories of the simulations will be stored in separed files for latter visualizaation using espresso built-up functions and stored in folder 'frames'
 
-Z_pH=[]
+from espressomd.io.writer import vtf
+import os
+
+if not os.path.exists('./frames'):
+    os.makedirs('./frames')
+
+# Write the initial state
+
+with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
+    vtf.writevsf(system, coordinates)
+    vtf.writevcf(system, coordinates)
+
+N_steps_print= 100  # Write the trajectory every 100 simulation steps
+N_frame=0
 
 for pH_value in pH:
 
@@ -161,20 +181,28 @@ for pH_value in pH:
 
     for step in range(Steps_per_sim+steps_eq):
     
-        RE.reaction(N_ti)
+        RE.reaction(N_titrable_groups)
 
         if ( step > steps_eq):
 
             Z, Z2=pl.calculate_protein_charge(system,peptide)
             Z_sim.append(Z)
+
+        if (step % N_steps_print == 0) :
+
+            N_frame+=1
+            with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
+                vtf.writevsf(system, coordinates)
+                vtf.writevcf(system, coordinates)
+
     Z_sim=np.array(Z_sim)
     Z_pH.append(Z_sim.mean())
     print("pH = {:6.4g} done".format(pH_value))
 
-# Calculate the Henderson-Hasselbach prediction in the given pH-range
+# The results of the simulation should be compared with the Henderson-Hasselbach analytical prediction for an ideal system.
+# The library also provides a module that computes the ideal peptide charge predicted by  Henderson-Hasselbach theory for a given set of pH values
 
 Z_HH = pl.calculate_HH(pH, peptide)
-
 
 fig, ax = plt.subplots(figsize=(10, 7))
 ax.plot(pH, Z_pH, "ro", label='Simulation-ideal')
@@ -182,8 +210,8 @@ ax.plot(pH, Z_HH, "-k", label='Henderson-Hasselbach')
 plt.legend()
 plt.xlabel('pH')
 plt.ylabel('Charge of the peptide / e')
+plt.title('Peptide sequence: '+ pep_sequence)
 plt.show()
-
 
 # References
 
@@ -192,6 +220,4 @@ plt.show()
 # [3] Handbook of Chemistry and Physics, 72nd Edition, CRC Press, Boca Raton, FL, 1991.
 # [4] Y. Nozaki and C. Tanford, Methods Enzymol., 1967, 11, 715–734.
 # [5] Bienkiewicz & K.J. Lumb, J Biomol NMR 15: 203-206 (1999).
-
-
 
