@@ -1,244 +1,465 @@
 import pint
-
 ureg = pint.UnitRegistry()
-ureg.define('sigma = 0.35 * nm = sig')
+
+class parameter_set:
+    name=None
+    type=None
+    bondl=None
+    radius=None
+    k=None
+    eps=None
+    pKa=None
+    beads_per_monomer=None
 
 class general:
+    name=None
+    aminoacid={"ALA": "A",
+               "ARG": "R",
+               "ASN": "N",
+               "ASP": "D",
+               "CYS": "C",
+               "GLU": "E",
+               "GLN": "Q",
+               "GLY": "G",
+               "HIS": "H",
+               "ILE": "I",
+               "LEU": "L",
+               "LYS": "K",
+               "MET": "M",
+               "PHE": "F",
+               "PRO": "P",
+               "SER": "S",
+               "THR": "T",
+               "TRP": "W",
+               "TYR": "Y",
+               "VAL": "V",
+               "PSER": "J",
+               "PTHR": "U",
+               "PTyr": "Z",
+               "NH2": "n",
+               "COOH": "c"}
 
-    one_letter_key={"ALA": "A",
-                 "ARG": "R",
-                 "ASN": "N",
-                 "ASP": "D",
-                 "CYS": "C",
-                 "GLU": "E",
-                 "GLN": "Q",
-                 "GLY": "G",
-                 "HIS": "H",
-                 "ILE": "I",
-                 "LEU": "L",
-                 "LYS": "K",
-                 "MET": "M",
-                 "PHE": "F",
-                 "PRO": "P",
-                 "SER": "S",
-                 "THR": "T",
-                 "TRP": "W",
-                 "TYR": "Y",
-                 "VAL": "V",
-                 "PSER": "J",
-                 "PTHR": "U",
-                 "PTyr": "Z",
-                 "NH2": "n",
-                 "COOH": "c"}
+class small_ions:
+    name='small_ions'
+    
+    class cation:
+        name="cation"
+        type=18
+        radius=0.15 * ureg.nm
+        q=1
 
-# Values for the phosphorilated aminoacids J U and Z are always taken from Bienkiewicz & K.J. Lumb, J Biomol NMR 15: 203-206 (1999).
-# Values from Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.
+    class anion:
+        name="anion"
+        type=19
+        radius=0.15 * ureg.nm
+        q=-1
 
-    pka_hass = { "D" : 4.0,
-                    "E" : 4.4,
-                    "H" : 6.8,
-                    "Y" : 9.6,
-                    "K" : 10.4,
-                    "R" : 13.5,
-                    "C" : 8.3,
-                    "J" : 5.96,
-                    "U" : 6.30,
-                    "Z" : 5.96,
-                    "n" : 8.0,
-                    "c" : 3.6
-            }
 
-# Platzer G, Okon M, McIntosh LP. 2014. pH-dependent random coil 1 H, 13 C, and 15 N chemical shifts of the ionizable amino acids: a guide for protein pK a measurements. J. Biomol. NMR 60:109–29
+class pKa_set:
+    name=None
 
-    pka_platzer = { "D" : 3.86,
-                    "E" : 4.34,
-                    "H" : 6.45,
-                    "Y" : 9.76,
-                    "K" : 10.34,
-                    "R" : 13.9,
-                    "C" : 8.49,
-                    "J" : 5.96,
-                    "U" : 6.30,
-                    "Z" : 5.96,
-                    "n" : 8.23,
-                    "c" : 3.55
-            }
+        # Values for the phosphorilated aminoacids J U and Z are always taken from Bienkiewicz & K.J. Lumb, J Biomol NMR 15: 203-206 (1999).
 
-# Values from Handbook of Chemistry and Physics, 72nd Edition, CRC Press, Boca Raton, FL, 1991.
+    class Hass:
+        # Values from Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.
+        name="hass"
+        pKa= { "D" : 4.0,
+                            "E" : 4.4,
+                            "H" : 6.8,
+                            "Y" : 9.6,
+                            "K" : 10.4,
+                            "R" : 13.5,
+                            "C" : 8.3,
+                            "J" : 5.96,
+                            "U" : 6.30,
+                            "Z" : 5.96,
+                            "n" : 8.0,
+                            "c" : 3.6
+                     }
 
-    pka_crc = { "D" : 3.65,
-                    "E" : 4.25,
-                    "H" : 6.00,
-                    "Y" : 10.07,
-                    "K" : 10.54,
-                    "R" : 12.48,
-                    "C" : 8.18,
-                    "J" : 5.96,
-                    "U" : 6.30,
-                    "Z" : 5.96,
-                    "n" : 8.0,
-                    "c" : 3.6
-            }
 
-# Y. Nozaki and C. Tanford, Methods Enzymol., 1967, 11, 715–734.
+    class Platzer:
+        # Platzer G, Okon M, McIntosh LP. 2014. pH-dependent random coil 1 H, 13 C, and 15 N chemical shifts of the ionizable amino acids: a guide for protein pK a measurements. J. Biomol. NMR 60:109–29
+        name ='platzer'        
+        pKa = { "D" : 3.86,
+                            "E" : 4.34,
+                            "H" : 6.45,
+                            "Y" : 9.76,
+                            "K" : 10.34,
+                            "R" : 13.9,
+                            "C" : 8.49,
+                            "J" : 5.96,
+                            "U" : 6.30,
+                            "Z" : 5.96,
+                            "n" : 8.23,
+                            "c" : 3.55
+                      }
 
-    pka_nozaki = { "D" : 4.00,
-                    "E" : 4.40,
-                    "H" : 6.30,
-                    "Y" : 9.6,
-                    "K" : 10.4,
-                    "R" : 12.0,
-                    "C" : 9.5,
-                    "J" : 5.96,
-                    "U" : 6.30,
-                    "Z" : 5.96,
-                    "n" : 7.5,
-                    "c" : 3.8
-            }
+    class CRC:
+        # Values from Handbook of Chemistry and Physics, 72nd Edition, CRC Press, Boca Raton, FL, 1991.
+        name='crc'
+        pKa = { "D" : 3.65,
+                            "E" : 4.25,
+                            "H" : 6.00,
+                            "Y" : 10.07,
+                            "K" : 10.54,
+                            "R" : 12.48,
+                            "C" : 8.18,
+                            "J" : 5.96,
+                            "U" : 6.30,
+                            "Z" : 5.96,
+                            "n" : 8.0,
+                            "c" : 3.6
+                       }
 
-    q =    {"A": {"neutral": 0},
-            "R" : {"charged": 1, "neutral": 0},
-            "H" : {"charged": 1, "neutral": 0},
-            "K" : {"charged": 1, "neutral": 0},
-            "D" : {"neutral": 0, "charged": -1},
-            "E" : {"neutral": 0, "charged": -1},
-            "S" : {"neutral": 0},
-            "T" : {"neutral": 0},
-            "N" : {"neutral": 0},
-            "Q" : {"neutral": 0},
-            "C" : {"charged": 1, "neutral": 0},
-            "G" : {"neutral": 0},
-            "P" : {"neutral": 0},
-            "A" : {"neutral": 0},
-            "V" : {"neutral": 0},
-            "I" : {"neutral": 0},
-            "L" : {"neutral": 0},
-            "M" : {"neutral": 0},
-            "F" : {"neutral": 0},
-            "Y" : {"neutral": 0},
-            "W" : {"neutral": 0},
-            "n" : {"charged": 1, "neutral": 0},
-            "c" : {"neutral": 0, "charged": -1},
-            "J" : {"neutral": 0, "charged": -1},
-            "U" : {"neutral": 0, "charged": -1},
-            "Z" : {"neutral": 0, "charged": -1},
-            "cation": 1,
-            "anion": -1
-            }
+    class Nozaki:
+        # Y. Nozaki and C. Tanford, Methods Enzymol., 1967, 11, 715–734.
+        name = 'nozaki'
+        pKa  = { "D" : 4.00,
+                            "E" : 4.40,
+                            "H" : 6.30,
+                            "Y" : 9.6,
+                            "K" : 10.4,
+                            "R" : 12.0,
+                            "C" : 9.5,
+                            "J" : 5.96,
+                            "U" : 6.30,
+                            "Z" : 5.96,
+                            "n" : 7.5,
+                            "c" : 3.8
+                        }
 
-    type =    {"A": {"neutral": 21},
-            "R" : {"neutral": 22, "charged": 23},
-            "H" : {"neutral": 24, "charged": 25},
-            "K" : {"neutral": 26, "charged": 27},
-            "D" : {"neutral": 28, "charged": 29},
-            "E" : {"neutral": 30, "charged": 31},
-            "S" : {"neutral": 32},
-            "T" : {"neutral": 33},
-            "N" : {"neutral": 34},
-            "Q" : {"neutral": 35},
-            "C" : {"neutral": 36, "charged": 37},
-            "G" : {"neutral": 38},
-            "P" : {"neutral": 39},
-            "A" : {"neutral": 40},
-            "V" : {"neutral": 41},
-            "I" : {"neutral": 42},
-            "L" : {"neutral": 43},
-            "M" : {"neutral": 44},
-            "F" : {"neutral": 45},
-            "Y" : {"neutral": 46},
-            "W" : {"neutral": 47},
-            "n" : {"neutral": 48, "charged": 49},
-            "c" : {"neutral": 50, "charged": 51},
-            "J" : {"neutral": 52, "charged": 53},
-            "U" : {"neutral": 54, "charged": 55},
-            "Z" : {"neutral": 56, "charged": 57},
-            "cation": 18,
-            "anion":  19
-            }
 
-class one_bead_protein:
+class one_bead_peptide:
 
-    radi =    {"A":  0.18*ureg.nm,
-            "R" :  0.18*ureg.nm,
-            "H" :  0.18*ureg.nm,
-            "K" :  0.18*ureg.nm,
-            "D" :  0.18*ureg.nm,
-            "E" :  0.18*ureg.nm,
-            "S" :  0.18*ureg.nm,
-            "T" :  0.18*ureg.nm,
-            "N" :  0.18*ureg.nm,
-            "Q" :  0.18*ureg.nm,
-            "C" :  0.18*ureg.nm,
-            "G" :  0.18*ureg.nm,
-            "P" :  0.18*ureg.nm,
-            "A" :  0.18*ureg.nm,
-            "V" :  0.18*ureg.nm,
-            "I" :  0.18*ureg.nm,
-            "L" :  0.18*ureg.nm,
-            "M" :  0.18*ureg.nm,
-            "F" :  0.18*ureg.nm,
-            "Y" :  0.18*ureg.nm,
-            "W" :  0.18*ureg.nm,
-            "n" :  0.18*ureg.nm,
-            "c" :  0.18*ureg.nm,
-            "J" :  0.18*ureg.nm,
-            "U" :  0.18*ureg.nm,
-            "Z" :  0.18*ureg.nm,
-            "cation": 0.18*ureg.nm,
-            "anion": 0.18*ureg.nm
-            }
+    name='1beadprotein'
+    beads_per_monomer=1
+    
+    class Alanine:
+        name="A"
+        radius=0.18*ureg.nm,
+        type=21
+        q=0
 
-    bondl =    {"A": 0.35*ureg.nm,
-            "R" :  0.35*ureg.nm,
-            "H" :  0.35*ureg.nm,
-            "K" :  0.35*ureg.nm,
-            "D" :  0.35*ureg.nm,
-            "E" :  0.35*ureg.nm,
-            "S" :  0.35*ureg.nm,
-            "T" :  0.35*ureg.nm,
-            "N" :  0.35*ureg.nm,
-            "Q" :  0.35*ureg.nm,
-            "C" :  0.35*ureg.nm,
-            "G" :  0.35*ureg.nm,
-            "P" :  0.35*ureg.nm,
-            "A" :  0.35*ureg.nm,
-            "V" :  0.35*ureg.nm,
-            "I" :  0.35*ureg.nm,
-            "L" :  0.35*ureg.nm,
-            "M" :  0.35*ureg.nm,
-            "F" :  0.35*ureg.nm,
-            "Y" :  0.35*ureg.nm,
-            "W" :  0.35*ureg.nm,
-            "n" :  0.35*ureg.nm,
-            "c" :  0.35*ureg.nm,
-            "J" :  0.35*ureg.nm,
-            "U" :  0.35*ureg.nm,
-            "Z" :  0.35*ureg.nm
-            }
+    class Aspargine:
+        name="N"
+        radius=0.18*ureg.nm,
+        type=22
+        q=0
+    
+    class Glutamine:
+        name="Q"
+        radius=0.18*ureg.nm,
+        type=23
+        q=0
+    
+    class Glycine:
+        name="G"
+        radius=0.18*ureg.nm,
+        type=24
+        q=0
+    
+    class Isoleucine:
+        name="I"
+        radius=0.18*ureg.nm,
+        type=25
+        q=0
+    
+    class Leucine:
+        name="L"
+        radius=0.18*ureg.nm,
+        type=26
+        q=0
+    
+    class Methionine:
+        name="M"
+        radius=0.18*ureg.nm,
+        type=27
+        q=0
+    
+    class Phenylalanine:
+        name="F"
+        radius=0.18*ureg.nm,
+        type=28
+        q=0
+    
+    class Proline:
+        name="P"
+        radius=0.18*ureg.nm,
+        type=29
+        q=0
+    
+    class Serine:
+        name="S"
+        radius=0.18*ureg.nm,
+        type=30
+        q=0
+    
+    class Threonine:
+        name="T"
+        radius=0.18*ureg.nm,
+        type=31
+        q=0
+    
+    class Tryptophan:
+        name="W"
+        radius=0.18*ureg.nm,
+        type=32
+        q=0
+    
+    class Tyrosine:
+        name="Y"
+        radius=0.18*ureg.nm,
+        type=33
+        q=0
+    
+    class Valine:
+        name="V"
+        radius=0.18*ureg.nm,
+        type=34
+        q=0
+    
+    class Lysine:
+        name="K"
+        radius=0.18*ureg.nm,
+        type={"neutral": 35, "charged": 36}
+        q={"neutral": 0, "charged": 1}
+    
+    class Histidine:
+        name="H"
+        radius=0.18*ureg.nm,
+        type={"neutral": 37, "charged": 38}
+        q={"neutral": 0, "charged": 1}
+    
+    class Cysteine:
+        name="C"
+        radius=0.18*ureg.nm,
+        type={"neutral": 39, "charged": 40}
+        q={"neutral": 0, "charged": 1}
+    
+    class Arginine:
+        name="R"
+        radius=0.18*ureg.nm,
+        type={"neutral": 41, "charged": 42}
+        q={"neutral": 0, "charged": 1}
+    
+    class Amino_end:
+        name="n"
+        radius=0.18*ureg.nm,
+        type={"neutral": 43, "charged": 44}
+        q={"neutral": 0, "charged": 1}
 
-    k  =    {"A":  816/ureg.nm**2,
-            "R" :  816/ureg.nm**2,
-            "H" :  816/ureg.nm**2,
-            "K" :  816/ureg.nm**2,
-            "D" :  816/ureg.nm**2,
-            "E" :  816/ureg.nm**2,
-            "S" :  816/ureg.nm**2,
-            "T" :  816/ureg.nm**2,
-            "N" :  816/ureg.nm**2,
-            "Q" :  816/ureg.nm**2,
-            "C" :  816/ureg.nm**2,
-            "G" :  816/ureg.nm**2,
-            "P" :  816/ureg.nm**2,
-            "A" :  816/ureg.nm**2,
-            "V" :  816/ureg.nm**2,
-            "I" :  816/ureg.nm**2,
-            "L" :  816/ureg.nm**2,
-            "M" :  816/ureg.nm**2,
-            "F" :  816/ureg.nm**2,
-            "Y" :  816/ureg.nm**2,
-            "W" :  816/ureg.nm**2,
-            "n" :  816/ureg.nm**2,
-            "c" :  816/ureg.nm**2,
-            "J" :  816/ureg.nm**2,
-            "U" :  816/ureg.nm**2,
-            }
+    class Carboxyl_end:
+        name="c"
+        radius=0.18*ureg.nm,
+        type={"neutral": 45, "charged": 46}
+        q={"neutral": 0, "charged": -1}
+
+    class Aspartic:
+        name="D"
+        radius=0.18*ureg.nm,
+        type={"neutral": 47, "charged": 48}
+        q={"neutral": 0, "charged": -1}
+
+    class Glutamic:
+        name="E"
+        radius=0.18*ureg.nm,
+        type={"neutral": 49, "charged": 50}
+        q={"neutral": 0, "charged": -1}
+    
+    class Phosphorilated_Serine:
+        name="J"
+        radius=0.18*ureg.nm,
+        type={"neutral": 51, "charged": 52}
+        q={"neutral": 0, "charged": -1}
+    
+    class Phosphorilated_Threonine:
+        name="U"
+        radius=0.18*ureg.nm,
+        type={"neutral": 53, "charged": 54}
+        q={"neutral": 0, "charged": -1}
+    
+    class Phosphorilated_Tryptophan:
+        name="Z"
+        radius=0.18*ureg.nm,
+        type={"neutral": 55, "charged": 56}
+        q={"neutral": 0, "charged": -1}
+
+class two_bead_peptide:
+
+    name='2beadpeptide'
+    beads_per_monomer=2
+    
+    class Alpha_Carbon:
+        name="C_alpha"
+        radius=0.18*ureg.nm,
+        type=20
+        q=0
+    
+    class Alanine:
+        name="A"
+        radius=0.18*ureg.nm,
+        type=21
+        q=0
+
+    class Aspargine:
+        name="N"
+        radius=0.18*ureg.nm,
+        type=22
+        q=0
+    
+    class Glutamine:
+        name="Q"
+        radius=0.18*ureg.nm,
+        type=23
+        q=0
+    
+    class Glycine:
+        name="G"
+        radius=0.18*ureg.nm,
+        type=24
+        q=0
+    
+    class Isoleucine:
+        name="I"
+        radius=0.18*ureg.nm,
+        type=25
+        q=0
+    
+    class Leucine:
+        name="L"
+        radius=0.18*ureg.nm,
+        type=26
+        q=0
+    
+    class Methionine:
+        name="M"
+        radius=0.18*ureg.nm,
+        type=27
+        q=0
+    
+    class Phenylalanine:
+        name="F"
+        radius=0.18*ureg.nm,
+        type=28
+        q=0
+    
+    class Proline:
+        name="P"
+        radius=0.18*ureg.nm,
+        type=29
+        q=0
+    
+    class Serine:
+        name="S"
+        radius=0.18*ureg.nm,
+        type=30
+        q=0
+    
+    class Threonine:
+        name="T"
+        radius=0.18*ureg.nm,
+        type=31
+        q=0
+    
+    class Tryptophan:
+        name="W"
+        radius=0.18*ureg.nm,
+        type=32
+        q=0
+    
+    class Tyrosine:
+        name="Y"
+        radius=0.18*ureg.nm,
+        type=33
+        q=0
+    
+    class Valine:
+        name="V"
+        radius=0.18*ureg.nm,
+        type=34
+        q=0
+    
+    class Lysine:
+        name="K"
+        radius=0.18*ureg.nm,
+        type={"neutral": 35, "charged": 36}
+        q={"neutral": 0, "charged": 1}
+    
+    class Histidine:
+        name="H"
+        radius=0.18*ureg.nm,
+        type={"neutral": 37, "charged": 38}
+        q={"neutral": 0, "charged": 1}
+    
+    class Cysteine:
+        name="C"
+        radius=0.18*ureg.nm,
+        type={"neutral": 39, "charged": 40}
+        q={"neutral": 0, "charged": 1}
+    
+    class Arginine:
+        name="R"
+        radius=0.18*ureg.nm,
+        type={"neutral": 41, "charged": 42}
+        q={"neutral": 0, "charged": 1}
+    
+    class Amino_end:
+        name="n"
+        radius=0.18*ureg.nm,
+        type={"neutral": 43, "charged": 44}
+        q={"neutral": 0, "charged": 1}
+
+    class Carboxyl_end:
+        name="c"
+        radius=0.18*ureg.nm,
+        type={"neutral": 45, "charged": 46}
+        q={"neutral": 0, "charged": -1}
+
+    class Aspartic:
+        name="D"
+        radius=0.18*ureg.nm,
+        type={"neutral": 47, "charged": 48}
+        q={"neutral": 0, "charged": -1}
+
+    class Glutamic:
+        name="E"
+        radius=0.18*ureg.nm,
+        type={"neutral": 49, "charged": 50}
+        q={"neutral": 0, "charged": -1}
+    
+    class Phosphorilated_Serine:
+        name="J"
+        radius=0.18*ureg.nm,
+        type={"neutral": 51, "charged": 52}
+        q={"neutral": 0, "charged": -1}
+    
+    class Phosphorilated_Threonine:
+        name="U"
+        radius=0.18*ureg.nm,
+        type={"neutral": 53, "charged": 54}
+        q={"neutral": 0, "charged": -1}
+    
+    class Phosphorilated_Tryptophan:
+        name="Z"
+        radius=0.18*ureg.nm,
+        type={"neutral": 55, "charged": 56}
+        q={"neutral": 0, "charged": -1}
+
+
+
+def get_subclasses(cls):
+    
+    import inspect    
+    model_list=[]
+
+    for attribute in cls.__dict__.items():
+       
+        name_attribute=attribute[0]
+
+        if name_attribute[0:2] != "__" and inspect.isclass(attribute[1]):
+            
+            model_list.append(attribute[1])
+
+    return model_list
+

@@ -4,7 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from espressomd import reaction_ensemble
-from protein_library import protein
+from protein_library import molecule
 
 ###################################################################
 ###################################################################
@@ -22,8 +22,9 @@ from protein_library import protein
 # Practically, to create a peptide object one only needs to provide the aminoacid sequence to the library
 # The prefered format is a single string using the one-letter aminoacid code of the peptide. The amino and carboxyl ends are denoted as 'c' and 'n' respectively and must be provided in lower case. 
 
-pep_sequence="cGHACCFVn"
-peptide1 = protein(sequence=pep_sequence)
+pep_sequence="cGHACCFVnO"
+new_parameters={"O": 1}
+peptide1 = molecule(sequence=pep_sequence)
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
