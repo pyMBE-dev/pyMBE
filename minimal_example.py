@@ -145,7 +145,6 @@ print()
 print("Number of titrable groups in peptide chains: ", N_titrable_groups)
 
 # and to set-up espresso to track in which state are the ionizable groups during the simulation
-# Set-up espresso to track the ionizable groups
 
 pl.track_ionization(system, peptide)
 
