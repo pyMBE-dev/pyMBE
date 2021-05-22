@@ -9,7 +9,7 @@ class parameter_set:
     k=None
     eps=None
     pKa=None
-    beads_per_monomer=None
+    beads_per_residue=None
 
 class general:
     name=None
@@ -41,7 +41,8 @@ class general:
 
 class small_ions:
     name='small_ions'
-    
+    beads_per_residue=1
+
     class cation:
         name="cation"
         type=18
@@ -133,7 +134,7 @@ class pKa_set:
 class one_bead_peptide:
 
     name='1beadprotein'
-    beads_per_monomer=1
+    beads_per_residue=1
     
     class Alanine:
         name="A"
@@ -288,7 +289,7 @@ class one_bead_peptide:
 class two_bead_peptide:
 
     name='2beadpeptide'
-    beads_per_monomer=2
+    beads_per_residue=2
     
     class Alpha_Carbon:
         name="C_alpha"

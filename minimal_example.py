@@ -23,27 +23,28 @@ from protein_library import molecule
 # The prefered format is a single string using the one-letter aminoacid code of the peptide. The amino and carboxyl ends are denoted as 'c' and 'n' respectively and must be provided in lower case. 
 
 pep_sequence="cGHACCFVnO"
-new_parameters={"O": 1}
-peptide1 = molecule(sequence=pep_sequence)
+custom={"c": 4.25, "O": 3}
+
+peptide1 = molecule(sequence=pep_sequence, pKa_set="crc", pKa_custom=custom)
+
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
 
 def write_protein_parameters(protein):
 
-    print("Peptide with ", protein.beads_per_monomer, " beads per aminoacid")
     for aminoacid in protein.sequence:
 
-        print("Aminoacid name \t pKa")
-        print("\t", aminoacid.name, "\t", aminoacid.pKa)
-        print("\t \t Beads name \t radi \t\t charge \t\t\t type")
+        print("Aminoacid ", aminoacid.name)
+        print("\t \t Beads name \t pKa")
         for bead in aminoacid.part:
             
-            print("\t\t\t", bead.name, "\t",  bead.radi, "\t", bead.q, "\t\t", bead.type)
+            print("\t\t\t", bead.name, "\t",  bead.pKa)
 
 print("First example:")
 write_protein_parameters(peptide1)
 print()
+exit()
 
 # The library internally works with the one letter aminoacid code. However, the user can also provide the sequence in the three-letter format, separated by hyphens
 

@@ -39,11 +39,14 @@ class molecule:
 
         model_param=None
 
+    
         if model is not None:
 
             model_names=[]
  
             model_list=param.get_subclasses(param)
+
+            # Get the model parameters
 
             for param_set in model_list:
 
@@ -56,6 +59,7 @@ class molecule:
             if model_param is None:
 
                 raise ValueError("Unknown model chosen: ", model, ". Valid options are ", model_names)
+            # Get valid keys for the model
 
             model_actors=param.get_subclasses(model_param)
             keys=[]
@@ -64,68 +68,109 @@ class molecule:
                 
                 keys.append(actor.name)
 
-            if param_custom is not None:
+           
+        else:
+            
+            keys=list(param.general.aminoacid.values())
+                
+        if param_custom is not None:
 
-                for key in param_custom.keys():
+            for key in param_custom.keys():
 
-                    keys.append(key)
+                keys.append(key)
+            
+        if pKa_custom is not None:
 
-            clean_sequence=sequence_parser(sequence, keys)
+            for key in pKa_custom.keys():
+
+                keys.append(key)
+
+        clean_sequence=sequence_parser(sequence, keys)
+        
+        # Import the pKa values
+
+        param_pKa_set=param.get_subclasses(param.pKa_set)
+        names_pKa_set=[]
+
+        for sets in param_pKa_set:
+            
+            names_pKa_set.append(sets.name)
+
+        if pKa_set is None:
+
+            pKa_set=param.pKa_set.Hass.pKa
+
+        elif isinstance(pKa_set, str):
+
+            for sets in param_pKa_set:
+
+                if (pKa_set.lower() == sets.name.lower()):
+
+                    pKa_set=sets.pKa
+                    break
+
+            if not isinstance(pKa_set,dict):
+
+                raise ValueError("Unknown key provided for a pKa set, valid options are " , names_pKa_set)
             
         else:
+        
 
-            if param_custom is None:
-            
-                clean_sequence=sequence_parser(sequence)
+            raise ValueError("The desired pKa set must be given as a string, valid options are ", names_pKa_set)
+
+        if pKa_custom is not None:
+
+            if isinstance(pKa_custom,dict):
+
+                for key in pKa_custom.keys():
+
+                    pKa_set[key]=pKa_custom[key]
 
             else:
-                
-                keys=list(param.general.aminoacid.values())
-                
-                for key in param_custom.keys():
-                    
-                    keys.append(key)
 
-                clean_sequence=sequence_parser(sequence, keys)
+                raise ValueError("The custom pKa-values must be provided in a dictionary")
 
-        print(clean_sequence)
-        exit()
+        # Create an object residue per each residue in sequence
 
-        for residue in clean_sequence:
+        self.sequence=[]
 
-            monomer=residue(name=residue)
-            monomer.bondl=model_param.bondl[residue]
-            monomer.k=model_param.k[residue]
-            
-            bead_list=[]
+        for res in clean_sequence:
 
-            if residue in pKa.keys():
-
-                monomer.pKa=pKa[residue]
-            
-            # Create an alpha carbon bead
-
-
-            if beads_per_monomer == 2 and residue != "c" and residue != "n":
-
-                alpha_carbon=particle()
-                alpha_carbon.name="C_alpha"
-                alpha_carbon.q={"neutral": 0}
-                alpha_carbon.type={"neutral": 20}
-                bead_list.append(alpha_carbon)
-
-            # Create the lateral chain bead
-
-            lateral_chain=particle()
-            lateral_chain.name=residue
-            lateral_chain.q=model_param.q[residue]
-            lateral_chain.type=model_param.type[residue]
-            lateral_chain.radi=model_param.radi[residue]
-          
-            bead_list.append(lateral_chain)
-            monomer.part=bead_list
-
+            monomer=residue(name=res)
             self.sequence.append(monomer)
+
+        if model is None:
+            
+            # If no model is given, create one bead particle per residue
+
+            for res in self.sequence:
+
+                bead=particle()
+                bead.name=res.name
+                bead_list=[]
+                # If the residue has a pKa value list in the pKa_set put in the bead
+
+                if res.name in pKa_set.keys():
+
+                    bead.pKa=pKa_set[res.name]
+
+                bead_list.append(bead)
+                res.part=bead_list
+
+        else:
+
+            for res in self.sequence:
+
+                bead_list=[]
+            
+            # Create the number of bead particles given by the model
+
+                for part in range(model_param.beads_per_residue):
+
+                    bead=particle()
+                    bead_list.append(bead)
+
+                monomer.part=bead_list
 
 def sequence_parser(sequence, keys=param.general.aminoacid.values()):
     '''
