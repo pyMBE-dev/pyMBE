@@ -22,10 +22,13 @@ from protein_library import molecule
 # Practically, to create a peptide object one only needs to provide the aminoacid sequence to the library
 # The prefered format is a single string using the one-letter aminoacid code of the peptide. The amino and carboxyl ends are denoted as 'c' and 'n' respectively and must be provided in lower case. 
 
-pep_sequence="cGHACCFVnO"
+pep_sequence="A"*10
 custom={"c": 4.25, "O": 3}
 
 peptide1 = molecule(sequence=pep_sequence, pKa_set="crc", pKa_custom=custom)
+
+model_names=pl.get_modelnames()
+print(model_names)
 
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
@@ -34,12 +37,13 @@ peptide1 = molecule(sequence=pep_sequence, pKa_set="crc", pKa_custom=custom)
 def write_protein_parameters(protein):
 
     for aminoacid in protein.sequence:
-
-        print("Aminoacid ", aminoacid.name)
-        print("\t \t Beads name \t pKa")
+        
+        print("residue", aminoacid.name)
+        print("Beads")
         for bead in aminoacid.part:
             
-            print("\t\t\t", bead.name, "\t",  bead.pKa)
+            print(pl.get_attributes(bead))
+            
 
 print("First example:")
 write_protein_parameters(peptide1)

@@ -1,15 +1,31 @@
 import pint
 ureg = pint.UnitRegistry()
 
-class parameter_set:
-    name=None
-    type=None
-    bondl=None
+
+class particle:
+
     radius=None
-    k=None
-    eps=None
+    type=None
+    q=None
+    ids=[]
+    name=None
+    N=None
+    acidity=None
+    state=None
     pKa=None
+
+
+
+class custom_parameters:
+    name="custom"
     beads_per_residue=None
+    principal_chain=None
+    side_chain=None
+
+    def newAttr(self, attr):
+
+        setattr(self, attr.name, attr)
+
 
 class general:
     name=None
@@ -42,18 +58,21 @@ class general:
 class small_ions:
     name='small_ions'
     beads_per_residue=1
+    principal_chain='sequence'
+    side_chain=None
+    
 
-    class cation:
-        name="cation"
-        type=18
-        radius=0.15 * ureg.nm
-        q=1
+    cation=particle()
+    cation.name="cation"
+    cation.type=18
+    cation.radius=0.15 * ureg.nm
+    cation.q=1
 
-    class anion:
-        name="anion"
-        type=19
-        radius=0.15 * ureg.nm
-        q=-1
+    anion=particle()
+    anion.name="anion"
+    anion.type=19
+    anion.radius=0.15 * ureg.nm
+    anion.q=-1
 
 
 class pKa_set:
@@ -133,334 +152,371 @@ class pKa_set:
 
 class one_bead_peptide:
 
-    name='1beadprotein'
+    name='1beadpeptide'
     beads_per_residue=1
-    
-    class Alanine:
-        name="A"
-        radius=0.18*ureg.nm,
-        type=21
-        q=0
+    principal_chain='sequence'
+    side_chain=None
 
-    class Aspargine:
-        name="N"
-        radius=0.18*ureg.nm,
-        type=22
-        q=0
-    
-    class Glutamine:
-        name="Q"
-        radius=0.18*ureg.nm,
-        type=23
-        q=0
-    
-    class Glycine:
-        name="G"
-        radius=0.18*ureg.nm,
-        type=24
-        q=0
-    
-    class Isoleucine:
-        name="I"
-        radius=0.18*ureg.nm,
-        type=25
-        q=0
-    
-    class Leucine:
-        name="L"
-        radius=0.18*ureg.nm,
-        type=26
-        q=0
-    
-    class Methionine:
-        name="M"
-        radius=0.18*ureg.nm,
-        type=27
-        q=0
-    
-    class Phenylalanine:
-        name="F"
-        radius=0.18*ureg.nm,
-        type=28
-        q=0
-    
-    class Proline:
-        name="P"
-        radius=0.18*ureg.nm,
-        type=29
-        q=0
-    
-    class Serine:
-        name="S"
-        radius=0.18*ureg.nm,
-        type=30
-        q=0
-    
-    class Threonine:
-        name="T"
-        radius=0.18*ureg.nm,
-        type=31
-        q=0
-    
-    class Tryptophan:
-        name="W"
-        radius=0.18*ureg.nm,
-        type=32
-        q=0
-    
-    class Tyrosine:
-        name="Y"
-        radius=0.18*ureg.nm,
-        type=33
-        q=0
-    
-    class Valine:
-        name="V"
-        radius=0.18*ureg.nm,
-        type=34
-        q=0
-    
-    class Lysine:
-        name="K"
-        radius=0.18*ureg.nm,
-        type={"neutral": 35, "charged": 36}
-        q={"neutral": 0, "charged": 1}
-    
-    class Histidine:
-        name="H"
-        radius=0.18*ureg.nm,
-        type={"neutral": 37, "charged": 38}
-        q={"neutral": 0, "charged": 1}
-    
-    class Cysteine:
-        name="C"
-        radius=0.18*ureg.nm,
-        type={"neutral": 39, "charged": 40}
-        q={"neutral": 0, "charged": 1}
-    
-    class Arginine:
-        name="R"
-        radius=0.18*ureg.nm,
-        type={"neutral": 41, "charged": 42}
-        q={"neutral": 0, "charged": 1}
-    
-    class Amino_end:
-        name="n"
-        radius=0.18*ureg.nm,
-        type={"neutral": 43, "charged": 44}
-        q={"neutral": 0, "charged": 1}
+    Alanine=particle()
+    Alanine.name="A"
+    Alanine.acidity="inert"
+    Alanine.radius=0.18*ureg.nm,
+    Alanine.type=21
+    Alanine.q=0
 
-    class Carboxyl_end:
-        name="c"
-        radius=0.18*ureg.nm,
-        type={"neutral": 45, "charged": 46}
-        q={"neutral": 0, "charged": -1}
+    Aspargine=particle()
+    Aspargine.name="N"
+    Aspargine.radius=0.18*ureg.nm,
+    Aspargine.type=22
+    Aspargine.q=0
+    Aspargine.acidity="inert"
+    
+    Glutamine=particle()
+    Glutamine.name="Q"
+    Glutamine.radius=0.18*ureg.nm,
+    Glutamine.type=23
+    Glutamine.q=0
+    Glutamine.acidity="inert"
+    
+    Glycine=particle()
+    Glycine.name="G"
+    Glycine.radius=0.18*ureg.nm,
+    Glycine.type=24
+    Glycine.q=0
+    Glycine.acidity="inert"
+    
+    Isoleucine=particle()
+    Isoleucine.name="I"
+    Isoleucine.radius=0.18*ureg.nm,
+    Isoleucine.type=25
+    Isoleucine.q=0
+    Isoleucine.acidity="inert"
+    
+    Leucine=particle()
+    Leucine.name="L"
+    Leucine.radius=0.18*ureg.nm,
+    Leucine.type=26
+    Leucine.q=0
+    Leucine.acidity="inert"
+    
+    Methionine=particle()
+    Methionine.name="M"
+    Methionine.radius=0.18*ureg.nm,
+    Methionine.type=27
+    Methionine.q=0
+    Methionine.acidity="inert"
+    
+    Phenylalanine=particle()
+    Phenylalanine.name="F"
+    Phenylalanine.radius=0.18*ureg.nm,
+    Phenylalanine.type=28
+    Phenylalanine.q=0
+    Phenylalanine.acidity="inert"
+    
+    Proline=particle()
+    Proline.name="P"
+    Proline.radius=0.18*ureg.nm,
+    Proline.type=29
+    Proline.q=0
+    Proline.acidity="inert"
+    
+    Serine=particle()
+    Serine.name="S"
+    Serine.radius=0.18*ureg.nm,
+    Serine.type=30
+    Serine.q=0
+    Serine.acidity="inert"
+    
+    Threonine=particle()
+    Threonine.name="T"
+    Threonine.radius=0.18*ureg.nm,
+    Threonine.type=31
+    Threonine.q=0
+    Threonine.acidity="inert"
+    
+    Tryptophan=particle()
+    Tryptophan.name="W"
+    Tryptophan.radius=0.18*ureg.nm,
+    Tryptophan.type=32
+    Tryptophan.q=0
+    Tryptophan.acidity="inert"
+    
+    Tyrosine=particle()
+    Tyrosine.name="Y"
+    Tyrosine.radius=0.18*ureg.nm,
+    Tyrosine.type=33
+    Tyrosine.q=0
+    Tyrosine.acidity="inert"
+    
+    Valine=particle()
+    Valine.name="V"
+    Valine.radius=0.18*ureg.nm,
+    Valine.type=34
+    Valine.q=0
+    Valine.acidity="inert"
+    
+    Lysine=particle()
+    Lysine.name="K"
+    Lysine.radius=0.18*ureg.nm,
+    Lysine.type={"unprotonated": 35, "protonated": 36}
+    Lysine.q={"unprotonated": 0, "protonated": 1}
+    Lysine.acidity="basic"
+    
+    Histidine=particle()
+    Histidine.name="H"
+    Histidine.radius=0.18*ureg.nm,
+    Histidine.type={"unprotonated": 37, "protonated": 38}
+    Histidine.q={"unprotonated": 0, "protonated": 1}
+    Histidine.acidity="basic"
+    
+    Cysteine=particle()
+    Cysteine.name="C"
+    Cysteine.radius=0.18*ureg.nm,
+    Cysteine.type={"unprotonated": 39, "protonated": 40}
+    Cysteine.q={"unprotonated": 0, "protonated": 1}
+    Cysteine.acidity="basic"
+    
+    Arginine=particle()
+    Arginine.name="R"
+    Arginine.radius=0.18*ureg.nm,
+    Arginine.type={"unprotonated": 41, "protonated": 42}
+    Arginine.q={"unprotonated": 0, "protonated": 1}
+    Arginine.acidity="basic"
+    
+    Amino_end=particle()
+    Amino_end.name="n"
+    Amino_end.radius=0.18*ureg.nm,
+    Amino_end.type={"unprotonated": 43, "protonated": 44}
+    Amino_end.q={"unprotonated": 0, "protonated": 1}
+    Amino_end.acidity="basic"
 
-    class Aspartic:
-        name="D"
-        radius=0.18*ureg.nm,
-        type={"neutral": 47, "charged": 48}
-        q={"neutral": 0, "charged": -1}
+    Carboxyl_end=particle()
+    Carboxyl_end.name="c"
+    Carboxyl_end.radius=0.18*ureg.nm,
+    Carboxyl_end.type={"unprotonated": 45, "protonated": 46}
+    Carboxyl_end.q={"protonated": 0, "unprotonated": -1}
+    Carboxyl_end.acidity="acid"
 
-    class Glutamic:
-        name="E"
-        radius=0.18*ureg.nm,
-        type={"neutral": 49, "charged": 50}
-        q={"neutral": 0, "charged": -1}
+    Aspartic=particle()
+    Aspartic.name="D"
+    Aspartic.radius=0.18*ureg.nm,
+    Aspartic.type={"unprotonated": 47, "protonated": 48}
+    Aspartic.q={"protonated": 0, "unprotonated": -1}
+    Aspartic.acidity="acid"
+
+    Glutamic=particle()
+    Glutamic.name="E"
+    Glutamic.radius=0.18*ureg.nm,
+    Glutamic.type={"unprotonated": 49, "protonated": 50}
+    Glutamic.q={"protonated": 0, "unprotonated": -1}
+    Glutamic.acidity="acid"
     
-    class Phosphorilated_Serine:
-        name="J"
-        radius=0.18*ureg.nm,
-        type={"neutral": 51, "charged": 52}
-        q={"neutral": 0, "charged": -1}
+    Phosphorilated_Serine=particle()
+    Phosphorilated_Serine.name="J"
+    Phosphorilated_Serine.radius=0.18*ureg.nm,
+    Phosphorilated_Serine.type={"unprotonated": 51, "protonated": 52}
+    Phosphorilated_Serine.q={"protonated": -1, "unprotonated": -2}
+    Phosphorilated_Serine.acidity="acid"
     
-    class Phosphorilated_Threonine:
-        name="U"
-        radius=0.18*ureg.nm,
-        type={"neutral": 53, "charged": 54}
-        q={"neutral": 0, "charged": -1}
+    Phosphorilated_Threonine=particle()
+    Phosphorilated_Threonine.name="U"
+    Phosphorilated_Threonine.radius=0.18*ureg.nm,
+    Phosphorilated_Threonine.type={"unprotonated": 53, "protonated": 54}
+    Phosphorilated_Threonine.q={"protonated": -1, "unprotonated": -2}
+    Phosphorilated_Threonine.acidity="acid"
     
-    class Phosphorilated_Tryptophan:
-        name="Z"
-        radius=0.18*ureg.nm,
-        type={"neutral": 55, "charged": 56}
-        q={"neutral": 0, "charged": -1}
+    Phosphorilated_Tryptophan=particle()
+    Phosphorilated_Tryptophan.name="Z"
+    Phosphorilated_Tryptophan.radius=0.18*ureg.nm,
+    Phosphorilated_Tryptophan.type={"unprotonated": 55, "protonated": 56}
+    Phosphorilated_Tryptophan.q={"protonated": -1, "unprotonated": -2}
+    Phosphorilated_Tryptophan.acidity="acid"
 
 class two_bead_peptide:
 
     name='2beadpeptide'
     beads_per_residue=2
+    principal_chain='C_alpha'
+    side_chain=['sequence']
     
-    class Alpha_Carbon:
-        name="C_alpha"
-        radius=0.18*ureg.nm,
-        type=20
-        q=0
+    Alpha_Carbon=particle()
+    Alpha_Carbon.name="C_alpha"
+    Alpha_Carbon.radius=0.18*ureg.nm,
+    Alpha_Carbon.type=20
+    Alpha_Carbon.q=0
     
-    class Alanine:
-        name="A"
-        radius=0.18*ureg.nm,
-        type=21
-        q=0
+    Alanine=particle()
+    Alanine.name="A"
+    Alanine.acidity="inert"
+    Alanine.radius=0.18*ureg.nm,
+    Alanine.type=21
+    Alanine.q=0
 
-    class Aspargine:
-        name="N"
-        radius=0.18*ureg.nm,
-        type=22
-        q=0
+    Aspargine=particle()
+    Aspargine.name="N"
+    Aspargine.radius=0.18*ureg.nm,
+    Aspargine.type=22
+    Aspargine.q=0
+    Aspargine.acidity="inert"
     
-    class Glutamine:
-        name="Q"
-        radius=0.18*ureg.nm,
-        type=23
-        q=0
+    Glutamine=particle()
+    Glutamine.name="Q"
+    Glutamine.radius=0.18*ureg.nm,
+    Glutamine.type=23
+    Glutamine.q=0
+    Glutamine.acidity="inert"
     
-    class Glycine:
-        name="G"
-        radius=0.18*ureg.nm,
-        type=24
-        q=0
+    Glycine=particle()
+    Glycine.name="G"
+    Glycine.radius=0.18*ureg.nm,
+    Glycine.type=24
+    Glycine.q=0
+    Glycine.acidity="inert"
     
-    class Isoleucine:
-        name="I"
-        radius=0.18*ureg.nm,
-        type=25
-        q=0
+    Isoleucine=particle()
+    Isoleucine.name="I"
+    Isoleucine.radius=0.18*ureg.nm,
+    Isoleucine.type=25
+    Isoleucine.q=0
+    Isoleucine.acidity="inert"
     
-    class Leucine:
-        name="L"
-        radius=0.18*ureg.nm,
-        type=26
-        q=0
+    Leucine=particle()
+    Leucine.name="L"
+    Leucine.radius=0.18*ureg.nm,
+    Leucine.type=26
+    Leucine.q=0
+    Leucine.acidity="inert"
     
-    class Methionine:
-        name="M"
-        radius=0.18*ureg.nm,
-        type=27
-        q=0
+    Methionine=particle()
+    Methionine.name="M"
+    Methionine.radius=0.18*ureg.nm,
+    Methionine.type=27
+    Methionine.q=0
+    Methionine.acidity="inert"
     
-    class Phenylalanine:
-        name="F"
-        radius=0.18*ureg.nm,
-        type=28
-        q=0
+    Phenylalanine=particle()
+    Phenylalanine.name="F"
+    Phenylalanine.radius=0.18*ureg.nm,
+    Phenylalanine.type=28
+    Phenylalanine.q=0
+    Phenylalanine.acidity="inert"
     
-    class Proline:
-        name="P"
-        radius=0.18*ureg.nm,
-        type=29
-        q=0
+    Proline=particle()
+    Proline.name="P"
+    Proline.radius=0.18*ureg.nm,
+    Proline.type=29
+    Proline.q=0
+    Proline.acidity="inert"
     
-    class Serine:
-        name="S"
-        radius=0.18*ureg.nm,
-        type=30
-        q=0
+    Serine=particle()
+    Serine.name="S"
+    Serine.radius=0.18*ureg.nm,
+    Serine.type=30
+    Serine.q=0
+    Serine.acidity="inert"
     
-    class Threonine:
-        name="T"
-        radius=0.18*ureg.nm,
-        type=31
-        q=0
+    Threonine=particle()
+    Threonine.name="T"
+    Threonine.radius=0.18*ureg.nm,
+    Threonine.type=31
+    Threonine.q=0
+    Threonine.acidity="inert"
     
-    class Tryptophan:
-        name="W"
-        radius=0.18*ureg.nm,
-        type=32
-        q=0
+    Tryptophan=particle()
+    Tryptophan.name="W"
+    Tryptophan.radius=0.18*ureg.nm,
+    Tryptophan.type=32
+    Tryptophan.q=0
+    Tryptophan.acidity="inert"
     
-    class Tyrosine:
-        name="Y"
-        radius=0.18*ureg.nm,
-        type=33
-        q=0
+    Tyrosine=particle()
+    Tyrosine.name="Y"
+    Tyrosine.radius=0.18*ureg.nm,
+    Tyrosine.type=33
+    Tyrosine.q=0
+    Tyrosine.acidity="inert"
     
-    class Valine:
-        name="V"
-        radius=0.18*ureg.nm,
-        type=34
-        q=0
+    Valine=particle()
+    Valine.name="V"
+    Valine.radius=0.18*ureg.nm,
+    Valine.type=34
+    Valine.q=0
+    Valine.acidity="inert"
     
-    class Lysine:
-        name="K"
-        radius=0.18*ureg.nm,
-        type={"neutral": 35, "charged": 36}
-        q={"neutral": 0, "charged": 1}
+    Lysine=particle()
+    Lysine.name="K"
+    Lysine.radius=0.18*ureg.nm,
+    Lysine.type={"unprotonated": 35, "protonated": 36}
+    Lysine.q={"unprotonated": 0, "protonated": 1}
+    Lysine.acidity="basic"
     
-    class Histidine:
-        name="H"
-        radius=0.18*ureg.nm,
-        type={"neutral": 37, "charged": 38}
-        q={"neutral": 0, "charged": 1}
+    Histidine=particle()
+    Histidine.name="H"
+    Histidine.radius=0.18*ureg.nm,
+    Histidine.type={"unprotonated": 37, "protonated": 38}
+    Histidine.q={"unprotonated": 0, "protonated": 1}
+    Histidine.acidity="basic"
     
-    class Cysteine:
-        name="C"
-        radius=0.18*ureg.nm,
-        type={"neutral": 39, "charged": 40}
-        q={"neutral": 0, "charged": 1}
+    Cysteine=particle()
+    Cysteine.name="C"
+    Cysteine.radius=0.18*ureg.nm,
+    Cysteine.type={"unprotonated": 39, "protonated": 40}
+    Cysteine.q={"unprotonated": 0, "protonated": 1}
+    Cysteine.acidity="basic"
     
-    class Arginine:
-        name="R"
-        radius=0.18*ureg.nm,
-        type={"neutral": 41, "charged": 42}
-        q={"neutral": 0, "charged": 1}
+    Arginine=particle()
+    Arginine.name="R"
+    Arginine.radius=0.18*ureg.nm,
+    Arginine.type={"unprotonated": 41, "protonated": 42}
+    Arginine.q={"unprotonated": 0, "protonated": 1}
+    Arginine.acidity="basic"
     
-    class Amino_end:
-        name="n"
-        radius=0.18*ureg.nm,
-        type={"neutral": 43, "charged": 44}
-        q={"neutral": 0, "charged": 1}
+    Amino_end=particle()
+    Amino_end.name="n"
+    Amino_end.radius=0.18*ureg.nm,
+    Amino_end.type={"unprotonated": 43, "protonated": 44}
+    Amino_end.q={"unprotonated": 0, "protonated": 1}
+    Amino_end.acidity="basic"
 
-    class Carboxyl_end:
-        name="c"
-        radius=0.18*ureg.nm,
-        type={"neutral": 45, "charged": 46}
-        q={"neutral": 0, "charged": -1}
+    Carboxyl_end=particle()
+    Carboxyl_end.name="c"
+    Carboxyl_end.radius=0.18*ureg.nm,
+    Carboxyl_end.type={"unprotonated": 45, "protonated": 46}
+    Carboxyl_end.q={"protonated": 0, "unprotonated": -1}
+    Carboxyl_end.acidity="acid"
 
-    class Aspartic:
-        name="D"
-        radius=0.18*ureg.nm,
-        type={"neutral": 47, "charged": 48}
-        q={"neutral": 0, "charged": -1}
+    Aspartic=particle()
+    Aspartic.name="D"
+    Aspartic.radius=0.18*ureg.nm,
+    Aspartic.type={"unprotonated": 47, "protonated": 48}
+    Aspartic.q={"protonated": 0, "unprotonated": -1}
+    Aspartic.acidity="acid"
 
-    class Glutamic:
-        name="E"
-        radius=0.18*ureg.nm,
-        type={"neutral": 49, "charged": 50}
-        q={"neutral": 0, "charged": -1}
+    Glutamic=particle()
+    Glutamic.name="E"
+    Glutamic.radius=0.18*ureg.nm,
+    Glutamic.type={"unprotonated": 49, "protonated": 50}
+    Glutamic.q={"protonated": 0, "unprotonated": -1}
+    Glutamic.acidity="acid"
     
-    class Phosphorilated_Serine:
-        name="J"
-        radius=0.18*ureg.nm,
-        type={"neutral": 51, "charged": 52}
-        q={"neutral": 0, "charged": -1}
+    Phosphorilated_Serine=particle()
+    Phosphorilated_Serine.name="J"
+    Phosphorilated_Serine.radius=0.18*ureg.nm,
+    Phosphorilated_Serine.type={"unprotonated": 51, "protonated": 52}
+    Phosphorilated_Serine.q={"protonated": -1, "unprotonated": -2}
+    Phosphorilated_Serine.acidity="acid"
     
-    class Phosphorilated_Threonine:
-        name="U"
-        radius=0.18*ureg.nm,
-        type={"neutral": 53, "charged": 54}
-        q={"neutral": 0, "charged": -1}
+    Phosphorilated_Threonine=particle()
+    Phosphorilated_Threonine.name="U"
+    Phosphorilated_Threonine.radius=0.18*ureg.nm,
+    Phosphorilated_Threonine.type={"unprotonated": 53, "protonated": 54}
+    Phosphorilated_Threonine.q={"protonated": -1, "unprotonated": -2}
+    Phosphorilated_Threonine.acidity="acid"
     
-    class Phosphorilated_Tryptophan:
-        name="Z"
-        radius=0.18*ureg.nm,
-        type={"neutral": 55, "charged": 56}
-        q={"neutral": 0, "charged": -1}
-
-
-
-def get_subclasses(cls):
-    
-    import inspect    
-    model_list=[]
-
-    for attribute in cls.__dict__.items():
-       
-        name_attribute=attribute[0]
-
-        if name_attribute[0:2] != "__" and inspect.isclass(attribute[1]):
-            
-            model_list.append(attribute[1])
-
-    return model_list
+    Phosphorilated_Tryptophan=particle()
+    Phosphorilated_Tryptophan.name="Z"
+    Phosphorilated_Tryptophan.radius=0.18*ureg.nm,
+    Phosphorilated_Tryptophan.type={"unprotonated": 55, "protonated": 56}
+    Phosphorilated_Tryptophan.q={"protonated": -1, "unprotonated": -2}
+    Phosphorilated_Tryptophan.acidity="acid"
 

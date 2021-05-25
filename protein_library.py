@@ -1,18 +1,7 @@
 import numpy as np
 import math as mt
 import parameters as param
-
-class particle:
-    
-    radius=None
-    type=None
-    q=None
-    ids=[]
-    name=None
-    N=None
-    acidity=None
-    state=None
-    pKa=None
+from parameters import particle
     
 class residue:
 
@@ -33,63 +22,120 @@ class molecule:
     ids = []
     bondl = None
     k = None
+    model = None
+     
 
     def __init__(self, sequence, model=None, param_custom=None, pKa_set=None, pKa_custom=None):
 
 
         model_param=None
-
+        model_dict={}
     
         if model is not None:
 
-            model_names=[]
- 
-            model_list=param.get_subclasses(param)
+            model_list=get_subclasses(param)
 
             # Get the model parameters
 
             for param_set in model_list:
 
                 if param_set.name is not None:
-
+                    
                     if model.lower() == param_set.name.lower():
 
                         model_param=param_set
 
             if model_param is None:
 
+                model_names=get_modelnames()
                 raise ValueError("Unknown model chosen: ", model, ". Valid options are ", model_names)
+            # Get a list of model parameters
+            
+            list_model=get_attributes(model_param)
+
+            for par in list_model:
+
+                model_dict[par[0]]=par[1]
+
             # Get valid keys for the model
 
-            model_actors=param.get_subclasses(model_param)
+            model_actors=get_particles(model_param)
             keys=[]
 
             for actor in model_actors:
-                
+       
                 keys.append(actor.name)
-
-           
+                
         else:
             
             keys=list(param.general.aminoacid.values())
-                
-        if param_custom is not None:
+               
+        # Load Custom parameters if any
 
-            for key in param_custom.keys():
+        # Check that the custom parameters are in the proper format:
 
-                keys.append(key)
+        names_custom=[]
+        
+        if  param_custom is not None:
+
+            if isinstance(param_custom, param.custom_parameters()):
+
+                if model_param is not None:
+                    
+                # Overwrite model parameters by custom ones
+
+                    list_custom=get_attributes(param_custom)
+                    custom_dict={}
             
+                    for par in list_custom:
+
+                        custom_dict[par[0]]=par[1]
+
+                    for atr in custom_dict.keys():
+
+                        if custom_dict[atr] is not None:
+
+                            if isinstance(custom_dict[atr], param.particle):
+                                    
+                                if atr in model_dict.keys():
+
+                                    part_custom=get_attributes(custom_dict[atr])
+
+                                    for par in part_custom:
+
+                                        if par[1] is not None:
+
+                                            setattr(model_dict[atr],par[0],par[1])
+
+                                else:
+
+                                    setattr(model_param,atr,custom_dict[atr])
+
+                            else:
+                                
+                                setattr(model_param,atr,custom_dict[atr])
+                                
+
+                else:
+
+                    model_param=param_custom
+
+            else:
+
+                raise ValueError("Unrecognized format for the custom parameters. Please, use the library function 'setup_custom_parameters' to define your custom parameters")
+        
+
         if pKa_custom is not None:
 
             for key in pKa_custom.keys():
 
                 keys.append(key)
-
+        
         clean_sequence=sequence_parser(sequence, keys)
         
         # Import the pKa values
 
-        param_pKa_set=param.get_subclasses(param.pKa_set)
+        param_pKa_set=get_subclasses(param.pKa_set)
         names_pKa_set=[]
 
         for sets in param_pKa_set:
@@ -139,15 +185,18 @@ class molecule:
             monomer=residue(name=res)
             self.sequence.append(monomer)
 
-        if model is None:
-            
-            # If no model is given, create one bead particle per residue
+        # Set-up the model
+
+        if model_param is None:
+
+            # If no model nor custom parameters are given, create one bead particle per residue
 
             for res in self.sequence:
 
                 bead=particle()
                 bead.name=res.name
                 bead_list=[]
+                
                 # If the residue has a pKa value list in the pKa_set put in the bead
 
                 if res.name in pKa_set.keys():
@@ -156,21 +205,134 @@ class molecule:
 
                 bead_list.append(bead)
                 res.part=bead_list
-
+        
         else:
+
+            self.model=model_param
+            
+            if model_param.beads_per_residue is None:
+
+                Tbead = 1
+
+            else:
+
+                Tbead = model_param.beads_per_residue
+
+            param_part=get_particles(model_param)
+            model_keys=[]
+
+            for p_set in param_part:
+
+                model_keys.append(p_set.name)
 
             for res in self.sequence:
 
                 bead_list=[]
-            
-            # Create the number of bead particles given by the model
 
-                for part in range(model_param.beads_per_residue):
+                if model_param.side_chain is None:
 
-                    bead=particle()
-                    bead_list.append(bead)
+                    side_list=[]
 
-                monomer.part=bead_list
+                else:
+
+                    side_list=model_param.side_chain.copy()
+
+
+                for nbead in range(Tbead):
+
+                    if (nbead == 0):
+
+                        if model_param.principal_chain is None or model_param.principal_chain ==  'sequence':
+                            bead_unparameterized=True
+
+                            for p_set in param_part:
+
+                                if (p_set.name == res.name):
+
+                                    bead=p_set
+                                    bead_unparameterized=False
+                                    
+                            if bead_unparameterized:
+
+                                bead=particle()
+                                bead.name=res.name
+
+                            if res.name in pKa_set.keys():
+
+                                bead.pKa=pKa_set[res.name]
+
+                                    
+                        elif model_param.principal_chain in model_keys:
+
+                            for p_set in param_part:
+
+                                if (p_set.name == model_param.principal_chain):
+
+                                    bead=p_set
+
+                                    if model_param.principal_chain in pKa_set.keys():
+
+                                        bead.pKa=pKa_set[res.name]
+
+                        
+                        else:
+
+                            raise ValueError("Unknown key for the principal chain: ", model_param.principal_chain)
+                        
+                        bead_list.append(bead)
+
+                    else:
+
+
+                        if len(side_list) == 0:
+
+                            bead=particle()
+                            bead_list.append(bead)
+
+                        else:
+
+                            bead_name=side_list[0]
+                            bead_unparameterized=True
+
+                            if bead_name == "sequence":
+                                name= res.name
+                                for p_set in param_part:
+
+                                    if (p_set.name == name):
+
+                                        bead=p_set
+                                        bead_unparameterized=False
+                                
+
+                            elif bead_name in model_keys:
+                                name=bead_name
+
+                                for p_set in param_part:
+
+                                    if (p_set.name == name):
+
+                                        bead=p_set
+                                        bead_unparameterized=False
+                        
+                            else:
+
+                                raise ValueError("Unknown key for the side chain: ", bead_name)
+
+                            if bead_unparameterized:
+
+                                bead=particle()
+                                bead.name=name
+
+                            if bead_name in pKa_set.keys():
+
+                                bead.pKa=pKa_set[bead_name]
+
+                            bead_list.append(bead)
+                            side_list.remove(bead_name)
+                                
+                    
+                res.part=bead_list
+
 
 def sequence_parser(sequence, keys=param.general.aminoacid.values()):
     '''
@@ -252,7 +414,7 @@ def sequence_parser(sequence, keys=param.general.aminoacid.values()):
 
     if isinstance(sequence, list):
 
-        for item in sequence:
+        for residue in sequence:
                
                 if residue in keys:
 
@@ -719,3 +881,65 @@ def generate_trialvectors(mag):
 
     return vec
 
+def get_subclasses(cls):
+
+    import inspect
+    model_list=[]
+
+    for attribute in cls.__dict__.items():
+
+        name_attribute=attribute[0]
+
+        if name_attribute[0:2] != "__" and inspect.isclass(attribute[1]):
+
+            model_list.append(attribute[1])
+
+    return model_list
+
+def get_particles(cls):
+
+    particle_list=[]
+
+    for attribute in cls.__dict__.items():
+
+        if isinstance(attribute[1], param.particle):
+
+            particle_list.append(attribute[1])
+
+    return particle_list
+
+            
+
+def get_attributes(cls):
+    import inspect
+
+    attribute_list=[]
+
+    for attribute in  inspect.getmembers(cls, lambda a:not(inspect.isroutine(a))):
+
+        name_attribute=attribute[0]
+
+        if name_attribute[0:2] != "__":
+
+            attribute_list.append(attribute)
+
+    return attribute_list
+
+
+def newAttr(self, attr):
+
+    setattr(self, attr.name, attr)
+
+
+def get_modelnames():
+
+    model_names=[]
+    model_list=get_subclasses(param)
+
+    for param_set in model_list:
+
+        if param_set.name is not None:
+                    
+            model_names.append(param_set.name)
+
+    return model_names
