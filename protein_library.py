@@ -9,9 +9,7 @@ class residue:
 
         self.name=name
 
-    bondl=None
-    k=None
-    part=[]
+    beads=[]
     ids=[]
 
 
@@ -20,8 +18,6 @@ class molecule:
     N = None
     Nm = None
     ids = []
-    bondl = None
-    k = None
     model = None
      
 
@@ -49,6 +45,7 @@ class molecule:
 
                 model_names=get_modelnames()
                 raise ValueError("Unknown model chosen: ", model, ". Valid options are ", model_names)
+            
             # Get a list of model parameters
             
             list_model=get_attributes(model_param)
@@ -78,7 +75,7 @@ class molecule:
         
         if  param_custom is not None:
 
-            if isinstance(param_custom, param.custom_parameters()):
+            if isinstance(param_custom, param.custom_parameters):
 
                 if model_param is not None:
                     
@@ -108,7 +105,7 @@ class molecule:
                                             setattr(model_dict[atr],par[0],par[1])
 
                                 else:
-
+                                    
                                     setattr(model_param,atr,custom_dict[atr])
 
                             else:
@@ -124,6 +121,9 @@ class molecule:
 
                 raise ValueError("Unrecognized format for the custom parameters. Please, use the library function 'setup_custom_parameters' to define your custom parameters")
         
+        # Store the model in the molecule object
+
+        self.model=model_param
 
         if pKa_custom is not None:
 
@@ -178,12 +178,14 @@ class molecule:
 
         # Create an object residue per each residue in sequence
 
-        self.sequence=[]
+        self.sequence=clean_sequence
+        self.residues=[]
+        self.Nm=len(clean_sequence)
 
         for res in clean_sequence:
 
             monomer=residue(name=res)
-            self.sequence.append(monomer)
+            self.residues.append(monomer)
 
         # Set-up the model
 
@@ -191,7 +193,7 @@ class molecule:
 
             # If no model nor custom parameters are given, create one bead particle per residue
 
-            for res in self.sequence:
+            for res in self.residues:
 
                 bead=particle()
                 bead.name=res.name
@@ -204,11 +206,10 @@ class molecule:
                     bead.pKa=pKa_set[res.name]
 
                 bead_list.append(bead)
-                res.part=bead_list
+                res.beads=bead_list
         
         else:
 
-            self.model=model_param
             
             if model_param.beads_per_residue is None:
 
@@ -225,7 +226,7 @@ class molecule:
 
                 model_keys.append(p_set.name)
 
-            for res in self.sequence:
+            for res in self.residues:
 
                 bead_list=[]
 
@@ -283,7 +284,6 @@ class molecule:
 
                     else:
 
-
                         if len(side_list) == 0:
 
                             bead=particle()
@@ -323,15 +323,133 @@ class molecule:
                                 bead=particle()
                                 bead.name=name
 
-                            if bead_name in pKa_set.keys():
+                            if name in pKa_set.keys():
 
-                                bead.pKa=pKa_set[bead_name]
+                                bead.pKa=pKa_set[name]
 
                             bead_list.append(bead)
                             side_list.remove(bead_name)
                                 
                     
-                res.part=bead_list
+                res.beads=bead_list
+
+def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain=None, custom_particles=None):
+    '''
+    Helps the user to setup custom parameters for a model or a full custom model
+
+    Inputs:
+    beads_per_residue(int) = number of beads per residue
+    principal_chain(string) = key of the particle type in the main chain of the molecule. 
+    side_chain(list) = keys of the particles in the side chains of the molecule
+    For principal_chain and side_chain the keyword "sequence"
+    custom_particles (dict) = custom parameters for existing/new particle types. The dictionary must have the following structure:
+
+        dict = {'particle1_name': {'propertie1_name': propertie1_value,
+                                    'propertie2_name': propertie2_value
+                                    }
+                'particle2_name': {'propertie1_name': propertie1_value,
+                                    'propertie2_name': propertie2_value
+                                    }
+                                    }
+    custom_bonds (dict) = custom parameters for existing/new bond types. The dictionary must have the following structure:
+
+        dict = {'bond1_name': {'actors': [bonded_name1, bonded_name2] ,
+                               'type': bond_type,
+                               'bondl': value,
+                               'k': value
+                                    }
+                {'bond2_name': {'actors': [bonded_name1, bonded_name2] ,
+                               'type': bond_type,
+                               'bondl': value,
+                               'k': value
+                                    }
+
+    '''
+    
+    custom_param=param.custom_parameters()
+
+    if beads_per_residue is not None:
+
+        if isinstance(beads_per_residue, int):
+            
+            custom_param.beads_per_residue=beads_per_residue
+
+        else:
+
+            raise ValueError("The number of beads per residue must be an integer number, custom value given: ", beads_per_residue)
+
+    
+    if principal_chain is not None:
+
+        if isinstance(principal_chain, str):
+
+            custom_param.principal_chain=principal_chain
+
+        else:
+
+            raise ValueError("principal_chain must contain a string with the key of the beads desired in the principal chain of the molecule. Provided:", principal_chain)
+
+
+    if side_chain is not None:
+
+        if isinstance(side_chain, list):
+
+            for bead in side_chain:
+
+                if not isinstance(bead, str):
+                    
+                    raise ValueError("The keys of the beads for the side chains must be provided as strings. Key provided:", bead)
+
+            custom_param.side_chain=side_chain
+
+        else:
+
+            raise ValueError("side_chain must contain a list with the keys of the beads desired in the side_chain of the molecule. Provided:", side_chain)
+
+    if custom_particles is not None:
+
+        if isinstance(custom_particles, dict):
+
+            for key in custom_particles.keys():
+
+                if not isinstance(key,str):
+
+                    raise ValueError("Particle keys must be given as strings. Key given: ", key)
+                
+                elif not isinstance(custom_particles[key], dict):
+
+                    raise ValueError("Particle properties must be given as a dictionary. Properties given: ", custom_particles[key])
+
+                particle_dict=custom_particles[key]
+                custom_part=param.particle()
+                properties=get_attributes(custom_part)
+                properties_names=[]
+
+                for propertie in properties:
+
+                    properties_names.append(propertie[0])
+
+                custom_part.name=key
+                
+                for propertie in particle_dict.keys():
+
+                    if (propertie in properties_names):
+
+                        setattr(custom_part, propertie, particle_dict[propertie])
+
+                    else:
+
+                        raise ValueError("Unknown particle propertie given: ", propertie, " valid properties names are ", properties_names)
+
+                setattr(custom_param, key, custom_part)
+
+        else:
+
+            raise ValueError("Custom particle properties must be given in a dictionary. Please refer to the library documentation for more information on how to set-up custom particle properties. Input given: ", custom_particles)
+
+
+    return custom_param
+
 
 
 def sequence_parser(sequence, keys=param.general.aminoacid.values()):
@@ -437,6 +555,29 @@ def sequence_parser(sequence, keys=param.general.aminoacid.values()):
                 clean_sequence.append(residue_ok)
 
     return clean_sequence
+
+def write_parameters(mol):
+
+    print('molecule parameters')
+    for atr in get_attributes(mol):
+        print(atr)
+
+    for residue in mol.residues:
+
+        print("\t residue ", residue.name, 'parameters')
+        
+        for atr in get_attributes(residue):
+
+            print('\t' ,atr)
+
+        for bead in residue.beads:
+
+            print("\t \t Bead", bead.name)
+            
+            for atr in get_attributes(bead):
+
+                print('\t \t ', atr)
+
 
 def create_protein(system, protein, initial_state='neutral'):
     '''
@@ -854,6 +995,9 @@ def create_counterions(system,protein):
 
 
     return cation, anion
+
+
+
 
 def generate_trialvectors(mag):
     """

@@ -22,32 +22,26 @@ from protein_library import molecule
 # Practically, to create a peptide object one only needs to provide the aminoacid sequence to the library
 # The prefered format is a single string using the one-letter aminoacid code of the peptide. The amino and carboxyl ends are denoted as 'c' and 'n' respectively and must be provided in lower case. 
 
-pep_sequence="A"*10
-custom={"c": 4.25, "O": 3}
+pep_sequence="nc"
+pKa_dict={"A": 4.25}
 
-peptide1 = molecule(sequence=pep_sequence, pKa_set="crc", pKa_custom=custom)
+custom_dict = {'A': {'type': 1,
+                'q': -1,
+                'acidity': 'acid' 
+                            }
+              }
+
+customp=pl.create_custom_model(beads_per_residue=2,custom_particles=custom_dict)
+
+
+peptide1 = molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)
 
 model_names=pl.get_modelnames()
-print(model_names)
 
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
-
-def write_protein_parameters(protein):
-
-    for aminoacid in protein.sequence:
-        
-        print("residue", aminoacid.name)
-        print("Beads")
-        for bead in aminoacid.part:
-            
-            print(pl.get_attributes(bead))
-            
-
-print("First example:")
-write_protein_parameters(peptide1)
-print()
+pl.write_parameters(peptide1)
 exit()
 
 # The library internally works with the one letter aminoacid code. However, the user can also provide the sequence in the three-letter format, separated by hyphens
