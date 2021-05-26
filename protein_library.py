@@ -2,7 +2,9 @@ import numpy as np
 import math as mt
 import parameters as param
 from parameters import particle
-    
+
+
+
 class residue:
 
     def __init__(self, name):
@@ -333,7 +335,7 @@ class molecule:
                     
                 res.beads=bead_list
 
-def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain=None, custom_particles=None):
+def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain=None, custom_particles=None, units=None):
     '''
     Helps the user to setup custom parameters for a model or a full custom model
 
@@ -435,7 +437,25 @@ def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain
 
                     if (propertie in properties_names):
 
-                        setattr(custom_part, propertie, particle_dict[propertie])
+                        if propertie == 'radius':
+
+                            if hasattr(particle_dict[propertie],'check'):
+                            
+                                if particle_dict[propertie].check('[length]'):
+
+                                    setattr(custom_part, propertie, particle_dict[propertie])
+
+                                else:
+
+                                    raise ValueError("The bead radius must have units of length. Given: ", particle_dict[propertie]) 
+
+                            else:
+                                
+                                raise ValueError("Bead radius must be given as a pint quantity. Given:", particle_dict[propertie])
+                        
+                        else:    
+
+                            setattr(custom_part, propertie, particle_dict[propertie])
 
                     else:
 
