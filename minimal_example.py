@@ -1,10 +1,13 @@
 import espressomd
-import protein_library as pl
+import sugar as sg
 import numpy as np
 import matplotlib.pyplot as plt
+import pint
+
+ureg = pint.UnitRegistry()
 
 from espressomd import reaction_ensemble
-from protein_library import molecule
+from sugar import molecule,particle
 
 ###################################################################
 ###################################################################
@@ -22,26 +25,31 @@ from protein_library import molecule
 # Practically, to create a peptide object one only needs to provide the aminoacid sequence to the library
 # The prefered format is a single string using the one-letter aminoacid code of the peptide. The amino and carboxyl ends are denoted as 'c' and 'n' respectively and must be provided in lower case. 
 
+
+
 pep_sequence="nc"
 pKa_dict={"A": 4.25}
 
 custom_dict = {'A': {'type': 1,
                 'q': -1,
-                'acidity': 'acid' 
+                'acidity': 'acid',
+                'radius': 1*ureg.nm
                             }
               }
 
-customp=pl.create_custom_model(beads_per_residue=2,custom_particles=custom_dict)
+customp=sg.create_custom_model(beads_per_residue=2,custom_particles=custom_dict)
 
 
 peptide1 = molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)
 
-model_names=pl.get_modelnames()
+model_names=sg.get_modelnames()
+
+system = espressomd.System(box_l=[10] * 3)
 
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
-pl.write_parameters(peptide1)
+sg.write_parameters(peptide1)
 exit()
 
 # The library internally works with the one letter aminoacid code. However, the user can also provide the sequence in the three-letter format, separated by hyphens

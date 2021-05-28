@@ -1,9 +1,8 @@
 import numpy as np
 import math as mt
 import parameters as param
-from parameters import particle
-
-
+import random as rn
+from parameters import particle, bond
 
 class residue:
 
@@ -11,6 +10,9 @@ class residue:
 
         self.name=name
 
+    principal_bead=None
+    lateral_beads=[]
+    bonds=[]
     beads=[]
     ids=[]
 
@@ -222,6 +224,7 @@ class molecule:
                 Tbead = model_param.beads_per_residue
 
             param_part=get_particles(model_param)
+            param_bonds=get_bonds(model_param)
             model_keys=[]
 
             for p_set in param_part:
@@ -231,6 +234,7 @@ class molecule:
             for res in self.residues:
 
                 bead_list=[]
+                lateral_beads=[]
 
                 if model_param.side_chain is None:
 
@@ -282,6 +286,7 @@ class molecule:
 
                             raise ValueError("Unknown key for the principal chain: ", model_param.principal_chain)
                         
+                        res.principal_bead=bead.name
                         bead_list.append(bead)
 
                     else:
@@ -331,8 +336,30 @@ class molecule:
 
                             bead_list.append(bead)
                             side_list.remove(bead_name)
-                                
+                            lateral_beads.append(bead.name)    
+                
+                res.lateral_beads=lateral_beads
+                res_bond_list=[]
+
+                for bead_name in lateral_beads:
+
+                    actors=[res.principal_bead,bead_name]
+
+                    # Check if there is a specific parametrization in model for the bond between  res.principal_bead and bead_name
+
+                    bond_assigned=False
+
+                    for bond in param_bonds:
+
+                        if actors == bond.actors or actors[::-1] == bond.actors:
+                            
+                            bond_assigned=True
+                            res_bond_list.append(bond)
+                            break
                     
+                    # Pendent default bond
+
+                res.bonds=res_bond_list
                 res.beads=bead_list
 
 def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain=None, custom_particles=None, units=None):
@@ -578,28 +605,206 @@ def sequence_parser(sequence, keys=param.general.aminoacid.values()):
 
 def write_parameters(mol):
 
-    print('molecule parameters')
-    for atr in get_attributes(mol):
-        print(atr)
+    if isinstance(mol,molecule):
 
-    for residue in mol.residues:
+        print('molecule parameters')
+        for atr in get_attributes(mol):
+            print(atr)
 
-        print("\t residue ", residue.name, 'parameters')
+        for res in mol.residues:
+
+            print("\t residue ", res.name, 'parameters')
         
-        for atr in get_attributes(residue):
+            for atr in get_attributes(res):
 
-            print('\t' ,atr)
+                print('\t' ,atr)
 
-        for bead in residue.beads:
+            for bead in res.beads:
 
-            print("\t \t Bead", bead.name)
+                print("\t \t Particle", bead.name)
+            
+                for atr in get_attributes(bead):
+
+                    print('\t \t ', atr)
+
+    if isinstance(mol,residue):
+        
+        print("residue ", mol.name, 'parameters')
+
+        for atr in get_attributes(mol):
+            
+            print(atr)
+
+        for bead in mol.beads:
+
+            print("\t Particle", bead.name)
             
             for atr in get_attributes(bead):
 
-                print('\t \t ', atr)
+                print('\t', atr)
+
+    if isinstance(mol, particle): 
+
+        print("Particle", mol.name)
+            
+        for atr in get_attributes(mol):
+
+            print(atr)   
+
+def create_particle(part, system, position=None, state=None, id=None):
+    '''
+    Creates a bead particle in the espresso system with the properties stored in bead.
+    part = instance of a particle object from sugar library
+    system = instance of a system object from espressomd library
+    position = array of particle positions of size part.N
+    state = for particles with more than one possible state, defines in which state are created
+    id = array of particle ids of size part.N
+    '''
+
+    if not isinstance(part,particle):
+
+        raise ValueError("Please provide an instance of a particle object from sugar library. Given:", part)
+
+    if position is None:
+    
+    # By default, the beads are placed in random positions
+        
+        pos=np.random.random((1, 3))[0] *np.copy(system.box_l)
+
+    else:
+
+        if (len(position) == part.N):
+
+            pos=position[0]
+        
+        else:
+            
+            raise ValueError("Please provide ", part.N ," position arrays")
+            
+    if state is not None:
+
+            if state in part.q.keys():
+
+                part.state=state
+
+            else:
+
+                raise ValueError("Unknown state for bead: ", part.name, " please review the input state:", state, ' valid keys are', part.q.keys())
+
+    else:
+
+    # If not defined the bead is inicializited in a random state
+
+        state=rn.choice(list(part.q.keys()))
+        part.state=state    
+
+    if isinstance(part.q, int) or isinstance(part.q, float) :
+        
+        q=part.q
+    
+    elif isinstance(part.q, dict):
+
+        q=part.q[state]
+        part.q=q
+
+    else:
+
+        raise ValueError("Unvalid charge for bead: ", part.name, " given ", part.q)
+
+    if isinstance(part.type, int):
+        
+        type=part.type
+
+    elif isinstance(part.type, dict):
+
+        type=part.type[state]
+        part.type=type
+
+    else:
+
+        raise ValueError("Unvalid type for bead: ", part.name, " given ", part.type)
+
+    if id is None:
+
+        if not system.part[:].id:
+
+            bead_id=0
+
+        else:
+
+            bead_id=max(system.part[:].id)
 
 
-def create_protein(system, protein, initial_state='neutral'):
+    else:
+        if isinstance(id,list):
+            
+            if len(id) == part.N:
+
+                bead_id=id[0]
+
+            else:
+
+                raise ValueError('Please provide ', part.N, 'ids. Provided:', id)
+
+        else:
+
+            raise ValueError('particle ids must be provided as a list. Given:', id)
+
+    bead_id_lst=[]
+
+
+    if isinstance(part.N, int): 
+
+        for bead_i in range(part.N):
+            
+            system.part.add(id=[bead_id], pos=[pos], type=[type], q=[q])
+            bead_id_lst.append(bead_id)
+
+            if id is None:
+
+                bead_id+=1
+
+            else:
+
+                id.remove(bead_id)
+
+                if len(id) != 0:
+                
+                    bead_id=id[0]
+            
+            if position is not None:
+                
+                position.remove(pos)
+                
+                if len(position) != 0:
+                    
+                    pos=position[0]
+            
+            else:
+
+                pos=np.random.random((1, 3))[0] *np.copy(system.box_l)
+
+    else:
+
+        raise ValueError("The number of beads should be an integer number, given:", part.N)
+
+    part.ids=bead_id_lst   
+
+    return
+
+def create_residue(res, system):
+    
+    import espressomd
+    from espressomd import interactions
+
+
+    # create the beads in the system
+
+         
+
+    return
+
+def create_molecule(system, protein, initial_state='neutral'):
     '''
     Creates a protein chain in the system with the sequence stored in protein, joined by harmonic_bond)
     Inputs:
@@ -1072,7 +1277,18 @@ def get_particles(cls):
 
     return particle_list
 
-            
+def get_bonds(cls):
+
+    bond_list=[]
+
+    for attribute in cls.__dict__.items():
+
+        if isinstance(attribute[1], param.bond):
+
+            bond_list.append(attribute[1])
+
+    return bond_list
+
 
 def get_attributes(cls):
     import inspect
