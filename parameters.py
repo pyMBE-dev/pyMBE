@@ -158,7 +158,6 @@ class pKa_set:
 class one_bead_peptide:
 
     name='1beadpeptide'
-    beads_per_residue=1
     principal_chain='sequence'
     side_chain=None
     
@@ -346,7 +345,6 @@ class one_bead_peptide:
 class two_bead_peptide:
 
     name='2beadpeptide'
-    beads_per_residue=2
     principal_chain='C_alpha'
     side_chain=['sequence']
     

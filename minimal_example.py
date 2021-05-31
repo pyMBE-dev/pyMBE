@@ -27,7 +27,7 @@ from sugar import molecule,particle
 
 
 
-pep_sequence="nc"
+pep_sequence="nAAAc"
 pKa_dict={"A": 4.25}
 
 custom_dict = {'A': {'type': 1,
@@ -37,7 +37,7 @@ custom_dict = {'A': {'type': 1,
                             }
               }
 
-customp=sg.create_custom_model(beads_per_residue=2,custom_particles=custom_dict)
+customp=sg.create_custom_model(custom_particles=custom_dict)
 
 
 peptide1 = molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)

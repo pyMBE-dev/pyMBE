@@ -214,15 +214,6 @@ class molecule:
         
         else:
 
-            
-            if model_param.beads_per_residue is None:
-
-                Tbead = 1
-
-            else:
-
-                Tbead = model_param.beads_per_residue
-
             param_part=get_particles(model_param)
             param_bonds=get_bonds(model_param)
             model_keys=[]
@@ -236,131 +227,135 @@ class molecule:
                 bead_list=[]
                 lateral_beads=[]
 
-                if model_param.side_chain is None:
+                # Bead of the principal chain
+                
+                if model_param.principal_chain is None or model_param.principal_chain ==  'sequence':
 
-                    side_list=[]
+                                               
+                    bead_unparameterized=True
 
-                else:
+                    for p_set in param_part:
 
-                    side_list=model_param.side_chain.copy()
+                        if (p_set.name == res.name):
 
-
-                for nbead in range(Tbead):
-
-                    if (nbead == 0):
-
-                        if model_param.principal_chain is None or model_param.principal_chain ==  'sequence':
-                            bead_unparameterized=True
-
-                            for p_set in param_part:
-
-                                if (p_set.name == res.name):
-
-                                    bead=p_set
-                                    bead_unparameterized=False
+                            bead=p_set
+                            bead_unparameterized=False
                                     
-                            if bead_unparameterized:
+                    if bead_unparameterized:
 
-                                bead=particle()
-                                bead.name=res.name
+                        bead=particle()
+                        bead.name=res.name
 
-                            if res.name in pKa_set.keys():
+                    if res.name in pKa_set.keys():
+
+                        bead.pKa=pKa_set[res.name]
+
+                                    
+                elif model_param.principal_chain in model_keys:
+
+                    for p_set in param_part:
+
+                        if (p_set.name == model_param.principal_chain):
+
+                            bead=p_set
+
+                            if model_param.principal_chain in pKa_set.keys():
 
                                 bead.pKa=pKa_set[res.name]
 
-                                    
-                        elif model_param.principal_chain in model_keys:
+                        
+                else:
 
+                    raise ValueError("Unknown key for the principal chain: ", model_param.principal_chain)
+                        
+                res.principal_bead=bead.name
+                bead_list.append(bead)
+
+                # Beads on the lateral chain
+
+                if model_param.side_chain is not None:
+
+                    side_list=model_param.side_chain.copy()
+
+                    for chain in model_param.side_chain:
+
+                        bead_name=side_list[0]
+                          
+                        if bead_name == "sequence":
+                            
+                            name= res.name
                             for p_set in param_part:
 
-                                if (p_set.name == model_param.principal_chain):
+                                if (p_set.name == name):
 
                                     bead=p_set
-
-                                    if model_param.principal_chain in pKa_set.keys():
-
-                                        bead.pKa=pKa_set[res.name]
-
-                        
-                        else:
-
-                            raise ValueError("Unknown key for the principal chain: ", model_param.principal_chain)
-                        
-                        res.principal_bead=bead.name
-                        bead_list.append(bead)
-
-                    else:
-
-                        if len(side_list) == 0:
-
-                            bead=particle()
-                            bead_list.append(bead)
-
-                        else:
-
-                            bead_name=side_list[0]
-                            bead_unparameterized=True
-
-                            if bead_name == "sequence":
-                                name= res.name
-                                for p_set in param_part:
-
-                                    if (p_set.name == name):
-
-                                        bead=p_set
-                                        bead_unparameterized=False
-                                
-
-                            elif bead_name in model_keys:
-                                name=bead_name
-
-                                for p_set in param_part:
-
-                                    if (p_set.name == name):
-
-                                        bead=p_set
-                                        bead_unparameterized=False
-                        
-                            else:
-
-                                raise ValueError("Unknown key for the side chain: ", bead_name)
-
-                            if bead_unparameterized:
-
-                                bead=particle()
-                                bead.name=name
-
+                            
                             if name in pKa_set.keys():
 
                                 bead.pKa=pKa_set[name]
 
                             bead_list.append(bead)
-                            side_list.remove(bead_name)
-                            lateral_beads.append(bead.name)    
+                            lateral_beads.append([bead.name])
+
+                        else:     
+                            
+                            for part in chain:
+                        
+                                if bead_name in model_keys:
+                            
+                                    name=bead_name
+
+                                    for p_set in param_part:
+
+                                        if (p_set.name == name):
+
+                                            bead=p_set
+
+                                    if name in pKa_set.keys():
+
+                                        bead.pKa=pKa_set[name]
+                        
+                                else:
+
+                                    raise ValueError("Unknown key for the side chain: ", bead_name)
+
+                                bead_list.append(bead)
+                                lateral_beads.append([bead.name])
                 
                 res.lateral_beads=lateral_beads
-                res_bond_list=[]
+                res.beads=bead_list
+            
+            res_bond_list=[]
+                
+            for chain in lateral_beads:
+                    
+                bead_name=chain[0]
+                actors=[res.principal_bead,bead_name]
 
-                for bead_name in lateral_beads:
+                # Check if there is a specific parametrization in model for the bond between  res.principal_bead and bead_name
 
-                    actors=[res.principal_bead,bead_name]
+                bond_assigned=False
 
-                    # Check if there is a specific parametrization in model for the bond between  res.principal_bead and bead_name
+                for bond in param_bonds:
 
-                    bond_assigned=False
+                    if actors == bond.actors or actors[::-1] == bond.actors:
+                            
+                        bond_assigned=True
+                        res_bond_list.append(bond)
+                        break
+
+                if bond_assigned == False:
+                    
+                    # If no specific bond is provided add the default bond
 
                     for bond in param_bonds:
-
-                        if actors == bond.actors or actors[::-1] == bond.actors:
                             
-                            bond_assigned=True
+                        if bond.actors[0] == "default":
+                                
                             res_bond_list.append(bond)
-                            break
-                    
-                    # Pendent default bond
 
-                res.bonds=res_bond_list
-                res.beads=bead_list
+            res.bonds=res_bond_list
+            
 
 def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain=None, custom_particles=None, units=None):
     '''
