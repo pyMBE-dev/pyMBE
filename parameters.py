@@ -158,7 +158,7 @@ class pKa_set:
 class one_bead_peptide:
 
     name='1beadpeptide'
-    principal_chain='sequence'
+    principal_chain={"default": 'sequence'}
     side_chain=None
     
     default_bond=bond()
@@ -345,8 +345,8 @@ class one_bead_peptide:
 class two_bead_peptide:
 
     name='2beadpeptide'
-    principal_chain='C_alpha'
-    side_chain=['sequence']
+    principal_chain={"c": "sequence", "n": "sequence", "default": "C_alpha"}
+    side_chain={"c": [], "n": [], "default": ["sequence"]}
     
     default_bond=bond()
     default_bond.actors=['default']

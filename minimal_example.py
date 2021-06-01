@@ -36,8 +36,9 @@ custom_dict = {'A': {'type': 1,
                 'radius': 1*ureg.nm
                             }
               }
+       
 
-customp=sg.create_custom_model(custom_particles=custom_dict)
+customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A": "A"}, side_chain={"A": [["A"],["A"]]})
 
 
 peptide1 = molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)
@@ -48,8 +49,14 @@ system = espressomd.System(box_l=[10] * 3)
 
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
+sg.create_residue(peptide1.residues[1], system)
+sg.write_parameters(peptide1.residues[1])
 
-sg.write_parameters(peptide1)
+bead_list=[]
+
+
+
+
 exit()
 
 # The library internally works with the one letter aminoacid code. However, the user can also provide the sequence in the three-letter format, separated by hyphens

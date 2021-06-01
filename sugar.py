@@ -107,9 +107,24 @@ class molecule:
                                         if par[1] is not None:
 
                                             setattr(model_dict[atr],par[0],par[1])
-
+                    
                                 else:
                                     
+                                    setattr(model_param,atr,custom_dict[atr])
+
+                            if isinstance(custom_dict[atr], dict):
+
+                                if atr in model_dict.keys():
+                                    
+                                    atr_model_dict=model_dict[atr]
+                                    atr_custom_dict=custom_dict[atr]
+
+                                    for key in atr_custom_dict.keys():
+
+                                        atr_model_dict[key]=atr_custom_dict[key]
+
+                                else:
+
                                     setattr(model_param,atr,custom_dict[atr])
 
                             else:
@@ -217,19 +232,32 @@ class molecule:
             param_part=get_particles(model_param)
             param_bonds=get_bonds(model_param)
             model_keys=[]
-
+            
             for p_set in param_part:
 
                 model_keys.append(p_set.name)
-
+            
             for res in self.residues:
 
                 bead_list=[]
                 lateral_beads=[]
 
                 # Bead of the principal chain
+
+                p_bead_name=None
                 
-                if model_param.principal_chain is None or model_param.principal_chain ==  'sequence':
+                if model_param.principal_chain is not None:
+
+                    if res.name in model_param.principal_chain.keys():
+
+                        p_bead_name=model_param.principal_chain[res.name]
+
+                    elif "default" in model_param.principal_chain.keys():
+
+                         p_bead_name=model_param.principal_chain["default"]
+
+                
+                if model_param.principal_chain is None or p_bead_name ==  'sequence':
 
                                                
                     bead_unparameterized=True
@@ -251,21 +279,21 @@ class molecule:
                         bead.pKa=pKa_set[res.name]
 
                                     
-                elif model_param.principal_chain in model_keys:
+                elif p_bead_name in model_keys:
 
                     for p_set in param_part:
 
-                        if (p_set.name == model_param.principal_chain):
+                        if (p_set.name == p_bead_name):
 
                             bead=p_set
 
-                            if model_param.principal_chain in pKa_set.keys():
+                            if p_bead_name in pKa_set.keys():
 
                                 bead.pKa=pKa_set[res.name]
 
                         
                 else:
-
+                    
                     raise ValueError("Unknown key for the principal chain: ", model_param.principal_chain)
                         
                 res.principal_bead=bead.name
@@ -275,35 +303,49 @@ class molecule:
 
                 if model_param.side_chain is not None:
 
-                    side_list=model_param.side_chain.copy()
+                    side_dict=model_param.side_chain.copy()
 
-                    for chain in model_param.side_chain:
+                    if res.name  in side_dict.keys():
 
-                        bead_name=side_list[0]
-                          
-                        if bead_name == "sequence":
+                        chains=side_dict[res.name]
+
+                    else:
+
+                        if "default"  in side_dict.keys():
                             
-                            name= res.name
-                            for p_set in param_part:
+                            chains=side_dict["default"]
 
-                                if (p_set.name == name):
+                        else:
 
-                                    bead=p_set
+                            raise ValueError("Unknown lateral chain for :", res.name)
                             
-                            if name in pKa_set.keys():
-
-                                bead.pKa=pKa_set[name]
-
-                            bead_list.append(bead)
-                            lateral_beads.append([bead.name])
-
-                        else:     
-                            
-                            for part in chain:
+                    
+                    for chain in chains:
                         
-                                if bead_name in model_keys:
+                        for part in chain:
+                        
+                          
+                            if part == "sequence":
                             
-                                    name=bead_name
+                                name= res.name
+                                for p_set in param_part:
+
+                                    if (p_set.name == name):
+
+                                        bead=p_set
+                            
+                                if name in pKa_set.keys():
+
+                                    bead.pKa=pKa_set[name]
+
+                                bead_list.append(bead)
+                                lateral_beads.append([bead.name])
+
+                            else:     
+                                                    
+                                if part in model_keys:
+                            
+                                    name=part
 
                                     for p_set in param_part:
 
@@ -317,7 +359,7 @@ class molecule:
                         
                                 else:
 
-                                    raise ValueError("Unknown key for the side chain: ", bead_name)
+                                    raise ValueError("Unknown key for the side chain: ", part)
 
                                 bead_list.append(bead)
                                 lateral_beads.append([bead.name])
@@ -325,36 +367,38 @@ class molecule:
                 res.lateral_beads=lateral_beads
                 res.beads=bead_list
             
-            res_bond_list=[]
-                
-            for chain in lateral_beads:
+                res_bond_list=[]
+
+                for chain in lateral_beads:
                     
-                bead_name=chain[0]
-                actors=[res.principal_bead,bead_name]
+                    bead_name=chain[0]
+                    actors=[res.principal_bead,bead_name]
 
                 # Check if there is a specific parametrization in model for the bond between  res.principal_bead and bead_name
 
-                bond_assigned=False
+                    bond_assigned=False
 
-                for bond in param_bonds:
+                    for bond in param_bonds:
 
-                    if actors == bond.actors or actors[::-1] == bond.actors:
+                        if actors == bond.actors or actors[::-1] == bond.actors:
                             
-                        bond_assigned=True
-                        res_bond_list.append(bond)
-                        break
+                            bond_assigned=True
+                            if bond not in res_bond_list:
+                                res_bond_list.append(bond)
+                            break
 
-                if bond_assigned == False:
+                    if bond_assigned == False:
                     
                     # If no specific bond is provided add the default bond
 
-                    for bond in param_bonds:
+                        for bond in param_bonds:
                             
-                        if bond.actors[0] == "default":
-                                
-                            res_bond_list.append(bond)
+                            if bond.actors[0] == "default":
 
-            res.bonds=res_bond_list
+                                if bond not in res_bond_list:
+                                    res_bond_list.append(bond)
+
+                res.bonds=res_bond_list
             
 
 def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain=None, custom_particles=None, units=None):
@@ -392,20 +436,10 @@ def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain
     
     custom_param=param.custom_parameters()
 
-    if beads_per_residue is not None:
-
-        if isinstance(beads_per_residue, int):
-            
-            custom_param.beads_per_residue=beads_per_residue
-
-        else:
-
-            raise ValueError("The number of beads per residue must be an integer number, custom value given: ", beads_per_residue)
-
     
     if principal_chain is not None:
 
-        if isinstance(principal_chain, str):
+        if isinstance(principal_chain, dict):
 
             custom_param.principal_chain=principal_chain
 
@@ -416,13 +450,7 @@ def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain
 
     if side_chain is not None:
 
-        if isinstance(side_chain, list):
-
-            for bead in side_chain:
-
-                if not isinstance(bead, str):
-                    
-                    raise ValueError("The keys of the beads for the side chains must be provided as strings. Key provided:", bead)
+        if isinstance(side_chain, dict):
 
             custom_param.side_chain=side_chain
 
@@ -664,7 +692,7 @@ def create_particle(part, system, position=None, state=None, id=None):
     
     # By default, the beads are placed in random positions
         
-        pos=np.random.random((1, 3))[0] *np.copy(system.box_l)
+        pos=[np.random.random((1, 3))[0] *np.copy(system.box_l)]
 
     else:
 
@@ -685,13 +713,6 @@ def create_particle(part, system, position=None, state=None, id=None):
             else:
 
                 raise ValueError("Unknown state for bead: ", part.name, " please review the input state:", state, ' valid keys are', part.q.keys())
-
-    else:
-
-    # If not defined the bead is inicializited in a random state
-
-        state=rn.choice(list(part.q.keys()))
-        part.state=state    
 
     if isinstance(part.q, int) or isinstance(part.q, float) :
         
@@ -719,16 +740,17 @@ def create_particle(part, system, position=None, state=None, id=None):
 
         raise ValueError("Unvalid type for bead: ", part.name, " given ", part.type)
 
+    
     if id is None:
 
-        if not system.part[:].id:
-
+        if len(system.part[:].id) == 0:
+            
             bead_id=0
 
         else:
-
-            bead_id=max(system.part[:].id)
-
+            
+            bead_id=max(system.part[:].id)+1
+           
 
     else:
         if isinstance(id,list):
@@ -751,8 +773,7 @@ def create_particle(part, system, position=None, state=None, id=None):
     if isinstance(part.N, int): 
 
         for bead_i in range(part.N):
-            
-            system.part.add(id=[bead_id], pos=[pos], type=[type], q=[q])
+            system.part.add(id=[bead_id], pos=pos, type=[type], q=[q])
             bead_id_lst.append(bead_id)
 
             if id is None:
@@ -792,10 +813,166 @@ def create_residue(res, system):
     import espressomd
     from espressomd import interactions
 
+    bead_list=[]
+    residue_ids=[]
 
-    # create the beads in the system
+    # create the principal bead
+  
+    for bead in res.beads:
 
-         
+        bead.N=1
+
+        if bead.name == res.principal_bead:
+            
+            # Create an individual particle object
+            new_bead=particle()
+            bd_atrb=get_attributes(bead)
+
+            for atr in bd_atrb:
+
+                setattr(new_bead,atr[0],atr[1])
+            new_bead.N=1
+            create_particle(part=new_bead, system=system)
+            central_id=new_bead.ids
+            central_name=new_bead.name
+            central_pos=system.part[central_id].pos
+            bead_list.append(new_bead)
+            residue_ids.append(central_id[0])
+            break
+
+     
+    # create the lateral beads
+
+    for chain in res.lateral_beads:
+
+        start_postion=True
+
+        for bead_name in chain:
+
+            if start_postion:
+                
+                actors=[central_name,bead_name]
+                unasigned_bond=True
+
+                for bond in res.bonds:
+
+                    if actors == bond.actors or actors[::-1] == bond.actors:
+
+                        central_bond=bond
+                        unasigned_bond=False
+
+                if unasigned_bond:
+
+                    for bond in res.bonds:
+
+                        if bond.actors[0] == "default":
+
+                            central_bond=bond
+                            unasigned_bond=False
+
+                if unasigned_bond:
+
+                    raise ValueError("The bond between ", actors, "is not defined in the residue")
+
+                # Generate the position 
+
+                bond_vector=generate_trialvectors(central_bond.bondl.to('nm').magnitude)
+                prebead_position=central_pos+bond_vector
+
+                for bead in res.beads:
+
+                    if bead.name == bead_name:
+
+                     # Create an individual particle object
+                        new_bead=particle()
+                        bd_atrb=get_attributes(bead)
+
+                        for atr in bd_atrb:
+
+                            setattr(new_bead,atr[0],atr[1])
+                        new_bead.N=1
+                        create_particle(part=new_bead, system=system, position=[prebead_position])
+                        prebead_name=new_bead.name
+                        bead_list.append(new_bead)
+                        residue_ids.append(new_bead.ids[0])
+
+                        # Create the bond
+
+                        if (central_bond.type == "harmonic"):
+
+                            harmonic_potential = interactions.HarmonicBond(k=central_bond.k.to('kJ / mol / nm**2').magnitude, r_0=central_bond.bondl.to('nm').magnitude)
+                            system.bonded_inter.add(harmonic_potential)
+
+                        else:
+
+                            raise ValueError("Unknown bond type", bond.type)
+
+                        break
+            
+            else:
+
+                actors=[prebead_name,bead_name]
+                unasigned_bond=True
+
+                for bond in res.bonds:
+
+                    if actors == bond.actors or actors[::-1] == bond.actors:
+
+                        lateral_bond=bond
+                        unasigned_bond=False
+
+                if unasigned_bond:
+
+                    for bond in res.bonds:
+
+                        if bond.actors[0] == "default":
+
+                            lateral_bond=bond
+                            unasigned_bond=False
+
+                if unasigned_bond:
+
+                    raise ValueError("The bond between ", actors, "is not defined in the residue")
+                
+                prebead_position=prebead_position+bond_vector
+                for bead in res.beads:
+
+                    if bead.name == bead_name:
+
+                        # Create an individual particle object
+                        
+                        new_bead=particle()
+                        bd_atrb=get_attributes(bead)
+
+                        for atr in bd_atrb:
+
+                            setattr(new_bead,atr[0],atr[1])
+                        
+                        new_bead.N=1
+
+                        bead.N=1
+                        create_particle(part=bead, system=system, position=[prebead_position])
+                        prebead_name=bead.name
+                        bead_list.append(bead)
+                        residue_ids.append(bead.ids[0])
+
+                        if (lateral_bond.type == "harmonic"):
+
+                            harmonic_potential = interactions.HarmonicBond(k=lateral_bond.k.to('kJ / mol / nm**2').magnitude, r_0=lateral_bond.bondl.to('nm').magnitude)
+                            system.bonded_inter.add(harmonic_potential)
+
+                        else:
+
+                            raise ValueError("Unknown bond type", bond.type)
+
+                        break
+
+    # Store the data in res
+
+    res.ids=residue_ids
+    res.beads=bead_list
+
+      
 
     return
 
