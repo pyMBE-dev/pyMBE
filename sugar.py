@@ -707,7 +707,9 @@ def create_particle(part, system, position=None, state=None, id=None):
             raise ValueError("Please provide ", part.N ," position arrays")
             
     if state is not None:
-
+        
+        if isinstance(part.q,dict):
+            
             if state in part.q.keys():
 
                 part.state=state
@@ -722,8 +724,9 @@ def create_particle(part, system, position=None, state=None, id=None):
             # Inicialice beads with more than one state in a random state
 
             state=rn.choice(list(part.q.keys()))
+            part.state=state
 
-
+    
     if isinstance(part.q, int) or isinstance(part.q, float) :
         
         q=part.q
@@ -783,7 +786,7 @@ def create_particle(part, system, position=None, state=None, id=None):
     if isinstance(part.N, int): 
 
         for bead_i in range(part.N):
-            system.part.add(id=[bead_id], pos=pos, type=[type], q=[q])
+            system.part.add(id=[bead_id], pos=[pos], type=[type], q=[q])
             bead_id_lst.append(bead_id)
 
             if id is None:
@@ -818,13 +821,64 @@ def create_particle(part, system, position=None, state=None, id=None):
 
     return
 
-def create_residue(res, system):
-    
+def create_residue(res, system, position=None, state=None, id=None):
+    """
+    Creates a residue in the espresso given with the properties stored in res
+    res: instance of a residue object as defined in sugar library
+    system: instance of a system object of espresso library
+    position: array of position of each of the particles of the residue. 
+    The positions are asigned in the same order than the particles stored in residue (first the principal bead and then the lateral ones)
+    state = for particles with more than one possible state, defines in which state are created
+    id = array of particle ids of size part.N
+    """
     import espressomd
     from espressomd import interactions
 
     bead_list=[]
     residue_ids=[]
+
+    if id is not None:
+
+        if isinstance(id,list):
+
+            bead_id=[id[0]]
+
+        else:
+
+            raise ValueError("Please provide the inicialization state as an array, provided:", id)
+
+    else:
+
+        bead_id=None
+
+    if state is not None:
+
+        if isinstance(state,list):
+
+            bead_state=state[0]
+
+        else:
+
+            raise ValueError("Please provide the inicialization state as an array, provided:", state)
+
+    else:
+
+        bead_state=None
+
+    if position is None:
+
+        pos=position
+
+    else:
+
+        if isinstance(position,list):
+
+            pos=[position[0]]
+
+        else:
+
+            raise ValueError("Please provide the desired position for the particle as a list, given:", position)
+
 
     # create the principal bead
   
@@ -842,10 +896,44 @@ def create_residue(res, system):
 
                 setattr(new_bead,atr[0],atr[1])
             new_bead.N=1
-            create_particle(part=new_bead, system=system)
+            
+            create_particle(part=new_bead, system=system, position=pos, state=bead_state, id=bead_id)
+            
+            
+
+            if state is not None:
+                
+                state.remove(bead_state)
+
+                if len(state) > 0:
+
+                    bead_state=state[0]
+                
+                else:
+
+                    state=None
+
+            
+            if id is not None:
+                
+                id.remove(bead_id)
+
+                if len(state) > 0:
+
+                    bead_id=[id[0]]
+                
+                else:
+
+                    id=None
+
+            if position is not None:
+                
+                position.remove(position[0])
+
             central_id=new_bead.ids
             central_name=new_bead.name
             central_pos=system.part[central_id].pos
+            central_pos=central_pos[0]
             bead_list.append(new_bead)
             residue_ids.append(central_id[0])
             break
@@ -886,7 +974,13 @@ def create_residue(res, system):
                 # Generate the position 
 
                 bond_vector=generate_trialvectors(central_bond.bondl.to('nm').magnitude)
-                prebead_position=central_pos+bond_vector
+
+                if position is not None and len(position) > 0:
+                
+                    prebead_position=position[0]
+
+                else:
+                    prebead_position=central_pos+bond_vector
 
                 for bead in res.beads:
 
@@ -900,7 +994,37 @@ def create_residue(res, system):
 
                             setattr(new_bead,atr[0],atr[1])
                         new_bead.N=1
-                        create_particle(part=new_bead, system=system, position=[prebead_position])
+                        
+                        create_particle(part=new_bead, system=system, position=[prebead_position], state=bead_state, id=bead_id)
+
+                        if state is not None:
+                            
+                            state.remove(bead_state)
+
+                            if len(state) > 0:
+
+                                bead_state=state[0]
+                
+                            else:
+
+                                state=None
+                        
+                        if id is not None:
+                            
+                            id.remove(bead_id)
+
+                            if len(id) > 0:
+
+                                bead_id=[id[0]]
+                
+                            else:
+
+                                id=None
+
+                        if position is not None and len(position) > 0:
+                
+                            position.remove(position[0])
+
                         prebead_name=new_bead.name
                         bead_list.append(new_bead)
                         residue_ids.append(new_bead.ids[0])
@@ -944,7 +1068,14 @@ def create_residue(res, system):
 
                     raise ValueError("The bond between ", actors, "is not defined in the residue")
                 
-                prebead_position=prebead_position+bond_vector
+                if position is not None and len(position) > 0:
+                
+                    prebead_position=position[0]
+
+                else:
+                    
+                    prebead_position=prebead_position+bond_vector
+                
                 for bead in res.beads:
 
                     if bead.name == bead_name:
@@ -960,11 +1091,42 @@ def create_residue(res, system):
                         
                         new_bead.N=1
 
-                        bead.N=1
-                        create_particle(part=bead, system=system, position=[prebead_position])
-                        prebead_name=bead.name
-                        bead_list.append(bead)
-                        residue_ids.append(bead.ids[0])
+                        new_bead.N=1
+                        
+                        create_particle(part=new_bead, system=system, position=[prebead_position], state=bead_state, id=bead_id)
+
+                        if state is not None:
+                            
+                            state.remove(bead_state)
+                            
+                            if len(state) > 0:
+
+                                bead_state=state[0]
+                
+                            else:
+
+                                state=None
+                        
+                        if id is not None:
+                            
+                            id.remove(bead_id)
+                            
+                            if len(id) > 0:
+
+                                bead_id=id[0]
+                
+                            else:
+
+                                id=None                        
+                        
+                        if position is not None and len(position) > 0:
+                
+                            position.remove(position[0])
+
+                        prebead_name=new_bead.name
+                        bead_list.append(new_bead)
+                        residue_ids.append(new_bead.ids[0])
+
 
                         if (lateral_bond.type == "harmonic"):
 
