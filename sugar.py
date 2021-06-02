@@ -713,6 +713,14 @@ def create_particle(part, system, position=None, state=None, id=None):
             else:
 
                 raise ValueError("Unknown state for bead: ", part.name, " please review the input state:", state, ' valid keys are', part.q.keys())
+    else:
+
+        if isinstance(part.q, dict):
+            
+            # Inicialice beads with more than one state in a random state
+
+            state=rn.choice(list(part.q.keys()))
+
 
     if isinstance(part.q, int) or isinstance(part.q, float) :
         
