@@ -38,7 +38,7 @@ custom_dict = {'A': {'type': 1,
               }
        
 
-customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A": "A"}, side_chain={"A": [["H"]*3,["T"]]})
+customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A": "A"}, side_chain={"A": [["H","H","H",],["T"]]})
 
 
 peptide1 = molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)
@@ -49,6 +49,7 @@ system = espressomd.System(box_l=[10] * 3)
 
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
+
 sg.create_residue(peptide1.residues[1], system)
 sg.write_parameters(peptide1.residues[1])
 

@@ -322,6 +322,8 @@ class molecule:
                     
                     for chain in chains:
                         
+                        lateral_beads.append(chain)
+
                         for part in chain:
                         
                           
@@ -339,7 +341,7 @@ class molecule:
                                     bead.pKa=pKa_set[name]
 
                                 bead_list.append(bead)
-                                lateral_beads.append([bead.name])
+                                
 
                             else:     
                                                     
@@ -362,7 +364,7 @@ class molecule:
                                     raise ValueError("Unknown key for the side chain: ", part)
 
                                 bead_list.append(bead)
-                                lateral_beads.append([bead.name])
+                                
                 
                 res.lateral_beads=lateral_beads
                 res.beads=bead_list
@@ -853,11 +855,10 @@ def create_residue(res, system):
 
     for chain in res.lateral_beads:
 
-        start_postion=True
-
+        start_position=True
         for bead_name in chain:
-
-            if start_postion:
+            
+            if start_position:
                 
                 actors=[central_name,bead_name]
                 unasigned_bond=True
@@ -916,7 +917,8 @@ def create_residue(res, system):
                             raise ValueError("Unknown bond type", bond.type)
 
                         break
-            
+                start_position=False
+
             else:
 
                 actors=[prebead_name,bead_name]
