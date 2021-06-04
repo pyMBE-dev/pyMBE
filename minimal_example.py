@@ -50,8 +50,8 @@ system = espressomd.System(box_l=[10] * 3)
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
-sg.create_residue(peptide1.residues[1], system)
-sg.write_parameters(peptide1.residues[1])
+sg.create_molecule(peptide1, system)
+sg.write_parameters(peptide1)
 
 
 bead_list=[]
