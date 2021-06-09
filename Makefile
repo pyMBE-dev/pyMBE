@@ -4,7 +4,7 @@
 .PHONY: clean
 
 run:
-	~/programs/espresso/build/pypresso minimal_example.py
+	~/program/espresso/build/pypresso minimal_example.py
 
 visual:
 	python3 vmd-traj.py
