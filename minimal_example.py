@@ -50,6 +50,7 @@ system = espressomd.System(box_l=[10] * 3)
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
+peptide1.N=3
 sg.create_molecule(peptide1, system)
 sg.write_parameters(peptide1)
 

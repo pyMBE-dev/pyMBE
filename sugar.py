@@ -1195,76 +1195,93 @@ def create_molecule(mol,system):
     import espressomd
     from espressomd import interactions
 
-    first_res_inexistent=True
 
-    bond_vector=generate_trialvectors(1)
+    if mol.N is None:
 
+        mol.N=1
 
-    for r_chain in mol.residues:
+    elif not isinstance(mol.N,int):
 
-        for res in r_chain:
-
-            if (first_res_inexistent):
-
-                create_residue(res, system)
-                first_res_inexistent=False
-                pre_backbone_bead=res.beads[0]
-                pre_backbone_bead=pre_backbone_bead[0]
-                pre_bead_id=pre_backbone_bead.ids[0]
-                pre_bead_pos=system.part[pre_bead_id].pos
-                pre_bead_name=pre_backbone_bead.name
-
-            else:
-
-                new_backbone_bead=res.beads[0]
-                new_backbone_bead=new_backbone_bead[0]
-                new_bead_name=new_backbone_bead.name
-
-                actors=[pre_bead_name,new_bead_name]
-                unasigned_bond=True
-
-            # search a for a bond type between the backbone beads
-
-                for bond in res.bonds:
-
-                    if actors == bond.actors or actors[::-1] == bond.actors:
-
-                        backbone_bond=bond
-                        unasigned_bond=False
-
-                    if unasigned_bond:
-
-                        for bond in res.bonds:
-
-                            if bond.actors[0] == "default":
-
-                                backbone_bond=bond
-                                unasigned_bond=False
-
-                    if unasigned_bond:
-
-                        raise ValueError("The bond between ", actors, "is not defined in the residue")            
+        raise ValueError("The number of molecules must be an integer number, given: ", mol.N)
 
 
-                new_bead_pos=pre_bead_pos+bond_vector*backbone_bond.bondl.to('nm').magnitude
-                create_residue(res, system, position=[new_bead_pos])
 
-            # Create the harmonic bond for the principal chain
+    for mol_i in range(mol.N):
 
-                if (backbone_bond.type == "harmonic"):
+        first_res_inexistent=True
+        bond_vector=generate_trialvectors(1)
+        id_list=[]
 
-                    bond_potential = interactions.HarmonicBond(k=backbone_bond.k.to('kJ / mol / nm**2').magnitude, r_0=backbone_bond.bondl.to('nm').magnitude)
-                    
+        for r_chain in mol.residues:
+
+            for res in r_chain:
+
+                if (first_res_inexistent):
+
+                    create_residue(res, system)
+                    first_res_inexistent=False
+                    pre_backbone_bead=res.beads[0]
+                    pre_backbone_bead=pre_backbone_bead[0]
+                    pre_bead_id=pre_backbone_bead.ids[0]
+                    pre_bead_pos=system.part[pre_bead_id].pos
+                    pre_bead_name=pre_backbone_bead.name
 
                 else:
 
-                    raise ValueError("Unknown bond type", bond.type)
+                    new_backbone_bead=res.beads[0]
+                    new_backbone_bead=new_backbone_bead[0]
+                    new_bead_name=new_backbone_bead.name
+
+                    actors=[pre_bead_name,new_bead_name]
+                    unasigned_bond=True
+
+            # search a for a bond type between the backbone beads
+
+                    for bond in res.bonds:
+
+                        if actors == bond.actors or actors[::-1] == bond.actors:
+
+                            backbone_bond=bond
+                            unasigned_bond=False
+
+                        if unasigned_bond:
+
+                            for bond in res.bonds:
+
+                                if bond.actors[0] == "default":
+
+                                    backbone_bond=bond
+                                    unasigned_bond=False
+
+                        if unasigned_bond:
+
+                            raise ValueError("The bond between ", actors, "is not defined in the residue")            
+
+
+                    new_bead_pos=pre_bead_pos+bond_vector*backbone_bond.bondl.to('nm').magnitude
+                    create_residue(res, system, position=[new_bead_pos])
+
+            # Create the harmonic bond for the principal chain
+
+                    if (backbone_bond.type == "harmonic"):
+
+                        bond_potential = interactions.HarmonicBond(k=backbone_bond.k.to('kJ / mol / nm**2').magnitude, r_0=backbone_bond.bondl.to('nm').magnitude)
+                    
+
+                    else:
+
+                        raise ValueError("Unknown bond type", bond.type)
             
-                system.bonded_inter.add(bond_potential)
-                system.part[pre_bead_id].add_bond((bond_potential, res.ids[0]))
-                pre_bead_id=res.ids[0]
-                pre_bead_name=new_bead_name
-                pre_bead_pos=new_bead_pos
+                    system.bonded_inter.add(bond_potential)
+                    ids_res=res.ids[0]
+                    id_list+=ids_res
+                    id_ppal_bead=ids_res[0]
+                    system.part[pre_bead_id].add_bond((bond_potential, id_ppal_bead))
+                    pre_bead_id=res.ids[0]
+                    pre_bead_name=new_bead_name
+                    pre_bead_pos=new_bead_pos
+        
+        mol.ids.append(id_list)
 
     return 
 
