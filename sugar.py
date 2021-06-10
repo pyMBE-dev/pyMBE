@@ -1,4 +1,4 @@
-from operator import ne
+#from operator import ne
 import numpy as np
 import math as mt
 import parameters as param
@@ -17,7 +17,6 @@ class residue:
     beads=[]
     ids=[]
     N=None
-
 
 class molecule:
 
@@ -375,6 +374,16 @@ class molecule:
                     res.beads=[bead_list]
             
                 res_bond_list=[]
+                                    
+                # All residues contain at least the default bond
+
+                for bond in param_bonds:
+                            
+                    if bond.actors[0] == "default":
+
+                        if bond not in res_bond_list:
+                            
+                            res_bond_list.append(bond)
 
                 for chain in lateral_beads:
                     
@@ -382,8 +391,6 @@ class molecule:
                     actors=[res.principal_bead,bead_name]
 
                 # Check if there is a specific parametrization in model for the bond between  res.principal_bead and bead_name
-
-                    bond_assigned=False
 
                     for bond in param_bonds:
 
@@ -394,20 +401,9 @@ class molecule:
                                 res_bond_list.append(bond)
                             break
 
-                    if bond_assigned == False:
-                    
-                    # If no specific bond is provided add the default bond
-
-                        for bond in param_bonds:
-                            
-                            if bond.actors[0] == "default":
-
-                                if bond not in res_bond_list:
-                                    res_bond_list.append(bond)
 
                 res.bonds=res_bond_list
             
-
 def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain=None, custom_particles=None, units=None):
     '''
     Helps the user to setup custom parameters for a model or a full custom model
@@ -526,8 +522,6 @@ def create_custom_model(beads_per_residue=None, principal_chain=None, side_chain
 
 
     return custom_param
-
-
 
 def sequence_parser(sequence, keys=param.general.aminoacid.values()):
     '''
@@ -804,11 +798,11 @@ def create_particle(part, system, position=None, state=None, id=None):
             
         system.part.add(id=[bead_id], pos=[pos], type=[type], q=[q])
         bead_id_lst.append(bead_id)
-
+        
         if id is None:
 
             bead_id+=1
-
+        
         else:
 
             id.remove(bead_id)
@@ -816,7 +810,7 @@ def create_particle(part, system, position=None, state=None, id=None):
             if len(id) != 0:
                 
                 bead_id=id[0]
-            
+         
         if position is not None:
                 
             position.remove(pos)
@@ -844,8 +838,6 @@ def create_residue(res, system, position=None, state=None, id=None):
     state = for particles with more than one possible state, defines in which state are created
     id = array of particle ids of size part.N
     """
-    import espressomd
-    from espressomd import interactions
 
     bead_list=[]
     residue_ids=[]
@@ -902,10 +894,10 @@ def create_residue(res, system, position=None, state=None, id=None):
     for n_res in range(res.N):
     
         for b_chain in res.beads:
+            
             for bead in b_chain:
 
                 bead.N=1
-
                 if bead.name == res.principal_bead:
             
             # Create an individual particle object
@@ -918,9 +910,7 @@ def create_residue(res, system, position=None, state=None, id=None):
                 
                     new_bead.N=1
             
-                    create_particle(part=new_bead, system=system, position=pos, state=bead_state, id=bead_id)
-            
-            
+                    create_particle(part=new_bead, system=system, position=pos, state=bead_state, id=bead_id)                        
 
                     if state is not None:
                 
@@ -958,39 +948,19 @@ def create_residue(res, system, position=None, state=None, id=None):
                     bead_list.append(new_bead)
                     residue_ids.append(central_id[0])
                     break
-
      
                 # create the lateral beads
 
         for chain in res.lateral_beads:
 
             start_position=True
+            
             for bead_name in chain:
             
                 if start_position:
                 
                     actors=[central_name,bead_name]
-                    unasigned_bond=True
-
-                    for bond in res.bonds:
-
-                        if actors == bond.actors or actors[::-1] == bond.actors:
-
-                            central_bond=bond
-                            unasigned_bond=False
-
-                    if unasigned_bond:
-
-                        for bond in res.bonds:
-
-                            if bond.actors[0] == "default":
-
-                                central_bond=bond
-                                unasigned_bond=False
-
-                    if unasigned_bond:
-
-                        raise ValueError("The bond between ", actors, "is not defined in the residue")
+                    central_bond=search_bond(actors,res)
 
                 # Generate the position 
 
@@ -1046,28 +1016,16 @@ def create_residue(res, system, position=None, state=None, id=None):
 
                                 if position is not None and len(position) > 0:
                 
-                                    position.remove(position[0])
+                                    position.remove(position[0])                        
 
-                        
+                            # Create the bond   
 
-                            # Create the bond
+                                create_bond(system,bond=central_bond,id1=new_bead.ids[0], id2=central_id[0])
 
-                                if (central_bond.type == "harmonic"):
-
-                                    bond_potential = interactions.HarmonicBond(k=central_bond.k.to('kJ / mol / nm**2').magnitude, r_0=central_bond.bondl.to('nm').magnitude)
-                            
-
-                                else:
-
-                                    raise ValueError("Unknown bond type", bond.type)
-
-                                system.bonded_inter.add(bond_potential)
                                 prebead_id=new_bead.ids[0]
-                                system.part[central_id[0]].add_bond((bond_potential, prebead_id))
                                 prebead_name=new_bead.name
                                 bead_list.append(new_bead)
                                 residue_ids.append(new_bead.ids[0])
-
                                 break
 
                         start_position=False
@@ -1075,27 +1033,7 @@ def create_residue(res, system, position=None, state=None, id=None):
                 else:
 
                     actors=[prebead_name,bead_name]
-                    unasigned_bond=True
-
-                    for bond in res.bonds:
-
-                        if actors == bond.actors or actors[::-1] == bond.actors:
-
-                            lateral_bond=bond
-                            unasigned_bond=False
-
-                    if unasigned_bond:
-
-                        for bond in res.bonds:
-
-                            if bond.actors[0] == "default":
-
-                                lateral_bond=bond
-                                unasigned_bond=False
-
-                    if unasigned_bond:
-
-                        raise ValueError("The bond between ", actors, "is not defined in the residue")
+                    lateral_bond=search_bond(actors,res)
                 
                     if position is not None and len(position) > 0:
                 
@@ -1154,19 +1092,8 @@ def create_residue(res, system, position=None, state=None, id=None):
                                     position.remove(position[0])
 
 
+                                create_bond(system,bond=lateral_bond,id1=prebead_id,id2=new_bead.ids[0])
 
-
-                                if (lateral_bond.type == "harmonic"):
-
-                                    bond_potential = interactions.HarmonicBond(k=lateral_bond.k.to('kJ / mol / nm**2').magnitude, r_0=lateral_bond.bondl.to('nm').magnitude)
-                            
-
-                                else:
-
-                                    raise ValueError("Unknown bond type", bond.type)
-
-                                system.bonded_inter.add(bond_potential)
-                                system.part[prebead_id].add_bond((bond_potential, new_bead.ids[0]))
                                 prebead_name=new_bead.name
                                 prebead_id=new_bead.ids[0]
                                 bead_list.append(new_bead)
@@ -1184,7 +1111,7 @@ def create_residue(res, system, position=None, state=None, id=None):
 def create_molecule(mol,system):
     '''
     Creates a molecules in the espresso given with the properties stored in mol
-    mole: instance of a molecule object as defined in sugar library
+    mol: instance of a molecule object as defined in sugar library
     system: instance of a system object of espresso library
     position: list of arrays with the position of each residue of the molecule. 
     The positions are asigned in the same order than the particles stored in residue (first the principal bead and then the lateral ones)
@@ -1192,10 +1119,6 @@ def create_molecule(mol,system):
     id = list of arrays with the ids of each residue of the molecule. 
     '''
     
-    import espressomd
-    from espressomd import interactions
-
-
     if mol.N is None:
 
         mol.N=1
@@ -1225,6 +1148,8 @@ def create_molecule(mol,system):
                     pre_bead_id=pre_backbone_bead.ids[0]
                     pre_bead_pos=system.part[pre_bead_id].pos
                     pre_bead_name=pre_backbone_bead.name
+                    ids_res=res.ids[0]
+                    id_list+=ids_res
 
                 else:
 
@@ -1233,50 +1158,21 @@ def create_molecule(mol,system):
                     new_bead_name=new_backbone_bead.name
 
                     actors=[pre_bead_name,new_bead_name]
-                    unasigned_bond=True
-
-            # search a for a bond type between the backbone beads
-
-                    for bond in res.bonds:
-
-                        if actors == bond.actors or actors[::-1] == bond.actors:
-
-                            backbone_bond=bond
-                            unasigned_bond=False
-
-                        if unasigned_bond:
-
-                            for bond in res.bonds:
-
-                                if bond.actors[0] == "default":
-
-                                    backbone_bond=bond
-                                    unasigned_bond=False
-
-                        if unasigned_bond:
-
-                            raise ValueError("The bond between ", actors, "is not defined in the residue")            
-
-
+                    backbone_bond=search_bond(actors,res)
+       
                     new_bead_pos=pre_bead_pos+bond_vector*backbone_bond.bondl.to('nm').magnitude
                     create_residue(res, system, position=[new_bead_pos])
-
-            # Create the harmonic bond for the principal chain
-
-                    if (backbone_bond.type == "harmonic"):
-
-                        bond_potential = interactions.HarmonicBond(k=backbone_bond.k.to('kJ / mol / nm**2').magnitude, r_0=backbone_bond.bondl.to('nm').magnitude)
                     
+                    # Create the harmonic bond for the principal chain
 
-                    else:
-
-                        raise ValueError("Unknown bond type", bond.type)
-            
-                    system.bonded_inter.add(bond_potential)
                     ids_res=res.ids[0]
-                    id_list+=ids_res
                     id_ppal_bead=ids_res[0]
-                    system.part[pre_bead_id].add_bond((bond_potential, id_ppal_bead))
+                    
+                    create_bond(system,bond=backbone_bond,id1=pre_bead_id,id2=id_ppal_bead)
+
+                    # Update lists and variables
+                    
+                    id_list+=ids_res
                     pre_bead_id=res.ids[0]
                     pre_bead_name=new_bead_name
                     pre_bead_pos=new_bead_pos
@@ -1285,84 +1181,91 @@ def create_molecule(mol,system):
 
     return 
 
-
-
-def count_titrable_groups(protein):
+def count_titrable_groups(mol):
     """
     Counts the number of titrable groups in the protein object
 
     Input:
-    protein: class object as defined in this library, attributes:
+    mol: instance of a molecule class object as defined in sugar library.
 
     Output:
     N_ti: (int) number of titrable groups in the sequence
     """
 
     N_ti=0
+    
+    for chain in mol.residues:
+            
+        for res in chain:
 
-    for residue in protein.sequence:
+            for chain_bead in res.beads:
 
-        if residue.pKa is not None:
+                for bead in chain_bead:
 
-            N_ti+=1
+                    if bead.pKa is not None:
 
-    N_ti*=protein.N
+                        N_ti+=1
+
+    N_ti*=mol.N
 
     return N_ti
 
-def setup_protein_acidbase_reactions(RE, protein, cation):
+def setup_protein_acidbase_reactions(RE, mol, cation):
     """
     Set up the Acid/Base reactions for acidic/basidic residues in protein. The reaction steps are done following the constant pH ensamble procedure. 
 
     Inputs:
     RE: instance of the espresso class reaction_ensemble.ConstantpHEnsemble
-    protein: class object as defined in this library, attributes:
-    cation: class objects of the cations,  with the following attributes:
-        q: (int) charge of the ion
-        type: (int) type of the ion
+    mol: molecule class object as defined in sugar library
+    cation: particle class object as defined in sugar library
     """
 
     reaction_absent={}
 
-    for group in param.general.pka_hass.keys():
-        
-        reaction_absent[group]=True
+    for chain in mol.residues:
+            
+        for res in chain:
 
-    for residue in protein.sequence:
+            for chain_bead in res.beads:
 
-        if residue.pKa is not None:
-        
-            for bead in residue.part:
+                for bead in chain_bead:
 
-                if (reaction_absent[residue.name] and "charged" in bead.q.keys()): 
+                    if bead.pKa is not None:
 
-                    if (bead.q["charged"] == 1) : # Basic residue
+                        if bead.name not in reaction_absent.keys():
+
+                            reaction_absent[bead.name]=True
+
+                        if (reaction_absent[bead.name] and "protonated" in bead.q.keys()): 
+
+                            if (bead.q["protonated"] == +1) : # Basic residue
                         
-                        RE.add_reaction(gamma=10**-residue.pKa,
-                            reactant_types=[bead.type["charged"]],
-                            reactant_coefficients=[1],
-                            product_types=[bead.type["neutral"], cation.type],
-                            product_coefficients=[1,1],
-                            default_charges={bead.type["neutral"]: bead.q["neutral"],
-                                             bead.type["charged"]: bead.q["charged"],
-                                             cation.type: cation.q})
-                        reaction_absent[residue.name] = False
+                                RE.add_reaction(gamma=10**-bead.pKa,
+                                                reactant_types=[bead.type["protonated"]],
+                                                reactant_coefficients=[1],
+                                                product_types=[bead.type["unprotonated"], cation.type],
+                                                product_coefficients=[1,1],
+                                                default_charges={bead.type["protonated"]: bead.q["protonated"],
+                                                bead.type["unprotonated"]: bead.q["unprotonated"],
+                                                cation.type: cation.q})
+                                reaction_absent[bead.name] = False
 
-                    elif (bead.q["charged"] == -1) : # Acid residue
+                            elif (bead.q["protonated"] == 0) : # Acid residue
 
-                        RE.add_reaction(gamma=10**-residue.pKa,
-                            reactant_types=[bead.type["neutral"]],
-                            reactant_coefficients=[1],
-                            product_types=[bead.type["charged"], cation.type],
-                            product_coefficients=[1, 1],
-                            default_charges={bead.type["neutral"]: bead.q["neutral"],
-                                             bead.type["charged"]: bead.q["charged"],
-                                             cation.type: cation.q})
-                        reaction_absent[residue.name] = False
+                                RE.add_reaction(gamma=10**-bead.pKa,
+                                                reactant_types=[bead.type["protonated"]],
+                                                reactant_coefficients=[1],
+                                                product_types=[bead.type["unprotonated"], cation.type],
+                                                product_coefficients=[1, 1],
+                                                default_charges={bead.type["protonated"]: bead.q["protonated"],
+                                                                bead.type["unprotonated"]: bead.q["unprotonated"],
+                                                                cation.type: cation.q})
+                                                                
+                                reaction_absent[bead.name] = False
 
-                    else:
+                            else:
     
-                        raise ValueError("This subrutine is concived for the acid/base equilibria of monovalent ions. Charge of residue ", residue.name, " = ", bead.q["charged"])
+                                raise ValueError("This subrutine is concived for the acid/base equilibria of monovalent ions. Charge of residue ", bead.name, " = ", bead.q["charged"])
 
     return
 
@@ -1447,7 +1350,6 @@ def calculate_HH(pH, protein):
         Z_HH.append(Z)
 
     return Z_HH
-
 
 def create_counterions(system,protein):
     """
@@ -1549,9 +1451,6 @@ def create_counterions(system,protein):
 
     return cation, anion
 
-
-
-
 def generate_trialvectors(mag):
     """
     Generates a random 3D unit vector (direction) with a uniform spherical distribution
@@ -1617,7 +1516,6 @@ def get_bonds(cls):
 
     return bond_list
 
-
 def get_attributes(cls):
     import inspect
 
@@ -1633,11 +1531,9 @@ def get_attributes(cls):
 
     return attribute_list
 
-
 def newAttr(self, attr):
 
     setattr(self, attr.name, attr)
-
 
 def get_modelnames():
 
@@ -1651,3 +1547,81 @@ def get_modelnames():
             model_names.append(param_set.name)
 
     return model_names
+
+def search_bond(actors,res):
+    """
+    Search for a bond in res that joins the beads contained in actors
+
+    Inputs:
+    actors:list containing the bead objects
+    res: residue object as defined in sugar library
+
+    Outputs:
+    asigned_bond: bond object as defined in sugar library
+
+    """
+
+    unasigned_bond=True
+
+    for bond in res.bonds:
+
+        if actors == bond.actors or actors[::-1] == bond.actors:
+
+            asigned_bond=bond
+            unasigned_bond=False
+            break
+
+    if unasigned_bond:
+
+        for bond in res.bonds:
+
+            if bond.actors[0] == "default":
+
+                asigned_bond=bond
+                unasigned_bond=False
+                break
+
+    if unasigned_bond:
+        write_parameters(res)
+        raise ValueError("The bond between ", actors, "is not defined in the residue")
+
+    return asigned_bond
+
+def create_bond(system,bond,id1,id2):
+    """
+    Creates a bond between id1 and id2 in system
+
+    Inputs:
+    system: instance of the espresso library system class
+    bond: instance of a bond object as defined in sugar library
+    id1:(int) id number of first particle
+    id2: (int) id number of the second particle
+       
+    """                         
+
+    import espressomd
+    from espressomd import interactions
+
+
+    if not isinstance(id1,int) and isinstance(id2,int):
+
+        raise ValueError("id1 and id2 should be integer numbers, given id1 =", id1, "and id2 = ", id2)
+
+    if not isinstance(bond, param.bond):
+
+        raise ValueError("bond should be a sugar bond object, given: ", bond )
+
+    if (bond.type == "harmonic"):
+
+        bond_potential = interactions.HarmonicBond(k=bond.k.to('kJ / mol / nm**2').magnitude, r_0=bond.bondl.to('nm').magnitude)
+                            
+
+    else:
+
+        raise ValueError("Unknown bond type", bond.type)
+
+
+    system.bonded_inter.add(bond_potential)
+    system.part[id1].add_bond((bond_potential, id2))
+
+    return

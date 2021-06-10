@@ -53,7 +53,7 @@ system = espressomd.System(box_l=[10] * 3)
 peptide1.N=3
 sg.create_molecule(peptide1, system)
 sg.write_parameters(peptide1)
-
+N_titrable_groups=sg.count_titrable_groups(peptide1)
 
 bead_list=[]
 
@@ -62,6 +62,9 @@ from espressomd.io.writer import vtf
 with open('trajectory.vtf', mode='w+t') as coordinates:
     vtf.writevsf(system, coordinates)
     vtf.writevcf(system, coordinates)
+
+RE = reaction_ensemble.ConstantpHEnsemble(temperature=1, exclusion_radius=1, seed=12345)
+sg.setup_protein_acidbase_reactions(RE, peptide, cation)
 
 exit()
 
