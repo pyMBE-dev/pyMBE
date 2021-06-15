@@ -1269,13 +1269,14 @@ def setup_protein_acidbase_reactions(RE, mol, cation):
 
     return
 
-def calculate_protein_charge(system, protein):
+def calculate_protein_charge(system, mol):
     """ 
     Calculates the charge of the protein and its square
 
     Inputs:
     system: espresso class object with all system variables
-    protein: class object as defined in this library
+    mol: molecule class object as defined in sugar library
+
 
     Outputs:
     Z_prot: (float) total charge of the protein
@@ -1284,48 +1285,54 @@ def calculate_protein_charge(system, protein):
     
     Z_prot=0
 
-    for chain in protein.ids:
+    for chain in mol.ids:
         
         for id in chain:
 
             Z_prot+=system.part[id].q
 
-    Z_prot=Z_prot/protein.N
+    Z_prot=Z_prot/mol.N
     Z2=Z_prot**2
 
     return Z_prot, Z2
 
-def track_ionization(system, protein):
+def track_ionization(system, mol):
     """
     Sets up espresso to track the average number of particles of each residue type
     
     Inputs:
     system: espresso class object with all system variables
-    protein: class object as defined in this library
+    mol: class object as defined in this library
 
     """
 
     types=[]
 
-    for residue in protein.sequence:
-        
-        for bead in residue.part:
+    for chain in mol.residues:
+            
+        for res in chain:
 
-            for type in bead.type.values():
+            for chain_bead in res.beads:
 
-                types.append(type)
+                for bead in chain_bead:
+                    
+                    b_type=bead.type
+
+                    if b_type not in types:
+
+                        types.append(type)
 
     system.setup_type_map(types)
 
     return
 
-def calculate_HH(pH, protein):
+def calculate_HH(pH, mol):
     """
     Calculates the ideal Henderson-Hassebach titration curve in the given pH range
 
     Inputs:
     pH: (list of floats) list of pH values
-    protein: class object as defined in this library
+    mol: molecule class object as defined in sugar library
 
     Outputs:
     Z_HH: (list of floats) Henderson-Hasselnach prediction of the protein charge in the given pH
@@ -1335,6 +1342,8 @@ def calculate_HH(pH, protein):
 
     for pH_value in pH:
         
+        
+
         Z=0
 
         for residue in protein.sequence:
