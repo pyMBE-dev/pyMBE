@@ -30,10 +30,10 @@ from sugar import molecule,particle
 pep_sequence="nAAAc"
 pKa_dict={"A": 4.25}
 
-custom_dict = {'A': {'type': 1,
+custom_dict = {'A': {'type': {'protonated': 1, 'unprotonated': 2},
                 'q': -1,
                 'acidity': 'acid',
-                'radius': 1*ureg.nm
+                'radius': 1*ureg.nm,
                             }
               }
        
@@ -64,7 +64,14 @@ with open('trajectory.vtf', mode='w+t') as coordinates:
     vtf.writevcf(system, coordinates)
 
 RE = reaction_ensemble.ConstantpHEnsemble(temperature=1, exclusion_radius=1, seed=12345)
-sg.setup_protein_acidbase_reactions(RE, peptide, cation)
+cation=sg.particle()
+cation.q=1
+cation.type=0
+
+sg.track_ionization(system, peptide1)
+Z, Z2 = sg.calculate_molecule_charge(system, peptide1)
+Z_HH = sg.calculate_HH(peptide1)
+print(Z_HH)
 
 exit()
 

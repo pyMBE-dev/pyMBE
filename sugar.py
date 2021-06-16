@@ -725,11 +725,11 @@ def create_particle(part, system, position=None, state=None, id=None):
                 raise ValueError("Unknown state for bead: ", part.name, " please review the input state:", state, ' valid keys are', part.q.keys())
     else:
 
-        if isinstance(part.q, dict):
+        if isinstance(part.type, dict):
             
             # Inicialice beads with more than one state in a random state
 
-            state=rn.choice(list(part.q.keys()))
+            state=rn.choice(list(part.type.keys()))
             part.state=state
 
     
@@ -740,7 +740,6 @@ def create_particle(part, system, position=None, state=None, id=None):
     elif isinstance(part.q, dict):
 
         q=part.q[state]
-        part.q=q
 
     else:
 
@@ -753,7 +752,6 @@ def create_particle(part, system, position=None, state=None, id=None):
     elif isinstance(part.type, dict):
 
         type=part.type[state]
-        part.type=type
 
     else:
 
@@ -1210,9 +1208,9 @@ def count_titrable_groups(mol):
 
     return N_ti
 
-def setup_protein_acidbase_reactions(RE, mol, cation):
+def setup_acidbase_reactions(RE, mol, cation):
     """
-    Set up the Acid/Base reactions for acidic/basidic residues in protein. The reaction steps are done following the constant pH ensamble procedure. 
+    Set up the Acid/Base reactions for acidic/basidic residues in mol. The reaction steps are done following the constant pH ensamble procedure. 
 
     Inputs:
     RE: instance of the espresso class reaction_ensemble.ConstantpHEnsemble
@@ -1222,143 +1220,295 @@ def setup_protein_acidbase_reactions(RE, mol, cation):
 
     reaction_absent={}
 
-    for chain in mol.residues:
+    if isinstance(mol,molecule):
+
+        for chain in mol.residues:
             
-        for res in chain:
+            for res in chain:
 
-            for chain_bead in res.beads:
+                for chain_bead in res.beads:
 
-                for bead in chain_bead:
+                    for bead in chain_bead:
 
-                    if bead.pKa is not None:
+                        if bead.pKa is not None and  bead.acidity in ['acid','basic']:
 
-                        if bead.name not in reaction_absent.keys():
+                            if bead.name not in reaction_absent.keys():
 
-                            reaction_absent[bead.name]=True
+                                reaction_absent[bead.name]=True
 
-                        if (reaction_absent[bead.name] and "protonated" in bead.q.keys()): 
+                            if (reaction_absent[bead.name]):
 
-                            if (bead.q["protonated"] == +1) : # Basic residue
-                        
-                                RE.add_reaction(gamma=10**-bead.pKa,
-                                                reactant_types=[bead.type["protonated"]],
-                                                reactant_coefficients=[1],
-                                                product_types=[bead.type["unprotonated"], cation.type],
-                                                product_coefficients=[1,1],
-                                                default_charges={bead.type["protonated"]: bead.q["protonated"],
-                                                bead.type["unprotonated"]: bead.q["unprotonated"],
-                                                cation.type: cation.q})
-                                reaction_absent[bead.name] = False
+                                setup_bead_acidbase_reaction(RE, bead, cation)
+                                reaction_absent[bead.name]=False
 
-                            elif (bead.q["protonated"] == 0) : # Acid residue
+    if isinstance(mol,residue):
+        
+        for chain_bead in res.beads:
 
-                                RE.add_reaction(gamma=10**-bead.pKa,
-                                                reactant_types=[bead.type["protonated"]],
-                                                reactant_coefficients=[1],
-                                                product_types=[bead.type["unprotonated"], cation.type],
-                                                product_coefficients=[1, 1],
-                                                default_charges={bead.type["protonated"]: bead.q["protonated"],
-                                                                bead.type["unprotonated"]: bead.q["unprotonated"],
-                                                                cation.type: cation.q})
-                                                                
-                                reaction_absent[bead.name] = False
+            for bead in chain_bead:
 
-                            else:
-    
-                                raise ValueError("This subrutine is concived for the acid/base equilibria of monovalent ions. Charge of residue ", bead.name, " = ", bead.q["charged"])
+                if bead.pKa is not None and  bead.acidity in ['acid','basic']:
+
+                    if bead.name not in reaction_absent.keys():
+
+                        reaction_absent[bead.name]=True
+
+                    if (reaction_absent[bead.name]):
+
+                        setup_bead_acidbase_reaction(RE, bead, cation)
+                        reaction_absent[bead.name]=False
+
+    if isinstance(mol, particle): 
+
+        if mol.pKa is not None and  mol.acidity in ['acid','basic']:
+
+            setup_bead_acidbase_reaction(RE, bead, cation)
+            reaction_absent[bead.name]=False
 
     return
 
-def calculate_protein_charge(system, mol):
+def setup_bead_acidbase_reaction(RE, part, cation):
+    """
+    Set up the Acid/Base reactions for acidic/basidic residues in protein. The reaction steps are done following the constant pH ensamble procedure. 
+
+    Inputs:
+    RE: instance of the espresso class reaction_ensemble.ConstantpHEnsemble
+    mol: particle/residue/molecule class object as defined in sugar library
+    cation: particle class object as defined in sugar library
+    """
+
+    if not isinstance(part, particle) or not isinstance(cation, particle):
+
+        raise ValueError("part and cation must be instances of a particle object from sugar library")
+
+    if part.acidity not in ['acid','basic']:
+
+        print("WARNING, the added particle does not have its acidity defined, please define part.acidity to 'acid' or 'basic'. No reaction has been added")
+    
+    if cation.q != 1:
+
+        print("the subroutine is concived for monovalent cations. The charge of the cation is set to 1, given cation.q = ", cation.q)
+
+    if  isinstance(part.type, dict):
+
+        if 'protonated' not in part.type.keys() or 'unprotonated' not in part.type.keys():
+
+             raise ValueError('part.type must contain as keys "protonated" and "unprotoanted". Given: ',  part.type.keys())
+
+    else:
+
+        raise ValueError("Particle type must store the tipe of the protonated and unprotonated species so that part.type['protonated'] returns the type of the protonated specie and part.type['unprotonated'] returns the type of the unprotonated specie. Given: ", part.type)
+
+
+    if part.pKa is not None and  part.acidity in ['acid','basic']:
+
+        if (part.acidity == 'basic') : # Basic residue
+                       
+            RE.add_reaction(gamma=10**-part.pKa,
+                            reactant_types=[part.type["protonated"]],
+                            reactant_coefficients=[1],
+                            product_types=[part.type["unprotonated"], cation.type],
+                            product_coefficients=[1,1],
+                            default_charges={part.type["protonated"]: 1,
+                            part.type["unprotonated"]: 0,
+                            cation.type: 1})
+
+        elif (part.acidity == 'acid') : # Acid residue
+
+            RE.add_reaction(gamma=10**-part.pKa,
+                            reactant_types=[part.type["protonated"]],
+                            reactant_coefficients=[1],
+                            product_types=[part.type["unprotonated"], cation.type],
+                            product_coefficients=[1, 1],
+                            default_charges={part.type["protonated"]: 0,
+                                            part.type["unprotonated"]: -1,
+                                            cation.type: 1})
+
+    return
+
+def calculate_molecule_charge(system, mol):
     """ 
     Calculates the charge of the protein and its square
 
     Inputs:
     system: espresso class object with all system variables
-    mol: molecule class object as defined in sugar library
+    mol: particle/residue/molecule class object as defined in sugar library
 
 
     Outputs:
     Z_prot: (float) total charge of the protein
     Z2: (float) square of Z_prot
     """
-    
-    Z_prot=0
 
-    for chain in mol.ids:
-        
-        for id in chain:
+    if not isinstance(mol.N,int):
 
-            Z_prot+=system.part[id].q
+        raise ValueError("The number of objects must be given in mol.N, given:", mol.N)
 
-    Z_prot=Z_prot/mol.N
-    Z2=Z_prot**2
+    if (mol.N == 0):
 
-    return Z_prot, Z2
+        raise ValueError("The number of objects must not be zero, given: ", mol.N)
+
+    Z=0
+
+    if isinstance(mol,molecule) or isinstance(mol,residue):
+
+        for chain in mol.ids:
+            
+            for id in chain:
+
+                Z+=system.part[id].q
+
+    if isinstance(mol, particle): 
+
+        for id in mol.ids:
+
+            Z+=system.part[id].q
+
+    Z=Z/mol.N
+    Z2=Z**2
+
+    return Z, Z2
 
 def track_ionization(system, mol):
     """
-    Sets up espresso to track the average number of particles of each residue type
+    Sets up espresso to track the average number of particles of the types contained in mol
     
     Inputs:
     system: espresso class object with all system variables
-    mol: class object as defined in this library
+    mol: particle/residue/molecule class object as defined in sugar library
 
     """
 
     types=[]
 
-    for chain in mol.residues:
+    if isinstance(mol,molecule) or isinstance(mol,residue):
+
+        for chain in mol.ids:
             
-        for res in chain:
+            for id in chain:
 
-            for chain_bead in res.beads:
+                b_type=system.part[id].type
+                
+                if b_type not in types:
 
-                for bead in chain_bead:
-                    
-                    b_type=bead.type
+                    types.append(b_type)
 
-                    if b_type not in types:
 
-                        types.append(type)
+    elif isinstance(mol, particle): 
+
+        for id in mol.ids:
+
+            b_type=system.part[id].type
+                
+            if b_type not in types:
+
+                types.append(b_type)
+
+    else:
+        
+        raise ValueError("mol must be a particle/residue/molecule class object as defined in sugar library given: ", mol)
 
     system.setup_type_map(types)
 
     return
 
-def calculate_HH(pH, mol):
+def calculate_HH( mol,pH=None):
     """
     Calculates the ideal Henderson-Hassebach titration curve in the given pH range
 
     Inputs:
     pH: (list of floats) list of pH values
-    mol: molecule class object as defined in sugar library
+    mol: particle/residue/molecule class object as defined in sugar library
 
     Outputs:
     Z_HH: (list of floats) Henderson-Hasselnach prediction of the protein charge in the given pH
     """
 
+    if pH is None:
+
+        pH=np.linspace(2,12,50)
+    
+    elif not isinstance(pH,list):
+
+        raise ValueError("pH must contain a list with the pH-values where the Henderson-Hassebach titration curve will be calculated. Given: ", pH)        
+
     Z_HH=[]
 
     for pH_value in pH:
         
-        
-
         Z=0
 
-        for residue in protein.sequence:
+        if isinstance(mol,molecule):
 
-            if residue.pKa is not None:
+            for chain in mol.residues:
+            
+                for res in chain:
 
-                for bead in residue.part:
+                    for chain_bead in res.beads:
 
-                    if "charged" in bead.q.keys():
+                        for bead in chain_bead:
 
-                        Z+=bead.q["charged"]/(1+10**(bead.q["charged"]*(pH_value-residue.pKa)))
+                            Z+=calculate_HH_part(pH_value, bead)
 
+        if isinstance(mol,residue):
+        
+            for chain_bead in res.beads:
+
+                for bead in chain_bead:
+
+                    Z+=calculate_HH_part(pH_value, bead)                    
+
+        if isinstance(mol, particle): 
+
+            if mol.pKa is not None and  mol.acidity in ['acid','basic']:
+
+                Z+=calculate_HH_part(pH_value, bead)
+                        
         Z_HH.append(Z)
 
     return Z_HH
+
+def calculate_HH_part(pH, part):
+    """
+    Calculates the ideal Henderson-Hassebach titration curve of part at one pH-value
+
+    Inputs:
+    pH: (float) pH value
+    part: particle class object as defined in sugar library
+
+    Outputs:
+    z: (float) Henderson-Hasselnach prediction of charge of part at the given pH
+    """  
+
+    if not isinstance(part, particle): 
+
+        raise ValueError("part must an instance of a particle object as defined in sugar library. Given: ", part)
+
+    if not isinstance(pH,float) or   isinstance(pH,int):
+
+        raise ValueError("pH  must contain a float or integer number with the pH-value, given: ", pH)
+
+    if part.pKa is not None and  part.acidity in ['acid','basic']:
+
+        if part.acidity == 'acid':
+
+            q=-1
+
+        elif part.acidity == 'basic':
+
+            q=+1
+
+        else:
+
+            raise ValueError("Unkown particle acidity, known options are 'acid' or 'basic'. Given:  ", part.acidity)
+
+        z=q/(1+10**(q*(pH-part.pKa)))
+
+    else:
+        
+        z=0
+
+    return z
 
 def create_counterions(system,protein):
     """
