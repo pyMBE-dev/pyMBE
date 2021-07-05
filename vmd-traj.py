@@ -6,7 +6,7 @@ import re
 
 frame_dir='./frames'            # Path to the directory of the frame trajectories
 reservoir_pos=[-2,-2,-2]        # Coordinates of the particle reservoir
-folded = True                   # Applies periodic boundary conditions
+folded = True                  # Applies periodic boundary conditions
 nametraj = "vmd-trajectory.vtf" # Name of the output vmd-readable trajectory file
 nametcl  = "visualization.tcl"  # Name of the script for vmd visualization
 radcyl = 3                      # Width of the simulation box

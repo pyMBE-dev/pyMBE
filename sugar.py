@@ -317,7 +317,7 @@ class molecule:
 
                             if "default"  in side_dict.keys():
                             
-                                chains=side_dict["default"]
+                                chains=[side_dict["default"]]
 
                             else:
 
@@ -325,12 +325,9 @@ class molecule:
                             
                     
                         for chain in chains:
-                        
-                            lateral_beads.append(chain)
-
+                            
                             for part in chain:
-                        
-                          
+                                
                                 if part == "sequence":
                             
                                     name= res.name
@@ -345,6 +342,7 @@ class molecule:
                                         bead.pKa=pKa_set[name]
 
                                     bead_list.append(bead)
+                                    lateral_beads.append(bead.name)
                                 
 
                                 else:     
@@ -368,7 +366,7 @@ class molecule:
                                         raise ValueError("Unknown key for the side chain: ", part)
 
                                     bead_list.append(bead)
-                                
+                                    lateral_beads.append(bead.name)
                 
                     res.lateral_beads=lateral_beads
                     res.beads=[bead_list]
@@ -1450,6 +1448,7 @@ def calculate_HH( mol,pH=None):
 
                             Z+=calculate_HH_part(pH_value, bead)
 
+
         if isinstance(mol,residue):
         
             for chain_bead in res.beads:
@@ -1510,50 +1509,36 @@ def calculate_HH_part(pH, part):
 
     return z
 
-def create_counterions(system,protein):
+def create_counterions(system,mol, cation=None, anion=None):
     """
-    Adds one monovalent counter-ion (cation or anion) of opposite charge per each charge in the peptide.
+    Adds one monovalent counter-ion (cation or anion) of opposite charge per each charge in mol
 
     Inputs:
 
     system: espresso class object with all system variables.
-    protein: class object as defined in this library
+    mol: molecule/residue/particle class object as defined in this library
 
-    Outputs:
-    cation/anion: particle class objects of the counter-ions, as defined in this library
-        q: (int) charge of the ion
-        type: (int) type of the ion
+    In/Out:
+    cation: particle class object as defined in sugar library
+    anion: particle class object as defined in sugar library
 
-    Assumptions:
-
-    -The charges in system are monovalent
-    -The counter-ions are monovalent
 
     """
 
     # Load the parameters
 
-    param=parameters()
+    if cation is None:
 
-    # Create and set-up the cation particle object
+        cation=param.small_ions.cation
+        cation.N=0
 
-    cation=particle()
-    cation.name="cation"
-    cation.q=param.q[cation.name]
-    cation.type=param.type[cation.name]
-    cation.radi=param.radi[cation.name]
-    cation.state="charged"
+    if anion is None:
 
-    # Create and set-up the cation particle object
+        anion=param.small_ions.anion
+        anion.N=0
 
-    anion=particle()
-    anion.name="anion"
-    anion.q=param.q[anion.name]
-    anion.type=param.type[anion.name]
-    anion.radi=param.radi[anion.name]
-    anion.state="charged"
-
-    # The ids of the counter ions are created to follow the ones of the peptide
+    
+    # The ids of the counter ions are created to be larger then the ids in the system
 
     if  len(system.part[:].id) != 0:
 
@@ -1566,49 +1551,121 @@ def create_counterions(system,protein):
     cation_id=[]
     anion_id=[]
 
-    for residue in protein.sequence:
+    if isinstance(mol,molecule) or isinstance(mol,residue):
 
-        for bead in residue.part:
-           
-            if bead.state is None:
+        for chain in mol.ids:
+            
+            for id in chain:
 
-                raise ValueError("The peptide chains must be created first in the system before creating their counter-ions")
+                q=system.part[id].q
+                
+                if q == +1:
 
-            else:
+                    I_id+=1
+                    I_pos=np.random.random((1, 3)) * system.box_l
+                    system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
+                    anion.N+=1
+                    anion_id.append(I_id)
+                    total_q+=q+anion.q
 
-                for npart in range(bead.N):
+                elif q == -1:
 
-                    if bead.q[bead.state] == 1: # Create an anion
+                    I_id+=1
+                    I_pos=np.random.random((1, 3)) * system.box_l
+                    system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
+                    cation.N+=1
+                    cation_id.append(I_id)
+                    total_q+=q+cation.q
 
-                        I_id+=1
-                        I_pos=np.random.random((1, 3)) * system.box_l
-                        system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
-                        anion.N+=1
-                        anion_id.append(I_id)
-                        total_q+=bead.q[bead.state]+anion.q
 
-                    elif bead.q[bead.state] == -1: # Create an anion
+    if isinstance(mol, particle): 
 
-                        I_id+=1
-                        I_pos=np.random.random((1, 3)) * system.box_l
-                        system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
-                        cation.N+=1
-                        cation_id.append(I_id)
-                        total_q+=bead.q[bead.state]+cation.q
-                    
-                    elif bead.q[bead.state] != 0:
+        for id in mol.ids:
 
-                        raise ValueError("This subroutine only considers the case of peptide chains with monovalent charged residues")
+            q=system.part[id].q
+                
+            if q == +1:
+
+                I_id+=1
+                I_pos=np.random.random((1, 3)) * system.box_l
+                system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[q])
+                anion.N+=1
+                anion_id.append(I_id)
+                total_q+=q+anion.q
+
+            elif q == -1:
+
+                I_id+=1
+                I_pos=np.random.random((1, 3)) * system.box_l
+                system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[q])
+                cation.N+=1
+                cation_id.append(I_id)
+                total_q+=q+cation.q
     
     cation.ids=cation_id
     anion.ids=anion_id
 
     if total_q != 0:
 
-        raise ValueError("Subrutine attempted to create a not electroneutral system, please review your peptide set-ups")
+        raise ValueError("Subrutine attempted to create a not electroneutral system, please review your peptide setup")
 
 
     return cation, anion
+
+def create_added_salt(system, cation, anion, N_ions):
+    
+    """
+    Adds extra cations/anions to the system
+
+    Inputs:
+
+    system: espresso class object with all system variables.
+    cation/anion:    particle class object as defined in sugar library
+    N_ions: number of ions to be added 
+    
+    Assumptions:
+
+    -The number of anions and cations provided must ensure electroneutrality
+  
+    """
+
+        # The ids of the counter ions are created to be larger then the ids in the system
+
+    if  len(system.part[:].id) != 0:
+
+        I_id=max(system.part[:].id)
+
+    total_q=0
+
+    N_anion=0
+    N_cation=0
+
+    while N_anion < N_ions:
+
+        I_id+=1
+        I_pos=np.random.random((1, 3)) * system.box_l
+        system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
+        anion.N+=1
+        anion.ids.append(I_id)
+        total_q+=anion.q
+        N_anion+=1
+
+    while N_cation < N_ions:
+
+        I_id+=1
+        I_pos=np.random.random((1, 3)) * system.box_l
+        system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
+        cation.N+=1
+        cation.ids.append(I_id)
+        total_q+=cation.q
+        N_cation+=1
+
+    if total_q != 0:
+
+        raise ValueError("Subrutine attempted to create a not electroneutral system, please review your cation/anion setup")
+
+
+    return 
 
 def generate_trialvectors(mag):
     """

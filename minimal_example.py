@@ -36,21 +36,21 @@ custom_dict = {'A': {'type': {'protonated': 1, 'unprotonated': 2},
                 'radius': 1*ureg.nm,
                             }
               }
-       
 
-customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A": "A"}, side_chain={"A": [["H","H","H",],["T"]]})
+customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A": "A"}, side_chain={"A": [["H"],["T"]]})
 
 
 peptide1 = molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)
 
+
 model_names=sg.get_modelnames()
 
-system = espressomd.System(box_l=[10] * 3)
+system = espressomd.System(box_l=[20] * 3)
 
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
-peptide1.N=3
+peptide1.N=1
 sg.create_molecule(peptide1, system)
 sg.write_parameters(peptide1)
 N_titrable_groups=sg.count_titrable_groups(peptide1)
@@ -70,8 +70,81 @@ cation.type=0
 
 sg.track_ionization(system, peptide1)
 Z, Z2 = sg.calculate_molecule_charge(system, peptide1)
-Z_HH = sg.calculate_HH(peptide1)
-print(Z_HH)
+print(Z)
+
+cation, anion = sg.create_counterions(system,peptide1)
+
+sg.create_added_salt(system, cation, anion, N_ions=10)
+
+with open('trajectory.vtf', mode='w+t') as coordinates:
+    vtf.writevsf(system, coordinates)
+    vtf.writevcf(system, coordinates)
+
+sg.setup_acidbase_reactions(RE, peptide1, cation)
+
+pH = np.linspace(2, 12, num=20)
+Steps_per_sim= 1000
+steps_eq=int(Steps_per_sim/3)
+Z_pH=[] # Average charge list
+
+# The trajectories of the simulations will be stored in separed files for latter visualization using espresso built-up functions and stored in folder 'frames'
+
+from espressomd.io.writer import vtf
+import os
+
+if not os.path.exists('./frames'):
+    os.makedirs('./frames')
+
+# Write the initial state
+
+with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
+    vtf.writevsf(system, coordinates)
+    vtf.writevcf(system, coordinates)
+
+N_steps_print= 100  # Write the trajectory every 100 simulation steps
+N_frame=0
+
+
+for pH_value in pH:
+
+    Z_sim=[]
+    RE.constant_pH = pH_value
+
+    for step in range(Steps_per_sim+steps_eq):
+    
+        RE.reaction(N_titrable_groups)
+
+        if ( step > steps_eq):
+
+            Z, Z2 = sg.calculate_molecule_charge(system, peptide1)
+            Z_sim.append(Z)
+
+        if (step % N_steps_print == 0) :
+
+            N_frame+=1
+            with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
+                vtf.writevsf(system, coordinates)
+                vtf.writevcf(system, coordinates)
+
+    Z_sim=np.array(Z_sim)
+    Z_pH.append(Z_sim.mean())
+    print("pH = {:6.4g} done".format(pH_value))
+
+# The results of the simulation should be compared with the Henderson-Hasselbach analytical prediction for an ideal system.
+# The library also provides a module that computes the ideal peptide charge predicted by  Henderson-Hasselbach theory for a given set of pH values
+
+Z_HH = sg.calculate_HH(peptide1,pH=list(pH))
+
+fig, ax = plt.subplots(figsize=(10, 7))
+ax.plot(pH, Z_pH, "ro", label='Simulation-ideal')
+ax.plot(pH, Z_HH, "-k", label='Henderson-Hasselbach')
+plt.legend()
+plt.xlabel('pH')
+plt.ylabel('Charge of the peptide / e')
+plt.title('Peptide sequence: '+ pep_sequence)
+plt.show()
+
+
 
 exit()
 

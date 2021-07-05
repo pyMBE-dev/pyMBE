@@ -21,6 +21,14 @@ class bond:
     bondl=None
     k=None
 
+class custom_lj:
+    name=None
+    actors=None
+    epsilon = None
+    sigma = None
+    cutoff = None
+    shift = None
+
 class custom_parameters:
     name="custom"
     beads_per_residue=None
@@ -34,6 +42,15 @@ class custom_parameters:
 
 class general:
     name=None
+
+    lj_WCA = custom_lj()
+    lj_WCA.name='WCA'
+    lj_WCA.actors=['WCA']
+    lj_WCA.epsilon= 1
+    lj_WCA.sigma=0.35 * ureg.nm # nm
+    lj_WCA.cutoff=1.12246*0.35 * ureg.nm # nm
+    lj_WCA.shift='auto'
+    
     aminoacid={"ALA": "A",
                "ARG": "R",
                "ASN": "N",
