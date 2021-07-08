@@ -1,9 +1,8 @@
-#from operator import ne
 import numpy as np
 import math as mt
 import parameters as param
 import random as rn
-from parameters import particle, bond
+from parameters import particle
 
 class residue:
 
@@ -141,6 +140,26 @@ class molecule:
 
                 raise ValueError("Unrecognized format for the custom parameters. Please, use the library function 'setup_custom_parameters' to define your custom parameters")
         
+        model_lj=get_lj(model_param)
+        
+        if (len(model_lj) == 0): # By default, WCA lennard jones interactions are included in the model
+
+            setattr(model_param,param.general.lj_WCA.name,param.general.lj_WCA)
+
+        else:
+
+            WCA_in_model=False
+
+            for lj_par in model_lj:
+
+                if lj_par.name == "WCA":
+
+                    WCA_in_model=True
+
+            if not WCA_in_model:
+
+                setattr(model_param,param.general.lj_WCA.name,param.general.lj_WCA)
+
         # Store the model in the molecule object
 
         self.model=model_param
@@ -294,7 +313,6 @@ class molecule:
                                 if p_bead_name in pKa_set.keys():
 
                                     bead.pKa=pKa_set[res.name]
-
                         
                     else:
                     
@@ -398,7 +416,6 @@ class molecule:
                             if bond not in res_bond_list:
                                 res_bond_list.append(bond)
                             break
-
 
                 res.bonds=res_bond_list
             
@@ -1109,10 +1126,6 @@ def create_molecule(mol,system):
     Creates a molecules in the espresso given with the properties stored in mol
     mol: instance of a molecule object as defined in sugar library
     system: instance of a system object of espresso library
-    position: list of arrays with the position of each residue of the molecule. 
-    The positions are asigned in the same order than the particles stored in residue (first the principal bead and then the lateral ones)
-    state = for particles with more than one possible state, defines in which state are created
-    id = list of arrays with the ids of each residue of the molecule. 
     '''
     
     if mol.N is None:
@@ -1321,6 +1334,34 @@ def setup_bead_acidbase_reaction(RE, part, cation):
                             default_charges={part.type["protonated"]: 0,
                                             part.type["unprotonated"]: -1,
                                             cation.type: 1})
+
+    return
+
+def setup_lj_pair(type1,type2,lj_param, system):
+    """
+    Creates a Lennard-Jones interaction between particle of types 'type1' and 'type2' with the parameters contained in lj_param
+
+    Inputs:
+
+    type1(int): first particle type
+    type2(int): second particle type 
+    lj_param: instance of a lennard-jones object, as defined in sugar library
+    system: instance of a system object of espresso library
+    """
+
+    if not isinstance(type1, int) or not isinstance(type2, int): 
+
+        raise ValueError("type1 and type2 must be integers. Given type1 =  ", type1, " and type2 = ", type2)
+
+    if not isinstance(lj_param, param.custom_lj):
+
+        raise ValueError("lj_param must be an instance of a lennard-jones object, as defined in sugar library. lj_param  =  ", lj_param)
+
+    system.non_bonded_inter[type1, type2].lennard_jones.set_params(
+                        epsilon = lj_param.epsilon.to('kJ / mol').magnitude,
+                        sigma = lj_param.sigma.to('nm').magnitude,
+                        cutoff = lj_param.cutoff.to('nm').magnitude,
+                        shift = lj_param.shift)
 
     return
 
@@ -1731,6 +1772,18 @@ def get_bonds(cls):
             bond_list.append(attribute[1])
 
     return bond_list
+
+def get_lj(cls):
+
+    lj_list=[]
+
+    for attribute in cls.__dict__.items():
+
+        if isinstance(attribute[1], param.custom_lj):
+
+            lj_list.append(attribute[1])
+
+    return lj_list
 
 def get_attributes(cls):
     import inspect

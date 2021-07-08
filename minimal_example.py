@@ -7,7 +7,8 @@ import pint
 ureg = pint.UnitRegistry()
 
 from espressomd import reaction_ensemble
-from sugar import molecule,particle
+from sugar import get_subclasses, molecule,particle
+
 
 ###################################################################
 ###################################################################
@@ -25,8 +26,6 @@ from sugar import molecule,particle
 # Practically, to create a peptide object one only needs to provide the aminoacid sequence to the library
 # The prefered format is a single string using the one-letter aminoacid code of the peptide. The amino and carboxyl ends are denoted as 'c' and 'n' respectively and must be provided in lower case. 
 
-
-
 pep_sequence="nAAAc"
 pKa_dict={"A": 4.25}
 
@@ -39,14 +38,13 @@ custom_dict = {'A': {'type': {'protonated': 1, 'unprotonated': 2},
 
 customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A": "A"}, side_chain={"A": [["H"],["T"]]})
 
-
 peptide1 = molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)
 
+print(sg.get_attributes(peptide1.model))
 
 model_names=sg.get_modelnames()
 
 system = espressomd.System(box_l=[20] * 3)
-
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
@@ -82,6 +80,10 @@ with open('trajectory.vtf', mode='w+t') as coordinates:
 
 sg.setup_acidbase_reactions(RE, peptide1, cation)
 
+lj_param=sg.get_lj(peptide1.model)
+
+sg.setup_lj_pair(type1=cation.type,type2=anion.type,lj_param=lj_param[0], system=system)
+
 pH = np.linspace(2, 12, num=20)
 Steps_per_sim= 1000
 steps_eq=int(Steps_per_sim/3)
@@ -104,6 +106,16 @@ with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
 N_steps_print= 100  # Write the trajectory every 100 simulation steps
 N_frame=0
 
+# Toda esta parte hay que pulir las unidades
+
+system.time_step = 0.01
+system.cell_system.skin = 0.4
+system.periodicity= [True,True,True]
+
+system.integrator.set_vv()
+system.thermostat.set_langevin(kT=2.5, gamma=1, seed=1234) 
+system.cell_system.tune_skin(0.1, system.box_l[0], 1e-3, 1000 , adjust_max_skin=True)
+
 
 for pH_value in pH:
 
@@ -111,7 +123,8 @@ for pH_value in pH:
     RE.constant_pH = pH_value
 
     for step in range(Steps_per_sim+steps_eq):
-    
+        
+        system.integrator.run(steps=1000)
         RE.reaction(N_titrable_groups)
 
         if ( step > steps_eq):

@@ -39,14 +39,13 @@ class custom_parameters:
 
         setattr(self, attr.name, attr)
 
-
 class general:
+    
     name=None
-
     lj_WCA = custom_lj()
     lj_WCA.name='WCA'
     lj_WCA.actors=['WCA']
-    lj_WCA.epsilon= 1
+    lj_WCA.epsilon= 2.5 * ureg.kJ / ureg.mol
     lj_WCA.sigma=0.35 * ureg.nm # nm
     lj_WCA.cutoff=1.12246*0.35 * ureg.nm # nm
     lj_WCA.shift='auto'
