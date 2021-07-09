@@ -1525,7 +1525,7 @@ def setup_lj_interactions(mol_list, system):
 
                             radius2=lj_WCA.sigma/2.
 
-                        sigma=radius1.to('nm').magnitude+radius2.to('nm').magnitude
+                        sigma=(radius1.to('nm').magnitude+radius2.to('nm').magnitude)*param.ureg.nm
 
                     epsilon=lj_param.epsilon
                     cutoff=lj_param.cutoff
@@ -1541,18 +1541,18 @@ def setup_lj_interactions(mol_list, system):
 
                     radius2=lj_WCA.sigma/2
 
-                sigma=radius1.to('nm').magnitude+radius2.to('nm').magnitude
+                sigma=(radius1.to('nm').magnitude+radius2.to('nm').magnitude)*param.ureg.nm
                 epsilon=lj_WCA.epsilon
                 cutoff=sigma*2**(1./6.)
                 shift=lj_WCA.shift
 
             pair_lj=param.custom_lj()
-            pair_lj.sigma=sigma*param.ureg.nm
+            pair_lj.sigma=sigma
             pair_lj.epsilon=epsilon
             pair_lj.cutoff=cutoff
             pair_lj.shift=shift
 
-            setup_lj_pair(type1,type2,lj_param, system)
+            setup_lj_pair(type1,type2,pair_lj, system)
             
     return
 

@@ -73,7 +73,7 @@ with open('trajectory.vtf', mode='w+t') as coordinates:
 
 sg.setup_acidbase_reactions(RE, peptide1, cation)
 
-sg.setup_lj_interactions(mol_list=[peptide1], system=system)
+sg.setup_lj_interactions(mol_list=[peptide1,cation,anion], system=system)
 
 pH = np.linspace(2, 12, num=20)
 Steps_per_sim= 1000
@@ -123,11 +123,11 @@ with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
     vtf.writevsf(system, coordinates)
     vtf.writevcf(system, coordinates)
 
-
-
 system.integrator.set_vv()
 system.thermostat.set_langevin(kT=8.314*298, gamma=1, seed=1234) 
 system.cell_system.tune_skin(0.1, system.box_l[0], 1e-3, 1000 , adjust_max_skin=True)
+
+
 
 for pH_value in pH:
 
