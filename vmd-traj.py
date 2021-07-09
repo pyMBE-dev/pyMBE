@@ -38,7 +38,7 @@ coord={}
 N_frame=0
 type_list=[]
 
-for frame in range(1,len(files)): # 'file' is a builtin type, 'frame' is a less-ambiguous variable name.
+for frame in range(0,len(files)): # 'file' is a builtin type, 'frame' is a less-ambiguous variable name.
     
     file_name=files_ordered[frame]
     path=frame_dir+"/"+file_name

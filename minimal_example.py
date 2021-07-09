@@ -2,13 +2,9 @@ import espressomd
 import sugar as sg
 import numpy as np
 import matplotlib.pyplot as plt
-import pint
-
-ureg = pint.UnitRegistry()
-
 from espressomd import reaction_ensemble
-from sugar import get_subclasses, molecule,particle
 
+from sugar import molecule,particle,ureg
 
 ###################################################################
 ###################################################################
@@ -32,7 +28,7 @@ pKa_dict={"A": 4.25}
 custom_dict = {'A': {'type': {'protonated': 1, 'unprotonated': 2},
                 'q': -1,
                 'acidity': 'acid',
-                'radius': 1*ureg.nm,
+                'radius': 0.15*ureg.nm
                             }
               }
 
@@ -40,11 +36,10 @@ customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A
 
 peptide1 = molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)
 
-print(sg.get_attributes(peptide1.model))
 
 model_names=sg.get_modelnames()
 
-system = espressomd.System(box_l=[20] * 3)
+system=sg.create_system(boxl=[15*ureg.nm]*3)
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
@@ -67,8 +62,6 @@ cation.q=1
 cation.type=0
 
 sg.track_ionization(system, peptide1)
-Z, Z2 = sg.calculate_molecule_charge(system, peptide1)
-print(Z)
 
 cation, anion = sg.create_counterions(system,peptide1)
 
@@ -80,9 +73,7 @@ with open('trajectory.vtf', mode='w+t') as coordinates:
 
 sg.setup_acidbase_reactions(RE, peptide1, cation)
 
-lj_param=sg.get_lj(peptide1.model)
-
-sg.setup_lj_pair(type1=cation.type,type2=anion.type,lj_param=lj_param[0], system=system)
+sg.setup_lj_interactions(mol_list=[peptide1], system=system)
 
 pH = np.linspace(2, 12, num=20)
 Steps_per_sim= 1000
@@ -108,14 +99,35 @@ N_frame=0
 
 # Toda esta parte hay que pulir las unidades
 
-system.time_step = 0.01
+system.time_step = 0.00001 # ns
 system.cell_system.skin = 0.4
-system.periodicity= [True,True,True]
+
+
+system.integrator.set_steepest_descent(f_max=0, gamma=1, max_displacement=1)
+
+system.integrator.run(0)
+old_force = np.max(np.linalg.norm(system.part[:].f, axis=1))
+
+        # Minimize the energy
+
+while system.time / system.time_step < 10000:
+    system.integrator.run(10)
+    force = np.max(np.linalg.norm(system.part[:].f, axis=1)) # Calculate the norm of the F acting in each particle and select the larger one
+    rel_force = np.abs((force - old_force) / old_force)
+    print(f'rel. force change:{rel_force:.2e}')
+    if rel_force < 1e-2:
+        break
+    old_force = force
+
+with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
+    vtf.writevsf(system, coordinates)
+    vtf.writevcf(system, coordinates)
+
+
 
 system.integrator.set_vv()
-system.thermostat.set_langevin(kT=2.5, gamma=1, seed=1234) 
+system.thermostat.set_langevin(kT=8.314*298, gamma=1, seed=1234) 
 system.cell_system.tune_skin(0.1, system.box_l[0], 1e-3, 1000 , adjust_max_skin=True)
-
 
 for pH_value in pH:
 
@@ -124,7 +136,7 @@ for pH_value in pH:
 
     for step in range(Steps_per_sim+steps_eq):
         
-        system.integrator.run(steps=1000)
+        system.integrator.run(steps=100)
         RE.reaction(N_titrable_groups)
 
         if ( step > steps_eq):
@@ -142,6 +154,7 @@ for pH_value in pH:
     Z_sim=np.array(Z_sim)
     Z_pH.append(Z_sim.mean())
     print("pH = {:6.4g} done".format(pH_value))
+    exit()
 
 # The results of the simulation should be compared with the Henderson-Hasselbach analytical prediction for an ideal system.
 # The library also provides a module that computes the ideal peptide charge predicted by  Henderson-Hasselbach theory for a given set of pH values

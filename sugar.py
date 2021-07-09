@@ -2,7 +2,7 @@ import numpy as np
 import math as mt
 import parameters as param
 import random as rn
-from parameters import particle
+from parameters import particle,ureg
 
 class residue:
 
@@ -16,6 +16,7 @@ class residue:
     beads=[]
     ids=[]
     N=None
+    model=None
 
 class molecule:
 
@@ -1190,6 +1191,50 @@ def create_molecule(mol,system):
 
     return 
 
+def create_system(boxl,PBC=[True,True,True]):
+    """
+    Creates an instance of a system instance of espresso
+
+    Input:
+
+    boxl (list of floats): list of the length of your simulation box in each cartesian axis
+    boxl (list of bool): list that defines if periodic boundary conditions are applied (True) or not in each direction (False) 
+
+    Output:
+
+    system (class): instance of espresso system object
+
+    """
+
+    if not isinstance(PBC, list):
+
+        ValueError("PBC must be a list of boolean variables defining if periodic boundary conditions are applied (True) or not in each direction (False). Given:", PBC)
+
+    else:
+
+        for direction in PBC:
+
+            if not isinstance(direction,bool):
+
+                ValueError("PBC must be a list of boolean variables defining if periodic boundary conditions are applied (True) or not in each direction (False). Given:", PBC)
+
+    if len(boxl) != 3 or not isinstance(boxl,list):
+
+        ValueError("boxl should be a list containing the length of your simulation box in each cartesian axis. Given:", boxl)
+
+
+    magnitude_boxl=[]
+
+    for direction in boxl:
+
+        magnitude_boxl.append(direction.to('nm').magnitude)
+
+    import espressomd
+
+    system = espressomd.System(box_l=magnitude_boxl)
+
+    return system
+
 def count_titrable_groups(mol):
     """
     Counts the number of titrable groups in the protein object
@@ -1337,6 +1382,180 @@ def setup_bead_acidbase_reaction(RE, part, cation):
 
     return
 
+def setup_lj_interactions(mol_list, system):
+    """
+    Setup lennard-jones interactions for all the molecules in molecule list, using the parametrization defined in its model. 
+    If no specific parametrization is included, a purely repulsive LJ is assumed. 
+
+    Inputs:
+    molecule_list(list): list of instances of molecule/residue/bead objects, as defined in sugar library
+    system: instance of a system object of espresso library
+
+    """
+
+    if not isinstance(mol_list,list):
+
+        raise ValueError("molecule list must be a list of instances of molecule/residue/bead objects, as defined in sugar library. Given: ", mol_list)
+
+    # Search for all possible particle types and for all the lj parameters
+
+    name_dict={}
+    radi_dict={}
+    lj_list=[]
+
+    for mol in mol_list:
+
+        if isinstance(mol,molecule):
+
+            for chain in mol.residues:
+            
+                for res in chain:
+
+                    for chain_bead in res.beads:
+
+                        for bead in chain_bead:
+                                
+                            if isinstance (bead.type,dict):
+
+                                for type in bead.type.values():
+                                        
+                                    if type not in name_dict.keys():
+
+                                        name_dict[type]=bead.name
+                                        radi_dict[type]=bead.radius
+
+                            if isinstance (bead.type,int):
+                                
+                                if bead.type not in name_dict.keys():
+
+                                    name_dict[type]=bead.name
+                                    radi_dict[type]=bead.radius
+
+        elif isinstance(mol,residue):
+        
+            for chain_bead in res.beads:
+
+                for bead in chain_bead:
+                            
+                    if isinstance (bead.type,dict):
+
+                        for type in bead.type.values():
+                                        
+                            if type not in name_dict.keys():
+
+                                name_dict[type]=bead.name
+                                radi_dict[type]=bead.radius
+
+                    if isinstance (bead.type,int):
+
+                        if bead.type not in name_dict.keys():
+
+                            name_dict[type]=bead.name
+                            radi_dict[type]=bead.radius
+
+        elif isinstance(mol, particle): 
+                        
+            if isinstance (bead.type,dict):
+
+                for type in bead.type.values():
+                                        
+                    if type not in name_dict.keys():
+
+                        name_dict[type]=bead.name
+                        radi_dict[type]=bead.radius
+
+            if isinstance(bead.type,int):
+                        
+                if bead.type not in name_dict.keys():
+
+                    name_dict[type]=bead.name
+                    radi_dict[type]=bead.radius
+
+        else:
+
+            raise ValueError("molecule list must contain a list of instances of molecule/residue/bead objects, as defined in sugar library. Given: ", mol)
+
+    # By default, Lennard-Jones parameters with WCA potential are assumed
+
+    lj_WCA=param.general.lj_WCA
+
+    if mol.model is not None:
+
+        lj_parameters=get_lj(mol.model)
+
+        for lj_param in lj_parameters:
+
+            if lj_param not in lj_list:
+
+                lj_list.append(lj_param)
+
+    type_list=list(name_dict.keys())
+
+    for type1 in type_list:
+
+        index_type=type_list.index(type1)
+
+        for type2 in type_list[index_type:]:
+
+            name1=name_dict[type1]
+            name2=name_dict[type2]
+
+            radius1=radi_dict[type1]
+            radius2=radi_dict[type2]
+
+            specific_lj=False
+
+            for lj_param in lj_list:
+
+                if name1 in lj_param.actors and name2 in lj_param.actors:
+
+                    specific_lj=True
+                    
+                    if lj_param.sigma is not None:                    
+                        
+                        sigma=lj_param.sigma
+
+                    else:
+
+                        if radius1 is None:
+                            
+                            radius1=lj_WCA.sigma/2.
+
+                        if radius2 is None:
+
+                            radius2=lj_WCA.sigma/2.
+
+                        sigma=radius1.to('nm').magnitude+radius2.to('nm').magnitude
+
+                    epsilon=lj_param.epsilon
+                    cutoff=lj_param.cutoff
+                    shift=lj_param.shift
+
+            if not specific_lj:
+
+                if radius1 is None:
+
+                    radius1=lj_WCA.sigma/2
+
+                if radius2 is None:
+
+                    radius2=lj_WCA.sigma/2
+
+                sigma=radius1.to('nm').magnitude+radius2.to('nm').magnitude
+                epsilon=lj_WCA.epsilon
+                cutoff=sigma*2**(1./6.)
+                shift=lj_WCA.shift
+
+            pair_lj=param.custom_lj()
+            pair_lj.sigma=sigma*param.ureg.nm
+            pair_lj.epsilon=epsilon
+            pair_lj.cutoff=cutoff
+            pair_lj.shift=shift
+
+            setup_lj_pair(type1,type2,lj_param, system)
+            
+    return
+
 def setup_lj_pair(type1,type2,lj_param, system):
     """
     Creates a Lennard-Jones interaction between particle of types 'type1' and 'type2' with the parameters contained in lj_param
@@ -1358,7 +1577,7 @@ def setup_lj_pair(type1,type2,lj_param, system):
         raise ValueError("lj_param must be an instance of a lennard-jones object, as defined in sugar library. lj_param  =  ", lj_param)
 
     system.non_bonded_inter[type1, type2].lennard_jones.set_params(
-                        epsilon = lj_param.epsilon.to('kJ / mol').magnitude,
+                        epsilon = lj_param.epsilon.to('J / mol').magnitude,
                         sigma = lj_param.sigma.to('nm').magnitude,
                         cutoff = lj_param.cutoff.to('nm').magnitude,
                         shift = lj_param.shift)
@@ -1882,7 +2101,7 @@ def create_bond(system,bond,id1,id2):
 
     if (bond.type == "harmonic"):
 
-        bond_potential = interactions.HarmonicBond(k=bond.k.to('kJ / mol / nm**2').magnitude, r_0=bond.bondl.to('nm').magnitude)
+        bond_potential = interactions.HarmonicBond(k=bond.k.to('J / mol / nm**2').magnitude, r_0=bond.bondl.to('nm').magnitude)
                             
 
     else:

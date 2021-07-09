@@ -13,6 +13,7 @@ class particle:
     acidity=None
     state=None
     pKa=None
+    model=None
 
 class bond:
     name=None
@@ -45,7 +46,7 @@ class general:
     lj_WCA = custom_lj()
     lj_WCA.name='WCA'
     lj_WCA.actors=['WCA']
-    lj_WCA.epsilon= 2.5 * ureg.kJ / ureg.mol
+    lj_WCA.epsilon= 2.5*1000 * ureg.J / ureg.mol
     lj_WCA.sigma=0.35 * ureg.nm # nm
     lj_WCA.cutoff=1.12246*0.35 * ureg.nm # nm
     lj_WCA.shift='auto'
@@ -186,174 +187,174 @@ class one_bead_peptide:
     A=particle()
     A.name="A"
     A.acidity="inert"
-    A.radius=0.18*ureg.nm,
+    A.radius=0.15*ureg.nm
     A.type=21
     A.q=0
 
     N=particle()
     N.name="N"
-    N.radius=0.18*ureg.nm,
+    N.radius=0.15*ureg.nm
     N.type=22
     N.q=0
     N.acidity="inert"
     
     Q=particle()
     Q.name="Q"
-    Q.radius=0.18*ureg.nm,
+    Q.radius=0.15*ureg.nm
     Q.type=23
     Q.q=0
     Q.acidity="inert"
     
     G=particle()
     G.name="G"
-    G.radius=0.18*ureg.nm,
+    G.radius=0.15*ureg.nm
     G.type=24
     G.q=0
     G.acidity="inert"
     
     I=particle()
     I.name="I"
-    I.radius=0.18*ureg.nm,
+    I.radius=0.15*ureg.nm
     I.type=25
     I.q=0
     I.acidity="inert"
     
     L=particle()
     L.name="L"
-    L.radius=0.18*ureg.nm,
+    L.radius=0.15*ureg.nm
     L.type=26
     L.q=0
     L.acidity="inert"
     
     M=particle()
     M.name="M"
-    M.radius=0.18*ureg.nm,
+    M.radius=0.15*ureg.nm
     M.type=27
     M.q=0
     M.acidity="inert"
     
     F=particle()
     F.name="F"
-    F.radius=0.18*ureg.nm,
+    F.radius=0.15*ureg.nm
     F.type=28
     F.q=0
     F.acidity="inert"
     
     P=particle()
     P.name="P"
-    P.radius=0.18*ureg.nm,
+    P.radius=0.15*ureg.nm
     P.type=29
     P.q=0
     P.acidity="inert"
     
     S=particle()
     S.name="S"
-    S.radius=0.18*ureg.nm,
+    S.radius=0.15*ureg.nm
     S.type=30
     S.q=0
     S.acidity="inert"
     
     T=particle()
     T.name="T"
-    T.radius=0.18*ureg.nm,
+    T.radius=0.15*ureg.nm
     T.type=31
     T.q=0
     T.acidity="inert"
     
     W=particle()
     W.name="W"
-    W.radius=0.18*ureg.nm,
+    W.radius=0.15*ureg.nm
     W.type=32
     W.q=0
     W.acidity="inert"
     
     Y=particle()
     Y.name="Y"
-    Y.radius=0.18*ureg.nm,
+    Y.radius=0.15*ureg.nm
     Y.type=33
     Y.q=0
     Y.acidity="inert"
     
     V=particle()
     V.name="V"
-    V.radius=0.18*ureg.nm,
+    V.radius=0.15*ureg.nm
     V.type=34
     V.q=0
     V.acidity="inert"
     
     K=particle()
     K.name="K"
-    K.radius=0.18*ureg.nm,
+    K.radius=0.15*ureg.nm
     K.type={"unprotonated": 35, "protonated": 36}
     K.q={"unprotonated": 0, "protonated": 1}
     K.acidity="basic"
     
     H=particle()
     H.name="H"
-    H.radius=0.18*ureg.nm,
+    H.radius=0.15*ureg.nm
     H.type={"unprotonated": 37, "protonated": 38}
     H.q={"unprotonated": 0, "protonated": 1}
     H.acidity="basic"
     
     C=particle()
     C.name="C"
-    C.radius=0.18*ureg.nm,
+    C.radius=0.15*ureg.nm
     C.type={"unprotonated": 39, "protonated": 40}
     C.q={"unprotonated": 0, "protonated": 1}
     C.acidity="basic"
     
     R=particle()
     R.name="R"
-    R.radius=0.18*ureg.nm,
+    R.radius=0.15*ureg.nm
     R.type={"unprotonated": 41, "protonated": 42}
     R.q={"unprotonated": 0, "protonated": 1}
     R.acidity="basic"
     
     n=particle()
     n.name="n"
-    n.radius=0.18*ureg.nm,
+    n.radius=0.15*ureg.nm
     n.type={"unprotonated": 43, "protonated": 44}
     n.q={"unprotonated": 0, "protonated": 1}
     n.acidity="basic"
 
     c=particle()
     c.name="c"
-    c.radius=0.18*ureg.nm,
+    c.radius=0.15*ureg.nm
     c.type={"unprotonated": 45, "protonated": 46}
     c.q={"protonated": 0, "unprotonated": -1}
     c.acidity="acid"
 
     D=particle()
     D.name="D"
-    D.radius=0.18*ureg.nm,
+    D.radius=0.15*ureg.nm
     D.type={"unprotonated": 47, "protonated": 48}
     D.q={"protonated": 0, "unprotonated": -1}
     D.acidity="acid"
 
     E=particle()
     E.name="E"
-    E.radius=0.18*ureg.nm,
+    E.radius=0.15*ureg.nm
     E.type={"unprotonated": 49, "protonated": 50}
     E.q={"protonated": 0, "unprotonated": -1}
     E.acidity="acid"
     
     J=particle()
     J.name="J"
-    J.radius=0.18*ureg.nm,
+    J.radius=0.15*ureg.nm
     J.type={"unprotonated": 51, "protonated": 52}
     J.q={"protonated": -1, "unprotonated": -2}
     J.acidity="acid"
     
     U=particle()
     U.name="U"
-    U.radius=0.18*ureg.nm,
+    U.radius=0.15*ureg.nm
     U.type={"unprotonated": 53, "protonated": 54}
     U.q={"protonated": -1, "unprotonated": -2}
     U.acidity="acid"
     
     Z=particle()
     Z.name="Z"
-    Z.radius=0.18*ureg.nm,
+    Z.radius=0.15*ureg.nm
     Z.type={"unprotonated": 55, "protonated": 56}
     Z.q={"protonated": -1, "unprotonated": -2}
     Z.acidity="acid"
@@ -379,182 +380,181 @@ class two_bead_peptide:
     C_alpha=particle()
     C_alpha.name="C_alpha"
     C_alpha.acidity="inert"
-    C_alpha.radius=0.18*ureg.nm,
+    C_alpha.radius=0.15*ureg.nm
     C_alpha.type=20
     C_alpha.q=0
     
     A=particle()
     A.name="A"
     A.acidity="inert"
-    A.radius=0.18*ureg.nm,
+    A.radius=0.15*ureg.nm
     A.type=21
     A.q=0
 
     N=particle()
     N.name="N"
-    N.radius=0.18*ureg.nm,
+    N.radius=0.15*ureg.nm
     N.type=22
     N.q=0
     N.acidity="inert"
     
     Q=particle()
     Q.name="Q"
-    Q.radius=0.18*ureg.nm,
+    Q.radius=0.15*ureg.nm
     Q.type=23
     Q.q=0
     Q.acidity="inert"
     
     G=particle()
     G.name="G"
-    G.radius=0.18*ureg.nm,
+    G.radius=0.15*ureg.nm
     G.type=24
     G.q=0
     G.acidity="inert"
     
     I=particle()
     I.name="I"
-    I.radius=0.18*ureg.nm,
+    I.radius=0.15*ureg.nm
     I.type=25
     I.q=0
     I.acidity="inert"
     
     L=particle()
     L.name="L"
-    L.radius=0.18*ureg.nm,
+    L.radius=0.15*ureg.nm
     L.type=26
     L.q=0
     L.acidity="inert"
     
     M=particle()
     M.name="M"
-    M.radius=0.18*ureg.nm,
+    M.radius=0.15*ureg.nm
     M.type=27
     M.q=0
     M.acidity="inert"
     
     F=particle()
     F.name="F"
-    F.radius=0.18*ureg.nm,
+    F.radius=0.15*ureg.nm
     F.type=28
     F.q=0
     F.acidity="inert"
     
     P=particle()
     P.name="P"
-    P.radius=0.18*ureg.nm,
+    P.radius=0.15*ureg.nm
     P.type=29
     P.q=0
     P.acidity="inert"
     
     S=particle()
     S.name="S"
-    S.radius=0.18*ureg.nm,
+    S.radius=0.15*ureg.nm
     S.type=30
     S.q=0
     S.acidity="inert"
     
     T=particle()
     T.name="T"
-    T.radius=0.18*ureg.nm,
+    T.radius=0.15*ureg.nm
     T.type=31
     T.q=0
     T.acidity="inert"
     
     W=particle()
     W.name="W"
-    W.radius=0.18*ureg.nm,
+    W.radius=0.15*ureg.nm
     W.type=32
     W.q=0
     W.acidity="inert"
     
     Y=particle()
     Y.name="Y"
-    Y.radius=0.18*ureg.nm,
+    Y.radius=0.15*ureg.nm
     Y.type=33
     Y.q=0
     Y.acidity="inert"
     
     V=particle()
     V.name="V"
-    V.radius=0.18*ureg.nm,
+    V.radius=0.15*ureg.nm
     V.type=34
     V.q=0
     V.acidity="inert"
     
     K=particle()
     K.name="K"
-    K.radius=0.18*ureg.nm,
+    K.radius=0.15*ureg.nm
     K.type={"unprotonated": 35, "protonated": 36}
     K.q={"unprotonated": 0, "protonated": 1}
     K.acidity="basic"
     
     H=particle()
     H.name="H"
-    H.radius=0.18*ureg.nm,
+    H.radius=0.15*ureg.nm
     H.type={"unprotonated": 37, "protonated": 38}
     H.q={"unprotonated": 0, "protonated": 1}
     H.acidity="basic"
     
     C=particle()
     C.name="C"
-    C.radius=0.18*ureg.nm,
+    C.radius=0.15*ureg.nm
     C.type={"unprotonated": 39, "protonated": 40}
     C.q={"unprotonated": 0, "protonated": 1}
     C.acidity="basic"
     
     R=particle()
     R.name="R"
-    R.radius=0.18*ureg.nm,
+    R.radius=0.15*ureg.nm
     R.type={"unprotonated": 41, "protonated": 42}
     R.q={"unprotonated": 0, "protonated": 1}
     R.acidity="basic"
     
     n=particle()
     n.name="n"
-    n.radius=0.18*ureg.nm,
+    n.radius=0.15*ureg.nm
     n.type={"unprotonated": 43, "protonated": 44}
     n.q={"unprotonated": 0, "protonated": 1}
     n.acidity="basic"
 
     c=particle()
     c.name="c"
-    c.radius=0.18*ureg.nm,
+    c.radius=0.15*ureg.nm
     c.type={"unprotonated": 45, "protonated": 46}
     c.q={"protonated": 0, "unprotonated": -1}
     c.acidity="acid"
 
     D=particle()
     D.name="D"
-    D.radius=0.18*ureg.nm,
+    D.radius=0.15*ureg.nm
     D.type={"unprotonated": 47, "protonated": 48}
     D.q={"protonated": 0, "unprotonated": -1}
     D.acidity="acid"
 
     E=particle()
     E.name="E"
-    E.radius=0.18*ureg.nm,
+    E.radius=0.15*ureg.nm
     E.type={"unprotonated": 49, "protonated": 50}
     E.q={"protonated": 0, "unprotonated": -1}
     E.acidity="acid"
     
     J=particle()
     J.name="J"
-    J.radius=0.18*ureg.nm,
+    J.radius=0.15*ureg.nm
     J.type={"unprotonated": 51, "protonated": 52}
     J.q={"protonated": -1, "unprotonated": -2}
     J.acidity="acid"
     
     U=particle()
     U.name="U"
-    U.radius=0.18*ureg.nm,
+    U.radius=0.15*ureg.nm
     U.type={"unprotonated": 53, "protonated": 54}
     U.q={"protonated": -1, "unprotonated": -2}
     U.acidity="acid"
     
     Z=particle()
     Z.name="Z"
-    Z.radius=0.18*ureg.nm,
+    Z.radius=0.15*ureg.nm
     Z.type={"unprotonated": 55, "protonated": 56}
     Z.q={"protonated": -1, "unprotonated": -2}
     Z.acidity="acid"
-
