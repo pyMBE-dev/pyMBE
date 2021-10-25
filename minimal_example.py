@@ -1,10 +1,10 @@
 import espressomd
-import sugar as sg
+import sugar 
 import numpy as np
 import matplotlib.pyplot as plt
 from espressomd import reaction_ensemble
 
-from sugar import molecule,particle,ureg
+
 
 ###################################################################
 ###################################################################
@@ -22,30 +22,31 @@ from sugar import molecule,particle,ureg
 # Practically, to create a peptide object one only needs to provide the aminoacid sequence to the library
 # The prefered format is a single string using the one-letter aminoacid code of the peptide. The amino and carboxyl ends are denoted as 'c' and 'n' respectively and must be provided in lower case. 
 
+sg=sugar.sugar_library()
+
 pep_sequence="nAAAc"
 pKa_dict={"A": 4.25}
 
 custom_dict = {'A': {'type': {'protonated': 1, 'unprotonated': 2},
                 'q': -1,
                 'acidity': 'acid',
-                'radius': 0.15*ureg.nm
+                'radius': 0.15*sg.units.nm
                             }
               }
 
 customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A": "A"}, side_chain={"A": [["H"],["T"]]})
 
-peptide1 = molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)
+peptide1 = sg.molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)
 
+L=20 * sg.units.nm
 
-model_names=sg.get_modelnames()
-
-system=sg.create_system(boxl=[15*ureg.nm]*3)
+system=espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
 
 # Once the peptide object is created, one can access to its specific information by looping over its sequence
 
 peptide1.N=1
 sg.create_molecule(peptide1, system)
-sg.write_parameters(peptide1)
+#sg.write_parameters(peptide1)
 N_titrable_groups=sg.count_titrable_groups(peptide1)
 
 bead_list=[]
@@ -97,13 +98,11 @@ with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
 N_steps_print= 100  # Write the trajectory every 100 simulation steps
 N_frame=0
 
-# Toda esta parte hay que pulir las unidades
-
-system.time_step = 0.00001 # ns
+system.time_step = 0.001 
 system.cell_system.skin = 0.4
+kT=1*sg.units('reduced_energy')
 
-
-system.integrator.set_steepest_descent(f_max=0, gamma=1, max_displacement=1)
+system.integrator.set_steepest_descent(f_max=0, gamma=1, max_displacement=0.01)
 
 system.integrator.run(0)
 old_force = np.max(np.linalg.norm(system.part[:].f, axis=1))
@@ -119,15 +118,18 @@ while system.time / system.time_step < 10000:
         break
     old_force = force
 
+
+print('minimization done')
+
 with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
     vtf.writevsf(system, coordinates)
     vtf.writevcf(system, coordinates)
 
 system.integrator.set_vv()
-system.thermostat.set_langevin(kT=8.314*298, gamma=1, seed=1234) 
-system.cell_system.tune_skin(0.1, system.box_l[0], 1e-3, 1000 , adjust_max_skin=True)
+system.thermostat.set_langevin(kT=kT.to('reduced_energy').magnitude, gamma=1, seed=1234) 
 
-
+system.cell_system.tune_skin(1, system.box_l[0], 1e-3, 1000 , adjust_max_skin=True)
+print('skin optimized')
 
 for pH_value in pH:
 
@@ -154,8 +156,7 @@ for pH_value in pH:
     Z_sim=np.array(Z_sim)
     Z_pH.append(Z_sim.mean())
     print("pH = {:6.4g} done".format(pH_value))
-    exit()
-
+    
 # The results of the simulation should be compared with the Henderson-Hasselbach analytical prediction for an ideal system.
 # The library also provides a module that computes the ideal peptide charge predicted by  Henderson-Hasselbach theory for a given set of pH values
 
@@ -169,8 +170,6 @@ plt.xlabel('pH')
 plt.ylabel('Charge of the peptide / e')
 plt.title('Peptide sequence: '+ pep_sequence)
 plt.show()
-
-
 
 exit()
 
@@ -257,7 +256,6 @@ cation, anion = pl.create_counterions(system,peptide)
 
 print("Cation info: charge = ", cation.q, " number of particles= ", cation.N , " type = ", cation.type, " ids : ", cation.ids)
 print("anion info: charge = ", anion.q, " number of particles= ", anion.N , " type = ", anion.type, " ids : ", anion.ids)
-
 
 # The library can be used to quickly set-up all the acid/base reactions present in the peptide
 
