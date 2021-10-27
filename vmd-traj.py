@@ -2,10 +2,11 @@ from os import listdir
 from os.path import isfile, join
 import numpy as np
 import math as mt
+import re
 
 frame_dir='./frames'            # Path to the directory of the frame trajectories
 reservoir_pos=[-2,-2,-2]        # Coordinates of the particle reservoir
-folded = False                   # Applies periodic boundary conditions
+folded = True                  # Applies periodic boundary conditions
 nametraj = "vmd-trajectory.vtf" # Name of the output vmd-readable trajectory file
 nametcl  = "visualization.tcl"  # Name of the script for vmd visualization
 radcyl = 3                      # Width of the simulation box
@@ -14,7 +15,16 @@ radcyl = 3                      # Width of the simulation box
 
 files = [name for name in listdir(frame_dir) if isfile(join(frame_dir, name))]
 
-files=sorted(files) # Order the trajectory files alphabetically
+files=sorted(files) 
+
+# Order the trajectory files 
+
+files_ordered={}
+
+for frame in files:
+    
+    num=re.findall(r'\d+', frame)
+    files_ordered[int(num[0])]=frame
 
 # Read file data
 
@@ -28,9 +38,11 @@ coord={}
 N_frame=0
 type_list=[]
 
-for frame in files: # 'file' is a builtin type, 'frame' is a less-ambiguous variable name.
+for frame in range(0,len(files)): # 'file' is a builtin type, 'frame' is a less-ambiguous variable name.
+    
+    file_name=files_ordered[frame]
+    path=frame_dir+"/"+file_name
 
-    path=frame_dir+"/"+frame
     print("Loading frame " + path)
     with open(path) as f:
         
