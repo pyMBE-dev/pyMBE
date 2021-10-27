@@ -5,9 +5,9 @@ providing tools to simplify the setting up of simulations of peptides and polyel
 
 ## Requirements
 
-ESPResSo v4.1 [Espresso](https://espressomd.org/wordpress/download/)
-Pint v0.17 [Pint](https://pint.readthedocs.io/en/stable/)
-(for visualization) VMD v1.9.3 [VMD](https://www.ks.uiuc.edu/Research/vmd/)
+- ESPResSo v4.1 [link to spresso](https://espressomd.org/wordpress/download/)
+- Pint v0.17 [link to Pint](https://pint.readthedocs.io/en/stable/)
+- (for visualization) VMD v1.9.3 [link to VMD](https://www.ks.uiuc.edu/Research/vmd/)
 
 ## Contents
 
