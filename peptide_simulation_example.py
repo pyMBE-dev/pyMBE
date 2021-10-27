@@ -31,7 +31,7 @@ peptide = sg.molecule(sequence=sequence, model=model,  pKa_set=pKa_set)
 
 c_salt=1e-3 * sg.units.mol/ sg.units.L
 
-    # Create an instance of a sugar particle object for the added salt cantions and anions
+    # Create an instance of a sugar particle object for the added salt cations and anions
 
 added_salt_cation=sg.particle()
 added_salt_cation.q=1
