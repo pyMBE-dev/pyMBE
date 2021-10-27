@@ -58,8 +58,6 @@ steps_eq=int(Samples_per_pH/3)
 N_samples_print= 100  # Write the trajectory every 100 samples
 probability_reaction=0.5 
 
-#customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A": "A"}, side_chain={"A": [["H"],["T"]]})
-
 # Add peptides to your simulation box
 
 volume=system.volume()*sg.units('reduced_length**3')
