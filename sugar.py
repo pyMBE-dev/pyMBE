@@ -10,7 +10,12 @@ class sugar_library(object):
 
     TEMPERATURE = 298.15 * units.K
     PARTICLE_SIZE = 0.355 * units.nm
+    SEED=None
 
+    # Library output
+
+    filename_parameters = 'simulation_parameters.txt'
+    
     # Aminoacid key
 
     aminoacid_key={"ALA": "A",
@@ -47,6 +52,7 @@ class sugar_library(object):
         self.units.define(f'reduced_length = {self.PARTICLE_SIZE}')
         self.units.define(f'reduced_charge = 1*e')
         self.print_reduced_units()
+        self.kT=self.TEMPERATURE*self.units.k
 
         # Load parameters
 
@@ -58,15 +64,21 @@ class sugar_library(object):
 
         self.create_molecule_object()
 
+        # Open the parameters file
+
+        with open(self.filename_parameters, 'w') as par_file:
+            par_file.write('')
+
     def print_reduced_units(self):
 
-        print("Current set of reduced units:")
+        print("\nCurrent set of reduced units:")
         unit_length=self.units.Quantity(1,'reduced_length')
         unit_energy=self.units.Quantity(1,'reduced_energy')
         unit_charge=self.units.Quantity(1,'reduced_charge')
         print(unit_length.to('nm'), "=", unit_length)
         print(unit_energy.to(' K* boltzmann_constant '), "=", unit_energy, 'Temperature:', self.TEMPERATURE)
         print(unit_charge.to('C'), "=", unit_charge)
+        print()
         
     def set_reduced_units(self, unit_length=0.355*units.nm,  unit_charge=units.e, temperature=298.15 * units.K):
         
@@ -76,6 +88,8 @@ class sugar_library(object):
         self.units.define(f'reduced_energy = {unit_energy} ')
         self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = {unit_charge}')
+        self.kT=self.TEMPERATURE*self.units.k
+
         self.print_reduced_units()
 
     class particle:
@@ -222,7 +236,6 @@ class sugar_library(object):
                                         
                                         setattr(model_param,atr,custom_dict[atr])
                                         
-
                         else:
 
                             model_param=param_custom
@@ -368,9 +381,9 @@ class sugar_library(object):
                                 elif "default" in model_param.principal_chain.keys():
 
                                     p_bead_name=model_param.principal_chain["default"]
-                        
+                            
                             if model_param.principal_chain is None or p_bead_name ==  'sequence':
-                                                    
+      
                                 bead_unparameterized=True
 
                                 for p_set in param_part:
@@ -391,14 +404,16 @@ class sugar_library(object):
 
                                             
                             elif p_bead_name in model_keys:
+                                
+                                for p_set in param_part:
 
-                                if (p_set.name == p_bead_name):
+                                    if (p_set.name == p_bead_name):
 
-                                    bead=p_set
+                                        bead=p_set
 
-                                    if p_bead_name in pKa_set.keys():
+                                        if p_bead_name in pKa_set.keys():
 
-                                        bead.pKa=pKa_set[res.name]
+                                            bead.pKa=pKa_set[res.name]
                             
                             else:
                                 print(p_bead_name,model_keys)
@@ -785,7 +800,7 @@ class sugar_library(object):
 
                 print(atr)   
 
-    def create_particle(self, part, system, position=None, state=None, id=None):
+    def create_particle(self, particle, system, position=None, state=None, id=None):
         '''
         Creates a bead particle in the espresso system with the properties stored in bead.
         part = instance of a particle object from sugar library
@@ -795,7 +810,7 @@ class sugar_library(object):
         id = array of particle ids of size part.N
         '''
 
-        if not isinstance(part,self.particle):
+        if not isinstance(particle,self.particle):
 
             raise ValueError("Please provide an instance of a particle object from sugar library. Given:", part)
 
@@ -807,58 +822,58 @@ class sugar_library(object):
 
         else:
 
-            if (len(position) == part.N):
+            if (len(position) == particle.N):
 
                 pos=position[0]
             
             else:
                 
-                raise ValueError("Please provide ", part.N ," position arrays")
+                raise ValueError("Please provide ", particle.N ," position arrays")
                 
         if state is not None:
             
-            if isinstance(part.q,dict):
+            if isinstance(particle.q,dict):
                 
-                if state in part.q.keys():
+                if state in particle.q.keys():
 
-                    part.state=state
+                    particle.state=state
 
                 else:
 
-                    raise ValueError("Unknown state for bead: ", part.name, " please review the input state:", state, ' valid keys are', part.q.keys())
+                    raise ValueError("Unknown state for bead: ", particle.name, " please review the input state:", state, ' valid keys are', particle.q.keys())
         else:
 
-            if isinstance(part.type, dict):
+            if isinstance(particle.type, dict):
                 
                 # Inicialice beads with more than one state in a random state
 
-                state=self.rn.choice(list(part.type.keys()))
-                part.state=state
+                state=self.rn.choice(list(particle.type.keys()))
+                particle.state=state
 
         
-        if isinstance(part.q, int) or isinstance(part.q, float) :
+        if isinstance(particle.q, int) or isinstance(particle.q, float) :
             
-            q=part.q
+            q=particle.q
         
-        elif isinstance(part.q, dict):
+        elif isinstance(particle.q, dict):
 
-            q=part.q[state]
+            q=particle.q[state]
 
         else:
 
-            raise ValueError("Unvalid charge for bead: ", part.name, " given ", part.q)
+            raise ValueError("Unvalid charge for bead: ", particle.name, " given ", particle.q)
 
-        if isinstance(part.type, int):
+        if isinstance(particle.type, int):
             
-            type=part.type
+            type=particle.type
 
-        elif isinstance(part.type, dict):
+        elif isinstance(particle.type, dict):
 
-            type=part.type[state]
+            type=particle.type[state]
 
         else:
 
-            raise ValueError("Unvalid type for bead: ", part.name, " given ", part.type)
+            raise ValueError("Unvalid type for bead: ", particle.name, " given ", particle.type)
 
         
         if id is None:
@@ -875,13 +890,13 @@ class sugar_library(object):
         else:
             if isinstance(id,list):
                 
-                if len(id) == part.N:
+                if len(id) == particle.N:
 
                     bead_id=id[0]
 
                 else:
 
-                    raise ValueError('Please provide ', part.N, 'ids. Provided:', id)
+                    raise ValueError('Please provide ', particle.N, 'ids. Provided:', id)
 
             else:
 
@@ -891,11 +906,11 @@ class sugar_library(object):
 
         # By default only one bead is created
 
-        if not isinstance(part.N, int): 
+        if not isinstance(particle.N, int): 
 
-            part.N=1
+            particle.N=1
 
-        for bead_i in range(part.N):
+        for bead_i in range(particle.N):
                 
             system.part.add(id=[bead_id], pos=[pos], type=[type], q=[q])
             bead_id_lst.append(bead_id)
@@ -925,7 +940,7 @@ class sugar_library(object):
                 pos=self.np.random.random((1, 3))[0] *self.np.copy(system.box_l)
 
         
-        part.ids=bead_id_lst   
+        particle.ids=bead_id_lst   
 
         return
 
@@ -1012,7 +1027,7 @@ class sugar_library(object):
                     
                         new_bead.N=1
                 
-                        self.create_particle(part=new_bead, system=system, position=pos, state=bead_state, id=bead_id)                        
+                        self.create_particle(particle=new_bead, system=system, position=pos, state=bead_state, id=bead_id)                        
 
                         if state is not None:
                     
@@ -1090,7 +1105,7 @@ class sugar_library(object):
 
                                     new_bead.N=1
                             
-                                    self.create_particle(part=new_bead, system=system, position=[prebead_position], state=bead_state, id=bead_id)
+                                    self.create_particle(particle=new_bead, system=system, position=[prebead_position], state=bead_state, id=bead_id)
 
                                     if state is not None:
                                 
@@ -1164,7 +1179,7 @@ class sugar_library(object):
 
                                     lateral_bond=self.search_bond(bead1=prebead, bead2=new_bead, res=res)
                             
-                                    self.create_particle(part=new_bead, system=system, position=[prebead_position], state=bead_state, id=bead_id)
+                                    self.create_particle(particle=new_bead, system=system, position=[prebead_position], state=bead_state, id=bead_id)
 
                                     if state is not None:
                                 
@@ -1226,8 +1241,10 @@ class sugar_library(object):
         elif not isinstance(mol.N,int):
 
             raise ValueError("The number of molecules must be an integer number, given: ", mol.N)
-
-
+        
+        print('Parameters used to create ' + ''.join(mol.sequence) +' stored in' + self.filename_parameters)
+        with open(self.filename_parameters, 'a') as par_file:
+            par_file.write('\n Created molecule ' + ''.join(mol.sequence)+ ' with bonds:\n')
 
         for mol_i in range(mol.N):
 
@@ -1312,15 +1329,39 @@ class sugar_library(object):
 
         return N_ti
 
-    def setup_acidbase_reactions(self, RE, mol, cation):
+    def setup_acidbase_reactions(self, mol, counter_ion, method='constant_pH', exclusion_radius=None):
         """
         Set up the Acid/Base reactions for acidic/basidic residues in mol. The reaction steps are done following the constant pH ensamble procedure. 
 
         Inputs:
-        RE: instance of the espresso class reaction_ensemble.ConstantpHEnsemble
+        
         mol: molecule class object as defined in sugar library
         cation: particle class object as defined in sugar library
+
+        Output:
+        RE: instance of the espresso class reaction_ensemble.ConstantpHEnsemble
+
         """
+
+        import espressomd
+
+        valid_method_list=['constant_pH']
+        
+        if method in valid_method_list:
+
+            if exclusion_radius is None:
+
+                exclusion_radius= 1*self.units('reduced_length')
+
+            if self.SEED is None:
+
+                self.create_random_seed()
+
+            RE = espressomd.reaction_ensemble.ConstantpHEnsemble(temperature=self.kT.to('reduced_energy').magnitude, exclusion_radius=exclusion_radius.magnitude, seed=self.SEED)
+
+        else:
+
+            raise ValueError('Only the implementation for the constant pH ensamble is available, method =', method)
 
         reaction_absent={}
 
@@ -1342,7 +1383,7 @@ class sugar_library(object):
 
                                 if (reaction_absent[bead.name]):
 
-                                    self.setup_bead_acidbase_reaction(RE, bead, cation)
+                                    self.setup_bead_acidbase_reaction(RE, bead, counter_ion)
                                     reaction_absent[bead.name]=False
 
         if isinstance(mol,self.residue):
@@ -1359,19 +1400,19 @@ class sugar_library(object):
 
                         if (reaction_absent[bead.name]):
 
-                            self.setup_bead_acidbase_reaction(RE, bead, cation)
+                            self.setup_bead_acidbase_reaction(RE, bead, counter_ion)
                             reaction_absent[bead.name]=False
 
         if isinstance(mol, self.particle): 
 
             if mol.pKa is not None and  mol.acidity in ['acid','basic']:
 
-                self.setup_bead_acidbase_reaction(RE, bead, cation)
+                self.setup_bead_acidbase_reaction(RE, bead, counter_ion)
                 reaction_absent[bead.name]=False
 
-        return
+        return RE
 
-    def setup_bead_acidbase_reaction(self, RE, part, cation):
+    def setup_bead_acidbase_reaction(self, RE, part, counter_ion):
         """
         Set up the Acid/Base reactions for acidic/basidic residues in protein. The reaction steps are done following the constant pH ensamble procedure. 
 
@@ -1381,7 +1422,7 @@ class sugar_library(object):
         cation: particle class object as defined in sugar library
         """
 
-        if not isinstance(part, self.particle) or not isinstance(cation, self.particle):
+        if not isinstance(part, self.particle) or not isinstance(counter_ion, self.particle):
 
             raise ValueError("part and cation must be instances of a particle object from sugar library")
 
@@ -1389,10 +1430,6 @@ class sugar_library(object):
 
             print("WARNING, the added particle does not have its acidity defined, please define part.acidity to 'acid' or 'basic'. No reaction has been added")
         
-        if cation.q != 1:
-
-            print("the subroutine is concived for monovalent cations. The charge of the cation is set to 1, given cation.q = ", cation.q)
-
         if  isinstance(part.type, dict):
 
             if 'protonated' not in part.type.keys() or 'unprotonated' not in part.type.keys():
@@ -1411,22 +1448,22 @@ class sugar_library(object):
                 RE.add_reaction(gamma=10**-part.pKa,
                                 reactant_types=[part.type["protonated"]],
                                 reactant_coefficients=[1],
-                                product_types=[part.type["unprotonated"], cation.type],
+                                product_types=[part.type["unprotonated"], counter_ion.type],
                                 product_coefficients=[1,1],
                                 default_charges={part.type["protonated"]: 1,
                                 part.type["unprotonated"]: 0,
-                                cation.type: 1})
+                                counter_ion.type: 1})
 
             elif (part.acidity == 'acid') : # Acid residue
 
                 RE.add_reaction(gamma=10**-part.pKa,
                                 reactant_types=[part.type["protonated"]],
                                 reactant_coefficients=[1],
-                                product_types=[part.type["unprotonated"], cation.type],
+                                product_types=[part.type["unprotonated"], counter_ion.type],
                                 product_coefficients=[1, 1],
                                 default_charges={part.type["protonated"]: 0,
                                                 part.type["unprotonated"]: -1,
-                                                cation.type: 1})
+                                                counter_ion.type: 1})
 
         return
 
@@ -1537,70 +1574,88 @@ class sugar_library(object):
 
                     lj_list.append(lj_param)
 
-        type_list=list(name_dict.keys())
+        type_list=[]
 
-        for type1 in type_list:
+        for type in name_dict.keys():
 
-            index_type=type_list.index(type1)
+            if type not in type_list:
 
-            for type2 in type_list[index_type:]:
+                type_list.append(type)
 
-                name1=name_dict[type1]
-                name2=name_dict[type2]
+        print('\n Parameters used for the Lennard Jones potential stored in ' + self.filename_parameters)
+        with open(self.filename_parameters, 'a') as par_file:
+            par_file.write('\n \n ***** Lennard Jones parameters ***** \n')
 
-                radius1=radi_dict[type1]
-                radius2=radi_dict[type2]
 
-                specific_lj=False
+            for type1 in type_list:
 
-                for lj_param in lj_list:
+                index_type=type_list.index(type1)
 
-                    if name1 in lj_param.actors and name2 in lj_param.actors:
+                for type2 in type_list[index_type:]:
 
-                        specific_lj=True
-                        
-                        if lj_param.sigma is not None:                    
+                    name1=name_dict[type1]
+                    name2=name_dict[type2]
+
+                    radius1=radi_dict[type1]
+                    radius2=radi_dict[type2]
+
+                    specific_lj=False
+
+                    for lj_param in lj_list:
+
+                        if name1 in lj_param.actors and name2 in lj_param.actors:
+
+                            specific_lj=True
                             
-                            sigma=lj_param.sigma
-
-                        else:
-
-                            if radius1 is None:
+                            if lj_param.sigma is not None:                    
                                 
-                                radius1=lj_WCA.sigma/2.
+                                sigma=lj_param.sigma
 
-                            if radius2 is None:
+                            else:
 
-                                radius2=lj_WCA.sigma/2.
+                                if radius1 is None:
+                                    
+                                    radius1=lj_WCA.sigma/2.
 
-                            sigma=(radius1.to('nm').magnitude+radius2.to('nm').magnitude)*self.units.nm
+                                if radius2 is None:
 
-                        epsilon=lj_param.epsilon
-                        cutoff=lj_param.cutoff
-                        shift=lj_param.shift
+                                    radius2=lj_WCA.sigma/2.
 
-                if not specific_lj:
+                                sigma=(radius1.to('nm').magnitude+radius2.to('nm').magnitude)*self.units.nm
 
-                    if radius1 is None:
+                            epsilon=lj_param.epsilon
+                            cutoff=lj_param.cutoff
+                            shift=lj_param.shift
+                            name=lj_param.name
 
-                        radius1=lj_WCA.sigma/2
+                    if not specific_lj:
 
-                    if radius2 is None:
+                        if radius1 is None:
 
-                        radius2=lj_WCA.sigma/2
+                            radius1=lj_WCA.sigma/2
 
-                    sigma=radius1 + radius2
-                    epsilon=lj_WCA.epsilon
-                    cutoff=sigma.to('reduced_length')*2**(1./6.)
-                    shift=lj_WCA.shift
+                        if radius2 is None:
 
-                pair_lj=self.param.custom_lj()
-                pair_lj.sigma=sigma
-                pair_lj.epsilon=epsilon
-                pair_lj.cutoff=cutoff
-                pair_lj.shift=shift
+                            radius2=lj_WCA.sigma/2
 
-                self.setup_lj_pair(type1,type2,pair_lj, system)
+                        sigma=radius1 + radius2
+                        epsilon=lj_WCA.epsilon
+                        cutoff=sigma.to('reduced_length')*2**(1./6.)
+                        shift=lj_WCA.shift
+                        name=lj_WCA.name
+
+                    pair_lj=self.param.custom_lj()
+                    pair_lj.sigma=sigma
+                    pair_lj.epsilon=epsilon
+                    pair_lj.cutoff=cutoff
+                    pair_lj.shift=shift
+                    pair_lj.name=name
+
+                    lj_parameters=self.get_attributes(pair_lj)
+                    lj_parameters.remove(('actors', None))
+
+                    par_file.write("\n The LJ interactions between "+name1+ '(type = ' + str(type1) + ') and ' + str(name2) + '(type = ' + str(type2) + ") is created using the parameters" + str(lj_parameters))
+                    self.setup_lj_pair(type1,type2,pair_lj, system)
                 
         return
 
@@ -1623,6 +1678,9 @@ class sugar_library(object):
         if not isinstance(lj_param, self.param.custom_lj):
 
             raise ValueError("lj_param must be an instance of a lennard-jones object, as defined in sugar library. lj_param  =  ", lj_param)
+
+
+        
 
         system.non_bonded_inter[type1, type2].lennard_jones.set_params(
                             epsilon = lj_param.epsilon.to('reduced_energy').magnitude,
@@ -1920,7 +1978,7 @@ class sugar_library(object):
 
         return cation, anion
 
-    def create_added_salt(self, system, cation, anion, N_ions):
+    def create_added_salt(self, system, cation, anion, c_salt):
         
         """
         Adds extra cations/anions to the system
@@ -1929,51 +1987,45 @@ class sugar_library(object):
 
         system: espresso class object with all system variables.
         cation/anion:    particle class object as defined in sugar library
-        N_ions: number of ions to be added 
+        c_salt: Added salt concentration
         
-        Assumptions:
-
-        -The number of anions and cations provided must ensure electroneutrality
-    
+        Output:
+        c_salt_calculated: Calculated added salt concentration added to solution    
         """
 
-            # The ids of the counter ions are created to be larger then the ids in the system
+        # The current implementation is only valid for 1:1 salt
 
-        if  len(system.part[:].id) != 0:
+        if abs(cation.q) != abs(anion.q):
 
-            I_id=max(system.part[:].id)
+            raise ValueError('The current implementation is only valid for 1:1 salt, charge cation', cation.q ,'charge anion', anion.q) 
 
-        total_q=0
+        # Calculate the number of ions in the simulation box
 
-        N_anion=0
-        N_cation=0
+        volume=self.units.Quantity(system.volume(), 'reduced_length**3')
 
-        while N_anion < N_ions:
+        if c_salt.check('[substance] [length]**-3'):
 
-            I_id+=1
-            I_pos=self.np.random.random((1, 3)) * system.box_l
-            system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
-            anion.N+=1
-            anion.ids.append(I_id)
-            total_q+=anion.q
-            N_anion+=1
+            N_ions= int((volume*c_salt/self.units.N_A).magnitude)
+            c_salt_calculated=N_ions/(volume*self.units.N_A)
 
-        while N_cation < N_ions:
+        elif c_salt.check('[length]**-3'):
+            
+            N_ions= int((volume*c_salt/self.units.N_A).magnitude)
+            c_salt_calculated=N_ions/volume
 
-            I_id+=1
-            I_pos=self.np.random.random((1, 3)) * system.box_l
-            system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
-            cation.N+=1
-            cation.ids.append(I_id)
-            total_q+=cation.q
-            N_cation+=1
+        else:
 
-        if total_q != 0:
+            raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
 
-            raise ValueError("Subrutine attempted to create a not electroneutral system, please review your cation/anion setup")
+        cation.N=N_ions
+        anion.N=N_ions
 
+        self.create_particle(system=system, particle=cation)
+        self.create_particle(system=system, particle=anion)
 
-        return 
+        print('\n Added an added salt concentration of ', c_salt_calculated.to('mol/L'), 'given by ', N_ions, 'cations/anions')
+
+        return c_salt_calculated
 
     def generate_trialvectors(self,mag):
         """
@@ -2113,7 +2165,11 @@ class sugar_library(object):
 
             asigned_bond=self.param.general.default_bond
             asigned_bond.bondl=bead1.radius+bead2.radius
-            print("The bond between ", actors, "is created using the default parameters")
+
+        with open(self.filename_parameters, 'a') as par_file:
+            bond_parameters=self.get_attributes(asigned_bond)
+            bond_parameters.remove(('actors', ['default']))
+            par_file.write("\nThe bond between " +  ' '.join(actors) + " is created using the parameters" + str(bond_parameters))
 
         return asigned_bond
 
@@ -2151,4 +2207,182 @@ class sugar_library(object):
 
         return
 
+    def setup_electrostatic_interactions(self, system, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
+        """
+        Setups electrostatic interactions in espressomd. 
+        Inputs:
+        system: instance of espressmd system class
+        c_salt: Added salt concentration. If provided, the program outputs the debye screening length. It is a mandatory parameter for the Debye-Huckel method. 
+        solvent_permittivity: Solvent relative permitivity, by default chosen per water at 298.15 K
+        method: method prefered for computing the electrostatic interactions. Currently only P3M (label = p3m) and Debye-Huckel (label = DH) are implemented
+        tune_p3m: If true (default), tunes the p3m parameters to improve efficiency
+        accuracy: desired accuracy for electrostatics, by default 1e-3
+        """
 
+        import espressomd.electrostatics
+
+        #Initial checks
+
+        valid_methods_list=['p3m', 'DH']
+
+        if method not in valid_methods_list:
+
+            raise ValueError('provided an unknown label for method, valid values are', valid_methods_list)
+
+        if c_salt is None and method == 'DH':
+
+            raise ValueError('Please provide the added salt concentration c_salt to settup the Debye-Huckel potential')
+            
+        kT=self.TEMPERATURE*self.units.k
+
+        BJERRUM_LENGTH = self.units.e**2 / (4 * self.units.pi * self.units.eps0 * solvent_permittivity * kT)
+
+        print('\n Bjerrum length ', BJERRUM_LENGTH.to('nm'), '=', BJERRUM_LENGTH.to('reduced_length'))
+
+        COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * kT.to('reduced_energy') 
+        
+        if c_salt is not None:
+
+            if c_salt.check('[substance] [length]**-3'):
+
+                KAPPA=1./self.np.sqrt(8*self.units.pi*BJERRUM_LENGTH*self.units.N_A*c_salt)
+
+            elif c_salt.check('[length]**-3'):
+                
+                KAPPA=1./self.np.sqrt(8*self.units.pi*BJERRUM_LENGTH*c_salt)
+
+            else:
+
+                raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
+
+
+            print('Debye kappa ', KAPPA.to('nm'), '=', KAPPA.to('reduced_length'), )
+        print()
+
+        if method == 'p3m':
+
+            coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.magnitude, accuracy=accuracy)
+
+            if tune_p3m:
+                system.time_step=0.01
+                system.actors.add(coulomb)
+
+                # save the optimal parameters and add them by hand
+
+                p3m_params = coulomb.get_params()
+                system.actors.remove(coulomb)
+                coulomb = espressomd.electrostatics.P3M(
+                                            prefactor = COULOMB_PREFACTOR.magnitude,
+                                            accuracy = accuracy,
+                                            mesh = p3m_params['mesh'],
+                                            alpha = p3m_params['alpha'] ,
+                                            cao = p3m_params['cao'],
+                                            r_cut = p3m_params['r_cut'],
+                                            tune = False
+                                            )
+
+        elif method == 'DH':
+
+            coulomb = espressomd.electrostatics.DH(prefactor = COULOMB_PREFACTOR.magnitude, 
+                                               kappa = (1./KAPPA).to('1/ reduced_length').magnitude, 
+                                               r_cut = KAPPA.to('reduced_length').magnitude)
+
+        
+        system.actors.add(coulomb)
+        print("\n Electrostatics successfully added to the system \n")
+
+        return
+
+    def minimize_system_energy(self, system, force_change=1e-2, gamma=1, max_steps=10000, time_step=1e-2, max_displacement=0.1, steps_per_iteration=10):
+        """
+        Does a steppest descent minimization to relax the system energy
+
+        Inputs:
+        system: instance of espressmd system class
+        force_change: relative force change ratio threshoold. (Default=1e-2)
+        gamma: dammping constant (Default=1 reduced length)
+        max_steps: maximum number of steps of the minimization (Default=10000)
+        time_step: Time step used for the energy minimization (Default=1e-2)
+        max_displacement: maximum particle displacement allowed (Default=0.1 reduced unit)
+        steps_per_iteration: Number integration steps per minimization iteration
+        """
+
+        print("\n*** Minimazing system energy... ***\n")
+
+        # Set up steepest descent integration
+
+        system.integrator.set_steepest_descent(f_max=0, gamma=gamma, max_displacement=max_displacement)
+
+        # Initialize integrator to obtain initial forces
+        
+        system.time_step=time_step
+        system.integrator.run(0)
+        old_force = self.np.max(self.np.linalg.norm(system.part[:].f, axis=1))
+
+        # Minimize the energy
+
+        while system.time / system.time_step < max_steps:
+            system.integrator.run(steps_per_iteration)
+            force = self.np.max(self.np.linalg.norm(system.part[:].f, axis=1)) # Calculate the norm of the F acting in each particle and select the larger one
+            rel_force = self.np.abs((force - old_force) / old_force)
+            print(f'rel. force change:{rel_force:.2e}')
+            if rel_force < force_change:
+                break
+            old_force = force
+
+        # Reset the time of the system to 0
+
+        system.time = 0.
+
+        print("\n Minimization finished \n")
+
+        return
+
+    def setup_langevin_dynamics(self,system, time_step=1e-3, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
+        """
+        Sets up Langevin Dynamics in espressomd.
+        system: instance of espressmd system class
+        time_step: time s
+
+        """
+        
+
+        kT=self.TEMPERATURE*self.units.k
+
+        if self.SEED is None:
+
+            # Take the random seed from the system time
+            self.create_random_seed()
+            
+        system.time_step=time_step
+        system.integrator.set_vv()
+        system.thermostat.set_langevin(kT=kT.to('reduced_energy').magnitude, gamma=gamma, seed=self.SEED)
+
+        # Optimize the value of skin
+
+        if tune_skin:
+
+            print("\n*** Optimizing skin ... ***")
+
+            if max_skin is None:
+
+                max_skin=system.box_l[0]/2
+
+            system.cell_system.tune_skin(min_skin=min_skin, max_skin=max_skin, tol=tolerance, int_steps=int_steps, adjust_max_skin=adjust_max_skin)
+
+            print("Optimized skin value: ", system.cell_system.skin, "\n")
+
+        return
+
+    def create_random_seed(self):
+        """
+        Creates the seed for the random number generator from the system hour
+        """
+
+        import time 
+
+        SEED=int(time.time())
+        print('\n The chosen seed for the random number generator is ', SEED)
+        self.SEED=SEED
+
+    

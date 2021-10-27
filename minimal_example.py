@@ -1,152 +1,154 @@
+# Load espresso, sugar and other necessary libraries
+
 import espressomd
 import sugar 
 import numpy as np
 import matplotlib.pyplot as plt
-from espressomd import reaction_ensemble
-
-
-
-###################################################################
-###################################################################
-######## Practical guide on how to use our protein library ########
-###################################################################
-###################################################################
-
-# The library relies on the creation of one object per each chemical specie.
-# These objects store the specific parameters of the chemical specie they represent, e.g. radi, pKa, charge, etc. 
-# This library provides tools that use these objects to set-up molecular dynamics simulations using Espresso. 
-
-# Let us ilustrate this concept with the example of a peptide. A peptide is a macromolecule which is composed by several aminoacids which, in turn, have several chemical groups.
-# In the same way, in this library a peptide object contains several aminoacid objects. In turn, each aminoacid object contains bead objects, whose number depends on the desired model. 
-
-# Practically, to create a peptide object one only needs to provide the aminoacid sequence to the library
-# The prefered format is a single string using the one-letter aminoacid code of the peptide. The amino and carboxyl ends are denoted as 'c' and 'n' respectively and must be provided in lower case. 
-
-sg=sugar.sugar_library()
-
-pep_sequence="nAAAc"
-pKa_dict={"A": 4.25}
-
-custom_dict = {'A': {'type': {'protonated': 1, 'unprotonated': 2},
-                'q': -1,
-                'acidity': 'acid',
-                'radius': 0.15*sg.units.nm
-                            }
-              }
-
-customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A": "A"}, side_chain={"A": [["H"],["T"]]})
-
-peptide1 = sg.molecule(sequence=pep_sequence, model='2beadpeptide',  pKa_set="crc", pKa_custom=pKa_dict, param_custom=customp)
-
-L=20 * sg.units.nm
-
-system=espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
-
-# Once the peptide object is created, one can access to its specific information by looping over its sequence
-
-peptide1.N=1
-sg.create_molecule(peptide1, system)
-#sg.write_parameters(peptide1)
-N_titrable_groups=sg.count_titrable_groups(peptide1)
-
-bead_list=[]
-
-from espressomd.io.writer import vtf
-
-with open('trajectory.vtf', mode='w+t') as coordinates:
-    vtf.writevsf(system, coordinates)
-    vtf.writevcf(system, coordinates)
-
-RE = reaction_ensemble.ConstantpHEnsemble(temperature=1, exclusion_radius=1, seed=12345)
-cation=sg.particle()
-cation.q=1
-cation.type=0
-
-sg.track_ionization(system, peptide1)
-
-cation, anion = sg.create_counterions(system,peptide1)
-
-sg.create_added_salt(system, cation, anion, N_ions=10)
-
-with open('trajectory.vtf', mode='w+t') as coordinates:
-    vtf.writevsf(system, coordinates)
-    vtf.writevcf(system, coordinates)
-
-sg.setup_acidbase_reactions(RE, peptide1, cation)
-
-sg.setup_lj_interactions(mol_list=[peptide1,cation,anion], system=system)
-
-pH = np.linspace(2, 12, num=20)
-Steps_per_sim= 1000
-steps_eq=int(Steps_per_sim/3)
-Z_pH=[] # Average charge list
-
-# The trajectories of the simulations will be stored in separed files for latter visualization using espresso built-up functions and stored in folder 'frames'
-
-from espressomd.io.writer import vtf
 import os
+import espressomd.reaction_ensemble
 
+# The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
+from espressomd.io.writer import vtf
 if not os.path.exists('./frames'):
     os.makedirs('./frames')
 
+# Create an instance of sugar library
+
+sg=sugar.sugar_library()
+
+# Peptide parameters
+
+sequence="nHHHEEEc"
+model='1beadpeptide'
+pKa_set='nozaki'
+pep_concentration=1.56e-4 *sg.units.mol/sg.units.L
+
+    # Create an instance of a sugar molecule object for the peptide
+
+peptide = sg.molecule(sequence=sequence, model=model,  pKa_set=pKa_set)
+
+# Salt parameters
+
+c_salt=1e-3 * sg.units.mol/ sg.units.L
+
+    # Create an instance of a sugar particle object for the added salt cantions and anions
+
+added_salt_cation=sg.particle()
+added_salt_cation.q=1
+added_salt_cation.type=0
+
+added_salt_anion=sg.particle()
+added_salt_anion.q=-1
+added_salt_anion.type=0
+
+# System parameters
+
+L=22 * sg.units.nm # Side of the simulation box
+
+    # Create an instance of an espresso system
+
+system=espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
+
+# Simulation parameters
+
+pH_range = np.linspace(2, 12, num=20)
+Samples_per_pH= 100
+MD_steps_per_sample=1000
+steps_eq=int(Samples_per_pH/3)
+N_samples_print= 100  # Write the trajectory every 100 samples
+probability_reaction=0.5 
+
+#customp=sg.create_custom_model(custom_particles=custom_dict, principal_chain={"A": "A"}, side_chain={"A": [["H"],["T"]]})
+
+# Add peptides to your simulation box
+
+volume=system.volume()*sg.units('reduced_length**3')
+peptide.N=int(volume*pep_concentration*sg.units.N_A)
+sg.create_molecule(peptide, system)
+calculated_peptide_concentration=peptide.N/(volume*sg.units.N_A)
+print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', peptide.N, 'molecules')
+
+# Count the number of titrable groups in your peptide
+
+N_titrable_groups=sg.count_titrable_groups(peptide)
+print('The number of ionisable groups in your peptide is ', N_titrable_groups)
+
+# Add added salt ions to your simulation box
+
+c_salt_calculated=sg.create_added_salt(system, cation=added_salt_cation, anion=added_salt_anion, c_salt=c_salt)
+
+# Add counter-ions to neutralize the peptide charge
+
+positive_counterion, negative_counterion = sg.create_counterions(system,peptide)
+
+# Setup the acid-base reactions of the peptide (in the constant pH ensemble)
+
+RE=sg.setup_acidbase_reactions(mol=peptide, counter_ion=added_salt_cation)
+
+# Setup espresso to track the ionization of the acid/basic groups in peptide
+
+sg.track_ionization(system, peptide)
+
+# Setup the non-interacting type for speeding up the sampling of the reactions
+
+non_interacting_type=max(system.part[:].type)+1
+RE.set_non_interacting_type(non_interacting_type)
+print('The non interacting type is set to ', non_interacting_type)
+
+# Setup the potential energy
+
+    # Setup Lennard-Jones interactions (By default Weeks-Chandler-Andersen, i.e. only steric repulsion)
+
+mol_list=[peptide,positive_counterion,negative_counterion,added_salt_cation,added_salt_anion] # list of sugar molecules/particles for setting up the LJ interactions
+
+sg.setup_lj_interactions(mol_list=mol_list, system=system)
+
+    # Setup the electrostatic potential (By default, it is used the p3m method but the Debye-huckel potential can also be set up by method='DH')
+
+sg.setup_electrostatic_interactions(system=system, c_salt=c_salt)
+
+# Minimize the system energy to avoid huge starting force due to random inicialization of the system
+
+sg.minimize_system_energy(system=system)
+
+# Setup espresso to do langevin dynamics
+
+sg.setup_langevin_dynamics(system=system)
+
 # Write the initial state
-
-with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
-    vtf.writevsf(system, coordinates)
-    vtf.writevcf(system, coordinates)
-
-N_steps_print= 100  # Write the trajectory every 100 simulation steps
-N_frame=0
-
-system.time_step = 0.001 
-system.cell_system.skin = 0.4
-kT=1*sg.units('reduced_energy')
-
-system.integrator.set_steepest_descent(f_max=0, gamma=1, max_displacement=0.01)
-
-system.integrator.run(0)
-old_force = np.max(np.linalg.norm(system.part[:].f, axis=1))
-
-        # Minimize the energy
-
-while system.time / system.time_step < 10000:
-    system.integrator.run(10)
-    force = np.max(np.linalg.norm(system.part[:].f, axis=1)) # Calculate the norm of the F acting in each particle and select the larger one
-    rel_force = np.abs((force - old_force) / old_force)
-    print(f'rel. force change:{rel_force:.2e}')
-    if rel_force < 1e-2:
-        break
-    old_force = force
-
-
-print('minimization done')
 
 with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
     vtf.writevsf(system, coordinates)
     vtf.writevcf(system, coordinates)
 
-system.integrator.set_vv()
-system.thermostat.set_langevin(kT=kT.to('reduced_energy').magnitude, gamma=1, seed=1234) 
+N_frame=0
+Z_pH=[] # Average charge list
 
-system.cell_system.tune_skin(1, system.box_l[0], 1e-3, 1000 , adjust_max_skin=True)
-print('skin optimized')
+# Main loop for performing simulations at different pH-values
 
-for pH_value in pH:
+for pH_value in pH_range:
 
     Z_sim=[]
     RE.constant_pH = pH_value
 
-    for step in range(Steps_per_sim+steps_eq):
+    # Inner loop for sampling each pH value
+
+    for step in range(Samples_per_pH+steps_eq):
         
-        system.integrator.run(steps=100)
-        RE.reaction(N_titrable_groups)
+        if np.random.random() > probability_reaction:
+
+            system.integrator.run(steps=MD_steps_per_sample)
+        
+        else:
+        
+            RE.reaction(N_titrable_groups)
 
         if ( step > steps_eq):
 
-            Z, Z2 = sg.calculate_molecule_charge(system, peptide1)
+            Z, Z2 = sg.calculate_molecule_charge(system, peptide)
             Z_sim.append(Z)
 
-        if (step % N_steps_print == 0) :
+        if (step % N_samples_print == 0) :
 
             N_frame+=1
             with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
@@ -157,195 +159,19 @@ for pH_value in pH:
     Z_pH.append(Z_sim.mean())
     print("pH = {:6.4g} done".format(pH_value))
     
-# The results of the simulation should be compared with the Henderson-Hasselbach analytical prediction for an ideal system.
-# The library also provides a module that computes the ideal peptide charge predicted by  Henderson-Hasselbach theory for a given set of pH values
+# Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = sg.calculate_HH(peptide1,pH=list(pH))
+Z_HH = sg.calculate_HH(peptide, pH=list(pH_range))
+
+# Plot the results
 
 fig, ax = plt.subplots(figsize=(10, 7))
-ax.plot(pH, Z_pH, "ro", label='Simulation-ideal')
-ax.plot(pH, Z_HH, "-k", label='Henderson-Hasselbach')
+ax.plot(pH_range, Z_pH, "ro", label='Simulation')
+ax.plot(pH_range, Z_HH, "-k", label='Henderson-Hasselbach')
 plt.legend()
 plt.xlabel('pH')
 plt.ylabel('Charge of the peptide / e')
-plt.title('Peptide sequence: '+ pep_sequence)
+plt.title('Peptide sequence: '+ sequence)
 plt.show()
 
 exit()
-
-# The library internally works with the one letter aminoacid code. However, the user can also provide the sequence in the three-letter format, separated by hyphens
-
-three_letter_sequence="COOH-GLY-HIS-ALA-CYS-CYS-PHE-VAL-NH2"
-
-peptide2 = protein(sequence=three_letter_sequence)
-print("Second example:")
-write_protein_parameters(peptide2)
-print()
-
-
-# or a mix between both nomenclatures, including lower/upper case  missprints. 
-# Note that one needs to be carefull with missprints in "C" and "N" letters since the lower/upper case have different meaning (e.g. "c" = COOH and "C" = CYS) 
-
-mix_sequence=["COOH","G","HIS","a", "Cys", "C", "f", "VAL", "n"]
-peptide3 = protein(sequence=mix_sequence)
-print("Third example:")
-write_protein_parameters(peptide3)
-print()
-
-# The library includes a sequence parser that reads the input sequence and automatically transforms it to the one-letter nomenclature. As a result, examples 1-3 yield to the creation of the same protein object.
-
-# By default, the library assumes that the peptide is modelled as a linear chain with one bead per aminoacid.
-# However, the user can also choose to model the peptide as a chain with side chains, i.e. with two beads per aminoacid. 
-
-two_bead_peptide=protein(sequence=pep_sequence,  beads_per_monomer=2)
-print("Example of a peptide with 2 beads per monomer:")
-write_protein_parameters(two_bead_peptide)
-print()
-
-# Regarding the pKa-values of the aminoacids, the library contains different stablished sets of values that can be loaded using the following keywords: "hass" (Ref. 1), "platzer" (Ref. 2), "crchandbook" (Ref. 3) or "nozaki" (Ref. 4). 
-#  Values for the phosphorilated aminoacids J U and Z are always taken from Ref. 5
-
-# By default, the library asumes the pKa-values provided in Ref. 1 (Hass et al.). However, the user can choose another set of pKa-values
-
-pKacrc_peptide=protein(sequence=pep_sequence,  pKa_set="crchandbook")
-print("Example peptide with pKa-values from the CRC handbook:")
-write_protein_parameters(pKacrc_peptide)
-print()
-
-# Alternatively, the user can provide custom pKa-values for all or some of the aminoacids. The custom pKa-values must be provided in a dictionary:
-
-dict_pKa={"c": 4.25, "CYS": 8.3999}
-
-custom_peptide=protein(sequence=pep_sequence,  pKa_set="custom", pKa_custom=dict_pKa)
-print("Example peptide with custom pKa-values:")
-write_protein_parameters(custom_peptide)
-print()
-
-# The pKa-values not specified by the user are assumed to be equal to those provided in Ref. 1 (Hass et al.).
-
-# Once the user creates the peptide object with the desired properties, the library contains several useful modules that help the user to set-up a constant pH simulation of such peptide with Espresso 
-# For instance, let us consider the case that you want to simulate two peptide chains of sequence "cGHACCFVn" using the two bead model and the default pKa-values. 
-
-
-peptide=protein(sequence=pep_sequence,  beads_per_monomer=2)
-peptide.N=2 # Number of protein chains desired in our system, by default 1. 
-system = espressomd.System(box_l=[len(peptide.sequence)*3] * 3) # Instance of the espresso simulation sistem
-
-# Create the peptide in system. The user if the initial state of the titrable aminoacid is "neutral" or "charged", by default the neutral case is considered. 
-
-pl.create_protein(system, peptide, initial_state='charged')
-
-# The ids  of all the particles created in the system are stored in the peptide object and its sub-objects. Ids belonging to different peptide chains are stored in separated lists.
-
-print("Ids of the peptide chains:")
-print(peptide.ids)
-print()
-print("Ids of each aminoacid")
-
-for aminoacid in peptide.sequence:
-
-    print(aminoacid.name, " ids: ", aminoacid.ids)
-    for bead in aminoacid.part:
-        print("bead ", bead.name, " ids: ", bead.ids, "state ", bead.state, "charge: ", bead.q[bead.state])
-
-# The user can also create counter ions particles of the peptide chains using the module provided in this library
-
-cation, anion = pl.create_counterions(system,peptide)
-
-# which return particle objects containing all the information of the counter-ions generated
-
-print("Cation info: charge = ", cation.q, " number of particles= ", cation.N , " type = ", cation.type, " ids : ", cation.ids)
-print("anion info: charge = ", anion.q, " number of particles= ", anion.N , " type = ", anion.type, " ids : ", anion.ids)
-
-# The library can be used to quickly set-up all the acid/base reactions present in the peptide
-
-RE = reaction_ensemble.ConstantpHEnsemble(temperature=1, exclusion_radius=1, seed=12345)
-pl.setup_protein_acidbase_reactions(RE, peptide, cation)
-
-# The library can also be used to calculate the total number of acidic/basic groups in peptide chains,
-
-pl.setup_protein_acidbase_reactions(RE, peptide, cation)
-
-# to calculate the number of acidic/basic groups in your peptide chains
-
-N_titrable_groups=pl.count_titrable_groups(peptide)
-print()
-print("Number of titrable groups in peptide chains: ", N_titrable_groups)
-
-# and to set-up espresso to track in which state are the ionizable groups during the simulation
-# Set-up espresso to track the ionizable groups
-
-pl.track_ionization(system, peptide)
-
-# At this stage, the system is ready to run a simulation with Espresso
-# Here, we ilustrate its use for a set of simulation done for pH values ranging from 2 to 12 
-
-pH = np.linspace(2, 12, num=20)
-Steps_per_sim= 1000
-steps_eq=int(Steps_per_sim/3)
-Z_pH=[] # Average charge list
-
-# The trajectories of the simulations will be stored in separed files for latter visualizaation using espresso built-up functions and stored in folder 'frames'
-
-from espressomd.io.writer import vtf
-import os
-
-if not os.path.exists('./frames'):
-    os.makedirs('./frames')
-
-# Write the initial state
-
-with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
-    vtf.writevsf(system, coordinates)
-    vtf.writevcf(system, coordinates)
-
-N_steps_print= 100  # Write the trajectory every 100 simulation steps
-N_frame=0
-
-for pH_value in pH:
-
-    Z_sim=[]
-    RE.constant_pH = pH_value
-
-    for step in range(Steps_per_sim+steps_eq):
-    
-        RE.reaction(N_titrable_groups)
-
-        if ( step > steps_eq):
-
-            Z, Z2=pl.calculate_protein_charge(system,peptide)
-            Z_sim.append(Z)
-
-        if (step % N_steps_print == 0) :
-
-            N_frame+=1
-            with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
-                vtf.writevsf(system, coordinates)
-                vtf.writevcf(system, coordinates)
-
-    Z_sim=np.array(Z_sim)
-    Z_pH.append(Z_sim.mean())
-    print("pH = {:6.4g} done".format(pH_value))
-
-# The results of the simulation should be compared with the Henderson-Hasselbach analytical prediction for an ideal system.
-# The library also provides a module that computes the ideal peptide charge predicted by  Henderson-Hasselbach theory for a given set of pH values
-
-Z_HH = pl.calculate_HH(pH, peptide)
-
-fig, ax = plt.subplots(figsize=(10, 7))
-ax.plot(pH, Z_pH, "ro", label='Simulation-ideal')
-ax.plot(pH, Z_HH, "-k", label='Henderson-Hasselbach')
-plt.legend()
-plt.xlabel('pH')
-plt.ylabel('Charge of the peptide / e')
-plt.title('Peptide sequence: '+ pep_sequence)
-plt.show()
-
-# References
-
-# [1] Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.
-# [2] Platzer G, Okon M, McIntosh LP. 2014. pH-dependent random coil 1 H, 13 C, and 15 N chemical shifts of the ionizable amino acids: a guide for protein pK a measurements. J. Biomol. NMR 60:109–29
-# [3] Handbook of Chemistry and Physics, 72nd Edition, CRC Press, Boca Raton, FL, 1991.
-# [4] Y. Nozaki and C. Tanford, Methods Enzymol., 1967, 11, 715–734.
-# [5] Bienkiewicz & K.J. Lumb, J Biomol NMR 15: 203-206 (1999).
-
