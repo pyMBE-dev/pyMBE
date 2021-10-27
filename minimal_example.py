@@ -101,7 +101,11 @@ print('The non interacting type is set to ', non_interacting_type)
 
 mol_list=[peptide,positive_counterion,negative_counterion,added_salt_cation,added_salt_anion] # list of sugar molecules/particles for setting up the LJ interactions
 
+<<<<<<< HEAD
 sg.setup_lj_interactions(mol_list=mol_list, system=system)
+=======
+# and to set-up espresso to track in which state are the ionizable groups during the simulation
+>>>>>>> 1263d13c3d1d20b374570ed655253f4ce9e884da
 
     # Setup the electrostatic potential (By default, it is used the p3m method but the Debye-huckel potential can also be set up by method='DH')
 
