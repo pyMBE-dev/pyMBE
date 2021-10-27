@@ -1,1 +1,16 @@
+# Sugar library
+
+Sugar is a library that builds on top of the Molecular Dynamics software ESPResSo 
+providing tools to simplify the setting up of simulations of peptides and polyelectrolytes.
+
+## Requirements
+
+ESPResSo v4.1 [Espresso](https://espressomd.org/wordpress/download/)
+Pint v0.17 [Pint](https://pint.readthedocs.io/en/stable/)
+(for visualization) VMD v1.9.3 [VMD](https://www.ks.uiuc.edu/Research/vmd/)
+
+## Contents
+
+- sugar.py : source code of Sugar library
+
 

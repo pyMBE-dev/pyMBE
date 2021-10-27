@@ -39,7 +39,7 @@ added_salt_cation.type=0
 
 added_salt_anion=sg.particle()
 added_salt_anion.q=-1
-added_salt_anion.type=0
+added_salt_anion.type=1
 
 # System parameters
 
