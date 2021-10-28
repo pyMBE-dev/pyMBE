@@ -3,12 +3,14 @@
 .PHONY: visual 
 .PHONY: clean
 
+ESPResSo_build_path=~/espresso4.1.4/build
+
 run:
-	~/program/espresso/build/pypresso peptide_simulation_example.py
+	${ESPResSo_build_path}/pypresso  peptide_simulation_example.py
 
 visual:
 	python3 vmd-traj.py
 	vmd -e visualization.tcl
 
-clean: 
-	rm -r *.txt *.xyz __pycache__
+tutorial:
+	${ESPResSo_build_path}/ipypresso notebook sugar_tutorial.ipynb

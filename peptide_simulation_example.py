@@ -68,16 +68,16 @@ print('The peptide concentration in your system is ', calculated_peptide_concent
 
 # Count the number of titrable groups in your peptide
 
-N_titrable_groups=sg.count_titrable_groups(peptide)
+N_titrable_groups=sg.count_titrable_groups(mol=peptide)
 print('The number of ionisable groups in your peptide is ', N_titrable_groups)
 
 # Add added salt ions to your simulation box
 
-c_salt_calculated=sg.create_added_salt(system, cation=added_salt_cation, anion=added_salt_anion, c_salt=c_salt)
+c_salt_calculated=sg.create_added_salt(system=system, cation=added_salt_cation, anion=added_salt_anion, c_salt=c_salt)
 
 # Add counter-ions to neutralize the peptide charge
 
-positive_counterion, negative_counterion = sg.create_counterions(system,peptide)
+positive_counterion, negative_counterion = sg.create_counterions(system=system, mol=peptide)
 
 # Setup the acid-base reactions of the peptide (in the constant pH ensemble)
 
@@ -85,7 +85,7 @@ RE=sg.setup_acidbase_reactions(mol=peptide, counter_ion=added_salt_cation)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 
-sg.track_ionization(system, peptide)
+sg.track_ionization(system=system, mol=peptide)
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 
@@ -143,7 +143,7 @@ for pH_value in pH_range:
 
         if ( step > steps_eq):
 
-            Z, Z2 = sg.calculate_molecule_charge(system, peptide)
+            Z, Z2 = sg.calculate_molecule_charge(system=system, mol=peptide)
             Z_sim.append(Z)
 
         if (step % N_samples_print == 0) :
@@ -159,7 +159,7 @@ for pH_value in pH_range:
     
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = sg.calculate_HH(peptide, pH=list(pH_range))
+Z_HH = sg.calculate_HH(mol=peptide, pH=list(pH_range))
 
 # Plot the results
 

@@ -2,6 +2,9 @@
 
 Sugar is a library that builds on top of the Molecular Dynamics software ESPResSo 
 providing tools to simplify the setting up of simulations of peptides and polyelectrolytes.
+Internally, Sugar ensures that the units are properly handled before providing the inputs
+to ESPResSo using Pint library. 
+
 
 ## Requirements
 
@@ -21,7 +24,46 @@ providing tools to simplify the setting up of simulations of peptides and polyel
 
 ### Use Sugar in your simulation scripts 
 
-To use Sugar in your simulations clone this repository
+To use Sugar in your simulations, first clone this repository into your source folder
 
+`git clone git@gitlab.com:blancoapa/sugar_library.git`
+
+then you can load Sugar into your script with the command
+
+`from  sugar_library import sugar`
+
+Please, be aware that Sugar is intended to be a supporting tool to setup simulations with ESPResSo. Thus, for most of its funtionalities ESPResSo must be also loaded to your script
+
+`import espressomd`
+
+and your simulations should be runned using ESPResSo
+
+`{$ESPResSo_build_path}/pypresso your_simulation_script.py`
+
+### Example script of the setting up of a peptide simulation with Sugar
+
+You can run the example script directly using your ESPResSo v4.1 instalation
+
+`{$ESPResSo_build_path}/pypresso your_simulation_script.py`
+
+or alternatively you can modify the $ESPResSo_build_path variable in `Makefile` to match the path where you have build ESPResSo v4.1 and run the script with
+
+`make run`
+
+once the simulation finishes, the trajectory can be visualized with the command 
+
+`make visual`
+
+### Run Sugar tutorial
+
+You can run the interactive tutorial of Sugar with the command
+
+`{$ESPResSo_build_path}/ipypresso notebook  sugar_tutorial.ipynb`
+
+or alternatively you can run the command
+
+`make tutorial`
+
+provided that you have modified the $ESPResSo_build_path variable in `Makefile` to match the path where you have build ESPResSo v4.1
 
 
