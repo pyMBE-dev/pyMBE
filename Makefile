@@ -4,7 +4,7 @@
 .PHONY: clean
 
 run:
-	~/program/espresso/build/pypresso minimal_example.py
+	~/program/espresso/build/pypresso peptide_simulation_example.py
 
 visual:
 	python3 vmd-traj.py
