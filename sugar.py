@@ -4,13 +4,15 @@ class sugar_library(object):
     units = pint.UnitRegistry()
     import numpy as np
     import random as rn
-    
+    import scipy.constants
 
     # Default values    
 
     TEMPERATURE = 298.15 * units.K
     PARTICLE_SIZE = 0.355 * units.nm
     SEED=None
+    N_A=scipy.constants.Avogadro / units.mol
+    Kb=scipy.constants.Boltzmann * units.J / units.K
 
     # Library output
 
@@ -48,11 +50,11 @@ class sugar_library(object):
 
         # Default definitions of reduced units
 
-        self.units.define(f'reduced_energy = {self.TEMPERATURE} * boltzmann_constant')
+        self.units.define(f'reduced_energy = {self.TEMPERATURE * self.Kb}')
         self.units.define(f'reduced_length = {self.PARTICLE_SIZE}')
         self.units.define(f'reduced_charge = 1*e')
         self.print_reduced_units()
-        self.kT=self.TEMPERATURE*self.units.k
+        self.kT=self.TEMPERATURE*self.Kb
 
         # Load parameters
         
@@ -74,19 +76,23 @@ class sugar_library(object):
         unit_energy=self.units.Quantity(1,'reduced_energy')
         unit_charge=self.units.Quantity(1,'reduced_charge')
         print(unit_length.to('nm'), "=", unit_length)
-        print(unit_energy.to(' K* boltzmann_constant '), "=", unit_energy, 'Temperature:', self.TEMPERATURE)
+        print(unit_energy.to('J'), "=", unit_energy)
+        print('Temperature:', self.TEMPERATURE)
         print(unit_charge.to('C'), "=", unit_charge)
         print()
         
     def set_reduced_units(self, unit_length=0.355*units.nm,  unit_charge=units.e, temperature=298.15 * units.K):
         
         self.units=self.pint.UnitRegistry()
+        self.N_A=self.scipy.constants.Avogadro / self.units.mol
+        self.Kb=self.scipy.constants.Boltzmann * self.units.J / self.units.K
         self.TEMPERATURE=temperature.to('K').magnitude*self.units.K
-        unit_energy=self.TEMPERATURE*self.units.k
+        unit_energy=self.TEMPERATURE*self.Kb
         self.units.define(f'reduced_energy = {unit_energy} ')
         self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = {unit_charge}')
-        self.kT=self.TEMPERATURE*self.units.k
+        
+        self.kT=self.TEMPERATURE*self.Kb
 
         self.print_reduced_units()
 
@@ -242,11 +248,15 @@ class sugar_library(object):
 
                         raise ValueError("Unrecognized format for the custom parameters. Please, use the library function 'setup_custom_parameters' to define your custom parameters")
                 
+                if model_param is None:
+
+                    raise ValueError("A model is needed to construct a molecule, please either chose one of the default ones or provide a custom one")
+
                 model_lj=sugar_self.get_lj(model_param)
                 
                 if (len(model_lj) == 0): # By default, WCA lennard jones interactions are included in the model
                     
-                    setattr(model_param,sugar_self.param.general.lj_WCA.name, sugar_self.param.general.lj_WCA)
+                    setattr(model_param,sugar_self.param.default.lj_WCA.name, sugar_self.param.default.lj_WCA)
 
                 else:
 
@@ -260,7 +270,7 @@ class sugar_library(object):
 
                     if not WCA_in_model:
 
-                        setattr(model_param,sugar_self.param.general.lj_WCA.name,sugar_self.param.general.lj_WCA)
+                        setattr(model_param,sugar_self.param.default.lj_WCA.name,sugar_self.param.default.lj_WCA)
 
                 # Store the model in the molecule object
 
@@ -272,7 +282,13 @@ class sugar_library(object):
 
                         keys.append(key)
                 
-                clean_sequence=sugar_self.sequence_parser(sequence, keys)
+                if (model == '1beadpeptide' or model == '2beadpeptide'):
+
+                    clean_sequence=sugar_self.sequence_parser(sequence, keys)
+
+                else:
+
+                    clean_sequence=sequence
                 
                 # Import the pKa values
 
@@ -283,11 +299,7 @@ class sugar_library(object):
                     
                     names_pKa_set.append(sets.name)
 
-                if pKa_set is None:
-
-                    pKa_set=sugar_self.param.pKa_set.Hass.pKa
-
-                elif isinstance(pKa_set, str):
+                if isinstance(pKa_set, str):
 
                     for sets in param_pKa_set:
 
@@ -300,7 +312,7 @@ class sugar_library(object):
 
                         raise ValueError("Unknown key provided for a pKa set, valid options are " , names_pKa_set)
                     
-                else:
+                elif pKa_set is not None:
                 
 
                     raise ValueError("The desired pKa set must be given as a string, valid options are ", names_pKa_set)
@@ -342,13 +354,13 @@ class sugar_library(object):
                             bead_list=[]
                         
                         # If the residue has a pKa value list in the pKa_set put in the bead
+                            if pKa_set is not None:
+                                if res.name in pKa_set.keys():
 
-                            if res.name in pKa_set.keys():
+                                    bead.pKa=pKa_set[res.name]
 
-                                bead.pKa=pKa_set[res.name]
-
-                            bead_list.append(bead)
-                            res.beads=bead_list
+                                bead_list.append(bead)
+                                res.beads=bead_list
                 
                 else:
 
@@ -396,9 +408,10 @@ class sugar_library(object):
                                     bead=sugar_self.particle()
                                     bead.name=res.name
 
-                                if res.name in pKa_set.keys():
+                                if pKa_set is not None:
+                                    if res.name in pKa_set.keys():
 
-                                    bead.pKa=pKa_set[res.name]
+                                        bead.pKa=pKa_set[res.name]
 
                                             
                             elif p_bead_name in model_keys:
@@ -453,10 +466,10 @@ class sugar_library(object):
                                                 if (p_set.name == name):
 
                                                     bead=p_set
-                                    
-                                            if name in pKa_set.keys():
+                                            if pKa_set is not None:
+                                                if name in pKa_set.keys():
 
-                                                bead.pKa=pKa_set[name]
+                                                    bead.pKa=pKa_set[name]
 
                                             bead_list.append(bead)
                                             lateral_beads.append(bead.name)
@@ -473,10 +486,10 @@ class sugar_library(object):
                                                     if (p_set.name == name):
 
                                                         bead=p_set
+                                                if pKa_set is not None:
+                                                    if name in pKa_set.keys():
 
-                                                if name in pKa_set.keys():
-
-                                                    bead.pKa=pKa_set[name]
+                                                        bead.pKa=pKa_set[name]
                                 
                                             else:
 
@@ -520,7 +533,7 @@ class sugar_library(object):
                     
         sugar_self.molecule = molecule
                 
-    def create_custom_model(self, beads_per_residue=None, principal_chain=None, side_chain=None, custom_particles=None, units=None):
+    def create_custom_model(self, principal_chain=None, side_chain=None, custom_particles=None):
         '''
         Helps the user to setup custom parameters for a model or a full custom model
 
@@ -554,7 +567,6 @@ class sugar_library(object):
         '''
         
         custom_param=self.param.custom_parameters()
-
         
         if principal_chain is not None:
 
@@ -1560,7 +1572,7 @@ class sugar_library(object):
 
         # By default, Lennard-Jones parameters with WCA potential are assumed
 
-        lj_WCA=self.param.general.lj_WCA
+        lj_WCA=self.param.default.lj_WCA
 
         if mol.model is not None:
 
@@ -2002,13 +2014,13 @@ class sugar_library(object):
         volume=self.units.Quantity(system.volume(), 'reduced_length**3')
 
         if c_salt.check('[substance] [length]**-3'):
-
-            N_ions= int((volume*c_salt/self.units.N_A).magnitude)
-            c_salt_calculated=N_ions/(volume*self.units.N_A)
-
+            
+            N_ions= int((volume*c_salt.to('mol/reduced_length**3')*self.N_A).magnitude)
+            c_salt_calculated=N_ions/(volume*self.N_A)
+            
         elif c_salt.check('[length]**-3'):
             
-            N_ions= int((volume*c_salt/self.units.N_A).magnitude)
+            N_ions= int((volume*c_salt.to('reduced_length**-3')*self.N_A).magnitude)
             c_salt_calculated=N_ions/volume
 
         else:
@@ -2022,7 +2034,7 @@ class sugar_library(object):
         self.create_particle(system=system, particle=anion)
 
         print('\n Added an added salt concentration of ', c_salt_calculated.to('mol/L'), 'given by ', N_ions, 'cations/anions')
-
+        
         return c_salt_calculated
 
     def generate_trialvectors(self,mag):
@@ -2136,7 +2148,7 @@ class sugar_library(object):
 
     def search_bond(self,bead1,bead2,res):
         """
-        Search for a bond in res for joining bead1 and bead2. If there are specific parametrization for such a bond in res, adds the default bond as defined in param.general 
+        Search for a bond in res for joining bead1 and bead2. If there are specific parametrization for such a bond in res, adds the default bond as defined in param.default 
 
         Inputs:
         bead1: particle object as defined in sugar library
@@ -2161,7 +2173,7 @@ class sugar_library(object):
 
         if unasigned_bond:
 
-            asigned_bond=self.param.general.default_bond
+            asigned_bond=self.param.default.default_bond
             asigned_bond.bondl=bead1.radius+bead2.radius
 
         with open(self.filename_parameters, 'a') as par_file:
@@ -2243,7 +2255,7 @@ class sugar_library(object):
 
             if c_salt.check('[substance] [length]**-3'):
 
-                KAPPA=1./self.np.sqrt(8*self.units.pi*BJERRUM_LENGTH*self.units.N_A*c_salt)
+                KAPPA=1./self.np.sqrt(8*self.units.pi*BJERRUM_LENGTH*self.N_A*c_salt)
 
             elif c_salt.check('[length]**-3'):
                 
@@ -2418,12 +2430,12 @@ class sugar_library(object):
 
         def create_default_parameter_sets(parameters_self):
 
-            class general:
+            class default:
                 
                 name=None
                 lj_WCA = parameters_self.custom_lj()
                 lj_WCA.name='WCA'
-                lj_WCA.actors=['WCA']
+                lj_WCA.actors=['default']
                 lj_WCA.epsilon= 1 * parameters_self.units('reduced_energy')
                 lj_WCA.sigma=1 * parameters_self.units('reduced_length')
                 lj_WCA.cutoff=2**(1.0 / 6)*parameters_self.units('reduced_length')
@@ -2433,9 +2445,9 @@ class sugar_library(object):
                 default_bond.actors=['default']
                 default_bond.type='harmonic'
                 default_bond.bondl=1 * parameters_self.units('reduced_length')
-                default_bond.k=100 * parameters_self.units('reduced_energy / reduced_length**2')
+                default_bond.k=300 * parameters_self.units('reduced_energy / reduced_length**2')
             
-            parameters_self.general=general 
+            parameters_self.default=default 
             
             class small_ions:
                 name='small_ions'

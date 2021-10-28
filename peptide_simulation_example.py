@@ -61,9 +61,10 @@ probability_reaction=0.5
 # Add peptides to your simulation box
 
 volume=system.volume()*sg.units('reduced_length**3')
-peptide.N=int(volume*pep_concentration*sg.units.N_A)
+print(volume,(L.to('reduced_length')**3))
+peptide.N=int(volume*pep_concentration*sg.N_A)
 sg.create_molecule(peptide, system)
-calculated_peptide_concentration=peptide.N/(volume*sg.units.N_A)
+calculated_peptide_concentration=peptide.N/(volume*sg.N_A)
 print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', peptide.N, 'molecules')
 
 # Count the number of titrable groups in your peptide
