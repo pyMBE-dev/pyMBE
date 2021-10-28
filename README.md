@@ -66,4 +66,11 @@ or alternatively you can run the command
 
 provided that you have modified the $ESPResSo_build_path variable in `Makefile` to match the path where you have build ESPResSo v4.1
 
+## Contribute
+
+All members of this repository are cordially invited to contribute on the development of this library by providing new functionalities 
+or helping fixing any possible bugs. Please, note that any change on Sugar source do should be done in a separate branch of the repository, 
+which will be reviewed before being merched to the repository master branch
+
+
 
