@@ -94,6 +94,10 @@ class sugar_library(object):
         
         self.kT=self.TEMPERATURE*self.Kb
 
+        # Init again the parameters in the current unit system
+        
+        self.param=self.parameters(units=self.units, particle=self.particle)
+
         self.print_reduced_units()
 
     class particle:
@@ -127,17 +131,17 @@ class sugar_library(object):
 
         class molecule:
 
-            N = None
-            Nm = None
-            ids = []
-            model = None
-            
             def __init__(self, sequence, model=None, param_custom=None, pKa_set=None, pKa_custom=None):
 
 
                 model_param=None
                 model_dict={}
-            
+                self.N = None
+                self.Nm = None
+                self.ids = []
+                self.model = None
+
+
                 if model is not None:
 
                     model_list=sugar_self.get_subclasses(sugar_self.param)
@@ -285,6 +289,9 @@ class sugar_library(object):
                 if (model == '1beadpeptide' or model == '2beadpeptide'):
 
                     clean_sequence=sugar_self.sequence_parser(sequence, keys)
+                    if pKa_set is None:
+
+                        pKa_set='hass'
 
                 else:
 
@@ -314,7 +321,6 @@ class sugar_library(object):
                     
                 elif pKa_set is not None:
                 
-
                     raise ValueError("The desired pKa set must be given as a string, valid options are ", names_pKa_set)
 
                 if pKa_custom is not None:
@@ -422,9 +428,10 @@ class sugar_library(object):
 
                                         bead=p_set
 
-                                        if p_bead_name in pKa_set.keys():
+                                        if pKa_set is not None:
+                                            if p_bead_name in pKa_set.keys():
 
-                                            bead.pKa=pKa_set[res.name]
+                                                bead.pKa=pKa_set[res.name]
                             
                             else:
                                 print(p_bead_name,model_keys)
@@ -701,7 +708,7 @@ class sugar_library(object):
 
                         else:
 
-                            if (residue.upper() in self.aminoacid_key()):
+                            if (residue.upper() in self.aminoacid_key.keys()):
 
                                 clean_sequence.append(self.aminoacid_key[residue.upper()])
 
@@ -761,7 +768,8 @@ class sugar_library(object):
 
             print('molecule parameters')
             for atr in self.get_attributes(mol):
-                print(atr)
+                if atr[0] != 'model' and atr[0] != 'residues': 
+                    print(atr)
 
             for chain in mol.residues:
                 
@@ -770,8 +778,8 @@ class sugar_library(object):
                     print("\t residue ", res.name, 'parameters')
             
                     for atr in self.get_attributes(res):
-
-                        print('\t' ,atr)
+                        if atr[0] != 'beads' and atr[0] != 'bonds': 
+                            print('\t' ,atr)
 
 
                     for chain_bead in res.beads:
@@ -789,8 +797,8 @@ class sugar_library(object):
             print("residue ", mol.name, 'parameters')
 
             for atr in self.get_attributes(mol):
-                
-                print(atr)
+                if atr[0] != 'beads' and atr[0] != 'bonds': 
+                    print(atr)
 
             for chain_bead in res.beads:
 
@@ -1252,11 +1260,11 @@ class sugar_library(object):
 
             raise ValueError("The number of molecules must be an integer number, given: ", mol.N)
         
-        print('Parameters used to create ' + ''.join(mol.sequence) +' stored in' + self.filename_parameters)
+        print('Parameters used to create ' + ''.join(mol.sequence) +' stored in ' + self.filename_parameters)
         with open(self.filename_parameters, 'a') as par_file:
             par_file.write('\n Created molecule ' + ''.join(mol.sequence)+ ' with bonds:\n')
 
-        for mol_i in range(mol.N):
+        for _ in range(mol.N):
 
             first_res_inexistent=True
             bond_vector=self.generate_trialvectors(1)
@@ -1550,21 +1558,21 @@ class sugar_library(object):
 
             elif isinstance(mol, self.particle): 
                             
-                if isinstance (bead.type,dict):
+                if isinstance (mol.type,dict):
 
-                    for type in bead.type.values():
+                    for type in mol.type.values():
                                             
                         if type not in name_dict.keys():
 
-                            name_dict[type]=bead.name
-                            radi_dict[type]=bead.radius
+                            name_dict[type]=mol.name
+                            radi_dict[type]=mol.radius
 
-                if isinstance(bead.type,int):
+                if isinstance(mol.type,int):
                             
-                    if bead.type not in name_dict.keys():
+                    if mol.type not in name_dict.keys():
 
-                        name_dict[bead.type]=bead.name
-                        radi_dict[bead.type]=bead.radius
+                        name_dict[mol.type]=mol.name
+                        radi_dict[mol.type]=mol.radius
 
             else:
 
