@@ -1672,7 +1672,7 @@ class sugar_library(object):
                     lj_parameters=self.get_attributes(pair_lj)
                     lj_parameters.remove(('actors', None))
 
-                    par_file.write("\n The LJ interactions between "+name1+ '(type = ' + str(type1) + ') and ' + str(name2) + '(type = ' + str(type2) + ") is created using the parameters" + str(lj_parameters))
+                    par_file.write("\n The LJ interactions between "+str(name1)+ '(type = ' + str(type1) + ') and ' + str(name2) + '(type = ' + str(type2) + ") is created using the parameters" + str(lj_parameters))
                     self.setup_lj_pair(type1,type2,pair_lj, system)
                 
         return
