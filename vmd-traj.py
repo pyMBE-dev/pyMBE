@@ -26,6 +26,7 @@ for frame in files:
     num=re.findall(r'\d+', frame)
     files_ordered[int(num[0])]=frame
 
+
 # Read file data
 
 files_data=[]
@@ -38,7 +39,10 @@ coord={}
 N_frame=0
 type_list=[]
 
-for frame in range(0,len(files)): # 'file' is a builtin type, 'frame' is a less-ambiguous variable name.
+minimum_index=min(files_ordered.keys())
+maximum_index=max(files_ordered.keys())
+
+for frame in range(minimum_index,maximum_index+1): # 'file' is a builtin type, 'frame' is a less-ambiguous variable name.
     
     file_name=files_ordered[frame]
     path=frame_dir+"/"+file_name
