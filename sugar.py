@@ -1458,6 +1458,11 @@ class sugar_library(object):
 
         else:
 
+                        raise ValueError("Particle type must store the tipe of the protonated and unprotonated species so that part.type['protonated'] returns the type of the protonated specie and part.type['unprotonated'] returns the type of the unprotonated specie. Given: ", part.type)
+
+
+        if part.pKa is not None and  part.acidity in ['acid','basic']:
+
             if (part.acidity == 'basic') : # Basic residue
                         
                 RE.add_reaction(gamma=10**-part.pKa,
