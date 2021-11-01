@@ -13,6 +13,7 @@ class sugar_library(object):
     SEED=None
     N_A=scipy.constants.Avogadro / units.mol
     Kb=scipy.constants.Boltzmann * units.J / units.K
+    e=scipy.constants.elementary_charge *units.C
 
     # Library output
 
@@ -86,6 +87,7 @@ class sugar_library(object):
         self.units=self.pint.UnitRegistry()
         self.N_A=self.scipy.constants.Avogadro / self.units.mol
         self.Kb=self.scipy.constants.Boltzmann * self.units.J / self.units.K
+        self.e=self.scipy.constants.elementary_charge *self.units.C
         self.TEMPERATURE=temperature.to('K').magnitude*self.units.K
         unit_energy=self.TEMPERATURE*self.Kb
         self.units.define(f'reduced_energy = {unit_energy} ')
@@ -1456,11 +1458,6 @@ class sugar_library(object):
 
         else:
 
-            raise ValueError("Particle type must store the tipe of the protonated and unprotonated species so that part.type['protonated'] returns the type of the protonated specie and part.type['unprotonated'] returns the type of the unprotonated specie. Given: ", part.type)
-
-
-        if part.pKa is not None and  part.acidity in ['acid','basic']:
-
             if (part.acidity == 'basic') : # Basic residue
                         
                 RE.add_reaction(gamma=10**-part.pKa,
@@ -1909,7 +1906,7 @@ class sugar_library(object):
 
         """
 
-        # Load the parameters
+        # Load the parametersobject has no attribute 'to'
 
         if cation is None:
 
@@ -2251,13 +2248,12 @@ class sugar_library(object):
 
             raise ValueError('Please provide the added salt concentration c_salt to settup the Debye-Huckel potential')
             
-        kT=self.TEMPERATURE*self.units.k
 
-        BJERRUM_LENGTH = self.units.e**2 / (4 * self.units.pi * self.units.eps0 * solvent_permittivity * kT)
+        BJERRUM_LENGTH = self.e.to('reduced_charge')**2 / (4 * self.units.pi * self.units.eps0 * solvent_permittivity * self.kT.to('reduced_energy'))
 
         print('\n Bjerrum length ', BJERRUM_LENGTH.to('nm'), '=', BJERRUM_LENGTH.to('reduced_length'))
 
-        COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * kT.to('reduced_energy') 
+        COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * self.kT.to('reduced_energy') 
         
         if c_salt is not None:
 
@@ -2311,7 +2307,7 @@ class sugar_library(object):
 
         return
 
-    def minimize_system_energy(self, system, force_change=1e-2, gamma=1, max_steps=10000, time_step=1e-2, max_displacement=0.1, steps_per_iteration=10):
+    def minimize_system_energy(self, system, force_change=1e-2, gamma=0.1, max_steps=10000, time_step=1e-2, max_displacement=0.1, steps_per_iteration=100):
         """
         Does a steppest descent minimization to relax the system energy
 
@@ -2356,7 +2352,7 @@ class sugar_library(object):
 
         return
 
-    def setup_langevin_dynamics(self,system, time_step=1e-3, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
+    def setup_langevin_dynamics(self,system, time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
         """
         Sets up Langevin Dynamics in espressomd.
         system: instance of espressmd system class
