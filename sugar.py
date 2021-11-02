@@ -863,13 +863,16 @@ class sugar_library(object):
                     raise ValueError("Unknown state for bead: ", particle.name, " please review the input state:", state, ' valid keys are', particle.q.keys())
         else:
 
-            if isinstance(particle.type, dict):
+            if isinstance(particle.q, dict):
                 
-                # Inicialice beads with more than one state in a random state
+                # Inicialice beads with more than one state in its fully ionizated state
 
-                state=self.rn.choice(list(particle.type.keys()))
-                particle.state=state
+                for key in particle.q.keys():
 
+                    if particle.q[key] != 0:
+
+                        particle.state=key
+                        state=key
         
         if isinstance(particle.q, int) or isinstance(particle.q, float) :
             
