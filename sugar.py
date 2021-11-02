@@ -1109,7 +1109,7 @@ class sugar_library(object):
 
                                     central_bond=self.search_bond(bead1=central_bead,bead2=bead, res=res)
 
-                                    bond_vector=self.generate_trialvectors(central_bond.bondl.to('nm').magnitude)
+                                    bond_vector=self.generate_trialvectors(central_bond.bondl.to('reduced_length').magnitude)
 
                                     if position is not None and len(position) > 0:
                     
@@ -1294,11 +1294,9 @@ class sugar_library(object):
                         new_backbone_bead=new_backbone_bead[0]
                         new_bead_name=new_backbone_bead.name
 
-                        actors=[pre_bead_name,new_bead_name]
-
                         backbone_bond=self.search_bond(bead1=pre_backbone_bead, bead2=new_backbone_bead,res=res)
         
-                        new_bead_pos=pre_bead_pos+bond_vector*backbone_bond.bondl.to('nm').magnitude
+                        new_bead_pos=pre_bead_pos+bond_vector*backbone_bond.bondl.to('reduced_length').magnitude
                         self.create_residue(res, system, position=[new_bead_pos])
                         
                         # Create the harmonic bond for the principal chain
