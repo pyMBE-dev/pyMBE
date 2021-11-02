@@ -2649,91 +2649,91 @@ class sugar_library(object):
                 Y=parameters_self.particle()
                 Y.name="Y"
                 Y.radius=0.5* parameters_self.units('reduced_length')
-                Y.type=33
-                Y.q=0
-                Y.acidity="inert"
-                
+                Y.type={"unprotonated": 33, "protonated": 34}
+                Y.q={"protonated": 0, "unprotonated": -1}
+                Y.acidity="acid"
+
                 V=parameters_self.particle()
                 V.name="V"
                 V.radius=0.5* parameters_self.units('reduced_length')
-                V.type=34
+                V.type=35
                 V.q=0
                 V.acidity="inert"
                 
                 K=parameters_self.particle()
                 K.name="K"
                 K.radius=0.5 * parameters_self.units('reduced_length')
-                K.type={"unprotonated": 35, "protonated": 36}
+                K.type={"unprotonated": 36, "protonated": 37}
                 K.q={"unprotonated": 0, "protonated": 1}
                 K.acidity="basic"
                 
                 H=parameters_self.particle()
                 H.name="H"
                 H.radius=0.5 * parameters_self.units('reduced_length')
-                H.type={"unprotonated": 37, "protonated": 38}
+                H.type={"unprotonated": 38, "protonated": 39}
                 H.q={"unprotonated": 0, "protonated": 1}
                 H.acidity="basic"
                 
                 C=parameters_self.particle()
                 C.name="C"
                 C.radius=0.5 * parameters_self.units('reduced_length')
-                C.type={"unprotonated": 39, "protonated": 40}
+                C.type={"unprotonated": 40, "protonated": 41}
                 C.q={"unprotonated": 0, "protonated": 1}
                 C.acidity="basic"
                 
                 R=parameters_self.particle()
                 R.name="R"
                 R.radius=0.5* parameters_self.units('reduced_length')
-                R.type={"unprotonated": 41, "protonated": 42}
+                R.type={"unprotonated": 42, "protonated": 43}
                 R.q={"unprotonated": 0, "protonated": 1}
                 R.acidity="basic"
                 
                 n=parameters_self.particle()
                 n.name="n"
                 n.radius=0.5 * parameters_self.units('reduced_length')
-                n.type={"unprotonated": 43, "protonated": 44}
+                n.type={"unprotonated": 44, "protonated": 45}
                 n.q={"unprotonated": 0, "protonated": 1}
                 n.acidity="basic"
 
                 c=parameters_self.particle()
                 c.name="c"
                 c.radius=0.5* parameters_self.units('reduced_length')
-                c.type={"unprotonated": 45, "protonated": 46}
+                c.type={"unprotonated": 46, "protonated": 47}
                 c.q={"protonated": 0, "unprotonated": -1}
                 c.acidity="acid"
 
                 D=parameters_self.particle()
                 D.name="D"
                 D.radius=0.5 * parameters_self.units('reduced_length')
-                D.type={"unprotonated": 47, "protonated": 48}
+                D.type={"unprotonated": 48, "protonated": 49}
                 D.q={"protonated": 0, "unprotonated": -1}
                 D.acidity="acid"
 
                 E=parameters_self.particle()
                 E.name="E"
                 E.radius=0.5 * parameters_self.units('reduced_length')
-                E.type={"unprotonated": 49, "protonated": 50}
+                E.type={"unprotonated": 50, "protonated": 51}
                 E.q={"protonated": 0, "unprotonated": -1}
                 E.acidity="acid"
                 
                 J=parameters_self.particle()
                 J.name="J"
                 J.radius=0.5 * parameters_self.units('reduced_length')
-                J.type={"unprotonated": 51, "protonated": 52}
+                J.type={"unprotonated": 52, "protonated": 53}
                 J.q={"protonated": -1, "unprotonated": -2}
                 J.acidity="acid"
                 
                 U=parameters_self.particle()
                 U.name="U"
                 U.radius=0.5 * parameters_self.units('reduced_length')
-                U.type={"unprotonated": 53, "protonated": 54}
+                U.type={"unprotonated": 54, "protonated": 55}
                 U.q={"protonated": -1, "unprotonated": -2}
                 U.acidity="acid"
                 
                 Z=parameters_self.particle()
                 Z.name="Z"
                 Z.radius=0.5* parameters_self.units('reduced_length')
-                Z.type={"unprotonated": 55, "protonated": 56}
+                Z.type={"unprotonated": 56, "protonated": 57}
                 Z.q={"protonated": -1, "unprotonated": -2}
                 Z.acidity="acid"
 
@@ -2845,91 +2845,91 @@ class sugar_library(object):
                 Y=parameters_self.particle()
                 Y.name="Y"
                 Y.radius=0.5* parameters_self.units('reduced_length')
-                Y.type=33
-                Y.q=0
-                Y.acidity="inert"
-                
+                Y.type={"unprotonated": 33, "protonated": 34}
+                Y.q={"protonated": 0, "unprotonated": -1}
+                Y.acidity="acid"
+
                 V=parameters_self.particle()
                 V.name="V"
                 V.radius=0.5* parameters_self.units('reduced_length')
-                V.type=34
+                V.type=35
                 V.q=0
                 V.acidity="inert"
                 
                 K=parameters_self.particle()
                 K.name="K"
                 K.radius=0.5 * parameters_self.units('reduced_length')
-                K.type={"unprotonated": 35, "protonated": 36}
+                K.type={"unprotonated": 36, "protonated": 37}
                 K.q={"unprotonated": 0, "protonated": 1}
                 K.acidity="basic"
                 
                 H=parameters_self.particle()
                 H.name="H"
-                H.radius=0.5* parameters_self.units('reduced_length')
-                H.type={"unprotonated": 37, "protonated": 38}
+                H.radius=0.5 * parameters_self.units('reduced_length')
+                H.type={"unprotonated": 38, "protonated": 39}
                 H.q={"unprotonated": 0, "protonated": 1}
                 H.acidity="basic"
                 
                 C=parameters_self.particle()
                 C.name="C"
-                C.radius=0.5* parameters_self.units('reduced_length')
-                C.type={"unprotonated": 39, "protonated": 40}
+                C.radius=0.5 * parameters_self.units('reduced_length')
+                C.type={"unprotonated": 40, "protonated": 41}
                 C.q={"unprotonated": 0, "protonated": 1}
                 C.acidity="basic"
                 
                 R=parameters_self.particle()
                 R.name="R"
-                R.radius=0.5 * parameters_self.units('reduced_length')
-                R.type={"unprotonated": 41, "protonated": 42}
+                R.radius=0.5* parameters_self.units('reduced_length')
+                R.type={"unprotonated": 42, "protonated": 43}
                 R.q={"unprotonated": 0, "protonated": 1}
                 R.acidity="basic"
                 
                 n=parameters_self.particle()
                 n.name="n"
-                n.radius=0.5* parameters_self.units('reduced_length')
-                n.type={"unprotonated": 43, "protonated": 44}
+                n.radius=0.5 * parameters_self.units('reduced_length')
+                n.type={"unprotonated": 44, "protonated": 45}
                 n.q={"unprotonated": 0, "protonated": 1}
                 n.acidity="basic"
 
                 c=parameters_self.particle()
                 c.name="c"
-                c.radius=0.5 * parameters_self.units('reduced_length')
-                c.type={"unprotonated": 45, "protonated": 46}
+                c.radius=0.5* parameters_self.units('reduced_length')
+                c.type={"unprotonated": 46, "protonated": 47}
                 c.q={"protonated": 0, "unprotonated": -1}
                 c.acidity="acid"
 
                 D=parameters_self.particle()
                 D.name="D"
                 D.radius=0.5 * parameters_self.units('reduced_length')
-                D.type={"unprotonated": 47, "protonated": 48}
+                D.type={"unprotonated": 48, "protonated": 49}
                 D.q={"protonated": 0, "unprotonated": -1}
                 D.acidity="acid"
 
                 E=parameters_self.particle()
                 E.name="E"
                 E.radius=0.5 * parameters_self.units('reduced_length')
-                E.type={"unprotonated": 49, "protonated": 50}
+                E.type={"unprotonated": 50, "protonated": 51}
                 E.q={"protonated": 0, "unprotonated": -1}
                 E.acidity="acid"
                 
                 J=parameters_self.particle()
                 J.name="J"
                 J.radius=0.5 * parameters_self.units('reduced_length')
-                J.type={"unprotonated": 51, "protonated": 52}
+                J.type={"unprotonated": 52, "protonated": 53}
                 J.q={"protonated": -1, "unprotonated": -2}
                 J.acidity="acid"
                 
                 U=parameters_self.particle()
                 U.name="U"
                 U.radius=0.5 * parameters_self.units('reduced_length')
-                U.type={"unprotonated": 53, "protonated": 54}
+                U.type={"unprotonated": 54, "protonated": 55}
                 U.q={"protonated": -1, "unprotonated": -2}
                 U.acidity="acid"
                 
                 Z=parameters_self.particle()
                 Z.name="Z"
-                Z.radius=0.5 * parameters_self.units('reduced_length')
-                Z.type={"unprotonated": 55, "protonated": 56}
+                Z.radius=0.5* parameters_self.units('reduced_length')
+                Z.type={"unprotonated": 56, "protonated": 57}
                 Z.q={"protonated": -1, "unprotonated": -2}
                 Z.acidity="acid"
 
