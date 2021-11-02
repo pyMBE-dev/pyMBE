@@ -2405,6 +2405,59 @@ class sugar_library(object):
         print('\n The chosen seed for the random number generator is ', SEED)
         self.SEED=SEED
 
+    def block_analyze(self, input_data, n_blocks=16):
+        '''         
+        Performs a binning analysis of input_data. 
+        Divides the samples in ``n_blocks`` equispaced blocks
+        and returns the mean, its uncertainty, the correlation time 
+        and the block size        
+        '''
+
+        data = self.np.asarray(input_data)
+        block = 0
+        # this number of blocks is recommended by Janke as a reasonable compromise
+        # between the conflicting requirements on block size and number of blocks
+        block_size = int(data.shape[1] / n_blocks)
+        print(f"block_size: {block_size}")
+        # initialize the array of per-block averages
+        block_average = self.np.zeros((n_blocks, data.shape[0]))
+        # calculate averages per each block
+        for block in range(n_blocks):
+            block_average[block] = self.np.average(data[:, block * block_size: (block + 1) * block_size], axis=1)
+        # calculate the average and average of the square
+        av_data = self.np.average(data, axis=1)
+        av2_data = self.np.average(data * data, axis=1)
+        # calculate the variance of the block averages
+        block_var = self.np.var(block_average, axis=0)
+        # calculate standard error of the mean
+        err_data = self.np.sqrt(block_var / (n_blocks - 1))
+        # estimate autocorrelation time using the formula given by Janke
+        # this assumes that the errors have been correctly estimated
+        tau_data = self.np.zeros(av_data.shape)
+        for val in range(av_data.shape[0]):
+            if av_data[val] == 0:
+                # unphysical value marks a failure to compute tau
+                tau_data[val] = -1.0
+            else:
+                tau_data[val] = 0.5 * block_size * n_blocks / (n_blocks - 1) * block_var[val] \
+                    / (av2_data[val] - av_data[val] * av_data[val])
+
+        # check if the blocks contain enough data for reliable error estimates
+        print("uncorrelated samples per block:\nblock_size/tau = ",
+            block_size/tau_data)
+        threshold = 10.  # block size should be much greater than the correlation time
+        if self.np.any(block_size / tau_data < threshold):
+            print("\nWarning: some blocks may contain less than ", threshold, "uncorrelated samples."
+          "\nYour error estimated may be unreliable."
+          "\nPlease, check them using a more sophisticated method or run a longer simulation.")
+            print("? block_size/tau > threshold ? :", block_size/tau_data > threshold)
+        else:
+            print("\nAll blocks seem to contain more than ", threshold, "uncorrelated samples.\
+            Error estimates should be OK.")
+
+        return av_data, err_data, tau_data, block_size
+
+
     class parameters:
 
         def __init__(self, units, particle):
