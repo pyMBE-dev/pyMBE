@@ -14,3 +14,6 @@ visual:
 
 tutorial:
 	${ESPResSo_build_path}/ipypresso notebook sugar_tutorial.ipynb
+
+reference:
+	 ${ESPResSo_build_path}/pypresso reference_scripts/histatin5_peptide.py
