@@ -19,6 +19,7 @@ to ESPResSo using Pint library.
 - `sugar_tutorial.ipynb` : jupyter notebook containing a tutorial to Sugar library
 - `vmd-traj.py` : trajectory processing script. Since trajectories with a varying number of particles cannot be readen by VMD, this script
                 processes the output trajectory .vtf files from espresso to make them readable by VMD.
+- `reference_scripts/`: folder with a script to reproduce reference data from histatin-5 reference data.
 
 ## Usage
 
