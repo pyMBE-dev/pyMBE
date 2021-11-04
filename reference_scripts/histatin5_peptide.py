@@ -67,10 +67,12 @@ pep_concentration=1.56e-4 *sg.units.mol/sg.units.L
 added_salt_cation=sg.particle()
 added_salt_cation.q=1
 added_salt_cation.type=0
+added_salt_cation.radius=0.1*sg.units.nm
 
 added_salt_anion=sg.particle()
 added_salt_anion.q=-1
 added_salt_anion.type=1
+added_salt_anion.radius=0.18*sg.units.nm
 
 # System parameters from Ref. 1
 
@@ -109,6 +111,11 @@ c_salt_calculated=sg.create_added_salt(system=system, cation=added_salt_cation, 
 # Add counter-ions to neutralize the peptide charge
 
 positive_counterion, negative_counterion = sg.create_counterions(system=system, mol=peptide)
+
+# Set the radius of the counter-ions to the reference values
+
+positive_counterion.radius=0.1*sg.units.nm
+negative_counterion.radius=0.18*sg.units.nm
 
 # Setup the acid-base reactions of the peptide (in the constant pH ensemble)
 
