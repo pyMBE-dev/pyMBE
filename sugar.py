@@ -5,6 +5,7 @@ class sugar_library(object):
     import numpy as np
     import random as rn
     import scipy.constants
+    import time
 
     # Default values    
 
@@ -14,6 +15,7 @@ class sugar_library(object):
     N_A=scipy.constants.Avogadro / units.mol
     Kb=scipy.constants.Boltzmann * units.J / units.K
     e=scipy.constants.elementary_charge *units.C
+    initial_simulation_time=None
 
     # Library output
 
@@ -70,6 +72,8 @@ class sugar_library(object):
         with open(self.filename_parameters, 'w') as par_file:
             par_file.write('')
 
+        self.initial_simulation_time=self.time.time()*self.units.s
+
     def print_reduced_units(self):
 
         print("\nCurrent set of reduced units:")
@@ -99,6 +103,10 @@ class sugar_library(object):
         # Init again the parameters in the current unit system
         
         self.param=self.parameters(units=self.units, particle=self.particle)
+
+        # Change the unit registry of the initial simulation time
+
+        self.initial_simulation_time=self.initial_simulation_time.magnitude*self.units.s
 
         self.print_reduced_units()
 
@@ -2456,6 +2464,58 @@ class sugar_library(object):
             Error estimates should be OK.")
 
         return av_data, err_data, tau_data, block_size
+
+    def write_progress(self, step, total_steps):
+        """
+            Writes the progress of the loop and estimates the time for its completion
+            
+            Inputs:
+            step: (int) actual step of the loop
+            total_steps: (int) total number of loop steps
+
+            Assumptions:
+            It assumes that the simulation starts with step = 0
+        """
+        
+        time_act=self.time.time()*self.units.s
+        perc_sim=100 *(step+1) / (total_steps)
+        time_per_step= (time_act - self.initial_simulation_time)/(step+1)
+        remaining_time=(total_steps - step +1)*time_per_step
+        elapsed_time=time_act-self.initial_simulation_time
+
+        def find_right_time_units(time):
+            """
+            Given a pint variable with time units, it returns in which time scale it is
+            """
+
+            if (time.to('s').magnitude/60 < 1):
+
+                time_unit='s'
+
+            elif (time.to('s').magnitude/3600 < 1):
+
+                time_unit='min'
+
+            elif (time.to('s').magnitude/(3600*24) < 1):
+
+                time_unit='hour'
+
+            else:
+
+                time_unit='day'
+
+            return time_unit
+
+        time_unit_elapsed_time=find_right_time_units(elapsed_time)
+        time_unit_remaining_time=find_right_time_units(remaining_time)
+
+        print(round(perc_sim,2), 
+                "% done, elapsed time", 
+                round(elapsed_time.to(time_unit_elapsed_time),2), 
+                "completion in,",
+                round(remaining_time.to(time_unit_remaining_time),2))
+
+        return
 
 
     class parameters:
