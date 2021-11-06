@@ -1948,30 +1948,38 @@ class sugar_library(object):
 
         if isinstance(mol,self.molecule) or isinstance(mol,self.residue):
 
-            for chain in mol.ids:
-                
-                for id in chain:
+            for _ in range(mol.N):
 
-                    q=system.part[id].q
-                    
-                    if q == +1:
+                for list_of_residues in mol.residues:
 
-                        I_id+=1
-                        I_pos=self.np.random.random((1, 3)) * system.box_l
-                        system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
-                        anion.N+=1
-                        anion_id.append(I_id)
-                        total_q+=q+anion.q
+                    for residue in list_of_residues:
 
-                    elif q == -1:
+                        for particle_list in residue.beads:
 
-                        I_id+=1
-                        I_pos=self.np.random.random((1, 3)) * system.box_l
-                        system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
-                        cation.N+=1
-                        cation_id.append(I_id)
-                        total_q+=q+cation.q
+                            for particle in particle_list:
+                                
+                                if isinstance(particle.q, dict):
+                                    q=particle.q[particle.state]
+                                else:
+                                    q=particle.q
+                                
+                                if q == +1:
 
+                                    I_id+=1
+                                    I_pos=self.np.random.random((1, 3)) * system.box_l
+                                    system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
+                                    anion.N+=1
+                                    anion_id.append(I_id)
+                                    total_q+=q+anion.q
+
+                                elif q == -1:
+
+                                    I_id+=1
+                                    I_pos=self.np.random.random((1, 3)) * system.box_l
+                                    system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
+                                    cation.N+=1
+                                    cation_id.append(I_id)
+                                    total_q+=q+cation.q
 
         if isinstance(mol, self.particle): 
 
@@ -1999,6 +2007,8 @@ class sugar_library(object):
         
         cation.ids=cation_id
         anion.ids=anion_id
+
+        print("Added ", len(cation.ids), "counter-cations and ", len(anion.ids), "counter-anions")
 
         if total_q != 0:
 
