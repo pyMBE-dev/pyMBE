@@ -975,6 +975,7 @@ class sugar_library(object):
 
         return
 
+
     def create_residue(self, res, system, position=None, state=None, id=None):
         """
         Creates a residue in the espresso given with the properties stored in res
@@ -2519,11 +2520,7 @@ class sugar_library(object):
         time_unit_elapsed_time=find_right_time_units(elapsed_time)
         time_unit_remaining_time=find_right_time_units(remaining_time)
 
-        print(round(perc_sim,2), 
-                "% done, elapsed time", 
-                round(elapsed_time.to(time_unit_elapsed_time),2), 
-                "completion in,",
-                round(remaining_time.to(time_unit_remaining_time),2))
+        print("{0:.2g}% done, elapsed time {1:.2g}s; estimated completion in {2:.2g}s".format(perc_sim,elapsed_time.to(time_unit_elapsed_time),remaining_time.to(time_unit_remaining_time)))
 
         return
 
