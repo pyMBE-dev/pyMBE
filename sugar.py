@@ -16,6 +16,7 @@ class sugar_library(object):
     Kb=scipy.constants.Boltzmann * units.J / units.K
     e=scipy.constants.elementary_charge *units.C
     initial_simulation_time=None
+    added_bonds=[]
 
     # Library output
 
@@ -1257,7 +1258,7 @@ class sugar_library(object):
             res.ids=[residue_ids]
             res.beads=[bead_list]    
 
-        return
+        return 
 
     def create_molecule(self, mol,system):
         '''
@@ -2222,6 +2223,9 @@ class sugar_library(object):
         bond: instance of a bond object as defined in sugar library
         id1:(int) id number of first particle
         id2: (int) id number of the second particle
+
+        Returns:
+        bond_potential
         
         """                         
 
@@ -2241,11 +2245,22 @@ class sugar_library(object):
 
             raise ValueError("Unknown bond type", bond.type)
 
-        
-        system.bonded_inter.add(bond_potential)
+        if not self.added_bonds:
+            self.added_bonds.append(bond_potential)
+            system.bonded_inter.add(bond_potential)
+        else:
+            bond_not_added=True
+            for bond in self.added_bonds:
+                if bond_potential.params == bond.params:
+                    bond_not_added=False
+                    bond_potential=bond
+            if bond_not_added:
+                self.added_bonds.append(bond_potential)
+                system.bonded_inter.add(bond_potential)
+
         system.part[id1].add_bond((bond_potential, id2))
 
-        return
+        return 
 
     def setup_electrostatic_interactions(self, system, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
         """
