@@ -85,7 +85,7 @@ system=espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
 # Simulation parameters
 
 pH_range = sg.np.linspace(2, 12, num=21)
-Samples_per_pH= 1000
+Samples_per_pH= 100
 MD_steps_per_sample=1000
 steps_eq=int(Samples_per_pH/3)
 N_samples_print= 100  # Write the trajectory every 100 samples
@@ -200,6 +200,8 @@ for pH_value in pH_range:
                 vtf.writevsf(system, coordinates)
                 vtf.writevcf(system, coordinates)
 
+    sg.write_progress(step=list(pH_range).index(pH_value), total_steps=len(pH_range))
+
     Z_pH.append(Z_sim)
     Rg_pH.append(Rg_sim)
     print("pH = {:6.4g} done".format(pH_value))
@@ -228,19 +230,24 @@ Rg_err_ref=reference_data[:,5]/10
 # Plot the results
 peptide_seq = ''.join([str(elem) for elem in peptide.sequence])
 
-fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10, 7))
-ax1.errorbar(pH_range, av_charge, yerr=err_charge, fmt = '-o', capsize=3, label='Simulation')
-ax1.errorbar(pH_range, Z_ref, yerr=Z_err_ref, color='b', fmt = '-o', ecolor = 'b', capsize=3, label='Reference values')
-ax1.plot(pH_range, Z_HH, "-k", label='Henderson-Hasselbach')
-ax1.axhline(y=0.0, color="gray", linestyle="--")
-ax1.set(xlabel='pH',ylabel='Charge of the peptide / e')
+plt.figure(figsize=[11, 9])
+plt.subplot(1, 2, 1)
+plt.suptitle('Peptide sequence: '+ peptide_seq)
+plt.errorbar(pH_range, av_charge, yerr=err_charge, fmt = '-o', capsize=3, label='Simulation')
+plt.errorbar(pH_range, Z_ref, yerr=Z_err_ref, color='b', fmt = '-o', ecolor = 'b', capsize=3, label='Reference values')
+plt.plot(pH_range, Z_HH, "-k", label='Henderson-Hasselbach')
+plt.axhline(y=0.0, color="gray", linestyle="--")
+plt.xlabel('pH')
+plt.ylabel('Charge of Histatin-5 / e')
 plt.legend()
 
-ax2.errorbar(pH_range, av_rg, yerr=err_rg, fmt = '-o', capsize=3, label='Simulation')
-ax2.errorbar(pH_range, Rg_ref, yerr=Rg_err_ref, color='b', fmt = '-o', ecolor = 'b', capsize=3, label='Reference values')
-ax1.set(xlabel='pH',ylabel='Radius of gyration of Histatin-5 / nm')
+plt.subplot(1, 2, 2)
+plt.errorbar(pH_range, av_rg, yerr=err_rg, fmt = '-o', capsize=3, label='Simulation')
+plt.errorbar(pH_range, Rg_ref, yerr=Rg_err_ref, color='b', fmt = '-o', ecolor = 'b', capsize=3, label='Reference values')
+plt.xlabel('pH')
+plt.ylabel('Radius of gyration of Histatin-5 / nm')
+plt.legend()
 
-plt.title('Peptide sequence: '+ peptide_seq)
 plt.show()
 
 
