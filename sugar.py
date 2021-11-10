@@ -2347,42 +2347,30 @@ class sugar_library(object):
 
         return
 
-    def minimize_system_energy(self, system, force_change=1e-2, gamma=0.1, max_steps=10000, time_step=1e-2, max_displacement=0.1, steps_per_iteration=100):
+    def minimize_system_energy(self, system, skin=1, gamma=0.1, Nsteps=10000, time_step=1e-3, max_displacement=0.1):
         """
         Does a steppest descent minimization to relax the system energy
 
         Inputs:
         system: instance of espressmd system class
-        force_change: relative force change ratio threshoold. (Default=1e-2)
+        skin: skin parameter for verlet list (default 2 reduced length)
         gamma: dammping constant (Default=1 reduced length)
-        max_steps: maximum number of steps of the minimization (Default=10000)
+        Nsteps: total number of steps of the minimization (Default=10000)
         time_step: Time step used for the energy minimization (Default=1e-2)
-        max_displacement: maximum particle displacement allowed (Default=0.1 reduced unit)
-        steps_per_iteration: Number integration steps per minimization iteration
+        max_displacement: maximum particle displacement allowed (Default=0.1 reduced length)
         """
 
         print("\n*** Minimazing system energy... ***\n")
 
-        # Set up steepest descent integration
-
-        system.integrator.set_steepest_descent(f_max=0, gamma=gamma, max_displacement=max_displacement)
-
-        # Initialize integrator to obtain initial forces
-        
+        system.cell_system.skin = skin
         system.time_step=time_step
-        system.integrator.run(0)
-        old_force = self.np.max(self.np.linalg.norm(system.part[:].f, axis=1))
-
-        # Minimize the energy
-
-        while system.time / system.time_step < max_steps:
-            system.integrator.run(steps_per_iteration)
-            force = self.np.max(self.np.linalg.norm(system.part[:].f, axis=1)) # Calculate the norm of the F acting in each particle and select the larger one
-            rel_force = self.np.abs((force - old_force) / old_force)
-            print(f'rel. force change:{rel_force:.2e}')
-            if rel_force < force_change:
-                break
-            old_force = force
+        print("steepest descent")
+        system.integrator.set_steepest_descent(f_max=0, gamma=gamma, max_displacement=max_displacement)
+        system.integrator.run(int(Nsteps/2))
+        print("velocity verlet")
+        system.integrator.set_vv()  # to switch back to velocity Verlet
+        system.integrator.run(int(Nsteps/2))
+        system.thermostat.turn_off()
 
         # Reset the time of the system to 0
 
