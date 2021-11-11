@@ -101,7 +101,7 @@ print('The peptide concentration in your system is ', calculated_peptide_concent
 
 # Count the number of titrable groups in your peptide
 
-N_titrable_groups=sg.count_titrable_groups(mol=peptide)
+N_titrable_groups=sg.count_titrable_groups(sugar_object=peptide)
 print('The number of ionisable groups in your peptide is ', N_titrable_groups)
 
 # Add added salt ions to your simulation box

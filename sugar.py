@@ -1333,32 +1333,26 @@ class sugar_library(object):
 
         return 
 
-    def count_titrable_groups(self, mol):
+    def count_titrable_groups(self, sugar_object):
         """
         Counts the number of titrable groups in the protein object
 
         Input:
-        mol: instance of a molecule class object as defined in sugar library.
+        sugar_object: molecule, residue or particle object as defined in sugar library
 
         Output:
         N_ti: (int) number of titrable groups in the sequence
         """
 
         N_ti=0
+
+        for particle in self.search_particles(sugar_object=sugar_object):
         
-        for chain in mol.residues:
-                
-            for res in chain:
+            if particle.pKa is not None:
 
-                for chain_bead in res.beads:
+                N_ti+=1
 
-                    for bead in chain_bead:
-
-                        if bead.pKa is not None:
-
-                            N_ti+=1
-
-        N_ti*=mol.N
+        N_ti*=sugar_object.N
 
         return N_ti
 
