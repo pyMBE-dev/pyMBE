@@ -2427,6 +2427,66 @@ class sugar_library(object):
         print('\n The chosen seed for the random number generator is ', SEED)
         self.SEED=SEED
 
+    def search_particles(self, sugar_object):
+        """
+        Searches for sugar particle objects in sugar objects and returns them as a list
+        Input:
+        sugar_object: molecule, residue or particle object as defined in sugar library
+        returns:
+        particle_list: list of sugar particle objects contained in sugar_object
+        """
+        particle_list=[]
+
+        if isinstance(sugar_object,self.molecule):
+
+                for chain in sugar_object.residues:
+                
+                    for res in chain:
+
+                        for chain_bead in res.beads:
+
+                            for bead in chain_bead:
+
+                                particle_list.append(bead)
+
+        if isinstance(sugar_object,self.residue):
+        
+            for chain_bead in res.beads:
+
+                for bead in chain_bead:
+
+                    particle_list.append(bead)                    
+
+        if isinstance(sugar_object, self.particle): 
+
+            particle_list.append(bead)
+
+        return particle_list
+
+    def search_types(self, sugar_object):
+        """
+        Searches for the particle types contained in sugar objects and returns them as a list
+        Input:
+        sugar_object: molecule, residue or particle object as defined in sugar library
+        returns:
+        type_list: list of sugar particle objects contained in sugar_object
+        """
+        type_list=[]
+
+        for particle in self.search_particles(sugar_object=sugar_object):
+
+            if isinstance(particle.type, dict):
+
+                for type in particle.type.values():
+
+                    type_list.append(type)
+
+            else:
+
+                type_list.append(type)
+
+        return type_list
+
     def block_analyze(self, input_data, n_blocks=16):
         '''         
         Performs a binning analysis of input_data. 
