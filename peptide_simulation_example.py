@@ -33,13 +33,13 @@ c_salt=1e-3 * sg.units.mol/ sg.units.L
 
     # Create an instance of a sugar particle object for the added salt cations and anions
 
-added_salt_cation=sg.particle()
-added_salt_cation.q=1
-added_salt_cation.type=0
+cation=sg.particle()
+cation.q=1
+cation.type=0
 
-added_salt_anion=sg.particle()
-added_salt_anion.q=-1
-added_salt_anion.type=1
+anion=sg.particle()
+anion.q=-1
+anion.type=1
 
 # System parameters
 
@@ -73,19 +73,19 @@ print('The number of ionisable groups in your peptide is ', N_titrable_groups)
 
 # Add added salt ions to your simulation box
 
-c_salt_calculated=sg.create_added_salt(system=system, cation=added_salt_cation, anion=added_salt_anion, c_salt=c_salt)
+c_salt_calculated=sg.create_added_salt(system=system, cation=cation, anion=anion, c_salt=c_salt)
 
 # Add counter-ions to neutralize the peptide charge
 
-positive_counterion, negative_counterion = sg.create_counterions(system=system, mol=peptide)
+sg.create_counterions(system=system, molecule_list=[peptide], cation=cation, anion=anion)
 
 # Setup the acid-base reactions of the peptide (in the constant pH ensemble)
 
-RE=sg.setup_acidbase_reactions(mol=peptide, counter_ion=added_salt_cation)
+RE=sg.setup_acidbase_reactions(molecule_list=[peptide], counter_ion=cation)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 
-sg.track_ionization(system=system, mol=peptide)
+sg.track_ionization(system=system, molecule_list=[peptide])
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 
@@ -97,7 +97,7 @@ print('The non interacting type is set to ', non_interacting_type)
 
     # Setup Lennard-Jones interactions (By default Weeks-Chandler-Andersen, i.e. only steric repulsion)
 
-mol_list=[peptide,positive_counterion,negative_counterion,added_salt_cation,added_salt_anion] # list of sugar molecules/particles for setting up the LJ interactions
+mol_list=[peptide,cation, anion] # list of sugar molecules/particles for setting up the LJ interactions
 
 sg.setup_lj_interactions(mol_list=mol_list, system=system)
 
@@ -143,7 +143,7 @@ for pH_value in pH_range:
 
         if ( step > steps_eq):
 
-            Z, Z2 = sg.calculate_molecule_charge(system=system, mol=peptide)
+            Z, Z2 = sg.calculate_molecule_charge(system=system, sugar_object=peptide)
             Z_sim.append(Z)
 
         if (step % N_samples_print == 0) :
@@ -159,7 +159,7 @@ for pH_value in pH_range:
     
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = sg.calculate_HH(mol=peptide, pH=list(pH_range))
+Z_HH = sg.calculate_HH(sugar_object=peptide, pH=list(pH_range))
 
 # Plot the results
 

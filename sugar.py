@@ -1,3 +1,6 @@
+from re import search
+
+
 class sugar_library(object):
 
     import pint
@@ -774,6 +777,9 @@ class sugar_library(object):
         return clean_sequence
 
     def write_parameters(self, mol):
+        """
+        Writes all the parameters in the sugar object
+        """
 
         if isinstance(mol,self.molecule):
 
@@ -1040,7 +1046,7 @@ class sugar_library(object):
 
             res.N=1
 
-        for n_res in range(res.N):
+        for _ in range(res.N):
         
             for b_chain in res.beads:
                 
@@ -1297,7 +1303,6 @@ class sugar_library(object):
                         pre_backbone_bead=pre_backbone_bead[0]
                         pre_bead_id=pre_backbone_bead.ids[0]
                         pre_bead_pos=system.part[pre_bead_id].pos
-                        pre_bead_name=pre_backbone_bead.name
                         ids_res=res.ids[0]
                         id_list+=ids_res
 
@@ -1305,8 +1310,6 @@ class sugar_library(object):
 
                         new_backbone_bead=res.beads[0]
                         new_backbone_bead=new_backbone_bead[0]
-                        new_bead_name=new_backbone_bead.name
-
                         backbone_bond=self.search_bond(bead1=pre_backbone_bead, bead2=new_backbone_bead,res=res)
         
                         new_bead_pos=pre_bead_pos+bond_vector*backbone_bond.bondl.to('reduced_length').magnitude
@@ -1324,7 +1327,6 @@ class sugar_library(object):
                         id_list+=ids_res
                         pre_bead_id=id_ppal_bead
                         pre_backbone_bead=new_backbone_bead
-                        pre_bead_name=new_bead_name
                         pre_bead_pos=new_bead_pos
             
             mol.ids.append(id_list)
@@ -1360,7 +1362,7 @@ class sugar_library(object):
 
         return N_ti
 
-    def setup_acidbase_reactions(self, mol, counter_ion, method='constant_pH', exclusion_radius=None):
+    def setup_acidbase_reactions(self, molecule_list, counter_ion, method='constant_pH', exclusion_radius=None):
         """
         Set up the Acid/Base reactions for acidic/basidic residues in mol. The reaction steps are done following the constant pH ensamble procedure. 
 
@@ -1396,54 +1398,25 @@ class sugar_library(object):
 
         reaction_absent={}
 
-        if isinstance(mol,self.molecule):
+        for molecule in molecule_list:
 
-            for chain in mol.residues:
-                
-                for res in chain:
+            for particle in self.search_particles(sugar_object=molecule):
 
-                    for chain_bead in res.beads:
+                if particle.pKa is not None and  particle.acidity in ['acid','basic']:
 
-                        for bead in chain_bead:
+                    if particle.name not in reaction_absent.keys():
 
-                            if bead.pKa is not None and  bead.acidity in ['acid','basic']:
+                        reaction_absent[particle.name]=True
 
-                                if bead.name not in reaction_absent.keys():
+                    if (reaction_absent[particle.name]):
 
-                                    reaction_absent[bead.name]=True
+                        self.setup_particle_acidbase_reaction(RE, particle, counter_ion)
+                        reaction_absent[particle.name]=False
 
-                                if (reaction_absent[bead.name]):
-
-                                    self.setup_bead_acidbase_reaction(RE, bead, counter_ion)
-                                    reaction_absent[bead.name]=False
-
-        if isinstance(mol,self.residue):
-            
-            for chain_bead in res.beads:
-
-                for bead in chain_bead:
-
-                    if bead.pKa is not None and  bead.acidity in ['acid','basic']:
-
-                        if bead.name not in reaction_absent.keys():
-
-                            reaction_absent[bead.name]=True
-
-                        if (reaction_absent[bead.name]):
-
-                            self.setup_bead_acidbase_reaction(RE, bead, counter_ion)
-                            reaction_absent[bead.name]=False
-
-        if isinstance(mol, self.particle): 
-
-            if mol.pKa is not None and  mol.acidity in ['acid','basic']:
-
-                self.setup_bead_acidbase_reaction(RE, bead, counter_ion)
-                reaction_absent[bead.name]=False
-
+        
         return RE
 
-    def setup_bead_acidbase_reaction(self, RE, part, counter_ion):
+    def setup_particle_acidbase_reaction(self, RE, part, counter_ion):
         """
         Set up the Acid/Base reactions for acidic/basidic residues in protein. The reaction steps are done following the constant pH ensamble procedure. 
 
@@ -1519,91 +1492,40 @@ class sugar_library(object):
         radi_dict={}
         lj_list=[]
 
-        for mol in mol_list:
+        for sugar_object in mol_list:
 
-            if isinstance(mol,self.molecule):
+            for particle in self.search_particles(sugar_object=sugar_object):
 
-                for chain in mol.residues:
-                
-                    for res in chain:
+                if isinstance (particle.type,dict):
 
-                        for chain_bead in res.beads:
-
-                            for bead in chain_bead:
-                                    
-                                if isinstance (bead.type,dict):
-
-                                    for type in bead.type.values():
-                                            
-                                        if type not in name_dict.keys():
-
-                                            name_dict[type]=bead.name
-                                            radi_dict[type]=bead.radius
-
-                                if isinstance (bead.type,int):
-                                    
-                                    if bead.type not in name_dict.keys():
-
-                                        name_dict[bead.type]=bead.name
-                                        radi_dict[bead.type]=bead.radius
-
-            elif isinstance(mol,self.residue):
-            
-                for chain_bead in res.beads:
-
-                    for bead in chain_bead:
-                                
-                        if isinstance (bead.type,dict):
-
-                            for type in bead.type.values():
-                                            
-                                if type not in name_dict.keys():
-
-                                    name_dict[type]=bead.name
-                                    radi_dict[type]=bead.radius
-
-                        if isinstance (bead.type,int):
-
-                            if bead.type not in name_dict.keys():
-
-                                name_dict[bead.type]=bead.name
-                                radi_dict[bead.type]=bead.radius
-
-            elif isinstance(mol, self.particle): 
+                    for type in particle.type.values():
                             
-                if isinstance (mol.type,dict):
-
-                    for type in mol.type.values():
-                                            
                         if type not in name_dict.keys():
 
-                            name_dict[type]=mol.name
-                            radi_dict[type]=mol.radius
+                            name_dict[type]=particle.name
+                            radi_dict[type]=particle.radius
 
-                if isinstance(mol.type,int):
-                            
-                    if mol.type not in name_dict.keys():
+                if isinstance (particle.type,int):
+                    
+                    if particle.type not in name_dict.keys():
 
-                        name_dict[mol.type]=mol.name
-                        radi_dict[mol.type]=mol.radius
+                        name_dict[particle.type]=particle.name
+                        radi_dict[particle.type]=particle.radius
 
-            else:
 
-                raise ValueError("molecule list must contain a list of instances of molecule/residue/bead objects, as defined in sugar library. Given: ", mol)
+            # By default, Lennard-Jones parameters with WCA potential are assumed
 
-        # By default, Lennard-Jones parameters with WCA potential are assumed
+            lj_WCA=self.param.default.lj_WCA
 
-        lj_WCA=self.param.default.lj_WCA
+            if sugar_object.model is not None:
 
-        if mol.model is not None:
+                lj_parameters=self.get_lj(sugar_object.model)
 
-            lj_parameters=self.get_lj(mol.model)
+                for lj_param in lj_parameters:
 
-            for lj_param in lj_parameters:
+                    if lj_param not in lj_list:
 
-                if lj_param not in lj_list:
-
-                    lj_list.append(lj_param)
+                        lj_list.append(lj_param)
 
         type_list=[]
 
@@ -1721,13 +1643,13 @@ class sugar_library(object):
 
         return
 
-    def calculate_molecule_charge(self,system, mol):
+    def calculate_molecule_charge(self,system, sugar_object):
         """ 
         Calculates the charge of the protein and its square
 
         Inputs:
         system: espresso class object with all system variables
-        mol: particle/residue/molecule class object as defined in sugar library
+        sugar_object: particle/residue/molecule class object as defined in sugar library
 
 
         Outputs:
@@ -1735,85 +1657,66 @@ class sugar_library(object):
         Z2: (float) square of Z_prot
         """
 
-        if not isinstance(mol.N,int):
+        if not isinstance(sugar_object.N,int):
 
-            raise ValueError("The number of objects must be given in mol.N, given:", mol.N)
+            raise ValueError("The number of objects must be given in mol.N, given:", sugar_object.N)
 
-        if (mol.N == 0):
+        if (sugar_object.N == 0):
 
-            raise ValueError("The number of objects must not be zero, given: ", mol.N)
+            raise ValueError("The number of objects must not be zero, given: ", sugar_object.N)
 
         Z=0
 
-        if isinstance(mol,self.molecule) or isinstance(mol,self.residue):
+        if isinstance(sugar_object,self.molecule) or isinstance(sugar_object,self.residue):
 
-            for chain in mol.ids:
+            for chain in sugar_object.ids:
                 
                 for id in chain:
 
                     Z+=system.part[id].q
 
-        if isinstance(mol, self.particle): 
+        if isinstance(sugar_object, self.particle): 
 
-            for id in mol.ids:
+            for id in sugar_object.ids:
 
                 Z+=system.part[id].q
 
-        Z=Z/mol.N
+        Z=Z/sugar_object.N
         Z2=Z**2
 
         return Z, Z2
 
-    def track_ionization(self,system, mol):
+    def track_ionization(self, system, molecule_list):
         """
         Sets up espresso to track the average number of particles of the types contained in mol
         
         Inputs:
         system: espresso class object with all system variables
-        mol: particle/residue/molecule class object as defined in sugar library
+        sugar_object: particle/residue/molecule object as defined in sugar library
 
         """
 
-        types=[]
+        types_list=[]
 
-        if isinstance(mol,self.molecule) or isinstance(mol,self.residue):
+        for sugar_object in molecule_list:
 
-            for chain in mol.ids:
-                
-                for id in chain:
+            for type in self.search_types(sugar_object=sugar_object):
 
-                    b_type=system.part[id].type
-                    
-                    if b_type not in types:
+                if type not in types_list:
 
-                        types.append(b_type)
+                    types_list.append(type)
 
-
-        elif isinstance(mol, self.particle): 
-
-            for id in mol.ids:
-
-                b_type=system.part[id].type
-                    
-                if b_type not in types:
-
-                    types.append(b_type)
-
-        else:
-            
-            raise ValueError("mol must be a particle/residue/molecule class object as defined in sugar library given: ", mol)
-
-        system.setup_type_map(types)
+        system.setup_type_map(types_list)
 
         return
 
-    def calculate_HH(self, mol,pH=None):
+    def calculate_HH(self, sugar_object,pH=None):
         """
         Calculates the ideal Henderson-Hassebach titration curve in the given pH range
 
         Inputs:
         pH: (list of floats) list of pH values
-        mol: particle/residue/molecule class object as defined in sugar library
+        sugar_object: particle/residue/molecule object as defined in sugar library
 
         Outputs:
         Z_HH: (list of floats) Henderson-Hasselnach prediction of the protein charge in the given pH
@@ -1833,32 +1736,11 @@ class sugar_library(object):
             
             Z=0
 
-            if isinstance(mol,self.molecule):
-
-                for chain in mol.residues:
+            for particle in self.search_particles(sugar_object=sugar_object):
                 
-                    for res in chain:
-
-                        for chain_bead in res.beads:
-
-                            for bead in chain_bead:
-
-                                Z+=self.calculate_HH_part(pH_value, bead)
-
-
-            if isinstance(mol,self.residue):
-            
-                for chain_bead in res.beads:
-
-                    for bead in chain_bead:
-
-                        Z+=self.calculate_HH_part(pH_value, bead)                    
-
-            if isinstance(mol, self.particle): 
-
-                if mol.pKa is not None and  mol.acidity in ['acid','basic']:
-
-                    Z+=self.calculate_HH_part(pH_value, bead)
+                if particle.pKa is not None and  particle.acidity in ['acid','basic']:
+                    
+                    Z+=self.calculate_HH_part(pH=pH_value, part=particle)
                             
             Z_HH.append(Z)
 
@@ -1906,7 +1788,7 @@ class sugar_library(object):
 
         return z
 
-    def create_counterions(self,system,mol, cation=None, anion=None):
+    def create_counterions(self, system, molecule_list, cation, anion):
         """
         Adds one monovalent counter-ion (cation or anion) of opposite charge per each charge in mol
 
@@ -1948,64 +1830,37 @@ class sugar_library(object):
         cation_id=[]
         anion_id=[]
 
-        if isinstance(mol,self.molecule) or isinstance(mol,self.residue):
+        for sugar_object in molecule_list:
 
-            for _ in range(mol.N):
+            particle_list=self.search_particles(sugar_object=sugar_object)
 
-                for list_of_residues in mol.residues:
+            for _ in range(sugar_object.N):
 
-                    for residue in list_of_residues:
+                for particle in particle_list:
 
-                        for particle_list in residue.beads:
-
-                            for particle in particle_list:
-                                
-                                if isinstance(particle.q, dict):
-                                    q=particle.q[particle.state]
-                                else:
-                                    q=particle.q
-                                
-                                if q == +1:
-
-                                    I_id+=1
-                                    I_pos=self.np.random.random((1, 3)) * system.box_l
-                                    system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
-                                    anion.N+=1
-                                    anion_id.append(I_id)
-                                    total_q+=q+anion.q
-
-                                elif q == -1:
-
-                                    I_id+=1
-                                    I_pos=self.np.random.random((1, 3)) * system.box_l
-                                    system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
-                                    cation.N+=1
-                                    cation_id.append(I_id)
-                                    total_q+=q+cation.q
-
-        if isinstance(mol, self.particle): 
-
-            for id in mol.ids:
-
-                q=system.part[id].q
+                    if isinstance(particle.q, dict):
+                        q=particle.q[particle.state]
                     
-                if q == +1:
+                    else:
+                        q=particle.q
+                    
+                    if q == +1:
 
-                    I_id+=1
-                    I_pos=self.np.random.random((1, 3)) * system.box_l
-                    system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[q])
-                    anion.N+=1
-                    anion_id.append(I_id)
-                    total_q+=q+anion.q
+                        I_id+=1
+                        I_pos=self.np.random.random((1, 3)) * system.box_l
+                        system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
+                        anion.N+=1
+                        anion_id.append(I_id)
+                        total_q+=q+anion.q
 
-                elif q == -1:
+                    elif q == -1:
 
-                    I_id+=1
-                    I_pos=self.np.random.random((1, 3)) * system.box_l
-                    system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[q])
-                    cation.N+=1
-                    cation_id.append(I_id)
-                    total_q+=q+cation.q
+                        I_id+=1
+                        I_pos=self.np.random.random((1, 3)) * system.box_l
+                        system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
+                        cation.N+=1
+                        cation_id.append(I_id)
+                        total_q+=q+cation.q
         
         cation.ids=cation_id
         anion.ids=anion_id
@@ -2016,8 +1871,7 @@ class sugar_library(object):
 
             raise ValueError("Subrutine attempted to create a not electroneutral system, please review your peptide setup")
 
-
-        return cation, anion
+        return 
 
     def create_added_salt(self, system, cation, anion, c_salt):
         
@@ -2058,11 +1912,30 @@ class sugar_library(object):
 
             raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
 
+        if cation.N is not None:
+
+            old_cation_N=cation.N
+        
+        else:
+
+            old_cation_N=0
+
+        if anion.N is not None:
+
+            old_anion_N=anion.N
+
+        else:
+
+            old_anion_N=0            
+
         cation.N=N_ions
         anion.N=N_ions
 
         self.create_particle(system=system, particle=cation)
         self.create_particle(system=system, particle=anion)
+
+        cation.N+=old_cation_N
+        anion.N+=old_anion_N
 
         print('\n Added an added salt concentration of ', c_salt_calculated.to('mol/L'), 'given by ', N_ions, 'cations/anions')
         
@@ -2459,7 +2332,7 @@ class sugar_library(object):
 
         if isinstance(sugar_object, self.particle): 
 
-            particle_list.append(bead)
+            particle_list.append(sugar_object)
 
         return particle_list
 
@@ -2483,7 +2356,7 @@ class sugar_library(object):
 
             else:
 
-                type_list.append(type)
+                type_list.append(particle.type)
 
         return type_list
 
