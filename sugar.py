@@ -1637,18 +1637,18 @@ class sugar_library(object):
 
         return
 
-    def calculate_molecule_charge(self,system, sugar_object):
+    def get_charge(self,system, sugar_object, residue_positions=[]):
         """ 
         Calculates the charge of the protein and its square
 
         Inputs:
         system: espresso class object with all system variables
         sugar_object: particle/residue/molecule class object as defined in sugar library
-
+        residue_position: (list) positions of molecules to get residue charge
 
         Outputs:
-        Z_prot: (float) total charge of the protein
-        Z2: (float) square of Z_prot
+        Z: (float) total charge of the protein
+        Z_list: (list) 
         """
 
         if not isinstance(sugar_object.N,int):
@@ -1659,12 +1659,48 @@ class sugar_library(object):
 
             raise ValueError("The number of objects must not be zero, given: ", sugar_object.N)
 
+        Z_list={}
+
+        if residue_positions:
+
+            for residue_position in residue_positions:
+
+                Z_list[residue_position]=0
+
         Z=0
 
-        if isinstance(sugar_object,self.molecule) or isinstance(sugar_object,self.residue):
+        if isinstance(sugar_object,self.molecule):
 
             for chain in sugar_object.ids:
+
+                for id in chain:
+
+                    Z+=system.part[id].q
                 
+                residue_N=0
+                id_index=0
+
+                for residue in sugar_object.residues:
+
+                    particle_list=self.search_particles(sugar_object=residue[0])
+
+                    for _ in particle_list:                            
+
+                        bead_id=chain[id_index]
+
+                        if residue_N in residue_positions:
+                            
+                            Z_list[residue_N]+=system.part[bead_id].q
+                            
+
+                        id_index+=1
+
+                    residue_N+=1
+
+        if isinstance(sugar_object,self.residue):
+
+            for chain in sugar_object.ids:
+
                 for id in chain:
 
                     Z+=system.part[id].q
@@ -1675,10 +1711,17 @@ class sugar_library(object):
 
                 Z+=system.part[id].q
 
-        Z=Z/sugar_object.N
-        Z2=Z**2
+        # if there is more than one instance of the sugar object, average over it
 
-        return Z, Z2
+        Z=Z/sugar_object.N
+
+        if residue_positions:
+
+            for residue_position in residue_positions:
+
+                Z_list[residue_position]=Z_list[residue_position]/sugar_object.N
+
+        return Z, Z_list
 
     def track_ionization(self, system, molecule_list):
         """
@@ -2318,7 +2361,7 @@ class sugar_library(object):
 
         if isinstance(sugar_object,self.residue):
         
-            for chain_bead in res.beads:
+            for chain_bead in sugar_object.beads:
 
                 for bead in chain_bead:
 

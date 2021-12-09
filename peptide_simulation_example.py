@@ -21,15 +21,16 @@ sg=sugar.sugar_library()
 sequence="nHHHEEEc"
 model='1beadpeptide'
 pKa_set='nozaki'
-pep_concentration=1.56e-4 *sg.units.mol/sg.units.L
+pep_concentration=5.56e-4 *sg.units.mol/sg.units.L
 
     # Create an instance of a sugar molecule object for the peptide
 
 peptide = sg.molecule(sequence=sequence, model=model,  pKa_set=pKa_set)
+peptide.N= 1 # Number of peptide chains
 
 # Salt parameters
 
-c_salt=1e-3 * sg.units.mol/ sg.units.L
+c_salt=5e-3 * sg.units.mol/ sg.units.L
 
     # Create an instance of a sugar particle object for the added salt cations and anions
 
@@ -43,7 +44,9 @@ anion.type=1
 
 # System parameters
 
-L=22 * sg.units.nm # Side of the simulation box
+volume=peptide.N/(sg.N_A*pep_concentration)
+L=volume ** (1./3.) # Side of the simulation box
+print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 
     # Create an instance of an espresso system
 
@@ -52,6 +55,7 @@ system=espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
 # Simulation parameters
 
 pH_range = np.linspace(2, 12, num=20)
+residue_positions=[0,3,5,len(sequence)-1]
 Samples_per_pH= 100
 MD_steps_per_sample=1000
 steps_eq=int(Samples_per_pH/3)
@@ -60,8 +64,6 @@ probability_reaction=0.5
 
 # Add peptides to your simulation box
 
-volume=system.volume()*sg.units('reduced_length**3')
-peptide.N=int(volume*pep_concentration*sg.N_A)
 sg.create_molecule(peptide, system)
 calculated_peptide_concentration=peptide.N/(volume*sg.N_A)
 print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', peptide.N, 'molecules')
@@ -120,13 +122,22 @@ with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
     vtf.writevcf(system, coordinates)
 
 N_frame=0
-Z_pH=[] # Average charge list
+Z_pH=[] # List of the average global charge at each pH
+Z_groups_pH=[] # List of the average charge of groups in residue_positions at each pH
 
 # Main loop for performing simulations at different pH-values
 
 for pH_value in pH_range:
 
+    # Sample list inicialization
+
     Z_sim=[]
+    Z_groups_av={}
+
+    for residue_position in residue_positions:
+
+        Z_groups_av[residue_position]=[]        
+
     RE.constant_pH = pH_value
 
     # Inner loop for sampling each pH value
@@ -143,8 +154,12 @@ for pH_value in pH_range:
 
         if ( step > steps_eq):
 
-            Z, Z2 = sg.calculate_molecule_charge(system=system, sugar_object=peptide)
+            Z, Z_dict = sg.get_charge(system=system, sugar_object=peptide, residue_positions=residue_positions)
             Z_sim.append(Z)
+
+            for residue_position in residue_positions:
+
+                Z_groups_av[residue_position].append(Z_dict[residue_position])
 
         if (step % N_samples_print == 0) :
 
@@ -153,10 +168,20 @@ for pH_value in pH_range:
                 vtf.writevsf(system, coordinates)
                 vtf.writevcf(system, coordinates)
 
+    sg.write_progress(step=list(pH_range).index(pH_value), total_steps=len(pH_range))
+
     Z_sim=np.array(Z_sim)
     Z_pH.append(Z_sim.mean())
+
+    for residue_position in residue_positions:
+
+        Z_groups_av[residue_position]=np.array(Z_groups_av[residue_position]).mean()
+
+    Z_groups_pH.append(Z_groups_av)
+
     print("pH = {:6.4g} done".format(pH_value))
-    
+
+
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
 Z_HH = sg.calculate_HH(sugar_object=peptide, pH=list(pH_range))

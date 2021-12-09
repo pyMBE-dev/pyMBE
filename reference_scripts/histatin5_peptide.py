@@ -181,7 +181,7 @@ for pH_value in pH_range:
 
         if ( step > steps_eq):
 
-            Z, Z2 = sg.calculate_molecule_charge(system=system, sugar_object=peptide)
+            Z, Z_dict = sg.get_charge(system=system, sugar_object=peptide)
             Z_sim.append(Z)
             Rg = system.analysis.calc_rg(chain_start=0, number_of_chains=1, chain_length=26)
             Rg_value = sg.units.Quantity(Rg[0], 'reduced_length')
