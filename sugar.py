@@ -2257,7 +2257,7 @@ class sugar_library(object):
 
         return
 
-    def minimize_system_energy(self, system, skin=1, gamma=0.1, Nsteps=10000, time_step=1e-3, max_displacement=0.1):
+    def minimize_system_energy(self, system, skin=1, gamma=0.1, Nsteps=10000, time_step=1e-3, max_displacement=0.1, verbose=True):
         """
         Does a steppest descent minimization to relax the system energy
 
@@ -2270,14 +2270,18 @@ class sugar_library(object):
         max_displacement: maximum particle displacement allowed (Default=0.1 reduced length)
         """
 
-        print("\n*** Minimazing system energy... ***\n")
+        if verbose:
+
+            print("\n*** Minimazing system energy... ***\n")
 
         system.cell_system.skin = skin
         system.time_step=time_step
-        print("steepest descent")
+        if verbose:
+            print("steepest descent")
         system.integrator.set_steepest_descent(f_max=0, gamma=gamma, max_displacement=max_displacement)
         system.integrator.run(int(Nsteps/2))
-        print("velocity verlet")
+        if verbose:
+            print("velocity verlet")
         system.integrator.set_vv()  # to switch back to velocity Verlet
         system.integrator.run(int(Nsteps/2))
         system.thermostat.turn_off()
@@ -2285,8 +2289,8 @@ class sugar_library(object):
         # Reset the time of the system to 0
 
         system.time = 0.
-
-        print("\n Minimization finished \n")
+        if verbose:
+            print("\n Minimization finished \n")
 
         return
 
