@@ -9,7 +9,7 @@ run:
 	${ESPResSo_build_path}/pypresso  peptide_simulation_example.py
 
 visual:
-	python3 vmd-traj.py
+	python3 handy_scripts/vmd-traj.py
 	vmd -e visualization.tcl
 
 tutorial:

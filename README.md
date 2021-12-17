@@ -17,9 +17,11 @@ to ESPResSo using Pint library.
 - `sugar.py` : source code of Sugar library
 - `peptide_simulation_example.py` : example script on how to use Sugar to setup a peptide simulation in ESPResSo
 - `sugar_tutorial.ipynb` : jupyter notebook containing a tutorial to Sugar library
-- `vmd-traj.py` : trajectory processing script. Since trajectories with a varying number of particles cannot be readen by VMD, this script
+- `reference_scripts/`: folder with scripts to reproduce reference data to ensure the reliability of Sugar
+- `handy_scripts/`: folder with various handy scripts complementary with Sugar, contains:
+	- `vmd-traj.py` : trajectory processing script. Since trajectories with a varying number of particles cannot be readen by VMD, this script
                 processes the output trajectory .vtf files from espresso to make them readable by VMD.
-- `reference_scripts/`: folder with a script to reproduce reference data from histatin-5 reference data.
+	- `zeta_to_charge.py` : Estimates the charge density of a colloidal object given its zeta potential 
 
 ## Usage
 

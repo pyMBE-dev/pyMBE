@@ -60,7 +60,6 @@ class sugar_library(object):
         self.units.define(f'reduced_energy = {self.TEMPERATURE * self.Kb}')
         self.units.define(f'reduced_length = {self.PARTICLE_SIZE}')
         self.units.define(f'reduced_charge = 1*e')
-        self.print_reduced_units()
         self.kT=self.TEMPERATURE*self.Kb
 
         # Load parameters
