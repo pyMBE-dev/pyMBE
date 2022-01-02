@@ -2256,7 +2256,7 @@ class sugar_library(object):
 
         return
 
-    def minimize_system_energy(self, system, skin=1, gamma=0.1, Nsteps=10000, time_step=1e-3, max_displacement=0.1, verbose=True):
+    def minimize_system_energy(self, system, skin=1, gamma=0.1, Nsteps=10000, time_step=1e-3, max_displacement=0.1, verbose=True, reset=True):
         """
         Does a steppest descent minimization to relax the system energy
 
@@ -2286,8 +2286,8 @@ class sugar_library(object):
         system.thermostat.turn_off()
 
         # Reset the time of the system to 0
-
-        system.time = 0.
+        if reset:
+            system.time = 0.
         if verbose:
             print("\n Minimization finished \n")
 
