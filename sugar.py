@@ -18,6 +18,7 @@ class sugar_library(object):
     N_A=scipy.constants.Avogadro / units.mol
     Kb=scipy.constants.Boltzmann * units.J / units.K
     e=scipy.constants.elementary_charge *units.C
+    pi=scipy.constants.pi
     initial_simulation_time=None
     added_bonds=[]
 
