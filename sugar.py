@@ -20,6 +20,8 @@ class sugar_library(object):
     e=scipy.constants.elementary_charge *units.C
     initial_simulation_time=None
     added_bonds=[]
+    existing_residues=[]
+    existing_particles=[]
 
     # Library output
 
@@ -113,33 +115,131 @@ class sugar_library(object):
 
         self.print_reduced_units()
 
-    class particle:
+    def particle(self, name, type, q):
+        """
+        Returns a sugar particle object. 
+        Checks if the user has created another particle object with a shared type.
+        Updates the sugar list of particles.
+        Inputs:
+        name: (string) label of the particle
+        type: (int) particle type for espresso
+        q: (int) particle charge
+        Returns:
+        particle (class) sugar particle object
+        """
+        class particle:
 
-        radius=None
-        type=None
-        q=None
-        ids=[]
-        name=None
-        N=None
-        acidity=None
-        state=None
-        pKa=None
-        model=None
+            pass
 
-    class residue:
+        particle.type=type
+        particle.q=q
+        particle.name=name
+        self.check_particle_exists(particle=particle)
+        self.check_particle_type_exists(particle=particle)
 
-        def __init__(self, name):
+        return particle
 
-            self.name=name
+    def residue(self, name, central_bead, side_beads):
+        """
+        Returns a sugar residue object. 
+        Updates the sugar list of residues.
+        Inputs:
+        name: (string) label of the residue
+        central_bead: (instance of particle class of sugar) central bead of the residue
+        side_beads: (list of particle class of sugar) list of side beads of the residue
+        Returns:
+        residue (class) sugar residue object
+        """
+        class residue:
 
-        principal_bead=None
-        lateral_beads=[]
-        bonds=[]
-        beads=[]
-        ids=[]
-        N=None
-        model=None
+            def set_bond(self,bond):
+                """
+                Stores the espresso bond object that will be used to join the beads in the residue
+                Input:
+                bond: espresso bond object
+                """
 
+                self.bond=bond
+
+            pass
+
+        residue.name=name
+        residue.central_bead=central_bead
+        residue.side_beads=side_beads
+        self.check_residue_exists(residue=residue)
+    
+        return residue
+
+
+    def check_residue_exists(self, residue):
+        """
+        Checks if the user has already created a residue object with the same name as residue
+        Input:
+        residue: sugar residue object
+        """
+        if residue.name  not in self.existing_residues:
+
+            self.existing_residues.append(residue)
+            return False
+
+        else:
+            print('WARNING, you have already created a residue object with the same name')
+            return True
+
+    def check_particle_exists(self, particle):
+        """
+        Checks if the user has already created a residue object with the same name as residue
+        Input:
+        residue: sugar residue object
+        """
+
+        if particle.name not in self.existing_particles:
+
+            self.existing_residues.append(particle)
+            return False
+
+        else:
+            print('WARNING, you have already created a particle object with the same name')
+            return True
+
+    def check_particle_type_exists(self, particle):
+        """
+        Checks if the user has already created a particle object with the same name as particle
+        Input:
+        particle: sugar particle object
+        """
+        for existing_particle in self.existing_particles:
+
+            if particle.type in self.get_particle_types(particle=existing_particle):
+
+                print("WARNING you have already created a particle object with the same type as ", particle.name)
+
+    
+    def get_particle_types(self, particle):
+        """
+        Returns all the particle types stored in particle
+        Inputs:
+        particle: sugar particle object
+        Returns:
+        type_list: (list) list of types in particle
+        """
+        type_list=[]
+        if isinstance(particle.type, int):
+            
+            type_list.append(particle.type)
+
+        elif isinstance(particle.type, dict):
+
+            for type in particle.type.keys():
+
+                type_list.append(type)
+
+
+        else:
+
+            raise ValueError("Unvalid type for bead: ", particle.name, " given ", particle.type)
+
+        return type_list
     def create_molecule_object(sugar_self):
 
         class molecule:
@@ -837,32 +937,18 @@ class sugar_library(object):
     def create_particle(self, particle, system, position=None, state=None, id=None):
         '''
         Creates a bead particle in the espresso system with the properties stored in bead.
-        part = instance of a particle object from sugar library
+        particle = instance of a particle object from sugar library
         system = instance of a system object from espressomd library
         position = array of particle positions of size part.N
         state = for particles with more than one possible state, defines in which state are created
         id = array of particle ids of size part.N
         '''
 
-        if not isinstance(particle,self.particle):
-
-            raise ValueError("Please provide an instance of a particle object from sugar library. Given:", part)
-
         if position is None:
         
-        # By default, the beads are placed in random positions
+        # By default, the particle is placed in a random position
             
-            pos=self.np.random.random((1, 3))[0] *self.np.copy(system.box_l)
-
-        else:
-
-            if (len(position) == particle.N):
-
-                pos=position[0]
-            
-            else:
-                
-                raise ValueError("Please provide ", particle.N ," position arrays")
+            position=self.np.random.random((1, 3))[0] *self.np.copy(system.box_l)
                 
         if state is not None:
             
@@ -922,346 +1008,53 @@ class sugar_library(object):
             else:
                 
                 bead_id=max(system.part[:].id)+1
-            
-
-        else:
-            if isinstance(id,list):
-                
-                if len(id) == particle.N:
-
-                    bead_id=id[0]
-
-                else:
-
-                    raise ValueError('Please provide ', particle.N, 'ids. Provided:', id)
-
-            else:
-
-                raise ValueError('particle ids must be provided as a list. Given:', id)
-
-        bead_id_lst=[]
-
-        # By default only one bead is created
-
-        if not isinstance(particle.N, int): 
-
-            particle.N=1
-
-        for bead_i in range(particle.N):
-                
-            system.part.add(id=[bead_id], pos=[pos], type=[type], q=[q])
-            bead_id_lst.append(bead_id)
-            
-            if id is None:
-
-                bead_id+=1
-            
-            else:
-
-                id.remove(bead_id)
-
-                if len(id) != 0:
-                    
-                    bead_id=id[0]
-            
-            if position is not None:
-                    
-                position.remove(pos)
-                    
-                if len(position) != 0:
-                        
-                    pos=position[0]
-                
-            else:
-
-                pos=self.np.random.random((1, 3))[0] *self.np.copy(system.box_l)
+                     
+        system.part.add(id=[bead_id], pos=[position], type=[type], q=[q])
+        
+        return  bead_id
 
         
-        particle.ids=bead_id_lst   
-
-        return
-
-
-    def create_residue(self, res, system, position=None, state=None, id=None):
+    def create_residue(self, residue, system, central_bead_position=None):
         """
         Creates a residue in the espresso given with the properties stored in res
-        res: instance of a residue object as defined in sugar library
+        Inputs:
+        residue: instance of a residue object as defined in sugar library
         system: instance of a system object of espresso library
-        position: array of position of each of the particles of the residue. 
-        The positions are asigned in the same order than the particles stored in residue (first the principal bead and then the lateral ones)
-        state = for particles with more than one possible state, defines in which state are created
-        id = array of particle ids of size part.N
+        position: (list) coordinates where the central bead will be created, random by default
+        Returns:
+        particle_ids: (list) list with the ids of the particles created
         """
 
-        bead_list=[]
-        residue_ids=[]
-
-        if id is not None:
-
-            if isinstance(id,list):
-
-                bead_id=[id[0]]
-
-            else:
-
-                raise ValueError("Please provide the inicialization state as an array, provided:", id)
-
-        else:
-
-            bead_id=None
-
-        if state is not None:
-
-            if isinstance(state,list):
-
-                bead_state=state[0]
-
-            else:
-
-                raise ValueError("Please provide the inicialization state as an array, provided:", state)
-
-        else:
-
-            bead_state=None
-
-        if position is None:
-
-            pos=position
-
-        else:
-
-            if isinstance(position,list):
-
-                pos=[position[0]]
-
-            else:
-
-                raise ValueError("Please provide the desired position for the particle as a list, given:", position)
-
+        particle_ids=[]
 
         # create the principal bead
         
-        if not isinstance(res.N, int): 
-
-            res.N=1
-
-        for _ in range(res.N):
+        self.create_particle(particle=residue.central_bead, system=system, position=central_bead_position)
+        particle_ids.append(residue.central_bead.id[0])
+        central_bead_position=system.part[residue.central_bead.id].pos
         
-            for b_chain in res.beads:
-                
-                for bead in b_chain:
-
-                    bead.N=1
-                    if bead.name == res.principal_bead:
-                
-                # Create an individual particle object
-
-                        new_bead=self.particle()
-                        bd_atrb=self.get_attributes(bead)
-
-                        for atr in bd_atrb:
-
-                            setattr(new_bead,atr[0],atr[1])
-                    
-                        new_bead.N=1
-                
-                        self.create_particle(particle=new_bead, system=system, position=pos, state=bead_state, id=bead_id)                        
-
-                        if state is not None:
-                    
-                            state.remove(bead_state)
-
-                            if len(state) > 0:
-
-                                bead_state=state[0]
-                    
-                            else:
-
-                                state=None
-
-                
-                        if id is not None:
-                    
-                            id.remove(new_bead.ids[0])
-
-                            if len(id) > 0:
-
-                                bead_id=[id[0]]
-                    
-                            else:
-
-                                id=None
-
-                        if position is not None:
-                    
-                            position.remove(position[0])
-
-                        central_bead=new_bead
-                        central_id=new_bead.ids
-                        central_name=new_bead.name
-                        central_pos=system.part[central_id].pos
-                        central_pos=central_pos[0]
-                        bead_list.append(new_bead)
-                        residue_ids.append(central_id[0])
-                        break
+        # create the lateral beads        
         
-                    # create the lateral beads
+        for bead_chain in residue.lateral_beads:
 
-            for chain in res.lateral_beads:
+            if isinstance(bead_chain, list):
 
-                start_position=True
-                
-                for bead_name in chain:
-                
-                    if start_position:
+                base_position=central_bead_position
 
-                        for b_chain in res.beads:
-                            
-                            for bead in b_chain:
+                for bead in bead_chain:
 
-                                if bead.name == bead_name:
+                    bond_vector=self.generate_trialvectors(residue.bond.params.get('r_0'))
+                    bead_position=base_position+bond_vector
+                    self.create_particle(particle=bead, system=system, position=bead_position)
+                    particle_ids.append(bead.ids[0])
+                    base_position=bead_position
 
-                        # Create an individual particle object
-                                    new_bead=self.particle()
-                                    bd_atrb=self.get_attributes(bead)
+            else:
 
-                                    central_bond=self.search_bond(bead1=central_bead,bead2=bead, res=res)
-
-                                    bond_vector=self.generate_trialvectors(central_bond.bondl.to('reduced_length').magnitude)
-
-                                    if position is not None and len(position) > 0:
-                    
-                                        prebead_position=position[0]
-
-                                    else:
-                                        
-                                        prebead_position=central_pos+bond_vector
-
-                                    for atr in bd_atrb:
-
-                                        setattr(new_bead,atr[0],atr[1])
-
-                                    new_bead.N=1
-                            
-                                    self.create_particle(particle=new_bead, system=system, position=[prebead_position], state=bead_state, id=bead_id)
-
-                                    if state is not None:
-                                
-                                        state.remove(bead_state)
-
-                                        if len(state) > 0:
-
-                                            bead_state=state[0]
-                    
-                                        else:
-
-                                            state=None
-                            
-                                    if id is not None:
-                                
-                                        id.remove(new_bead.ids[0])
-
-                                        if len(id) > 0:
-
-                                            bead_id=[id[0]]
-                    
-                                        else:
-
-                                            id=None
-
-                                    if position is not None and len(position) > 0:
-                    
-                                        position.remove(position[0])                        
-
-                                # Create the bond   
-                                    
-                                    self.create_bond(system,bond=central_bond,id1=new_bead.ids[0], id2=central_id[0])
-
-                                    prebead=new_bead
-                                    prebead_id=new_bead.ids[0]
-                                    prebead_name=new_bead.name
-                                    bead_list.append(new_bead)
-                                    residue_ids.append(new_bead.ids[0])
-                                    break
-
-                            start_position=False
-
-                    else:
-
-                    
-                        if position is not None and len(position) > 0:
-                    
-                            prebead_position=position[0]
-
-                        else:
-                        
-                            prebead_position=prebead_position+bond_vector
-                    
-                        for b_chain in res.beads:
-                        
-                            for bead in b_chain:
-
-                                if bead.name == bead_name:
-
-                                # Create an individual particle object
-                            
-                                    new_bead=self.particle()
-                                    bd_atrb=self.get_attributes(bead)
-
-
-                                    for atr in bd_atrb:
-
-                                        setattr(new_bead,atr[0],atr[1])
-                            
-                                    new_bead.N=1
-
-                                    lateral_bond=self.search_bond(bead1=prebead, bead2=new_bead, res=res)
-                            
-                                    self.create_particle(particle=new_bead, system=system, position=[prebead_position], state=bead_state, id=bead_id)
-
-                                    if state is not None:
-                                
-                                        state.remove(bead_state)
-                                
-                                        if len(state) > 0:
-
-                                            bead_state=state[0]
-                    
-                                        else:
-
-                                            state=None
-                            
-                                    if id is not None:
-                                
-                                        id.remove(new_bead.ids[0])
-                                
-                                        if len(id) > 0:
-
-                                            bead_id=[id[0]]
-                    
-                                        else:
-
-                                            id=None                        
-                            
-                                    if position is not None and len(position) > 0:
-                    
-                                        position.remove(position[0])
-
-
-                                    self.create_bond(system,bond=lateral_bond,id1=prebead_id,id2=new_bead.ids[0])
-
-                                    prebead=new_bead
-                                    prebead_name=new_bead.name
-                                    prebead_id=new_bead.ids[0]
-                                    bead_list.append(new_bead)
-                                    residue_ids.append(new_bead.ids[0])
-
-                                    break
-
-        # Store the data in res
-
-            res.ids=[residue_ids]
-            res.beads=[bead_list]    
+                bond_vector=self.generate_trialvectors(residue.bond.params.get('r_0'))
+                bead_position=central_bead_position+bond_vector
+                particle_ids.append(bead.ids[0])
+    
 
         return 
 
