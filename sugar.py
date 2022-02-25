@@ -1,4 +1,9 @@
+from ast import Raise
+from email.policy import default
 from re import search
+
+from matplotlib import units
+from scipy.fftpack import shift
 
 
 class sugar_library(object):
@@ -19,42 +24,14 @@ class sugar_library(object):
     Kb=scipy.constants.Boltzmann * units.J / units.K
     e=scipy.constants.elementary_charge *units.C
     initial_simulation_time=None
-    added_bonds=[]
-    existing_residues=[]
-    existing_particles=[]
+    stored_objects={}
+    id_map={}
+    type_map={}
 
     # Library output
 
     filename_parameters = 'simulation_parameters.txt'
-    
-    # Aminoacid key
-
-    aminoacid_key={"ALA": "A",
-                "ARG": "R",
-                "ASN": "N",
-                "ASP": "D",
-                "CYS": "C",
-                "GLU": "E",
-                "GLN": "Q",
-                "GLY": "G",
-                "HIS": "H",
-                "ILE": "I",
-                "LEU": "L",
-                "LYS": "K",
-                "MET": "M",
-                "PHE": "F",
-                "PRO": "P",
-                "SER": "S",
-                "THR": "T",
-                "TRP": "W",
-                "TYR": "Y",
-                "VAL": "V",
-                "PSER": "J",
-                "PTHR": "U",
-                "PTyr": "Z",
-                "NH2": "n",
-                "COOH": "c"}
-
+     
     def __init__(self):
 
         # Default definitions of reduced units
@@ -63,20 +40,6 @@ class sugar_library(object):
         self.units.define(f'reduced_length = {self.PARTICLE_SIZE}')
         self.units.define(f'reduced_charge = 1*e')
         self.kT=self.TEMPERATURE*self.Kb
-
-        # Load parameters
-        
-        self.param=self.parameters(units=self.units, particle=self.particle)
-
-        # Create molecule object
-
-        self.create_molecule_object()
-
-        # Open the parameters file
-
-        with open(self.filename_parameters, 'w') as par_file:
-            par_file.write('')
-
         self.initial_simulation_time=self.time.time()*self.units.s
 
     def print_reduced_units(self):
@@ -105,17 +68,13 @@ class sugar_library(object):
         
         self.kT=self.TEMPERATURE*self.Kb
 
-        # Init again the parameters in the current unit system
-        
-        self.param=self.parameters(units=self.units, particle=self.particle)
-
         # Change the unit registry of the initial simulation time
 
         self.initial_simulation_time=self.initial_simulation_time.magnitude*self.units.s
 
         self.print_reduced_units()
 
-    def particle(self, name, type, q):
+    def particle(self, name, type=None, q=None, diameter=None, acidity=None, epsilon=None):
         """
         Returns a sugar particle object. 
         Checks if the user has created another particle object with a shared type.
@@ -130,819 +89,225 @@ class sugar_library(object):
         class particle:
 
             pass
+        
+        particle.object_type='particle'
+        particle.diameter=diameter
+        particle.epsilon=epsilon
+        
+        if type is None:
+            type=self.propose_unused_type()
+        
+        if acidity is None:
+            acidity='inert'
 
-        particle.type=type
-        particle.q=q
+        acidity_valid_keys=['inert','acidic', 'basic']
+        if acidity not in acidity_valid_keys:
+            raise ValueError(name+' provided acidity not supported, valid keys are ', acidity_valid_keys)
+        particle.acidity=acidity
+        if acidity == 'inert':
+            particle.type=type
+
+            if q is None:
+                raise ValueError(name+' particle charge must be defined')
+            else:
+                particle.q=q
+
+        else:
+            
+            protonated_type=self.propose_unused_type()
+            unprotonated_type=self.propose_unused_type()+1
+            particle.type={'protonated': protonated_type,'unprotonated': unprotonated_type}
+            
+            if acidity == 'acidic':
+
+                particle.q={'unprotonated': -1, 'protonated': 0}
+
+            elif acidity == 'basic':
+
+                particle.q={'protonated': 1,  'unprotonated': 0}
+        
         particle.name=name
-        self.check_particle_exists(particle=particle)
-        self.check_particle_type_exists(particle=particle)
+        
+        if self.check_particle_type_exists(particle=particle):
+
+            raise ValueError("ERROR you have already created a particle object with the same type as ", particle.name)
+
+        self.store_object(object=particle, verbose=True)
+        self.type_map[particle.name]=particle.type
 
         return particle
 
-    def residue(self, name, central_bead, side_beads):
+    def residue(self, name, central_bead, side_chains):
         """
         Returns a sugar residue object. 
         Updates the sugar list of residues.
         Inputs:
         name: (string) label of the residue
         central_bead: (instance of particle class of sugar) central bead of the residue
-        side_beads: (list of particle class of sugar) list of side beads of the residue
+        side_chains: (list) list of particle or residue objects
         Returns:
         residue (class) sugar residue object
         """
         class residue:
 
-            def set_bond(self,bond):
-                """
-                Stores the espresso bond object that will be used to join the beads in the residue
-                Input:
-                bond: espresso bond object
-                """
-
-                self.bond=bond
-
             pass
 
         residue.name=name
         residue.central_bead=central_bead
-        residue.side_beads=side_beads
-        self.check_residue_exists(residue=residue)
-    
+        residue.side_chains=side_chains
+        residue.object_type='residue'
+        self.store_object(object=residue, verbose=True)
+
         return residue
 
-
-    def check_residue_exists(self, residue):
+    def molecule(self, name, residue_list):
         """
-        Checks if the user has already created a residue object with the same name as residue
-        Input:
-        residue: sugar residue object
-        """
-        if residue.name  not in self.existing_residues:
-
-            self.existing_residues.append(residue)
-            return False
-
-        else:
-            print('WARNING, you have already created a residue object with the same name')
-            return True
-
-    def check_particle_exists(self, particle):
-        """
-        Checks if the user has already created a residue object with the same name as residue
-        Input:
-        residue: sugar residue object
-        """
-
-        if particle.name not in self.existing_particles:
-
-            self.existing_residues.append(particle)
-            return False
-
-        else:
-            print('WARNING, you have already created a particle object with the same name')
-            return True
-
-    def check_particle_type_exists(self, particle):
-        """
-        Checks if the user has already created a particle object with the same name as particle
-        Input:
-        particle: sugar particle object
-        """
-        for existing_particle in self.existing_particles:
-
-            if particle.type in self.get_particle_types(particle=existing_particle):
-
-                print("WARNING you have already created a particle object with the same type as ", particle.name)
-
-    
-    def get_particle_types(self, particle):
-        """
-        Returns all the particle types stored in particle
+        Returns a sugar molecule object. 
+        Updates the sugar list of molecules.
         Inputs:
-        particle: sugar particle object
+        name: (string) label of the molecule
+        sequence: (list) ordered list of residues of the molecule 
         Returns:
-        type_list: (list) list of types in particle
+        molecule (class) sugar molecule object
         """
-        type_list=[]
-        if isinstance(particle.type, int):
-            
-            type_list.append(particle.type)
-
-        elif isinstance(particle.type, dict):
-
-            for type in particle.type.keys():
-
-                type_list.append(type)
-
-
-        else:
-
-            raise ValueError("Unvalid type for bead: ", particle.name, " given ", particle.type)
-
-        return type_list
-    def create_molecule_object(sugar_self):
-
         class molecule:
 
-            def __init__(self, sequence, model=None, param_custom=None, pKa_set=None, pKa_custom=None):
-
-
-                model_param=None
-                model_dict={}
-                self.N = None
-                self.Nm = None
-                self.ids = []
-                self.model = None
-
-
-                if model is not None:
-
-                    model_list=sugar_self.get_subclasses(sugar_self.param)
-
-                    # Get the model parameters
-
-                    for param_set in model_list:
-
-                        if param_set.name is not None:
-                            
-                            if model.lower() == param_set.name.lower():
-
-                                model_param=param_set
-
-                    if model_param is None:
-
-                        model_names=sugar_self.get_modelnames(cls=sugar_self)
-                        raise ValueError("Unknown model chosen: ", model, ". Valid options are ", model_names)
-                    
-                    # Get a list of model parameters
-                    
-                    list_model=sugar_self.get_attributes(model_param)
-
-                    for par in list_model:
-
-                        model_dict[par[0]]=par[1]
-
-                    # Get valid keys for the model
-
-                    model_actors=sugar_self.get_particles(model_param)
-                    keys=[]
-
-                    for actor in model_actors:
-            
-                        keys.append(actor.name)
-                        
-                else:
-                    
-                    keys=list(sugar_self.aminoacid_key.values())
-                    
-                # Load Custom parameters if any
-
-                # Check that the custom parameters are in the proper format:
-
-                names_custom=[]
-                
-                if  param_custom is not None:
-
-                    if isinstance(param_custom, sugar_self.param.custom_parameters):
-                        
-                        
-
-                        if model_param is not None:
-                            
-                        # Overwrite model parameters by custom ones
-
-                            list_custom=sugar_self.get_attributes(param_custom)
-                            custom_dict={}
-                            
-                            for par in list_custom:
-
-                                custom_dict[par[0]]=par[1]
-
-                            for atr in custom_dict.keys():
-
-                                if custom_dict[atr] is not None:
-
-                                    if isinstance(custom_dict[atr], sugar_self.param.particle):
-                                            
-                                        if atr in model_dict.keys():
-
-                                            part_custom=sugar_self.get_attributes(custom_dict[atr])
-
-                                            for par in part_custom:
-
-                                                if par[1] is not None:
-
-                                                    setattr(model_dict[atr],par[0],par[1])
-                            
-                                        else:
-                                            
-                                            setattr(model_param,atr,custom_dict[atr])
-
-                                    if isinstance(custom_dict[atr], dict):
-
-                                        if atr in model_dict.keys():
-                                            
-                                            atr_model_dict=model_dict[atr]
-                                            atr_custom_dict=custom_dict[atr]
-
-                                            for key in atr_custom_dict.keys():
-
-                                                atr_model_dict[key]=atr_custom_dict[key]
-
-                                        else:
-
-                                            setattr(model_param,atr,custom_dict[atr])
-
-                                    else:
-                                        
-                                        setattr(model_param,atr,custom_dict[atr])
-                                        
-                        else:
-
-                            model_param=param_custom
-
-                    else:
-
-                        raise ValueError("Unrecognized format for the custom parameters. Please, use the library function 'setup_custom_parameters' to define your custom parameters")
-                
-                if model_param is None:
-
-                    raise ValueError("A model is needed to construct a molecule, please either chose one of the default ones or provide a custom one")
-
-                model_lj=sugar_self.get_lj(model_param)
-                
-                if (len(model_lj) == 0): # By default, WCA lennard jones interactions are included in the model
-                    
-                    setattr(model_param,sugar_self.param.default.lj_WCA.name, sugar_self.param.default.lj_WCA)
-
-                else:
-
-                    WCA_in_model=False
-
-                    for lj_par in model_lj:
-
-                        if lj_par.name == "WCA":
-
-                            WCA_in_model=True
-
-                    if not WCA_in_model:
-
-                        setattr(model_param,sugar_self.param.default.lj_WCA.name,sugar_self.param.default.lj_WCA)
-
-                # Store the model in the molecule object
-
-                self.model=model_param
-
-                if pKa_custom is not None:
-
-                    for key in pKa_custom.keys():
-
-                        keys.append(key)
-                
-                if (model == '1beadpeptide' or model == '2beadpeptide'):
-
-                    clean_sequence=sugar_self.sequence_parser(sequence, keys)
-                    if pKa_set is None:
-
-                        pKa_set='hass'
-
-                else:
-
-                    clean_sequence=sequence
-                
-                # Import the pKa values
-
-                param_pKa_set=sugar_self.get_subclasses(sugar_self.param.pKa_set)
-                names_pKa_set=[]
-
-                for sets in param_pKa_set:
-                    
-                    names_pKa_set.append(sets.name)
-
-                if isinstance(pKa_set, str):
-
-                    for sets in param_pKa_set:
-
-                        if (pKa_set.lower() == sets.name.lower()):
-
-                            pKa_set=sets.pKa
-                            break
-
-                    if not isinstance(pKa_set,dict):
-
-                        raise ValueError("Unknown key provided for a pKa set, valid options are " , names_pKa_set)
-                    
-                elif pKa_set is not None:
-                
-                    raise ValueError("The desired pKa set must be given as a string, valid options are ", names_pKa_set)
-
-                if pKa_custom is not None:
-
-                    if isinstance(pKa_custom,dict):
-
-                        for key in pKa_custom.keys():
-
-                            pKa_set[key]=pKa_custom[key]
-
-                    else:
-
-                        raise ValueError("The custom pKa-values must be provided in a dictionary")
-
-                # Create an object residue per each residue in sequence
-
-                self.sequence=clean_sequence
-                self.residues=[]
-                self.Nm=len(clean_sequence)
-
-                for res in clean_sequence:
-
-                    monomer=sugar_self.residue(name=res)
-                    self.residues.append([monomer])
-
-                # Set-up the model
-
-                if model_param is None:
-
-                    # If no model nor custom parameters are given, create one bead particle per residue
-
-                    for r_chain in self.residues:
-                        
-                        for res in r_chain:
-                            bead=sugar_self.particle()
-                            bead.name=res.name
-                            bead_list=[]
-                        
-                        # If the residue has a pKa value list in the pKa_set put in the bead
-                            if pKa_set is not None:
-                                if res.name in pKa_set.keys():
-
-                                    bead.pKa=pKa_set[res.name]
-
-                                bead_list.append(bead)
-                                res.beads=bead_list
-                
-                else:
-
-                    param_part=sugar_self.get_particles(model_param)
-                    param_bonds=sugar_self.get_bonds(model_param)
-                    model_keys=[]
-                    
-                    for p_set in param_part:
-                        
-                        model_keys.append(p_set.name)
-                    
-                    for r_chain in self.residues:
-
-                        for res in r_chain:
-
-                            bead_list=[]
-                            lateral_beads=[]
-
-                        # Bead of the principal chain
-
-                            p_bead_name=None
-                            if model_param.principal_chain is not None:
-
-                                if res.name in model_param.principal_chain.keys():
-
-                                    p_bead_name=model_param.principal_chain[res.name]
-
-                                elif "default" in model_param.principal_chain.keys():
-
-                                    p_bead_name=model_param.principal_chain["default"]
-                            
-                            if model_param.principal_chain is None or p_bead_name ==  'sequence':
-      
-                                bead_unparameterized=True
-
-                                for p_set in param_part:
-
-                                    if (p_set.name == res.name):
-
-                                        bead=p_set
-                                        bead_unparameterized=False
-                                            
-                                if bead_unparameterized:
-
-                                    bead=sugar_self.particle()
-                                    bead.name=res.name
-
-                                if pKa_set is not None:
-                                    if res.name in pKa_set.keys():
-
-                                        bead.pKa=pKa_set[res.name]
-
-                                            
-                            elif p_bead_name in model_keys:
-                                
-                                for p_set in param_part:
-
-                                    if (p_set.name == p_bead_name):
-
-                                        bead=p_set
-
-                                        if pKa_set is not None:
-                                            if p_bead_name in pKa_set.keys():
-
-                                                bead.pKa=pKa_set[res.name]
-                            
-                            else:
-                                print(p_bead_name,model_keys)
-                                raise ValueError("Unknown key for the principal chain: ", p_bead_name)
-                                
-                            res.principal_bead=bead.name
-                            bead_list.append(bead)
-
-                        # Beads on the lateral chain
-
-                            if model_param.side_chain is not None:
-
-                                side_dict=model_param.side_chain.copy()
-
-                                if res.name  in side_dict.keys():
-
-                                    chains=side_dict[res.name]
-
-                                else:
-
-                                    if "default"  in side_dict.keys():
-                                    
-                                        chains=[side_dict["default"]]
-
-                                    else:
-
-                                        raise ValueError("Unknown lateral chain for :", res.name)
-                                    
-                            
-                                for chain in chains:
-                                    
-                                    for part in chain:
-                                        
-                                        if part == "sequence":
-                                    
-                                            name= res.name
-                                            for p_set in param_part:
-
-                                                if (p_set.name == name):
-
-                                                    bead=p_set
-                                            if pKa_set is not None:
-                                                if name in pKa_set.keys():
-
-                                                    bead.pKa=pKa_set[name]
-
-                                            bead_list.append(bead)
-                                            lateral_beads.append(bead.name)
-                                        
-
-                                        else:     
-                                                            
-                                            if part in model_keys:
-                                    
-                                                name=part
-
-                                                for p_set in param_part:
-
-                                                    if (p_set.name == name):
-
-                                                        bead=p_set
-                                                if pKa_set is not None:
-                                                    if name in pKa_set.keys():
-
-                                                        bead.pKa=pKa_set[name]
-                                
-                                            else:
-
-                                                raise ValueError("Unknown key for the side chain: ", part)
-
-                                            bead_list.append(bead)
-                                            lateral_beads.append(bead.name)
-                        
-                            res.lateral_beads=lateral_beads
-                            res.beads=[bead_list]
-                    
-                        res_bond_list=[]
-                                            
-                        # All residues contain at least the default bond
-
-                        for bond in param_bonds:
-                                    
-                            if bond.actors[0] == "default":
-
-                                if bond not in res_bond_list:
-                                    
-                                    res_bond_list.append(bond)
-
-                        for chain in lateral_beads:
-                            
-                            bead_name=chain[0]
-                            actors=[res.principal_bead,bead_name]
-
-                        # Check if there is a specific parametrization in model for the bond between  res.principal_bead and bead_name
-
-                            for bond in param_bonds:
-
-                                if actors == bond.actors or actors[::-1] == bond.actors:
-                                    
-                                    bond_assigned=True
-                                    if bond not in res_bond_list:
-                                        res_bond_list.append(bond)
-                                    break
-
-                        res.bonds=res_bond_list
-                    
-        sugar_self.molecule = molecule
-                
-    def create_custom_model(self, principal_chain=None, side_chain=None, custom_particles=None):
-        '''
-        Helps the user to setup custom parameters for a model or a full custom model
-
+            pass
+
+        molecule.residue_list=residue_list
+        molecule.name=name
+        molecule.object_type='molecule'
+        self.store_object(object=molecule, verbose=True)
+
+        return molecule
+
+    def peptide(self, name, sequence, model):
+        """
+        Returns a sugar molecule object, . 
+        Updates the sugar list of molecules.
         Inputs:
-        beads_per_residue(int) = number of beads per residue
-        principal_chain(string) = key of the particle type in the main chain of the molecule. 
-        side_chain(list) = keys of the particles in the side chains of the molecule
-        For principal_chain and side_chain the keyword "sequence"
-        custom_particles (dict) = custom parameters for existing/new particle types. The dictionary must have the following structure:
+        name: (string) label of the peptide
+        sequence: (string) string with the peptide sequence
+        Returns:
+        peptide (class) sugar molecule object
+        """
 
-            dict = {'particle1_name': {'propertie1_name': propertie1_value,
-                                        'propertie2_name': propertie2_value
-                                        }
-                    'particle2_name': {'propertie1_name': propertie1_value,
-                                        'propertie2_name': propertie2_value
-                                        }
-                                        }
-        custom_bonds (dict) = custom parameters for existing/new bond types. The dictionary must have the following structure:
+        valid_keys=['1beadAA','2beadAA']
 
-            dict = {'bond1_name': {'actors': [bonded_name1, bonded_name2] ,
-                                'type': bond_type,
-                                'bondl': value,
-                                'k': value
-                                        }
-                    {'bond2_name': {'actors': [bonded_name1, bonded_name2] ,
-                                'type': bond_type,
-                                'bondl': value,
-                                'k': value
-                                        }
+        if model not in valid_keys:
 
-        '''
+            raise ValueError('Invalid label for the peptide model, please choose between 1beadAA or 2beadAA')
+
+        clean_sequence=self.protein_sequence_parser(sequence=sequence)
+        residue_list=[]
+
+        if model == '2beadAA':
+            C_particle=self.stored_objects['particle']['CA']
         
-        custom_param=self.param.custom_parameters()
-        
-        if principal_chain is not None:
+        if 'residue' not in self.stored_objects.keys():
+            self.stored_objects['residue']={}
 
-            if isinstance(principal_chain, dict):
+        for residue_name in clean_sequence:
+            
+            if residue_name not in self.stored_objects['residue'].keys():
+                
+                AA_particle=self.stored_objects['particle'][residue_name]
 
-                custom_param.principal_chain=principal_chain
+                if model == '1beadAA':
 
-            else:
+                    central_bead=AA_particle
+                    side_chains=[]
 
-                raise ValueError("principal_chain must contain a string with the key of the beads desired in the principal chain of the molecule. Provided:", principal_chain)
-
-
-        if side_chain is not None:
-
-            if isinstance(side_chain, dict):
-
-                custom_param.side_chain=side_chain
-
-            else:
-
-                raise ValueError("side_chain must contain a list with the keys of the beads desired in the side_chain of the molecule. Provided:", side_chain)
-
-        if custom_particles is not None:
-
-            if isinstance(custom_particles, dict):
-
-                for key in custom_particles.keys():
-
-                    if not isinstance(key,str):
-
-                        raise ValueError("Particle keys must be given as strings. Key given: ", key)
+                elif model == '2beadAA':
                     
-                    elif not isinstance(custom_particles[key], dict):
-
-                        raise ValueError("Particle properties must be given as a dictionary. Properties given: ", custom_particles[key])
-
-                    particle_dict=custom_particles[key]
-                    custom_part=self.particle()
-                    properties=self.get_attributes(custom_part)
-                    properties_names=[]
-
-                    for propertie in properties:
-
-                        properties_names.append(propertie[0])
-
-                    custom_part.name=key
+                    if residue_name in ['c','n']: # terminal groups
+                        central_bead=AA_particle
+                        side_chains=[]
                     
-                    for propertie in particle_dict.keys():
+                    else:
+                        central_bead=C_particle
+                        side_chains=[AA_particle]
 
-                        if (propertie in properties_names):
-
-                            if propertie == 'radius':
-
-                                if hasattr(particle_dict[propertie],'check'):
-                                
-                                    if particle_dict[propertie].check('[length]'):
-
-                                        setattr(custom_part, propertie, particle_dict[propertie])
-
-                                    else:
-
-                                        raise ValueError("The bead radius must have units of length. Given: ", particle_dict[propertie]) 
-
-                                else:
-                                    
-                                    raise ValueError("Bead radius must be given as a pint quantity. Given:", particle_dict[propertie])
-                            
-                            else:    
-
-                                setattr(custom_part, propertie, particle_dict[propertie])
-
-                        else:
-
-                            raise ValueError("Unknown particle propertie given: ", propertie, " valid properties names are ", properties_names)
-
-                    setattr(custom_param, key, custom_part)
-
+                residue=self.residue(name=residue_name, central_bead=central_bead,side_chains=side_chains)
             else:
+                residue=self.stored_objects['residue'][residue_name]
+            
+            residue_list.append(residue)
+        peptide=self.molecule(name=name, residue_list=residue_list)
+        peptide.model=model
+        return peptide
 
-                raise ValueError("Custom particle properties must be given in a dictionary. Please refer to the library documentation for more information on how to set-up custom particle properties. Input given: ", custom_particles)
-
-
-        return custom_param
-
-    def sequence_parser(self, sequence, keys=aminoacid_key.values()):
-        '''
-        Reads the input residue sequence and
-        1) Checks that all residues are in the parameters key
-        2) Transforms the aminoacids on the sequence from three letter to one letter format
-
+    def store_object(self,object, verbose=False):
+        """
+        Stores object in sugar for bookeeping
         Input:
-        sequence: (string or list) aminoacid sequence
+        object: (class) particle object from sugar library
+        verbose: (boolean) prints a warning if the object is already stored
+        """
 
-        Output:
-        clean_sequence: (string) 
-
-        '''
-
-        clean_sequence=[]
+        if not self.check_object_stored(object=object, verbose=verbose):
+            if object.object_type not in self.stored_objects:
+                self.stored_objects[object.object_type]={}
+            self.stored_objects[object.object_type][object.name]=object
+        return    
         
-        if isinstance(sequence, str):
-                    
-            if (sequence.find("-") != -1):
-
-                splited_sequence=sequence.split("-")
-
-                for residue in splited_sequence:
-
-                    if len(residue) == 1:
-
-                        if residue in keys:
-
-                            residue_ok=residue
-
-                        else:
-
-                            if residue.upper() in keys:
-
-                                residue_ok=residue.upper()
-
-                            else:
-
-                                raise ValueError("Unknown one letter code for a residue given: ", residue, " please review the input sequence")
-
-                        clean_sequence.append(residue_ok)
-                    
-                    else:
-
-                        if residue in keys:
-
-                            clean_sequence.append(residue)
-
-                        else:
-
-                            if (residue.upper() in self.aminoacid_key.keys()):
-
-                                clean_sequence.append(self.aminoacid_key[residue.upper()])
-
-                            else:
-
-                                raise ValueError("Unknown  code for a residue: ", residue, " please review the input sequence")
-
-            else:
-
-                for residue in sequence:
-
-                    if residue in keys:
-
-                        residue_ok=residue
-
-                    else:
-
-                        if residue.upper() in keys:
-
-                            residue_ok=residue.upper()
-
-                        else:
-
-                            raise ValueError("Unknown one letter code for a residue: ", residue, " please review the input sequence")
-
-                    clean_sequence.append(residue_ok)
-
-        if isinstance(sequence, list):
-
-            for residue in sequence:
-                
-                    if residue in keys:
-
-                        residue_ok=residue
-
-                    else:
-
-                        if residue.upper() in keys:
-
-                            residue_ok=residue.upper()
-
-                        elif (residue.upper() in self.aminoacid_key.keys()):
-
-                            clean_sequence.append(self.aminoacid_key[residue.upper()])
-
-                        else:
-
-                            raise ValueError("Unknown code for a residue: ", residue, " please review the input sequence")
-
-                    clean_sequence.append(residue_ok)
-
-        return clean_sequence
-
-    def write_parameters(self, mol):
+    def check_object_stored(self, object, verbose=False):
         """
-        Writes all the parameters in the sugar object
+        Checks if the user has already created a  object with the same name
+        Input:
+        object: (class) particle object from sugar library
+        verbose: (boolean) prints a warning if the object is already stored
         """
 
-        if isinstance(mol,self.molecule):
+        if object.object_type not in self.stored_objects.keys():
 
-            print('molecule parameters')
-            for atr in self.get_attributes(mol):
-                if atr[0] != 'model' and atr[0] != 'residues': 
-                    print(atr)
+            return False
 
-            for chain in mol.residues:
-                
-                for res in chain:
+        if object.name not in self.stored_objects[object.object_type].keys():
 
-                    print("\t residue ", res.name, 'parameters')
-            
-                    for atr in self.get_attributes(res):
-                        if atr[0] != 'beads' and atr[0] != 'bonds': 
-                            print('\t' ,atr)
+            return False
+
+        else:
+
+            if verbose:
+                print('WARNING, you have already created a particle object with the same name')
+            return True
+
+    def define_bond(self, bond, particle1, particle2):
+        """
+        Adds a bond to the bond storage of sugar
+        Inputs:
+        bond: (class) instance of a bond object from espressomd library
+        particle1: (class) instance of a particle object from sugar library
+        particle2: (class) instance of a particle object from sugar library
+        """
 
 
-                    for chain_bead in res.beads:
+        bond_key=frozenset([particle1.name, particle2.name])
+        exists_bond=self.check_bond_defined(particle1=particle1, particle2=particle2)
+        
+        if exists_bond:
 
-                        for bead in chain_bead:
+            print('WARNING, you have already defined a bond between particle1 and particle2')
+            print('The previously defined bond have been overwritten')
 
-                            print("\t \t Particle", bead.name)
-                
-                            for atr in self.get_attributes(bead):
+        self.stored_objects['bonds'][bond_key]=bond
 
-                                print('\t \t ', atr)
+        return
 
-        if isinstance(mol,self.residue):
-            
-            print("residue ", mol.name, 'parameters')
-
-            for atr in self.get_attributes(mol):
-                if atr[0] != 'beads' and atr[0] != 'bonds': 
-                    print(atr)
-
-            for chain_bead in res.beads:
-
-                for bead in chain_bead:
-
-                    print("\t \t Particle", bead.name)
-                
-                    for atr in self.get_attributes(bead):
-
-                        print('\t \t ', atr)
-
-        if isinstance(mol, self.particle): 
-
-            print("Particle", mol.name)
-                
-            for atr in self.get_attributes(mol):
-
-                print(atr)   
-
-    def create_particle(self, particle, system, position=None, state=None, id=None):
+    def create_particle_in_system(self, particle, system, position=None, state=None, id=None):
         '''
-        Creates a bead particle in the espresso system with the properties stored in bead.
+        Creates a particle in the espresso system.
         particle = instance of a particle object from sugar library
         system = instance of a system object from espressomd library
-        position = array of particle positions of size part.N
+        position = array with the cartesian coordinates to create the particle, by default random
         state = for particles with more than one possible state, defines in which state are created
-        id = array of particle ids of size part.N
+        id = desired particle id
         '''
+
+        if particle.object_type != 'particle':
+
+            raise ValueError("particle must be an instance of a sugar particle object")
 
         if position is None:
         
@@ -950,35 +315,21 @@ class sugar_library(object):
             
             position=self.np.random.random((1, 3))[0] *self.np.copy(system.box_l)
                 
-        if state is not None:
-            
-            if isinstance(particle.q,dict):
-                
-                if state in particle.q.keys():
+        if state is None:
 
-                    particle.state=state
+            if particle.acidity in ['acidic','basic']:
 
-                else:
-
-                    raise ValueError("Unknown state for bead: ", particle.name, " please review the input state:", state, ' valid keys are', particle.q.keys())
-        else:
-
-            if isinstance(particle.q, dict):
-                
-                # Inicialice beads with more than one state in its fully ionizated state
-
-                for key in particle.q.keys():
-
-                    if particle.q[key] != 0:
-
-                        particle.state=key
-                        state=key
+                state='protonated'
         
         if isinstance(particle.q, int) or isinstance(particle.q, float) :
             
             q=particle.q
         
         elif isinstance(particle.q, dict):
+
+            if state is None:
+
+                state=self.rn.choice(q.keys())
 
             q=particle.q[state]
 
@@ -991,6 +342,10 @@ class sugar_library(object):
             type=particle.type
 
         elif isinstance(particle.type, dict):
+
+            if state is None:
+
+                state=self.rn.choice(q.keys())
 
             type=particle.type[state]
 
@@ -1008,767 +363,657 @@ class sugar_library(object):
             else:
                 
                 bead_id=max(system.part[:].id)+1
-                     
         system.part.add(id=[bead_id], pos=[position], type=[type], q=[q])
+
+        # particle id bookeeping
+
+        if 'particle' not in self.id_map.keys():
+            self.id_map['particle']={} 
+
+        if particle.name in self.id_map['particle'].keys():
+            self.id_map['particle'][particle.name].append(bead_id)
+        else:
+            self.id_map['particle'][particle.name]=[bead_id]
         
         return  bead_id
-
         
-    def create_residue(self, residue, system, central_bead_position=None):
+    def create_residue_in_system(self, residue, system, central_bead_position=None, use_default_bond=False):
         """
-        Creates a residue in the espresso given with the properties stored in res
+        Creates a residue in the espresso system
         Inputs:
         residue: instance of a residue object as defined in sugar library
         system: instance of a system object of espresso library
         position: (list) coordinates where the central bead will be created, random by default
+        use_default_bond: (boolean, default=False) returns the default bond if no bond has been defined between  particle1 and particle2
         Returns:
         particle_ids: (list) list with the ids of the particles created
+        central_bead_id: (id) id of the central bead of the residue
         """
+        
+        if residue.object_type != 'residue':
 
-        particle_ids=[]
+            raise ValueError("residue must be an instance of a sugar residue object")
+
+        residue_ids_dict={}        
 
         # create the principal bead
-        
-        self.create_particle(particle=residue.central_bead, system=system, position=central_bead_position)
-        particle_ids.append(residue.central_bead.id[0])
-        central_bead_position=system.part[residue.central_bead.id].pos
-        
+        if self.check_object_stored(object=residue.central_bead):
+            
+            central_bead_id=self.create_particle_in_system(particle=residue.central_bead, system=system, position=central_bead_position)
+            residue_ids_dict['central-'+residue.central_bead.name]=[central_bead_id]
+
+        else:
+
+            raise ValueError("Residue.central_bead must contain a particle object.")
+
+        central_bead_position=system.part[central_bead_id].pos
+                
         # create the lateral beads        
         
-        for bead_chain in residue.lateral_beads:
+        for sg_object in residue.side_chains:
 
-            if isinstance(bead_chain, list):
+            if sg_object.object_type == 'particle': # Only one bead
+                
+                bond=self.search_bond(particle1=residue.central_bead, particle2=sg_object, hard_check=True, use_default_bond=use_default_bond)
+                bond_vector=self.generate_trialvectors(bond.params.get('r_0'))
+                bead_position=central_bead_position+bond_vector
+                side_bead_id=self.create_particle_in_system(particle=sg_object, system=system, position=bead_position)
+                system.part[central_bead_id].add_bond((bond, side_bead_id))
+                if 'side-'+sg_object.name in residue_ids_dict.keys():
+                    residue_ids_dict['side-'+sg_object.name].append(side_bead_id)
+                else:
+                    residue_ids_dict['side-'+sg_object.name]=[side_bead_id]
 
-                base_position=central_bead_position
+            elif sg_object.object_type == 'residue': # More than one bead
 
-                for bead in bead_chain:
-
-                    bond_vector=self.generate_trialvectors(residue.bond.params.get('r_0'))
-                    bead_position=base_position+bond_vector
-                    self.create_particle(particle=bead, system=system, position=bead_position)
-                    particle_ids.append(bead.ids[0])
-                    base_position=bead_position
+                bond=self.search_bond(particle1=residue.central_bead, particle2=sg_object.central_bead, hard_check=True, use_default_bond=use_default_bond)
+                bond_vector=self.generate_trialvectors(bond.params.get('r_0'))
+                residue_position=central_bead_position+bond_vector
+                residue_ids_dict=self.create_residue_in_system(residue=sg_object, system=system, central_bead_position=residue_position)
+                residue_central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
+                system.part[central_bead_id].add_bond((bond, residue_central_bead_id))
+                if 'side-'+sg_object.name in residue_ids_dict.keys():
+                    residue_ids_dict['side-'+sg_object.name].append(residue_ids_dict)
+                else:
+                    residue_ids_dict['side-'+sg_object.name]=[residue_ids_dict]
 
             else:
 
-                bond_vector=self.generate_trialvectors(residue.bond.params.get('r_0'))
-                bead_position=central_bead_position+bond_vector
-                particle_ids.append(bead.ids[0])
-    
+                raise ValueError("Residue.side_chains must contain a list of particle or residue objects.")
 
-        return 
+        # for particle id bookeeping
 
-    def create_molecule(self, mol,system):
-        '''
-        Creates a molecules in the espresso given with the properties stored in mol
-        mol: instance of a molecule object as defined in sugar library
+        if 'residue' not in self.id_map.keys():
+            self.id_map['residue']={} 
+
+        if residue.name not in self.id_map['residue'].keys():
+            self.id_map['residue'][residue.name]=[residue_ids_dict]
+        else:
+            self.id_map['residue'][residue.name].append(residue_ids_dict)
+
+        return  residue_ids_dict
+
+    def create_molecule_in_system(self, molecule, system, first_residue_position=None, use_default_bond=False):
+        """
+        Creates a molecule in the espresso system
+        Inputs:
+        molecule: instance of a molecule object as defined in sugar library
         system: instance of a system object of espresso library
+        first_residue_position: (list) coordinates where the first_residue_position will be created, random by default
+        use_default_bond: (boolean, default=False) returns the default bond if no bond has been defined between  particle1 and particle2
+        Returns:
+        particle_ids: (list) list with the ids of the particles created
+        """
+        
+        if molecule.object_type != 'molecule':
+
+            raise ValueError("molecule must be an instance of a sugar residue object")
+
+        first_residue=True
+        molecule_dicts=[]
+        
+        for residue in molecule.residue_list:
+
+            if first_residue:
+
+                residue_position=first_residue_position
+                residue_ids_dict=self.create_residue_in_system(residue=residue, system=system, central_bead_position=first_residue_position,  use_default_bond= use_default_bond)
+                central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
+                previous_residue=residue
+                residue_position=system.part[central_bead_id].pos
+                previous_residue_id=central_bead_id
+                first_residue=False
+                
+            else:
+
+                bond=self.search_bond(particle1=residue.central_bead, particle2=previous_residue.central_bead, hard_check=True, use_default_bond=use_default_bond)
+                bond_vector=self.generate_trialvectors(bond.params.get('r_0'))
+                residue_position=residue_position+bond_vector
+                residue_ids_dict=self.create_residue_in_system(residue=residue, system=system, central_bead_position=residue_position,use_default_bond= use_default_bond)
+                central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
+                system.part[central_bead_id].add_bond((bond, previous_residue_id))
+                previous_residue_id=central_bead_id
+            
+            molecule_dicts.append(residue_ids_dict)
+
+        # for particle id bookeeping
+
+        if 'molecule' not in self.id_map.keys():
+            self.id_map['molecule']={} 
+
+        if molecule.name not in self.id_map['molecule'].keys():
+            self.id_map['molecule'][molecule.name]=[molecule_dicts]
+        else:    
+            self.id_map['molecule'][molecule.name].append(molecule_dicts)
+        return molecule_dicts
+
+    def propose_unused_type(self):
+        """
+        Searches in sugar database the currently used particle types and returns an unused type
+        Returns:
+        unused_type: (int) unused particle type
+        """
+        type_list=[]
+        if not self.type_map:
+            
+            unused_type=0
+
+        else:
+
+            for value in self.type_map.values():
+                if isinstance(value,int):
+                    type_list.append(value)
+                elif isinstance(value,dict):
+                    for type in value.values():
+                        type_list.append(type)
+                
+            unused_type=max(type_list)+1
+
+        return unused_type
+
+    def check_bond_defined(self, particle1, particle2):
+        """
+        Checks if the user has already defined a bond between particle1 and particle2 in sugar
+        Input:
+        particle1 = instance of a particle object from sugar library
+        particle2 = instance of a particle object from sugar library
+        """
+
+        if 'bonds' not in self.stored_objects.keys():
+            self.stored_objects['bonds']={}
+            return False
+
+        bond_key=frozenset([particle1.name, particle2.name])
+
+        if bond_key not in self.stored_objects['bonds'].keys():
+
+            return False
+
+        else:
+
+            return True
+
+    def check_particle_type_exists(self, particle):
+        """
+        Checks if the user has already created a particle object with the same name as particle
+        Input:
+        particle: sugar particle object
+        """
+
+        if 'particle' not in self.stored_objects.keys():
+            return False
+
+        for stored_particle in self.stored_objects['particle'].values():
+
+            if particle.type in self.get_particle_types(particle=stored_particle):
+
+                return True
+
+        return False
+
+    def search_bond(self, particle1, particle2, hard_check=False, use_default_bond=False):
+        """
+        Searches for a bond between particle1 and particle2 defined in sugar library
+        Input:
+        particle1 = instance of a particle object from sugar library
+        particle2 = instance of a particle object from sugar library
+        hard_check: (boolean, default=False) break if the bond is not defined
+        use_default_bond: (boolean, default=False) returns the default bond if no bond has been defined between  particle1 and particle2
+        Returns:
+        bond: (class) instance of a bond object from espressomd library
+        """
+
+                
+        if self.check_bond_defined(particle1=particle1, particle2=particle2):
+
+            bond_key=frozenset([particle1.name, particle2.name])
+            bond=self.stored_objects['bonds'][bond_key]
+            return bond
+        
+        else:
+
+            if  use_default_bond:
+            
+                if 'default' not in self.stored_objects['bonds'].keys():
+
+                    raise ValueError('Default bond is not defined')
+
+                else:
+
+                    return self.stored_objects['bonds']['default']
+
+            else:
+                
+                print("Bond not defined between particles ", particle1.name, " and ", particle2.name)
+                
+                if hard_check:
+
+                    exit()
+                else:
+
+                    return
+
+    def add_bonds_to_system(self, system):
+        """
+        Adds all the bonds stored in sugar to the espressomd system, 
+        including the default bond if has been defined
+        Inputs:
+        system: instance of a system object of espresso library
+        """
+
+        for bond in self.stored_objects['bonds'].values():
+            system.bonded_inter.add(bond)
+
+        return
+    
+    def load_parameters(self,filename, verbose=False):
+        """
+        Loads the parameters stored in filename into sugar
+        Inputs:
+        filename: (string) name of the file to be read
+        verbose: (boolean) switches on/off the reading prints
+        """
+        import json
+        from espressomd import interactions
+
+        particle_param_list=[]
+        residue_param_list=[]
+        molecule_param_list=[]
+        peptide_param_list=[]
+        bond_param_list=[]
+        pKa_list=[]
+
+        with open(filename) as f:
+            for line in f:
+                if line[0] == '#':
+                    continue
+                param_dict=json.loads(line)
+                object_type=param_dict['object_type']
+                if object_type == 'particle':
+                    particle_param_list.append(param_dict)
+                elif object_type == 'residue':
+                    residue_param_list.append(param_dict)
+                elif object_type == 'molecule':
+                    molecule_param_list.append(param_dict)
+                elif object_type == 'peptide':
+                    peptide_param_list.append(param_dict)
+                elif object_type == 'bond':
+                    bond_param_list.append(param_dict)
+                elif object_type == 'pka-set':
+                    param_dict.pop('object_type')
+                    pKa_list.append(param_dict)                
+                else:
+                    raise ValueError(object_type+' is not a known sugar object type')
+                if verbose:
+                    print('Added: '+line)
+
+        without_units=['q','type','acidity']
+        with_units=['diameter','epsilon']
+
+        for particle_param in particle_param_list:
+            not_requiered_attributes={}    
+            for not_requiered_key in without_units+with_units:
+                if not_requiered_key in particle_param.keys():
+                    if not_requiered_key in with_units:
+                        not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable_dict=particle_param.pop(not_requiered_key))
+                    elif not_requiered_key in without_units:
+                        not_requiered_attributes[not_requiered_key]=particle_param.pop(not_requiered_key)
+                else:
+                    not_requiered_attributes[not_requiered_key]=None
+
+            self.particle(name=particle_param.pop('name'),
+                            type=not_requiered_attributes.pop('type'),
+                            q=not_requiered_attributes.pop('q'),
+                            acidity=not_requiered_attributes.pop('acidity'),
+                            diameter=not_requiered_attributes.pop('diameter'),
+                            epsilon=not_requiered_attributes.pop('epsilon'))
+
+        for residue_param in residue_param_list:
+            central_bead=self.stored_objects['particle'][residue_param.pop('central_bead_name')]
+            side_chains=[]
+            for side_chain_name in self.residue_param.pop('side_chains_names'):
+
+                if side_chain_name in self.stored_objects['particle'].keys() and side_chain_name in self.stored_objects['residue'].keys():
+                    raise ValueError(side_chain_name+ 'is defined both as a particle name and a residue name, please rename to avoid the ambiguity')
+
+                elif side_chain_name in self.stored_objects['particle'].keys():
+                    side_chains.append(self.stored_objects['particle'][side_chain_name])
+                elif side_chain_name in self.stored_objects['residue'].keys():
+                    side_chains.append(self.stored_objects['residue'][side_chain_name])
+                else:
+                    raise ValueError('Objects in residue side chains must be either particles or residues')
+                
+            self.residue(name=residue_param.pop('name'),
+            central_bead=central_bead,
+            side_chains=side_chains)
+
+        for molecule_param in molecule_param_list:
+            residue_name_list=molecule_param.pop('residue_name_list')
+            residue_list=[]
+            for residue_name in residue_name_list:
+                residue_list.append(self.stored_objects['residue'][residue_name])
+
+            self.molecule(name=molecule_param.pop('name'),
+                        residue_list=residue_list)
+        
+        for peptide_param in peptide_param_list:
+
+            self.peptide(name=peptide_param.pop('name'),
+                        sequence=peptide_param.pop('sequence'),
+                        model=peptide_param.pop('model'))
+
+        for bond_param in bond_param_list:
+            
+            name1=bond_param.pop('name1')
+            name2=bond_param.pop('name2')
+            particle1=self.stored_objects['particle'][name1]
+            particle2=self.stored_objects['particle'][name2]
+            bond_type=bond_param.pop('bond_type')
+
+            if bond_type == 'harmonic':
+
+                k=self.create_variable_with_units(variable_dict=bond_param.pop('k'))
+                r_0=self.create_variable_with_units(variable_dict=bond_param.pop('r_0'))
+                bond = interactions.HarmonicBond(k=k.to('reduced_energy / reduced_length**2').magnitude, r_0=r_0.to('reduced_length').magnitude)
+
+            else:
+
+                raise ValueError("current implementation of sugar only supports harmonic bonds")
+
+            self.define_bond(bond=bond, particle1=particle1, particle2=particle2)
+
+        for pka_set in pKa_list:
+            for pka_key in pka_set: 
+                if 'pKa' in self.stored_objects.keys():
+
+                    if pka_key in self.stored_objects['pKa'].keys():
+
+                        print("WARNING overwritting stored pKa value for ", pka_key)
+                else:
+
+                    self.stored_objects['pKa']={}
+
+                self.stored_objects['pKa'][pka_key]=pka_set[pka_key]
+            
+        return
+
+    def define_default_bond(self, bond):
+        """
+        Defines the default bond, used when a bonded interaction is not parametrized
+        Input:
+        bond: (class) instance of a bond object from espressomd library
+        """
+        if 'bonds' not in self.stored_objects.keys():
+            self.stored_objects['bonds']={}
+        self.stored_objects['bonds']['default']=bond
+
+        return
+
+    def define_default_lennard_jones(self, sigma, epsilon, cutoff, offset, shift):
+        """
+        Defines the default lennard jones interaction, used when the interaction between two particle types is not properly parametrized
+        Input:
+        See section 6.1.2 of the user guide from espresso for a complete description of the parameters
+        """
+
+        default_param={}
+        default_param={'epsilon' : epsilon, 
+                            "sigma" : sigma, 
+                            'cutoff' : cutoff,
+                            'offset' : offset, 
+                            'shift' : shift}
+        if 'LennardJones' not in self.stored_objects.keys():
+            self.stored_objects['LennardJones']={}
+
+        self.stored_objects['LennardJones']['default']=default_param
+
+    def create_variable_with_units(self, variable_dict):
+        """
+        Returns a pint object with the value and units defined in variable_dict
+        Inputs:
+        variable_dict:(dict) contains the value and the units of the variable
+        Returns:
+        variable_with_units:(pint object) pint object containing the value and the desired units
+        """
+        
+        value=variable_dict.pop('value')
+        units=variable_dict.pop('units')
+        variable_with_units=value*self.units(units)
+
+        return variable_with_units
+    
+    def get_particle_types(self, particle):
+        """
+        Returns all the particle types stored in particle
+        Inputs:
+        particle: sugar particle object
+        Returns:
+        type_list: (list) list of types in particle
+        """
+        type_list=[]
+        if isinstance(particle.type, int):
+            
+            type_list.append(particle.type)
+
+        elif isinstance(particle.type, dict):
+
+            for type in particle.type.values():
+
+                type_list.append(type)
+
+        else:
+
+            raise ValueError("Unvalid type for bead: ", particle.name, " given ", particle.type)
+
+        return type_list
+
+    def protein_sequence_parser(self, sequence):
         '''
+        Reads the input residue sequence and
+        1) Checks that all residues are in the parameters key
+        2) Transforms the aminoacids on the sequence from three letter to one letter format
+
+        Input:
+        sequence: (string or list) aminoacid sequence
+
+        Output:
+        clean_sequence: (string) 
+        '''
+
+        # Aminoacid key
+
+        keys={"ALA": "A",
+                "ARG": "R",
+                "ASN": "N",
+                "ASP": "D",
+                "CYS": "C",
+                "GLU": "E",
+                "GLN": "Q",
+                "GLY": "G",
+                "HIS": "H",
+                "ILE": "I",
+                "LEU": "L",
+                "LYS": "K",
+                "MET": "M",
+                "PHE": "F",
+                "PRO": "P",
+                "SER": "S",
+                "THR": "T",
+                "TRP": "W",
+                "TYR": "Y",
+                "VAL": "V",
+                "PSER": "J",
+                "PTHR": "U",
+                "PTyr": "Z",
+                "NH2": "n",
+                "COOH": "c"}
+
+
+        clean_sequence=[]
         
-        if mol.N is None:
+        if isinstance(sequence, str):
+                    
+            if (sequence.find("-") != -1):
 
-            mol.N=1
+                splited_sequence=sequence.split("-")
 
-        elif not isinstance(mol.N,int):
+                for residue in splited_sequence:
 
-            raise ValueError("The number of molecules must be an integer number, given: ", mol.N)
-        
-        print('Parameters used to create ' + ''.join(mol.sequence) +' stored in ' + self.filename_parameters)
-        with open(self.filename_parameters, 'a') as par_file:
-            par_file.write('\n Created molecule ' + ''.join(mol.sequence)+ ' with bonds:\n')
+                    if len(residue) == 1:
 
-        for _ in range(mol.N):
+                        if residue in keys.values():
 
-            first_res_inexistent=True
-            bond_vector=self.generate_trialvectors(1)
-            id_list=[]
+                            residue_ok=residue
 
-            for r_chain in mol.residues:
+                        else:
 
-                for res in r_chain:
+                            if residue.upper() in keys.values():
 
-                    if (first_res_inexistent):
+                                residue_ok=residue.upper()
 
-                        self.create_residue(res, system)
-                        first_res_inexistent=False
-                        pre_backbone_bead=res.beads[0]
-                        pre_backbone_bead=pre_backbone_bead[0]
-                        pre_bead_id=pre_backbone_bead.ids[0]
-                        pre_bead_pos=system.part[pre_bead_id].pos
-                        ids_res=res.ids[0]
-                        id_list+=ids_res
+                            else:
+
+                                raise ValueError("Unknown one letter code for a residue given: ", residue, " please review the input sequence")
+
+                        clean_sequence.append(residue_ok)
+                    
+                    else:
+
+                        if residue in keys.keys():
+
+                            clean_sequence.append(keys[residue])
+
+                        else:
+
+                            if (residue.upper() in keys.keys()):
+
+                                clean_sequence.append(keys[residue.upper()])
+
+                            else:
+
+                                raise ValueError("Unknown  code for a residue: ", residue, " please review the input sequence")
+
+            else:
+
+                for residue in sequence:
+
+                    if residue in keys.values():
+
+                        residue_ok=residue
 
                     else:
 
-                        new_backbone_bead=res.beads[0]
-                        new_backbone_bead=new_backbone_bead[0]
-                        backbone_bond=self.search_bond(bead1=pre_backbone_bead, bead2=new_backbone_bead,res=res)
-        
-                        new_bead_pos=pre_bead_pos+bond_vector*backbone_bond.bondl.to('reduced_length').magnitude
-                        self.create_residue(res, system, position=[new_bead_pos])
-                        
-                        # Create the harmonic bond for the principal chain
+                        if residue.upper() in keys.values():
 
-                        ids_res=res.ids[0]
-                        id_ppal_bead=ids_res[0]
-                        
-                        self.create_bond(system,bond=backbone_bond,id1=pre_bead_id,id2=id_ppal_bead)
+                            residue_ok=residue.upper()
 
-                        # Update lists and variables
-                        
-                        id_list+=ids_res
-                        pre_bead_id=id_ppal_bead
-                        pre_backbone_bead=new_backbone_bead
-                        pre_bead_pos=new_bead_pos
-            
-            mol.ids.append(id_list)
+                        else:
 
-        return 
+                            raise ValueError("Unknown one letter code for a residue: ", residue, " please review the input sequence")
 
-    def count_titrable_groups(self, sugar_object):
-        """
-        Counts the number of titrable groups in the protein object
+                    clean_sequence.append(residue_ok)
 
-        Input:
-        sugar_object: molecule, residue or particle object as defined in sugar library
+        if isinstance(sequence, list):
 
-        Output:
-        N_ti: (int) number of titrable groups in the sequence
-        """
+            for residue in sequence:
+                
+                    if residue in keys.values():
 
-        N_ti=0
+                        residue_ok=residue
 
-        for particle in self.search_particles(sugar_object=sugar_object):
-        
-            if particle.pKa is not None:
+                    else:
 
-                N_ti+=1
+                        if residue.upper() in keys.values():
 
-        N_ti*=sugar_object.N
+                            residue_ok=residue.upper()
 
-        return N_ti
+                        elif (residue.upper() in keys.keys()):
 
-    def setup_acidbase_reactions(self, molecule_list, counter_ion, method='constant_pH', exclusion_radius=None):
+                            clean_sequence.append(keys[residue.upper()])
+
+                        else:
+
+                            raise ValueError("Unknown code for a residue: ", residue, " please review the input sequence")
+
+                    clean_sequence.append(residue_ok)
+
+        return clean_sequence
+
+    def setup_constantpH_reactions(self, counter_ion, exclusion_radius=None):
         """
         Set up the Acid/Base reactions for acidic/basidic residues in mol. The reaction steps are done following the constant pH ensamble procedure. 
 
         Inputs:
         
-        mol: molecule class object as defined in sugar library
-        cation: particle class object as defined in sugar library
-
+        counter_ion:(class) particle class object as defined in sugar library
+        exclusion_radius:(float) exclusion radius for the constant pH ensamble
         Output:
         RE: instance of the espresso class reaction_ensemble.ConstantpHEnsemble
 
         """
 
-        import espressomd
+        from espressomd import reaction_ensemble
 
-        valid_method_list=['constant_pH']
+        if exclusion_radius is None:
+
+            exclusion_radius=self.search_largest_particle_diameter_in_system()
+
+        if self.SEED is None:
+
+            self.create_random_seed()
+
+        if 'reactions' not in self.stored_objects.keys():
+            self.stored_objects['reactions']={}
+
+        RE = reaction_ensemble.ConstantpHEnsemble(temperature=self.kT.to('reduced_energy').magnitude, exclusion_radius=exclusion_radius.magnitude, seed=self.SEED)
         
-        if method in valid_method_list:
+        for particle in self.stored_objects['particle'].values():
+            
+            if particle.name in self.stored_objects['pKa'].keys() and  particle.name  not in self.stored_objects['reactions'].keys():
 
-            if exclusion_radius is None:
+                gamma=10**-self.stored_objects['pKa'][particle.name]
+                
+                if particle.acidity in ['basic','acidic']: # acid-base particle 
+                    
+                    RE.add_reaction(gamma=gamma,
+                                    reactant_types=[particle.type["protonated"]],
+                                    reactant_coefficients=[1],
+                                    product_types=[particle.type["unprotonated"], counter_ion.type],
+                                    product_coefficients=[1,1],
+                                    default_charges={particle.type["unprotonated"]: particle.q["unprotonated"],
+                                    particle.type["protonated"]: particle.q["protonated"],
+                                    counter_ion.type: counter_ion.q})
 
-                exclusion_radius= 1*self.units('reduced_length')
+                else:
 
-            if self.SEED is None:
-
-                self.create_random_seed()
-
-            RE = espressomd.reaction_ensemble.ConstantpHEnsemble(temperature=self.kT.to('reduced_energy').magnitude, exclusion_radius=exclusion_radius.magnitude, seed=self.SEED)
-
-        else:
-
-            raise ValueError('Only the implementation for the constant pH ensamble is available, method =', method)
-
-        reaction_absent={}
-
-        for molecule in molecule_list:
-
-            for particle in self.search_particles(sugar_object=molecule):
-
-                if particle.pKa is not None and  particle.acidity in ['acid','basic']:
-
-                    if particle.name not in reaction_absent.keys():
-
-                        reaction_absent[particle.name]=True
-
-                    if (reaction_absent[particle.name]):
-
-                        self.setup_particle_acidbase_reaction(RE, particle, counter_ion)
-                        reaction_absent[particle.name]=False
-
+                    print('WARNING the acidity of '+ particle.name + ' is not defined')
         
+                self.stored_objects['reactions'][particle.name]={'gamma':gamma,
+                                    'reactant_types':[particle.type["protonated"]],
+                                    'reactant_coefficients':[1],
+                                    'product_types':[particle.type["unprotonated"], counter_ion.type],
+                                    'product_coefficients':[1,1]}
         return RE
-
-    def setup_particle_acidbase_reaction(self, RE, part, counter_ion):
-        """
-        Set up the Acid/Base reactions for acidic/basidic residues in protein. The reaction steps are done following the constant pH ensamble procedure. 
-
-        Inputs:
-        RE: instance of the espresso class reaction_ensemble.ConstantpHEnsemble
-        mol: particle/residue/molecule class object as defined in sugar library
-        cation: particle class object as defined in sugar library
-        """
-
-        if not isinstance(part, self.particle) or not isinstance(counter_ion, self.particle):
-
-            raise ValueError("part and cation must be instances of a particle object from sugar library")
-
-        if part.acidity not in ['acid','basic']:
-
-            print("WARNING, the added particle does not have its acidity defined, please define part.acidity to 'acid' or 'basic'. No reaction has been added")
-        
-        if  isinstance(part.type, dict):
-
-            if 'protonated' not in part.type.keys() or 'unprotonated' not in part.type.keys():
-
-                raise ValueError('part.type must contain as keys "protonated" and "unprotoanted". Given: ',  part.type.keys())
-
-        else:
-
-                        raise ValueError("Particle type must store the tipe of the protonated and unprotonated species so that part.type['protonated'] returns the type of the protonated specie and part.type['unprotonated'] returns the type of the unprotonated specie. Given: ", part.type)
-
-
-        if part.pKa is not None and  part.acidity in ['acid','basic']:
-
-            if (part.acidity == 'basic') : # Basic residue
-                        
-                RE.add_reaction(gamma=10**-part.pKa,
-                                reactant_types=[part.type["protonated"]],
-                                reactant_coefficients=[1],
-                                product_types=[part.type["unprotonated"], counter_ion.type],
-                                product_coefficients=[1,1],
-                                default_charges={part.type["protonated"]: 1,
-                                part.type["unprotonated"]: 0,
-                                counter_ion.type: 1})
-
-            elif (part.acidity == 'acid') : # Acid residue
-
-                RE.add_reaction(gamma=10**-part.pKa,
-                                reactant_types=[part.type["protonated"]],
-                                reactant_coefficients=[1],
-                                product_types=[part.type["unprotonated"], counter_ion.type],
-                                product_coefficients=[1, 1],
-                                default_charges={part.type["protonated"]: 0,
-                                                part.type["unprotonated"]: -1,
-                                                counter_ion.type: 1})
-
-        return
-
-    def setup_lj_interactions(self, mol_list, system):
-        """
-        Setup lennard-jones interactions for all the molecules in molecule list, using the parametrization defined in its model. 
-        If no specific parametrization is included, a purely repulsive LJ is assumed. 
-
-        Inputs:
-        molecule_list(list): list of instances of molecule/residue/bead objects, as defined in sugar library
-        system: instance of a system object of espresso library
-
-        """
-
-        if not isinstance(mol_list,list):
-
-            raise ValueError("molecule list must be a list of instances of molecule/residue/bead objects, as defined in sugar library. Given: ", mol_list)
-
-        # Search for all possible particle types and for all the lj parameters
-
-        name_dict={}
-        radi_dict={}
-        lj_list=[]
-
-        for sugar_object in mol_list:
-
-            for particle in self.search_particles(sugar_object=sugar_object):
-
-                if isinstance (particle.type,dict):
-
-                    for type in particle.type.values():
-                            
-                        if type not in name_dict.keys():
-
-                            name_dict[type]=particle.name
-                            radi_dict[type]=particle.radius
-
-                if isinstance (particle.type,int):
-                    
-                    if particle.type not in name_dict.keys():
-
-                        name_dict[particle.type]=particle.name
-                        radi_dict[particle.type]=particle.radius
-
-
-            # By default, Lennard-Jones parameters with WCA potential are assumed
-
-            lj_WCA=self.param.default.lj_WCA
-
-            if sugar_object.model is not None:
-
-                lj_parameters=self.get_lj(sugar_object.model)
-
-                for lj_param in lj_parameters:
-
-                    if lj_param not in lj_list:
-
-                        lj_list.append(lj_param)
-
-        type_list=[]
-
-        for type in name_dict.keys():
-
-            if type not in type_list:
-
-                type_list.append(type)
-
-        print('\n Parameters used for the Lennard Jones potential stored in ' + self.filename_parameters)
-        with open(self.filename_parameters, 'a') as par_file:
-            par_file.write('\n \n ***** Lennard Jones parameters ***** \n')
-
-
-            for type1 in type_list:
-
-                index_type=type_list.index(type1)
-
-                for type2 in type_list[index_type:]:
-
-                    name1=name_dict[type1]
-                    name2=name_dict[type2]
-
-                    radius1=radi_dict[type1]
-                    radius2=radi_dict[type2]
-
-                    specific_lj=False
-
-                    for lj_param in lj_list:
-
-                        if name1 in lj_param.actors and name2 in lj_param.actors:
-
-                            specific_lj=True
-                            
-                            if lj_param.sigma is not None:                    
-                                
-                                sigma=lj_param.sigma
-
-                            else:
-
-                                if radius1 is None:
-                                    
-                                    radius1=lj_WCA.sigma/2.
-
-                                if radius2 is None:
-
-                                    radius2=lj_WCA.sigma/2.
-
-                                sigma=(radius1.to('nm').magnitude+radius2.to('nm').magnitude)*self.units.nm
-
-                            epsilon=lj_param.epsilon
-                            cutoff=lj_param.cutoff
-                            shift=lj_param.shift
-                            name=lj_param.name
-
-                    if not specific_lj:
-
-                        if radius1 is None:
-
-                            radius1=lj_WCA.sigma/2
-
-                        if radius2 is None:
-
-                            radius2=lj_WCA.sigma/2
-
-                        sigma=radius1 + radius2
-                        epsilon=lj_WCA.epsilon
-                        cutoff=sigma.to('reduced_length')*2**(1./6.)
-                        shift=lj_WCA.shift
-                        name=lj_WCA.name
-
-                    pair_lj=self.param.custom_lj()
-                    pair_lj.sigma=sigma
-                    pair_lj.epsilon=epsilon
-                    pair_lj.cutoff=cutoff
-                    pair_lj.shift=shift
-                    pair_lj.name=name
-
-                    lj_parameters=self.get_attributes(pair_lj)
-                    lj_parameters.remove(('actors', None))
-
-                    par_file.write("\n The LJ interactions between "+str(name1)+ '(type = ' + str(type1) + ') and ' + str(name2) + '(type = ' + str(type2) + ") is created using the parameters" + str(lj_parameters))
-                    self.setup_lj_pair(type1,type2,pair_lj, system)
-                
-        return
-
-    def setup_lj_pair(self,type1,type2,lj_param, system):
-        """
-        Creates a Lennard-Jones interaction between particle of types 'type1' and 'type2' with the parameters contained in lj_param
-
-        Inputs:
-
-        type1(int): first particle type
-        type2(int): second particle type 
-        lj_param: instance of a lennard-jones object, as defined in sugar library
-        system: instance of a system object of espresso library
-        """
-
-        if not isinstance(type1, int) or not isinstance(type2, int): 
-
-            raise ValueError("type1 and type2 must be integers. Given type1 =  ", type1, " and type2 = ", type2)
-
-        if not isinstance(lj_param, self.param.custom_lj):
-
-            raise ValueError("lj_param must be an instance of a lennard-jones object, as defined in sugar library. lj_param  =  ", lj_param)
-
-
-        
-
-        system.non_bonded_inter[type1, type2].lennard_jones.set_params(
-                            epsilon = lj_param.epsilon.to('reduced_energy').magnitude,
-                            sigma = lj_param.sigma.to('reduced_length').magnitude,
-                            cutoff = lj_param.cutoff.to('reduced_length').magnitude,
-                            shift = lj_param.shift)
-
-        return
-
-    def get_charge(self,system, sugar_object, residue_positions=[]):
-        """ 
-        Calculates the charge of the protein and its square
-
-        Inputs:
-        system: espresso class object with all system variables
-        sugar_object: particle/residue/molecule class object as defined in sugar library
-        residue_position: (list) positions of molecules to get residue charge
-
-        Outputs:
-        Z: (float) total charge of the protein
-        Z_list: (list) 
-        """
-
-        if not isinstance(sugar_object.N,int):
-
-            raise ValueError("The number of objects must be given in mol.N, given:", sugar_object.N)
-
-        if (sugar_object.N == 0):
-
-            raise ValueError("The number of objects must not be zero, given: ", sugar_object.N)
-
-        Z_list={}
-
-        if residue_positions:
-
-            for residue_position in residue_positions:
-
-                Z_list[residue_position]=0
-
-        Z=0
-
-        if isinstance(sugar_object,self.molecule):
-
-            for chain in sugar_object.ids:
-
-                for id in chain:
-
-                    Z+=system.part[id].q
-                
-                residue_N=0
-                id_index=0
-
-                for residue in sugar_object.residues:
-
-                    particle_list=self.search_particles(sugar_object=residue[0])
-
-                    for _ in particle_list:                            
-
-                        bead_id=chain[id_index]
-
-                        if residue_N in residue_positions:
-                            
-                            Z_list[residue_N]+=system.part[bead_id].q
-                            
-
-                        id_index+=1
-
-                    residue_N+=1
-
-        if isinstance(sugar_object,self.residue):
-
-            for chain in sugar_object.ids:
-
-                for id in chain:
-
-                    Z+=system.part[id].q
-
-        if isinstance(sugar_object, self.particle): 
-
-            for id in sugar_object.ids:
-
-                Z+=system.part[id].q
-
-        # if there is more than one instance of the sugar object, average over it
-
-        Z=Z/sugar_object.N
-
-        if residue_positions:
-
-            for residue_position in residue_positions:
-
-                Z_list[residue_position]=Z_list[residue_position]/sugar_object.N
-
-        return Z, Z_list
-
-    def track_ionization(self, system, molecule_list):
-        """
-        Sets up espresso to track the average number of particles of the types contained in mol
-        
-        Inputs:
-        system: espresso class object with all system variables
-        sugar_object: particle/residue/molecule object as defined in sugar library
-
-        """
-
-        types_list=[]
-
-        for sugar_object in molecule_list:
-
-            for type in self.search_types(sugar_object=sugar_object):
-
-                if type not in types_list:
-
-                    types_list.append(type)
-
-        system.setup_type_map(types_list)
-
-        return
-
-    def calculate_HH(self, sugar_object,pH=None):
-        """
-        Calculates the ideal Henderson-Hassebach titration curve in the given pH range
-
-        Inputs:
-        pH: (list of floats) list of pH values
-        sugar_object: particle/residue/molecule object as defined in sugar library
-
-        Outputs:
-        Z_HH: (list of floats) Henderson-Hasselnach prediction of the protein charge in the given pH
-        """
-
-        if pH is None:
-
-            pH=self.np.linspace(2,12,50)
-        
-        elif not isinstance(pH,list):
-
-            raise ValueError("pH must contain a list with the pH-values where the Henderson-Hassebach titration curve will be calculated. Given: ", pH)        
-
-        Z_HH=[]
-
-        for pH_value in pH:
-            
-            Z=0
-
-            for particle in self.search_particles(sugar_object=sugar_object):
-                
-                if particle.pKa is not None and  particle.acidity in ['acid','basic']:
-                    
-                    Z+=self.calculate_HH_part(pH=pH_value, part=particle)
-                            
-            Z_HH.append(Z)
-
-        return Z_HH
-
-    def calculate_HH_part(self, pH, part):
-        """
-        Calculates the ideal Henderson-Hassebach titration curve of part at one pH-value
-
-        Inputs:
-        pH: (float) pH value
-        part: particle class object as defined in sugar library
-
-        Outputs:
-        z: (float) Henderson-Hasselnach prediction of charge of part at the given pH
-        """  
-
-        if not isinstance(part, self.particle): 
-
-            raise ValueError("part must an instance of a particle object as defined in sugar library. Given: ", part)
-
-        if not isinstance(pH,float) or   isinstance(pH,int):
-
-            raise ValueError("pH  must contain a float or integer number with the pH-value, given: ", pH)
-
-        if part.pKa is not None and  part.acidity in ['acid','basic']:
-
-            if part.acidity == 'acid':
-
-                q=-1
-
-            elif part.acidity == 'basic':
-
-                q=+1
-
-            else:
-
-                raise ValueError("Unkown particle acidity, known options are 'acid' or 'basic'. Given:  ", part.acidity)
-
-            z=q/(1+10**(q*(pH-part.pKa)))
-
-        else:
-            
-            z=0
-
-        return z
-
-    def create_counterions(self, system, molecule_list, cation, anion):
-        """
-        Adds one monovalent counter-ion (cation or anion) of opposite charge per each charge in mol
-
-        Inputs:
-
-        system: espresso class object with all system variables.
-        mol: molecule/residue/particle class object as defined in this library
-
-        In/Out:
-        cation: particle class object as defined in sugar library
-        anion: particle class object as defined in sugar library
-
-
-        """
-
-        # Load the parametersobject has no attribute 'to'
-
-        if cation is None:
-
-            cation=self.param.small_ions.cation
-            cation.N=0
-
-        if anion is None:
-
-            anion=self.param.small_ions.anion
-            anion.N=0
-
-        
-        # The ids of the counter ions are created to be larger then the ids in the system
-
-        if  len(system.part[:].id) != 0:
-
-            I_id=max(system.part[:].id)
-
-        total_q=0
-
-        # Create a counter-ion for each charged group in the peptide
-
-        cation_id=[]
-        anion_id=[]
-
-        for sugar_object in molecule_list:
-
-            particle_list=self.search_particles(sugar_object=sugar_object)
-
-            for _ in range(sugar_object.N):
-
-                for particle in particle_list:
-
-                    if isinstance(particle.q, dict):
-                        q=particle.q[particle.state]
-                    
-                    else:
-                        q=particle.q
-                    
-                    if q == +1:
-
-                        I_id+=1
-                        I_pos=self.np.random.random((1, 3)) * system.box_l
-                        system.part.add(id=[I_id], pos=I_pos, type=[anion.type], q=[anion.q])
-                        anion.N+=1
-                        anion_id.append(I_id)
-                        total_q+=q+anion.q
-
-                    elif q == -1:
-
-                        I_id+=1
-                        I_pos=self.np.random.random((1, 3)) * system.box_l
-                        system.part.add(id=[I_id], pos=I_pos, type=[cation.type], q=[cation.q])
-                        cation.N+=1
-                        cation_id.append(I_id)
-                        total_q+=q+cation.q
-        
-        cation.ids=cation_id
-        anion.ids=anion_id
-
-        print("Added ", len(cation.ids), "counter-cations and ", len(anion.ids), "counter-anions")
-
-        if total_q != 0:
-
-            raise ValueError("Subrutine attempted to create a not electroneutral system, please review your peptide setup")
-
-        return 
-
-    def create_added_salt(self, system, cation, anion, c_salt):
-        
-        """
-        Adds extra cations/anions to the system
-
-        Inputs:
-
-        system: espresso class object with all system variables.
-        cation/anion:    particle class object as defined in sugar library
-        c_salt: Added salt concentration
-        
-        Output:
-        c_salt_calculated: Calculated added salt concentration added to solution    
-        """
-
-        # The current implementation is only valid for 1:1 salt
-
-        if abs(cation.q) != abs(anion.q):
-
-            raise ValueError('The current implementation is only valid for 1:1 salt, charge cation', cation.q ,'charge anion', anion.q) 
-
-        # Calculate the number of ions in the simulation box
-
-        volume=self.units.Quantity(system.volume(), 'reduced_length**3')
-
-        if c_salt.check('[substance] [length]**-3'):
-            
-            N_ions= int((volume*c_salt.to('mol/reduced_length**3')*self.N_A).magnitude)
-            c_salt_calculated=N_ions/(volume*self.N_A)
-            
-        elif c_salt.check('[length]**-3'):
-            
-            N_ions= int((volume*c_salt.to('reduced_length**-3')*self.N_A).magnitude)
-            c_salt_calculated=N_ions/volume
-
-        else:
-
-            raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
-
-        if cation.N is not None:
-
-            old_cation_N=cation.N
-        
-        else:
-
-            old_cation_N=0
-
-        if anion.N is not None:
-
-            old_anion_N=anion.N
-
-        else:
-
-            old_anion_N=0            
-
-        cation.N=N_ions
-        anion.N=N_ions
-
-        self.create_particle(system=system, particle=cation)
-        self.create_particle(system=system, particle=anion)
-
-        cation.N+=old_cation_N
-        anion.N+=old_anion_N
-
-        print('\n Added an added salt concentration of ', c_salt_calculated.to('mol/L'), 'given by ', N_ions, 'cations/anions')
-        
-        return c_salt_calculated
 
     def generate_trialvectors(self,mag):
         """
@@ -1795,174 +1040,6 @@ class sugar_library(object):
         vec=vec*mag
 
         return vec
-
-    def get_subclasses(self, cls):
-
-        import inspect
-        model_list=[]
-
-        for attribute in cls.__dict__.items():
-
-            name_attribute=attribute[0]
-
-            if name_attribute[0:2] != "__" and inspect.isclass(attribute[1]):
-
-                model_list.append(attribute[1])
-
-        return model_list
-
-    def get_particles(self,cls):
-
-        particle_list=[]
-
-        for attribute in cls.__dict__.items():
-
-            if isinstance(attribute[1], self.param.particle):
-
-                particle_list.append(attribute[1])
-
-        return particle_list
-
-    def get_bonds(self,cls):
-
-        bond_list=[]
-
-        for attribute in cls.__dict__.items():
-
-            if isinstance(attribute[1], self.param.bond):
-
-                bond_list.append(attribute[1])
-
-        return bond_list
-
-    def get_lj(self,cls):
-
-        lj_list=[]
-
-        for attribute in cls.__dict__.items():
-
-            if isinstance(attribute[1], self.param.custom_lj):
-
-                lj_list.append(attribute[1])
-
-        return lj_list
-
-    def get_attributes(self,cls):
-        import inspect
-
-        attribute_list=[]
-
-        for attribute in  inspect.getmembers(cls, lambda a:not(inspect.isroutine(a))):
-
-            name_attribute=attribute[0]
-
-            if name_attribute[0:2] != "__":
-
-                attribute_list.append(attribute)
-
-        return attribute_list
-
-    def newAttr(self, attr):
-
-        setattr(self, attr.name, attr)
-
-    def get_modelnames(self, cls):
-
-        model_names=[]
-        model_list=self.get_subclasses(cls=cls.param)
-
-        for param_set in model_list:
-            
-            if param_set.name is not None:
-                        
-                model_names.append(param_set.name)
-
-        return model_names
-
-    def search_bond(self,bead1,bead2,res):
-        """
-        Search for a bond in res for joining bead1 and bead2. If there are specific parametrization for such a bond in res, adds the default bond as defined in param.default 
-
-        Inputs:
-        bead1: particle object as defined in sugar library
-        bead2: particle object as defined in sugar library
-        res: residue object as defined in sugar library
-
-        Outputs:
-        asigned_bond: bond object as defined in sugar library
-
-        """
-
-        unasigned_bond=True
-        actors=[bead1.name, bead2.name]
-
-        for bond in res.bonds:
-
-            if actors == bond.actors or actors[::-1] == bond.actors:
-
-                asigned_bond=bond
-                unasigned_bond=False
-                break
-
-        if unasigned_bond:
-
-            asigned_bond=self.param.default.default_bond
-            asigned_bond.bondl=bead1.radius+bead2.radius
-
-        with open(self.filename_parameters, 'a') as par_file:
-            bond_parameters=self.get_attributes(asigned_bond)
-            bond_parameters.remove(('actors', ['default']))
-            par_file.write("\nThe bond between " +  ' '.join(actors) + " is created using the parameters" + str(bond_parameters))
-
-        return asigned_bond
-
-    def create_bond(self, system,bond,id1,id2):
-        """
-        Creates a bond between id1 and id2 in system
-
-        Inputs:
-        system: instance of the espresso library system class
-        bond: instance of a bond object as defined in sugar library
-        id1:(int) id number of first particle
-        id2: (int) id number of the second particle
-
-        Returns:
-        bond_potential
-        
-        """                         
-
-        import espressomd
-        from espressomd import interactions
-
-        if not isinstance(bond, self.param.bond):
-
-            raise ValueError("bond should be a sugar bond object, given: ", bond )
-
-        if (bond.type == "harmonic"):
-
-            bond_potential = interactions.HarmonicBond(k=bond.k.to('reduced_energy / reduced_length**2').magnitude, r_0=bond.bondl.to('reduced_length').magnitude)
-                                
-
-        else:
-
-            raise ValueError("Unknown bond type", bond.type)
-
-        if not self.added_bonds:
-            self.added_bonds.append(bond_potential)
-            system.bonded_inter.add(bond_potential)
-        else:
-            bond_not_added=True
-            for bond in self.added_bonds:
-                if bond_potential.params == bond.params:
-                    bond_not_added=False
-                    bond_potential=bond
-            if bond_not_added:
-                self.added_bonds.append(bond_potential)
-                system.bonded_inter.add(bond_potential)
-
-        system.part[id1].add_bond((bond_potential, id2))
-
-        return 
 
     def setup_electrostatic_interactions(self, system, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
         """
@@ -2133,66 +1210,6 @@ class sugar_library(object):
         print('\n The chosen seed for the random number generator is ', SEED)
         self.SEED=SEED
 
-    def search_particles(self, sugar_object):
-        """
-        Searches for sugar particle objects in sugar objects and returns them as a list
-        Input:
-        sugar_object: molecule, residue or particle object as defined in sugar library
-        returns:
-        particle_list: list of sugar particle objects contained in sugar_object
-        """
-        particle_list=[]
-
-        if isinstance(sugar_object,self.molecule):
-
-                for chain in sugar_object.residues:
-                
-                    for res in chain:
-
-                        for chain_bead in res.beads:
-
-                            for bead in chain_bead:
-
-                                particle_list.append(bead)
-
-        if isinstance(sugar_object,self.residue):
-        
-            for chain_bead in sugar_object.beads:
-
-                for bead in chain_bead:
-
-                    particle_list.append(bead)                    
-
-        if isinstance(sugar_object, self.particle): 
-
-            particle_list.append(sugar_object)
-
-        return particle_list
-
-    def search_types(self, sugar_object):
-        """
-        Searches for the particle types contained in sugar objects and returns them as a list
-        Input:
-        sugar_object: molecule, residue or particle object as defined in sugar library
-        returns:
-        type_list: list of sugar particle objects contained in sugar_object
-        """
-        type_list=[]
-
-        for particle in self.search_particles(sugar_object=sugar_object):
-
-            if isinstance(particle.type, dict):
-
-                for type in particle.type.values():
-
-                    type_list.append(type)
-
-            else:
-
-                type_list.append(particle.type)
-
-        return type_list
-
     def block_analyze(self, input_data, n_blocks=16):
         '''         
         Performs a binning analysis of input_data. 
@@ -2293,533 +1310,568 @@ class sugar_library(object):
 
         return
 
-
-    class parameters:
-
-        def __init__(self, units, particle):
-
-            self.units=units
-            self.particle=particle
-            self.create_default_parameter_sets()
-
-        class bond:
-            name=None
-            actors=None
-            type=None
-            bondl=None
-            k=None
-
-        class custom_lj:
-            name=None
-            actors=None
-            epsilon = None
-            sigma = None
-            cutoff = None
-            shift = None
-
-        class custom_parameters:
-            name="custom"
-            beads_per_residue=None
-            principal_chain=None
-            side_chain=None
-
-            def newAttr(self, attr):
-
-                setattr(self, attr.name, attr)
-
-        def create_default_parameter_sets(parameters_self):
-
-            class default:
-                
-                name=None
-                lj_WCA = parameters_self.custom_lj()
-                lj_WCA.name='WCA'
-                lj_WCA.actors=['default']
-                lj_WCA.epsilon= 1 * parameters_self.units('reduced_energy')
-                lj_WCA.sigma=1 * parameters_self.units('reduced_length')
-                lj_WCA.cutoff=2**(1.0 / 6)*parameters_self.units('reduced_length')
-                lj_WCA.shift='auto'
-
-                default_bond=parameters_self.bond()
-                default_bond.actors=['default']
-                default_bond.type='harmonic'
-                default_bond.bondl=1 * parameters_self.units('reduced_length')
-                default_bond.k=300 * parameters_self.units('reduced_energy / reduced_length**2')
+    def search_particles(self, object, sort_different_particles=False):
+        """
+        Searches for all particles in object 
+        Inputs:
+        object:(class) particle, residue or molecule/peptide object
+        sort_different_particles:(boolean) filters the particle_list to return only different particles
+        Returns:
+        particle_list:(list) list of all particles in object
+        """
+        particle_list=[]
+        
+        if object.object_type == 'particle':
+            particle_list.append(object)
+        elif object.object_type == 'residue':
+            particle_list.append(object.central_bead)
+            for side_object in object.side_chains:
+                if side_object.object_type=='particle': 
+                    side_particle_list=[side_object]
+                elif side_object.object_type=='residue':
+                    side_particle_list=self.search_particles(object=side_object)
+                particle_list+=side_particle_list
             
-            parameters_self.default=default 
+        elif object.object_type == 'molecule':
+            for residue in object.residue_list:
+                particle_list+=self.search_particles(object=residue)
+        if sort_different_particles:
+            sorted_particle_list=[]
+            for particle_name in [particle.name for particle in particle_list]:
+                if particle_name not in [particle.name for particle in sorted_particle_list]:
+                    sorted_particle_list.append(self.stored_objects['particle'][particle_name])
+                
+            return sorted_particle_list
+        else:
+
+            return particle_list
+
+    def count_particles(self, object):
+        """
+        Counts how many particle of each type are in object and stores them in a dictionary
+        Inputs:
+        object:(class) particle, residue or molecule/peptide object
+        Returns:
+        particle_number:(dict) number of particles of each type in object
+        """
+
+        particle_list=self.search_particles(object=object,sort_different_particles=False)
+
+        particle_number={}
+
+        for particle in particle_list:
+
+            if particle.name in particle_number.keys():
+                particle_number[particle.name]+=1
+            else:
+                particle_number[particle.name]=1
+
+        return particle_number
+
+    def count_titrable_particles(self, object):
+        """
+        Counts how many titrable particle of each type are in object and stores them in a dictionary
+        Inputs:
+        object:(class) particle, residue or molecule/peptide object
+        Returns:
+        titrable_particle_number:(dict) number of particles of each type in object
+        """
+
+        particle_dict=self.count_particles(object=object)
+        titrable_particle_number={}
+
+        for particle_name in particle_dict.keys():
+
+            if particle_name in self.stored_objects['pKa'].keys():
+                titrable_particle_number[particle_name]=particle_dict[particle_name]
+
+        return titrable_particle_number
+
+    def calculate_HH(self, object, pH=None):
+        """
+        Calculates the ideal Henderson-Hasselbach titration curve in the given pH range
+
+        Inputs:
+        pH: (list of floats) list of pH values
+        sugar_object: particle/residue/molecule object as defined in sugar library
+
+        Outputs:
+        Z_HH: (list of floats) Henderson-Hasselbach prediction of the protein charge in the given pH
+        """
+
+        if pH is None:
+
+            pH=self.np.linspace(2,12,50)
+        
+        elif not isinstance(pH,list):
+
+            raise ValueError("pH must contain a list with the pH-values where the Henderson-Hassebach titration curve will be calculated. Given: ", pH)        
+
+        Z_HH=[]
+
+        for pH_value in pH:
             
-            class small_ions:
-                name='small_ions'
-                beads_per_residue=1
-                principal_chain='sequence'
-                side_chain=None
-                
+            Z=0
 
-                cation=parameters_self.particle()
-                cation.name="cation"
-                cation.type=18
-                cation.radius=0.5 * parameters_self.units('reduced_length')
-                cation.q=1
+            for particle in self.search_particles(object=object, sort_different_particles=False):
+                
+                if particle.name in self.stored_objects['pKa'].keys() and  particle.acidity in ['acidic','basic']:
+    
+                    Z+=self.calculate_HH_part(pH=pH_value, particle=particle)
+                            
+            Z_HH.append(Z)
 
-                anion=parameters_self.particle()
-                anion.name="anion"
-                anion.type=19
-                anion.radius=0.5 * parameters_self.units('reduced_length')
-                anion.q=-1
+        return Z_HH
 
-            parameters_self.small_ions=small_ions
+    def calculate_HH_part(self, pH, particle):
+        """
+        Calculates the ideal Henderson-Hassebach titration curve of part at one pH-value
 
-            class pKa_set:
-                name=None
+        Inputs:
+        pH: (float) pH value
+        particle: particle class object as defined in sugar library
 
-                    # Values for the phosphorilated aminoacids J U and Z are always taken from Bienkiewicz & K.J. Lumb, J Biomol NMR 15: 203-206 (1999).
+        Outputs:
+        z: (float) Henderson-Hasselnach prediction of charge of part at the given pH
+        """  
 
-                class Hass:
-                    # Values from Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.
-                    name="hass"
-                    pKa= { "D" : 4.0,
-                                        "E" : 4.4,
-                                        "H" : 6.8,
-                                        "Y" : 9.6,
-                                        "K" : 10.4,
-                                        "R" : 13.5,
-                                        "C" : 8.3,
-                                        "J" : 5.96,
-                                        "U" : 6.30,
-                                        "Z" : 5.96,
-                                        "n" : 8.0,
-                                        "c" : 3.6
-                                }
+        if particle.object_type != 'particle': 
 
+            raise ValueError("part must an instance of a particle object as defined in sugar library. Given: ", particle.object_type)
 
-                class Platzer:
-                    # Platzer G, Okon M, McIntosh LP. 2014. pH-dependent random coil 1 H, 13 C, and 15 N chemical shifts of the ionizable amino acids: a guide for protein pK a measurements. J. Biomol. NMR 60:109–29
-                    name ='platzer'        
-                    pKa = { "D" : 3.86,
-                                        "E" : 4.34,
-                                        "H" : 6.45,
-                                        "Y" : 9.76,
-                                        "K" : 10.34,
-                                        "R" : 13.9,
-                                        "C" : 8.49,
-                                        "J" : 5.96,
-                                        "U" : 6.30,
-                                        "Z" : 5.96,
-                                        "n" : 8.23,
-                                        "c" : 3.55
-                                }
+        if not isinstance(pH,float) or   isinstance(pH,int):
 
-                class CRC:
-                    # Values from Handbook of Chemistry and Physics, 72nd Edition, CRC Press, Boca Raton, FL, 1991.
-                    name='crc'
-                    pKa = { "D" : 3.65,
-                                        "E" : 4.25,
-                                        "H" : 6.00,
-                                        "Y" : 10.07,
-                                        "K" : 10.54,
-                                        "R" : 12.48,
-                                        "C" : 8.18,
-                                        "J" : 5.96,
-                                        "U" : 6.30,
-                                        "Z" : 5.96,
-                                        "n" : 8.0,
-                                        "c" : 3.6
-                                }
+            raise ValueError("pH  must contain a float or integer number with the pH-value, given: ", pH)
 
-                class Nozaki:
-                    # Y. Nozaki and C. Tanford, Methods Enzymol., 1967, 11, 715–734.
-                    name = 'nozaki'
-                    pKa  = { "D" : 4.00,
-                                        "E" : 4.40,
-                                        "H" : 6.30,
-                                        "Y" : 9.6,
-                                        "K" : 10.4,
-                                        "R" : 12.0,
-                                        "C" : 9.5,
-                                        "J" : 5.96,
-                                        "U" : 6.30,
-                                        "Z" : 5.96,
-                                        "n" : 7.5,
-                                        "c" : 3.8
-                                    }
+        pKa=self.stored_objects['pKa'][particle.name]
 
-            parameters_self.pKa_set=pKa_set
+        ground_charge=min([abs(q) for q in particle.q.values()])
 
-            class one_bead_peptide:
+        if particle.acidity in ['acidic','basic']:
 
-                name='1beadpeptide'
-                principal_chain={"default": 'sequence'}
-                side_chain=None
-                
-                A=parameters_self.particle()
-                A.name="A"
-                A.acidity="inert"
-                A.radius=0.5 * parameters_self.units('reduced_length')
-                A.type=21
-                A.q=0
+            if particle.acidity == 'acidic':
 
-                N=parameters_self.particle()
-                N.name="N"
-                N.radius=0.5* parameters_self.units('reduced_length')
-                N.type=22
-                N.q=0
-                N.acidity="inert"
-                
-                Q=parameters_self.particle()
-                Q.name="Q"
-                Q.radius=0.5 * parameters_self.units('reduced_length')
-                Q.type=23
-                Q.q=0
-                Q.acidity="inert"
-                
-                G=parameters_self.particle()
-                G.name="G"
-                G.radius=0.5 * parameters_self.units('reduced_length')
-                G.type=24
-                G.q=0
-                G.acidity="inert"
-                
-                I=parameters_self.particle()
-                I.name="I"
-                I.radius=0.5 * parameters_self.units('reduced_length')
-                I.type=25
-                I.q=0
-                I.acidity="inert"
-                
-                L=parameters_self.particle()
-                L.name="L"
-                L.radius=0.5 * parameters_self.units('reduced_length')
-                L.type=26
-                L.q=0
-                L.acidity="inert"
-                
-                M=parameters_self.particle()
-                M.name="M"
-                M.radius=0.5 * parameters_self.units('reduced_length')
-                M.type=27
-                M.q=0
-                M.acidity="inert"
-                
-                F=parameters_self.particle()
-                F.name="F"
-                F.radius=0.5* parameters_self.units('reduced_length')
-                F.type=28
-                F.q=0
-                F.acidity="inert"
-                
-                P=parameters_self.particle()
-                P.name="P"
-                P.radius=0.5* parameters_self.units('reduced_length')
-                P.type=29
-                P.q=0
-                P.acidity="inert"
-                
-                S=parameters_self.particle()
-                S.name="S"
-                S.radius=0.5* parameters_self.units('reduced_length')
-                S.type=30
-                S.q=0
-                S.acidity="inert"
-                
-                T=parameters_self.particle()
-                T.name="T"
-                T.radius=0.5 * parameters_self.units('reduced_length')
-                T.type=31
-                T.q=0
-                T.acidity="inert"
-                
-                W=parameters_self.particle()
-                W.name="W"
-                W.radius=0.5 * parameters_self.units('reduced_length')
-                W.type=32
-                W.q=0
-                W.acidity="inert"
-                
-                Y=parameters_self.particle()
-                Y.name="Y"
-                Y.radius=0.5* parameters_self.units('reduced_length')
-                Y.type={"unprotonated": 33, "protonated": 34}
-                Y.q={"protonated": 0, "unprotonated": -1}
-                Y.acidity="acid"
+                psi=-1
 
-                V=parameters_self.particle()
-                V.name="V"
-                V.radius=0.5* parameters_self.units('reduced_length')
-                V.type=35
-                V.q=0
-                V.acidity="inert"
-                
-                K=parameters_self.particle()
-                K.name="K"
-                K.radius=0.5 * parameters_self.units('reduced_length')
-                K.type={"unprotonated": 36, "protonated": 37}
-                K.q={"unprotonated": 0, "protonated": 1}
-                K.acidity="basic"
-                
-                H=parameters_self.particle()
-                H.name="H"
-                H.radius=0.5 * parameters_self.units('reduced_length')
-                H.type={"unprotonated": 38, "protonated": 39}
-                H.q={"unprotonated": 0, "protonated": 1}
-                H.acidity="basic"
-                
-                C=parameters_self.particle()
-                C.name="C"
-                C.radius=0.5 * parameters_self.units('reduced_length')
-                C.type={"unprotonated": 40, "protonated": 41}
-                C.q={"unprotonated": 0, "protonated": 1}
-                C.acidity="basic"
-                
-                R=parameters_self.particle()
-                R.name="R"
-                R.radius=0.5* parameters_self.units('reduced_length')
-                R.type={"unprotonated": 42, "protonated": 43}
-                R.q={"unprotonated": 0, "protonated": 1}
-                R.acidity="basic"
-                
-                n=parameters_self.particle()
-                n.name="n"
-                n.radius=0.5 * parameters_self.units('reduced_length')
-                n.type={"unprotonated": 44, "protonated": 45}
-                n.q={"unprotonated": 0, "protonated": 1}
-                n.acidity="basic"
+            elif particle.acidity == 'basic':
 
-                c=parameters_self.particle()
-                c.name="c"
-                c.radius=0.5* parameters_self.units('reduced_length')
-                c.type={"unprotonated": 46, "protonated": 47}
-                c.q={"protonated": 0, "unprotonated": -1}
-                c.acidity="acid"
+                psi=+1
 
-                D=parameters_self.particle()
-                D.name="D"
-                D.radius=0.5 * parameters_self.units('reduced_length')
-                D.type={"unprotonated": 48, "protonated": 49}
-                D.q={"protonated": 0, "unprotonated": -1}
-                D.acidity="acid"
+            else:
 
-                E=parameters_self.particle()
-                E.name="E"
-                E.radius=0.5 * parameters_self.units('reduced_length')
-                E.type={"unprotonated": 50, "protonated": 51}
-                E.q={"protonated": 0, "unprotonated": -1}
-                E.acidity="acid"
-                
-                J=parameters_self.particle()
-                J.name="J"
-                J.radius=0.5 * parameters_self.units('reduced_length')
-                J.type={"unprotonated": 52, "protonated": 53}
-                J.q={"protonated": -1, "unprotonated": -2}
-                J.acidity="acid"
-                
-                U=parameters_self.particle()
-                U.name="U"
-                U.radius=0.5 * parameters_self.units('reduced_length')
-                U.type={"unprotonated": 54, "protonated": 55}
-                U.q={"protonated": -1, "unprotonated": -2}
-                U.acidity="acid"
-                
-                Z=parameters_self.particle()
-                Z.name="Z"
-                Z.radius=0.5* parameters_self.units('reduced_length')
-                Z.type={"unprotonated": 56, "protonated": 57}
-                Z.q={"protonated": -1, "unprotonated": -2}
-                Z.acidity="acid"
+                raise ValueError("Unvalid particle acidity, known options are 'acidic' or 'basic'. Given:  ", particle.acidity)
 
-            parameters_self.one_bead_peptide=one_bead_peptide
+            z=ground_charge+psi/(1+10**(psi*(pH-pKa)))
 
-            class two_bead_peptide:
+        else:
+            
+            z=0
 
-                name='2beadpeptide'
-                principal_chain={"c": "sequence", "n": "sequence", "default": "C_alpha"}
-                side_chain={"c": [], "n": [], "default": ["sequence"]}
-                
-                principal_bond=parameters_self.bond()
-                principal_bond.actors=['C_alpha','C_alpha']
-                principal_bond.type='harmonic'
-                principal_bond.bondl=0.388*parameters_self.units.nm
-                principal_bond.k=2000*parameters_self.units.kJ / parameters_self.units.nm**2 / parameters_self.units.mol
+        return z
 
-                C_alpha=parameters_self.particle()
-                C_alpha.name="C_alpha"
-                C_alpha.acidity="inert"
-                C_alpha.radius=0.5 * parameters_self.units('reduced_length')
-                C_alpha.type=20
-                C_alpha.q=0
-                
-                A=parameters_self.particle()
-                A.name="A"
-                A.acidity="inert"
-                A.radius=0.5 * parameters_self.units('reduced_length')
-                A.type=21
-                A.q=0
+    def create_added_salt_in_system(self, system, cation, anion, c_salt):
+        
+        """
+        Adds a c_salt concentration of cations and anions to the system
 
-                N=parameters_self.particle()
-                N.name="N"
-                N.radius=0.5 * parameters_self.units('reduced_length')
-                N.type=22
-                N.q=0
-                N.acidity="inert"
-                
-                Q=parameters_self.particle()
-                Q.name="Q"
-                Q.radius=0.5 * parameters_self.units('reduced_length')
-                Q.type=23
-                Q.q=0
-                Q.acidity="inert"
-                
-                G=parameters_self.particle()
-                G.name="G"
-                G.radius=0.5 * parameters_self.units('reduced_length')
-                G.type=24
-                G.q=0
-                G.acidity="inert"
-                
-                I=parameters_self.particle()
-                I.name="I"
-                I.radius=0.5 * parameters_self.units('reduced_length')
-                I.type=25
-                I.q=0
-                I.acidity="inert"
-                
-                L=parameters_self.particle()
-                L.name="L"
-                L.radius=0.5 * parameters_self.units('reduced_length')
-                L.type=26
-                L.q=0
-                L.acidity="inert"
-                
-                M=parameters_self.particle()
-                M.name="M"
-                M.radius=0.5 * parameters_self.units('reduced_length')
-                M.type=27
-                M.q=0
-                M.acidity="inert"
-                
-                F=parameters_self.particle()
-                F.name="F"
-                F.radius=0.5 * parameters_self.units('reduced_length')
-                F.type=28
-                F.q=0
-                F.acidity="inert"
-                
-                P=parameters_self.particle()
-                P.name="P"
-                P.radius=0.5 * parameters_self.units('reduced_length')
-                P.type=29
-                P.q=0
-                P.acidity="inert"
-                
-                S=parameters_self.particle()
-                S.name="S"
-                S.radius=0.5* parameters_self.units('reduced_length')
-                S.type=30
-                S.q=0
-                S.acidity="inert"
-                
-                T=parameters_self.particle()
-                T.name="T"
-                T.radius=0.5* parameters_self.units('reduced_length')
-                T.type=31
-                T.q=0
-                T.acidity="inert"
-                
-                W=parameters_self.particle()
-                W.name="W"
-                W.radius=0.5 * parameters_self.units('reduced_length')
-                W.type=32
-                W.q=0
-                W.acidity="inert"
-                
-                Y=parameters_self.particle()
-                Y.name="Y"
-                Y.radius=0.5* parameters_self.units('reduced_length')
-                Y.type={"unprotonated": 33, "protonated": 34}
-                Y.q={"protonated": 0, "unprotonated": -1}
-                Y.acidity="acid"
+        Inputs:
+        system: (class)espresso class object with all system variables.
+        cation: (class) particle class object, as defined in sugar, with a positive charge
+        anion: (class) particle class object, as defined in sugar library, with a negative charge
+        c_salt: (float) Added salt concentration
+        
+        Output:
+        c_salt_calculated: (float) Calculated added salt concentration added to solution    
+        """
 
-                V=parameters_self.particle()
-                V.name="V"
-                V.radius=0.5* parameters_self.units('reduced_length')
-                V.type=35
-                V.q=0
-                V.acidity="inert"
-                
-                K=parameters_self.particle()
-                K.name="K"
-                K.radius=0.5 * parameters_self.units('reduced_length')
-                K.type={"unprotonated": 36, "protonated": 37}
-                K.q={"unprotonated": 0, "protonated": 1}
-                K.acidity="basic"
-                
-                H=parameters_self.particle()
-                H.name="H"
-                H.radius=0.5 * parameters_self.units('reduced_length')
-                H.type={"unprotonated": 38, "protonated": 39}
-                H.q={"unprotonated": 0, "protonated": 1}
-                H.acidity="basic"
-                
-                C=parameters_self.particle()
-                C.name="C"
-                C.radius=0.5 * parameters_self.units('reduced_length')
-                C.type={"unprotonated": 40, "protonated": 41}
-                C.q={"unprotonated": 0, "protonated": 1}
-                C.acidity="basic"
-                
-                R=parameters_self.particle()
-                R.name="R"
-                R.radius=0.5* parameters_self.units('reduced_length')
-                R.type={"unprotonated": 42, "protonated": 43}
-                R.q={"unprotonated": 0, "protonated": 1}
-                R.acidity="basic"
-                
-                n=parameters_self.particle()
-                n.name="n"
-                n.radius=0.5 * parameters_self.units('reduced_length')
-                n.type={"unprotonated": 44, "protonated": 45}
-                n.q={"unprotonated": 0, "protonated": 1}
-                n.acidity="basic"
+        if cation.q <= 0:
+            raise ValueError('ERROR cation charge must be positive, charge ',cation.q)
+        if anion.q >= 0:
+            raise ValueError('ERROR anion charge must be positive, charge ', anion.q)
 
-                c=parameters_self.particle()
-                c.name="c"
-                c.radius=0.5* parameters_self.units('reduced_length')
-                c.type={"unprotonated": 46, "protonated": 47}
-                c.q={"protonated": 0, "unprotonated": -1}
-                c.acidity="acid"
+        # Calculate the number of ions in the simulation box
 
-                D=parameters_self.particle()
-                D.name="D"
-                D.radius=0.5 * parameters_self.units('reduced_length')
-                D.type={"unprotonated": 48, "protonated": 49}
-                D.q={"protonated": 0, "unprotonated": -1}
-                D.acidity="acid"
+        volume=self.units.Quantity(system.volume(), 'reduced_length**3')
 
-                E=parameters_self.particle()
-                E.name="E"
-                E.radius=0.5 * parameters_self.units('reduced_length')
-                E.type={"unprotonated": 50, "protonated": 51}
-                E.q={"protonated": 0, "unprotonated": -1}
-                E.acidity="acid"
-                
-                J=parameters_self.particle()
-                J.name="J"
-                J.radius=0.5 * parameters_self.units('reduced_length')
-                J.type={"unprotonated": 52, "protonated": 53}
-                J.q={"protonated": -1, "unprotonated": -2}
-                J.acidity="acid"
-                
-                U=parameters_self.particle()
-                U.name="U"
-                U.radius=0.5 * parameters_self.units('reduced_length')
-                U.type={"unprotonated": 54, "protonated": 55}
-                U.q={"protonated": -1, "unprotonated": -2}
-                U.acidity="acid"
-                
-                Z=parameters_self.particle()
-                Z.name="Z"
-                Z.radius=0.5* parameters_self.units('reduced_length')
-                Z.type={"unprotonated": 56, "protonated": 57}
-                Z.q={"protonated": -1, "unprotonated": -2}
-                Z.acidity="acid"
+        if c_salt.check('[substance] [length]**-3'):
+            
+            N_ions= int((volume*c_salt.to('mol/reduced_length**3')*self.N_A).magnitude)
+            c_salt_calculated=N_ions/(volume*self.N_A)
+            
+        elif c_salt.check('[length]**-3'):
+            
+            N_ions= int((volume*c_salt.to('reduced_length**-3')*self.N_A).magnitude)
+            c_salt_calculated=N_ions/volume
 
-            parameters_self.two_bead_peptide=two_bead_peptide
+        else:
+
+            raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
+
+        N_cation=N_ions*abs(anion.q)
+        N_anion=N_ions*abs(cation.q)
+        
+        for _ in range(N_cation):
+            self.create_particle_in_system(system=system, particle=cation)
+        
+        for _ in range(N_anion):
+            self.create_particle_in_system(system=system, particle=anion)
+
+        print('\n Added salt concentration of ', c_salt_calculated.to('mol/L'), 'given by ', N_cation, ' cations and ', N_anion, ' anions')
+        
+        return c_salt_calculated
+
+    def track_ionization(self, system):
+        """
+        Sets up espresso to track the average number of particles of the acid/base particles 
+        
+        Inputs:
+        system: espresso class object with all system variables
+        """
+
+        acidbase_types_list=[]
+
+        for particle in self.stored_objects['particle'].values():
+
+            if particle.name in self.stored_objects['pKa'].keys():
+
+                for acidbase_type in particle.type.values():
+
+                    acidbase_types_list.append(acidbase_type)
+
+        system.setup_type_map(acidbase_types_list)
+
+        return
+
+    def get_ids(self,object):
+        """
+        Returns all particles ids in the system matching the object.
+        Inputs:
+        object:(class) particle, residue or molecule/peptide object
+        Returns:
+        id_list:(list) list with the ids in the system matching the object.
+        """
+
+        self.check_object_stored(object=object)
+
+        if object.object_type == 'particle':
+            id_list=[]
+            for id in self.id_map['particle'][object.name]:
+                id_list.append([id]) 
+            return id_list
+
+        elif object.object_type == 'residue':
+            all_residue_id_list=[]
+            for residue_dict in self.id_map['residue'][object.name]:
+                residue_id_list=[]
+                for id_list in residue_dict.values():
+                    for id in id_list:
+                        residue_id_list.append(id)
+                all_residue_id_list.append(residue_id_list)
+            return all_residue_id_list
+
+        elif object.object_type == 'molecule':
+            all_molecule_id_list=[]
+            for molecule in self.id_map['molecule'][object.name]:
+                molecule_id_list=[]
+                for residue_dict in molecule:
+                    for id_list in residue_dict.values():    
+                        for id in id_list:
+                            molecule_id_list.append(id)
+                all_molecule_id_list.append(molecule_id_list)
+
+            return all_molecule_id_list
+        return
+
+    def create_object_in_system(self, object, system, use_default_bond=False):
+        """
+        Creates all particles in contained in the object in the system of espresso
+        Inputs:
+        object:(class) particle, residue or molecule/peptide object
+        system: (class)espresso class object with all system variables.
+        use_default_bond: (boolean, default=False) returns the default bond if no bond has been defined between  particle1 and particle2
+        """
+
+        allowed_objects=['particle','residue','molecule']
+        if object.object_type not in allowed_objects:
+            raise ValueError('Object type not supported, supported types are ', allowed_objects)
+
+        if object.object_type == 'particle':
+            self.create_particle_in_system(particle=object, system=system)
+
+        elif object.object_type == 'residue':
+            self.create_residue_in_system(residue=object, system=system, use_default_bond=use_default_bond)
+
+        elif object.object_type == 'molecule':
+            self.create_molecule_in_system(molecule=object, system=system, use_default_bond=use_default_bond)
+
+        return
+
+    def create_counterions_in_system(self, object, cation, anion, system):
+        """
+        Creates cation and anion particles in the system to counter the charge of the particles contained in object
+        Inputs:
+        object:(class) particle, residue or molecule/peptide object
+        system: (class)espresso class object with all system variables.
+        cation: (class) particle class object, as defined in sugar, with a positive charge
+        anion: (class) particle class object, as defined in sugar library, with a negative charge
+        """
+        
+        object_ids=self.get_ids(object=object)
+
+        N_pos=0
+        N_neg=0
+
+        for id_list in object_ids:
+            for id in id_list:
+                if system.part[id].q > 0:
+                    N_pos+=1
+                elif system.part[id].q < 0:
+                    N_neg+=1
+
+        if (N_pos % abs(anion.q) == 0):
+
+            N_anion=int(N_pos/abs(anion.q))
+
+        else:
+
+            raise ValueError('The number of positive charges in the object must be divisible by the  charge of the anion')
+
+        if (N_neg % abs(cation.q) == 0):
+
+            N_cation=int(N_neg/cation.q)
+
+        else:
+
+            raise ValueError('The number of negative charges in the object must be divisible by the  charge of the cation')
+        
+        for _ in range(N_anion):
+            self.create_particle_in_system(particle=anion,system=system)
+
+        for _ in range(N_cation):
+            self.create_particle_in_system(particle=cation,system=system)
+
+        print('Created ', N_cation, ' cations and ',N_anion, 'anions as counterions')
+
+        return N_pos, N_neg
+
+    def get_net_charge(self, system, object):
+        """ 
+        Calculates the charge of the protein and its square
+
+        Inputs:
+        object:(class) particle, residue or molecule/peptide object
+        system: (class)espresso class object with all system variables.
+
+        Outputs:
+        Z_list: (list) list with the net charge of the objects in the system
+        """
+
+        ids_lists_in_object=self.get_ids(object=object)
+        Z_list=[]
+        
+        for id_list in ids_lists_in_object:
+            z_one_object=0
+            for id in id_list:
+                z_one_object+=system.part[id].q
+            Z_list.append(z_one_object)
+        
+        return Z_list
+
+    def get_charge_in_residues(self, system, molecule):
+        """
+        Returns a list with the charge in each residue of molecule stored in  dictionaries
+        Inputs:
+        object:(class) particle, residue or molecule/peptide object
+        system: (class) espresso class object with all system variables.
+        Returns:
+        charge_in_residues: (list) list with the charge in each residue of molecule stored in dictionaries
+        """
+
+        charge_in_residues=[]
+
+        for molecule in self.id_map['molecule'][molecule.name]:
+            molecule_list=[]
+            for residue_dict in molecule:
+                charge_dict={}
+                for key in residue_dict.keys():
+                    charge_key=[]                      
+                    for id in residue_dict[key]:                         
+                        charge_key.append(system.part[id].q)
+                    
+                    if 'side-' in key:
+                        new_key=key.replace('side-', '')
+                    elif 'central-' in key:
+                        new_key=key.replace('central-', '')
+                    else:
+                        new_key=key
+                    charge_dict[new_key]=charge_key
+                molecule_list.append(charge_dict)
+            charge_in_residues.append(molecule_list)
+        
+        return charge_in_residues
+
+    def setup_lj_interactions(self, system, sigma=None, cutoff=None, shift='auto', use_default_values=False, combining_rule='Lorentz-Berthelot'):
+        """
+        Setup lennard-jones interactions for all particles types present in the espresso system. 
+
+        Inputs:
+        system: (class) espresso class object with all system variables.
+        See section 6.1.2 of the user guide from espresso for a complete description of the rest of parameters
+        """
+    
+        from itertools import combinations_with_replacement
+
+        implemented_combinatiorial_rules=['Lorentz-Berthelot']
+
+        if combining_rule not in implemented_combinatiorial_rules:
+            raise ValueError('In the current version of sugar, the only combinatorial rules implemented are ', implemented_combinatiorial_rules)
+
+        particle_name_list=self.id_map['particle'].keys()
+
+        if sigma is None:
+
+            sigma=1*self.units('reduced_length')
+
+        if cutoff is None:
+
+            cutoff=2**(1./6.)*self.units('reduced_length')
+
+        # For bookeeping
+        if 'LennardJones' not in self.stored_objects.keys():
+            self.stored_objects['LennardJones']={}
+
+        all_types=[]
+        type_dict={}
+        for particle_name in particle_name_list:
+            particle_type_list=self.get_particle_types(particle=self.stored_objects['particle'][particle_name])
+            all_types+=particle_type_list
+            for type in particle_type_list:
+                type_dict[type]=particle_name
+
+        for type_pair in combinations_with_replacement(all_types, 2):
+
+            type1=type_pair[0]
+            type2=type_pair[1]
+            name1=type_dict[type1]
+            name2=type_dict[type2]
+ 
+            particle1=self.stored_objects['particle'][name1]
+            particle2=self.stored_objects['particle'][name2]
+
+            pair_interaction_defined=True
+            interaction_key=frozenset(type_pair)
+
+            if particle1.diameter is not None and particle2 is not None:
+
+                if combining_rule == 'Lorentz-Berthelot':
+                    
+                    combined_sigma=(particle1.diameter+particle2.diameter)/2.
+                    offset=combined_sigma-sigma
+
+            elif use_default_values and 'default' in self.stored_objects['LennardJones'].keys():
+
+                sigma=self.stored_objects['LennardJones']['default']['sigma']
+                offset=self.stored_objects['LennardJones']['default']['offset']
+
+            else:
+            
+                pair_interaction_defined=False                
+
+            if particle1.epsilon is not None and particle2.epsilon is not None:
+
+                if combining_rule == 'Lorentz-Berthelot':
+
+                    epsilon=self.np.sqrt(particle1.epsilon*particle1.epsilon)
+
+            elif use_default_values and 'default' in self.stored_objects['LennardJones'].keys():
+
+                epsilon=self.stored_objects['LennardJones']['default']['epsilon']
+                
+            else:
+            
+                pair_interaction_defined=False
+
+            if interaction_key in self.stored_objects['LennardJones'].keys():
+                pair_interaction_defined=False
+                print('Lennard Jones interaction is already defined for ', interaction_key)
+                continue          
+
+            if pair_interaction_defined:
+                
+                system.non_bonded_inter[type1, type2].lennard_jones.set_params(epsilon = epsilon.to('reduced_energy').magnitude, 
+                                                                                sigma = sigma.to('reduced_length').magnitude, 
+                                                                                cutoff = cutoff.to('reduced_length').magnitude,
+                                                                                offset = offset.to('reduced_length').magnitude, 
+                                                                                shift = shift)
+                param_dict={'epsilon' : epsilon.to('reduced_energy').magnitude, 
+                            "sigma" : sigma.to('reduced_length').magnitude, 
+                            'cutoff' : cutoff.to('reduced_length').magnitude,
+                            'offset' : offset.to('reduced_length').magnitude, 
+                            'shift' : shift}
+                self.stored_objects['LennardJones'][interaction_key]=param_dict
+
+            else:
+
+                print('WARNING missing parameters for Lennard Jones interaction between ', [name1,name2], ', no interaction has been defined')
+                
+        return
+
+    def get_all_stored_types(self):
+        """
+        Returns a dictionary with all particle types stored in sugar
+        Returns:
+        type_dict: (dict)  dictionary with all particle types stored and its keys
+        """
+
+        particle_name_list=self.id_map['particle'].keys()
+
+        type_dict={}
+        for particle_name in particle_name_list:
+            particle_type_list=self.get_particle_types(particle=self.stored_objects['particle'][particle_name])
+            for type in particle_type_list:
+                type_dict[type]=particle_name
+
+        return type_dict
+
+    def search_largest_particle_diameter_in_system(self):
+        """
+        Returns the largest particle diameter in the system
+        Returns:
+        largest_diameter: (float) largest particle diameter in the system
+        """
+
+        diameter_list=[]
+
+        if 'particle' not in self.id_map.keys():
+            return 0*self.units('reduced_length')
+        
+        for particle_name in self.id_map['particle'].keys():
+            particle=self.stored_objects['particle'][particle_name]
+            if particle.diameter is not None:
+                diameter_list.append(particle.diameter)
+
+        if len(diameter_list) >0:
+            largest_diameter=max(diameter_list)
+            return largest_diameter
+        else:
+            return 0*self.units('reduced_length')
+
+    def visualize_system(self, system):
+        """
+        Uses espresso visualizator for displaying the current state of the system
+        """ 
+        import threading
+        from espressomd import visualization
+         
+        visualizer = visualization.openGLLive(system)
+        system.integrator.set_vv()
+        def main_thread():
+            while True:
+                system.integrator.run(1)
+                visualizer.update()
+
+        t = threading.Thread(target=main_thread)
+        t.daemon = True
+        t.start()
+        visualizer.start()
+        return

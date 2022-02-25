@@ -1,0 +1,2 @@
+# pKa-values from Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.
+{"object_type":"pka-set","D" : 4.0, "E" : 4.4, "H" : 6.8, "Y" : 9.6, "K" : 10.4, "R" : 13.5, "C" : 8.3, "n" : 8.0, "c" : 3.6}
