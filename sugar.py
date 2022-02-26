@@ -1761,12 +1761,13 @@ class sugar_library(object):
             pair_interaction_defined=True
             interaction_key=frozenset(type_pair)
 
-            if particle1.diameter is not None and particle2 is not None:
+            if particle1.diameter is not None and particle2.diameter is not None:
 
                 if combining_rule == 'Lorentz-Berthelot':
                     
-                    combined_sigma=(particle1.diameter+particle2.diameter)/2.
-                    offset=combined_sigma-sigma
+                    combined_sigma=(particle1.diameter.to("reduced_length")+particle2.diameter.to("reduced_length"))/2.
+                    offset=combined_sigma.to("reduced_length")-sigma.to("reduced_length")
+                    
 
             elif use_default_values and 'default' in self.stored_objects['LennardJones'].keys():
 
@@ -1781,7 +1782,7 @@ class sugar_library(object):
 
                 if combining_rule == 'Lorentz-Berthelot':
 
-                    epsilon=self.np.sqrt(particle1.epsilon*particle1.epsilon)
+                    epsilon=self.np.sqrt(particle1.epsilon*particle2.epsilon)
 
             elif use_default_values and 'default' in self.stored_objects['LennardJones'].keys():
 

@@ -64,7 +64,7 @@ cation=sg.particle(name='Na', type=sg.propose_unused_type(), q=1, diameter=0.2*s
 anion=sg.particle(name='Cl', type=sg.propose_unused_type(), q=-1, diameter=0.36*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
 
     # Load pKa set
-sg.load_parameters(filename='reference_parameters/Hass2015.txt')
+sg.load_parameters(filename='reference_parameters/Nozaki1967.txt')
     # use generic paramenters for the peptide
 
 acidic_aminoacids=['c','E','D','Y','C']
