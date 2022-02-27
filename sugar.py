@@ -1865,7 +1865,7 @@ class sugar_library(object):
         from espressomd import visualization
          
         visualizer = visualization.openGLLive(system)
-        system.integrator.set_vv()
+        
         def main_thread():
             while True:
                 system.integrator.run(1)

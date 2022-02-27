@@ -44,7 +44,7 @@ sg=sugar.sugar_library()
 # Simulation parameters
 sg.set_reduced_units(unit_length=0.4*sg.units.nm)
 pH_range = np.linspace(2, 12, num=21)
-Samples_per_pH= 100
+Samples_per_pH= 1000
 MD_steps_per_sample=1000
 steps_eq=int(Samples_per_pH/3)
 N_samples_print= 100  # Write the trajectory every 100 samples
@@ -81,7 +81,7 @@ for aminoacid_key in sg.protein_sequence_parser(sequence=sequence):
 
 generic_bond_lenght=0.41 * sg.units.nm
 generic_harmonic_constant=0.4 * sg.units.N / sg.units.m
-generic_bond = interactions.HarmonicBond(k=generic_harmonic_constant.to('reduced_energy / nm**2').magnitude,
+generic_bond = interactions.HarmonicBond(k=generic_harmonic_constant.to('reduced_energy / reduced_length**2').magnitude,
                                  r_0=generic_bond_lenght.to('reduced_length').magnitude)
 sg.define_default_bond(bond=generic_bond)
 
