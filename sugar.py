@@ -1,11 +1,3 @@
-from ast import Raise
-from email.policy import default
-from re import search
-
-from matplotlib import units
-from scipy.fftpack import shift
-
-
 class sugar_library(object):
 
     import pint
@@ -23,6 +15,7 @@ class sugar_library(object):
     N_A=scipy.constants.Avogadro / units.mol
     Kb=scipy.constants.Boltzmann * units.J / units.K
     e=scipy.constants.elementary_charge *units.C
+    pi=scipy.constants.pi
     initial_simulation_time=None
     stored_objects={}
     id_map={}
@@ -659,7 +652,7 @@ class sugar_library(object):
                     peptide_param_list.append(param_dict)
                 elif object_type == 'bond':
                     bond_param_list.append(param_dict)
-                elif object_type == 'pka-set':
+                elif object_type == 'pKa':
                     param_dict.pop('object_type')
                     pKa_list.append(param_dict)                
                 else:
