@@ -228,6 +228,7 @@ class sugar_library(object):
             residue_list.append(residue)
         peptide=self.molecule(name=name, residue_list=residue_list)
         peptide.model=model
+        peptide.sequence=clean_sequence
         return peptide
 
     def store_object(self,object, verbose=False):
@@ -418,17 +419,27 @@ class sugar_library(object):
                     residue_ids_dict['side-'+sg_object.name]=[side_bead_id]
 
             elif sg_object.object_type == 'residue': # More than one bead
-
+                
                 bond=self.search_bond(particle1=residue.central_bead, particle2=sg_object.central_bead, hard_check=True, use_default_bond=use_default_bond)
                 bond_vector=self.generate_trialvectors(bond.params.get('r_0'))
                 residue_position=central_bead_position+bond_vector
-                residue_ids_dict=self.create_residue_in_system(residue=sg_object, system=system, central_bead_position=residue_position)
-                residue_central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
-                system.part[central_bead_id].add_bond((bond, residue_central_bead_id))
-                if 'side-'+sg_object.name in residue_ids_dict.keys():
-                    residue_ids_dict['side-'+sg_object.name].append(residue_ids_dict)
-                else:
-                    residue_ids_dict['side-'+sg_object.name]=[residue_ids_dict]
+                lateral_residue_ids_dict=self.create_residue_in_system(residue=sg_object, system=system, central_bead_position=residue_position)
+                lateral_residue_central_bead_id=next(value for key,value in lateral_residue_ids_dict.items() if 'central-' in key)[0]
+                system.part[central_bead_id].add_bond((bond, lateral_residue_central_bead_id))
+                
+                for key in lateral_residue_ids_dict:
+                    
+                    if 'central-' in key:
+                        clean_key='side-'+key.replace('central-','')
+                    elif 'side-' in key:
+                        clean_key=key
+
+                    for id in lateral_residue_ids_dict[key]:
+
+                        if clean_key in residue_ids_dict.keys():
+                            residue_ids_dict[clean_key].append(id)
+                        else:
+                            residue_ids_dict[clean_key]=[id]
 
             else:
 
@@ -1575,9 +1586,9 @@ class sugar_library(object):
             return all_molecule_id_list
         return
 
-    def create_object_in_system(self, object, system, use_default_bond=False):
+    def create_object_in_system(self, object, system, position=None, use_default_bond=False):
         """
-        Creates all particles in contained in the object in the system of espresso
+        Creates all particles contained in the object in the system of espresso
         Inputs:
         object:(class) particle, residue or molecule/peptide object
         system: (class)espresso class object with all system variables.
@@ -1589,13 +1600,46 @@ class sugar_library(object):
             raise ValueError('Object type not supported, supported types are ', allowed_objects)
 
         if object.object_type == 'particle':
-            self.create_particle_in_system(particle=object, system=system)
+            self.create_particle_in_system(particle=object, system=system, position=position)
 
         elif object.object_type == 'residue':
-            self.create_residue_in_system(residue=object, system=system, use_default_bond=use_default_bond)
+            self.create_residue_in_system(residue=object, system=system, central_bead_position=position,use_default_bond=use_default_bond)
 
         elif object.object_type == 'molecule':
-            self.create_molecule_in_system(molecule=object, system=system, use_default_bond=use_default_bond)
+            self.create_molecule_in_system(molecule=object, system=system, use_default_bond=use_default_bond, first_residue_position=position)
+
+        return
+    
+    def destroy_object_in_system(self, object, system):
+        """
+        Destroys all particles contained in the object from the espresso system 
+        Inputs:
+        object:(class) particle, residue or molecule/peptide object
+        system: (class)espresso class object with all system variables.
+        """
+        allowed_objects=['particle','residue','molecule']
+        if object.object_type not in allowed_objects:
+            raise ValueError('Object type not supported, supported types are ', allowed_objects)
+        
+        ids_lists_in_object=self.get_ids(object=object)
+
+        for id_list in ids_lists_in_object:
+            for id in id_list:
+                system.part[id].remove()
+
+        # Update sugar storage of ids
+
+        if object.object_type == 'particle':
+            for id_list in ids_lists_in_object:
+                for id in id_list:
+                    self.id_map['particle'][object.name].remove(id)
+
+        elif object.object_type == 'residue':
+            self.id_map['residue'].pop(object.name)
+
+        elif object.object_type == 'molecule':
+            self.id_map['molecule'].pop(object.name)
+
 
         return
 
@@ -1643,7 +1687,7 @@ class sugar_library(object):
         for _ in range(N_cation):
             self.create_particle_in_system(particle=cation,system=system)
 
-        print('Created ', N_cation, ' cations and ',N_anion, 'anions as counterions')
+        print('Created ', N_cation, ' cations and ', N_anion, 'anions as counterions')
 
         return N_pos, N_neg
 
@@ -1810,6 +1854,7 @@ class sugar_library(object):
                 
         return
 
+        
     def get_all_stored_types(self):
         """
         Returns a dictionary with all particle types stored in sugar
@@ -1868,4 +1913,17 @@ class sugar_library(object):
         t.daemon = True
         t.start()
         visualizer.start()
+        return
+
+    def do_snapshot_system(self,system, filename):
+        """
+        Uses espresso visualizator for creating a snapshot of the current state of the system
+        """ 
+        from espressomd import visualization
+        
+
+        visualizer = visualization.openGLLive(
+        system, bond_type_radius=[0.3])
+        visualizer.screenshot(filename)
+
         return
