@@ -1,37 +1,33 @@
 """
-Script that simulates a dilute solution of histatin-5 peptide at very low salt concentration.
+Script that simulates a dilute solution of GlU5-HIS5 peptide 
 It calculates the peptide average charge and radius of gyration (using a constant pH simulation) 
 All parameters are taken from Ref. 1, whose results are here reproduced as reference.
 This script is part of Sugar library and it is meant to serve as reference for it. 
 
-Authors: Dr. Pablo M. Blanco (Charles University) and MsC. Albert Martinez (Royal College of Surgeons in Ireland)
-
-[1] Blanco, P. M., Madurga, S., Garcés, J. L., Mas, F., & Dias, R. S. 
- Influence of macromolecular crowding on the charge regulation of intrinsically disordered proteins. 
- Soft Matter, 17(3), 655-669,2021.
-
+Authors: Dr. Pablo M. Blanco (Charles University)
+[1] Lunkad, R., Murmiliuk, A., Hebbeker, P., Boublík, M., Tošner, Z., Štěpánek, M., & Košovan, P.  
+Quantitative prediction of charge regulation in oligopeptides. 
+Molecular Systems Design & Engineering, 2021, 6(2), 122-131.
 """
 
 # Load espresso, sugar and other necessary libraries
 
+from matplotlib.style import use
 import espressomd
-
-import os
 import sys
-import inspect
 import numpy as np
+import matplotlib.pyplot as plt
+import os
+import inspect
+import espressomd.reaction_ensemble
+from espressomd import interactions
+
 # For loading sugar from parent folder
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir) 
-
-import sugar
-
-import matplotlib.pyplot as plt
-import espressomd.reaction_ensemble
-from espressomd import interactions
-
+import sugar 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 from espressomd.io.writer import vtf
 if not os.path.exists('./frames'):
@@ -40,59 +36,50 @@ if not os.path.exists('./frames'):
 # Create an instance of sugar library
 
 sg=sugar.sugar_library()
-
 # Simulation parameters
-sg.set_reduced_units(unit_length=0.4*sg.units.nm)
+
 pH_range = np.linspace(2, 12, num=21)
+
 Samples_per_pH= 1000
-MD_steps_per_sample=1000
+MD_steps_per_sample=100
 steps_eq=int(Samples_per_pH/3)
 N_samples_print= 100  # Write the trajectory every 100 samples
 probability_reaction=0.5 
+L=25.513*sg.units.nm
 
 # Peptide parameters
-sequence='NH2-ASP-SER-HIS-ALA-LYS-ARG-HIS-HIS-GLY-TYR-LYS-ARG-LYS-PHE-HIS-GLU-LYS-HIS-HIS-SER-HIS-ARG-GLY-TYR-COOH'
-model='1beadAA'
-pep_concentration=1.56e-4 *sg.units.mol/sg.units.L
-bead_size=0.4*sg.units.nm
+N_aminoacids=5
+sequence="E"*N_aminoacids+"H"*N_aminoacids
+model='2beadAA'  # Model with 2 beads per each aminoacid
+pep_concentration=1e-4 *sg.units.mol/sg.units.L
+residue_positions=[0,3,5,len(sequence)-1] # Residue positions to calculate its average charge
 
+    # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-# Solution parameters 
-
-c_salt=1e-3 * sg.units.mol/ sg.units.L
-cation=sg.particle(name='Na', type=sg.propose_unused_type(), q=1, diameter=0.2*sg.units.nm, epsilon=1*sg.units('reduced_energy'))
-anion=sg.particle(name='Cl', type=sg.propose_unused_type(), q=-1, diameter=0.36*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
-
-    # Load pKa set
-sg.load_parameters(filename='reference_parameters/Nozaki1967.txt')
-    # use generic paramenters for the peptide
-
-acidic_aminoacids=['c','E','D','Y','C']
-basic_aminoacids=['R','n','K','H']
-N_aminoacids=len(sg.protein_sequence_parser(sequence=sequence))
-
-for aminoacid_key in sg.protein_sequence_parser(sequence=sequence):
-    if aminoacid_key not in sg.stored_objects['particle'].keys():
-        if aminoacid_key in acidic_aminoacids:
-            sg.particle(name=aminoacid_key, acidity='acidic', diameter=bead_size, epsilon=1*sg.units('reduced_energy'))
-        elif aminoacid_key in basic_aminoacids:
-            sg.particle(name=aminoacid_key, acidity='basic', diameter=bead_size, epsilon=1*sg.units('reduced_energy'))
-        else:
-            sg.particle(name=aminoacid_key, q=0, diameter=bead_size, epsilon=1*sg.units('reduced_energy'))
-
-generic_bond_lenght=0.4 * sg.units.nm
-generic_harmonic_constant=0.41 * sg.units.N / sg.units.m
-generic_bond = interactions.HarmonicBond(k=generic_harmonic_constant.to('reduced_energy / reduced_length**2').magnitude,
-                                 r_0=generic_bond_lenght.to('reduced_length').magnitude)
-sg.define_default_bond(bond=generic_bond)
+sg.load_parameters(filename='reference_parameters/Lunkad2021.txt') 
+sg.load_parameters(filename='reference_parameters/CRC1991.txt')
 
     # Create an instance of a sugar molecule object for the peptide
 
-histidin5 = sg.peptide(name='histidin5', sequence=sequence, model=model)
+peptide = sg.peptide(name=sequence, sequence=sequence, model=model)
 
-# System parameters from Ref. 1
+# Salt parameters
 
-L=22 * sg.units.nm # Side of the simulation box
+c_salt=1e-2 * sg.units.mol/ sg.units.L
+cation=sg.particle(name='Na', type=sg.propose_unused_type(), q=1, diameter=0.35*sg.units.nm, epsilon=1*sg.units('reduced_energy'))
+anion=sg.particle(name='Cl', type=sg.propose_unused_type(), q=-1, diameter=0.35*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
+
+# System parameters
+
+volume=L**3
+N_peptide_chains=int(volume*sg.N_A*pep_concentration)
+L=volume ** (1./3.) # Side of the simulation box
+calculated_peptide_concentration=N_peptide_chains/(volume*sg.N_A)
+dict_titrable_groups=sg.count_titrable_particles(object=peptide)
+total_ionisible_groups=sum(dict_titrable_groups.values())
+print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
+print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
+print('The ionisable groups in your peptide is ', dict_titrable_groups)
 
     # Create an instance of an espresso system
 
@@ -104,19 +91,11 @@ sg.add_bonds_to_system(system=system)
 
 # Create your molecules into the espresso system
 
-N_peptide_chains=int(L**3*pep_concentration*sg.N_A)
-
 for _ in range(N_peptide_chains):
-    sg.create_object_in_system(object=histidin5, system=system, use_default_bond=True)
+    sg.create_object_in_system(object=peptide, system=system, use_default_bond=True)
 
-dict_titrable_groups=sg.count_titrable_particles(object=histidin5)
-total_ionisible_groups=sum(dict_titrable_groups.values())
-sg.create_counterions_in_system(object=histidin5,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
+sg.create_counterions_in_system(object=peptide,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
 c_salt_calculated=sg.create_added_salt_in_system(system=system,cation=cation,anion=anion,c_salt=c_salt)
-
-print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
-print('The peptide concentration in your system is ', pep_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
-print('The ionisable groups in your peptide are ', dict_titrable_groups)
 
 # Setup the acid-base reactions of the peptide using the constant pH ensemble
 
@@ -150,26 +129,29 @@ sg.setup_langevin_dynamics(system=system)
 
 with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
     vtf.writevsf(system, coordinates)
-    vtf.writevcf(system, coordinates) 
+    vtf.writevcf(system, coordinates)
 
-Rg_pH=[]
-Z_pH=[]
 N_frame=0
-first_peptide_id=sg.get_ids(object=histidin5)[0][0]
-
+Z_pH=[] # List of the average global charge at each pH
+Rg_pH=[] 
+first_peptide_id=sg.get_ids(object=peptide)[0][0]
 # Main loop for performing simulations at different pH-values
 
 for pH_value in pH_range:
 
+    # Sample list inicialization
+
     Z_sim=[]
     Rg_sim=[]
+    Z_groups_time_series=[]       
+
     RE.constant_pH = pH_value
 
     # Inner loop for sampling each pH value
 
     for step in range(Samples_per_pH+steps_eq):
         
-        if sg.np.random.random() > probability_reaction:
+        if np.random.random() > probability_reaction:
 
             system.integrator.run(steps=MD_steps_per_sample)
         
@@ -179,9 +161,12 @@ for pH_value in pH_range:
 
         if ( step > steps_eq):
 
-            Z_net_list = sg.get_net_charge(system=system, object=histidin5)
+            # Get peptide net charge
+
+            Z_net_list = sg.get_net_charge(system=system, object=peptide)
             Z_sim.append(np.mean(np.array(Z_net_list)))
-            Rg = system.analysis.calc_rg(chain_start=first_peptide_id, number_of_chains=N_peptide_chains, chain_length=N_aminoacids)
+
+            Rg = system.analysis.calc_rg(chain_start=first_peptide_id, number_of_chains=N_peptide_chains, chain_length=len(sequence)*2)
             Rg_value = sg.units.Quantity(Rg[0], 'reduced_length')
             Rg_nm = Rg_value.to('nm').magnitude
             Rg_sim.append(Rg_nm)
@@ -194,14 +179,17 @@ for pH_value in pH_range:
                 vtf.writevcf(system, coordinates)
 
     sg.write_progress(step=list(pH_range).index(pH_value), total_steps=len(pH_range))
-
-    Z_pH.append(Z_sim)
+    Z_pH.append(np.array(Z_sim))
     Rg_pH.append(Rg_sim)
+
     print("pH = {:6.4g} done".format(pH_value))
-    
+
+
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = sg.calculate_HH(object=histidin5, pH=list(pH_range))
+Z_HH = sg.calculate_HH(object=peptide, pH=list(pH_range))
+
+# Plot the results
 
 # Estimate the statistical error and the autocorrelation time of the data
 print("Charge analysis")
@@ -211,14 +199,12 @@ av_rg, err_rg, tau_rg, block_size = sg.block_analyze(input_data=Rg_pH)
 
 # Load the reference data 
 
-reference_file_Path=str(parentdir)+"/reference_data/histatin5_SoftMatter.txt"
-reference_data=sg.np.loadtxt(reference_file_Path, delimiter=",")
+reference_file_Path=str(parentdir)+"/reference_data/Glu-HisMSDE.csv"
+import pandas
+reference_data=pandas.read_csv(reference_file_Path)
 
-Z_ref=reference_data[:,1]         
-Z_err_ref=reference_data[:,2]
-
-Rg_ref=reference_data[:,4]/10
-Rg_err_ref=reference_data[:,5]/10
+Z_ref=N_aminoacids*-1*reference_data['aaa']+N_aminoacids*reference_data['aab']         
+Rg_ref=reference_data['arg']*0.37
 
 # Plot the results
 
@@ -226,18 +212,18 @@ plt.figure(figsize=[11, 9])
 plt.subplot(1, 2, 1)
 plt.suptitle('Peptide sequence: '+''.join(sg.protein_sequence_parser(sequence=sequence)))
 plt.errorbar(pH_range, av_charge, yerr=err_charge, fmt = '-o', capsize=3, label='Simulation')
-plt.errorbar(pH_range, Z_ref, yerr=Z_err_ref, color='b', fmt = '-o', ecolor = 'b', capsize=3, label='Blanco2021')
+plt.plot(pH_range, Z_ref, '-o', color = 'b', label='Lunkad2021')
 plt.plot(pH_range, Z_HH, "-k", label='Henderson-Hasselbach')
 plt.axhline(y=0.0, color="gray", linestyle="--")
 plt.xlabel('pH')
-plt.ylabel('Charge of Histatin-5 / e')
+plt.ylabel('Net charge / e')
 plt.legend()
 
 plt.subplot(1, 2, 2)
 plt.errorbar(pH_range, av_rg, yerr=err_rg, fmt = '-o', capsize=3, label='Simulation')
-plt.errorbar(pH_range, Rg_ref, yerr=Rg_err_ref, color='b', fmt = '-o', ecolor = 'b', capsize=3, label='Blanco2021')
+plt.plot(pH_range, Rg_ref, '-o', color='b',  label='Lunkad2021')
 plt.xlabel('pH')
-plt.ylabel('Radius of gyration of Histatin-5 / nm')
+plt.ylabel('Radius of gyration / nm')
 plt.legend()
 
 plt.show()

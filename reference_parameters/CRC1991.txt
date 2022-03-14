@@ -1,0 +1,2 @@
+# pKa-values from Handbook of Chemistry and Physics, 72nd Edition, CRC Press, Boca Raton, FL, 1991.
+{"object_type":"pKa","D" : 3.65, "E" : 4.25, "H" : 6.00, "Y" : 10.07, "K" : 10.54, "R" : 12.48, "C" : 8.18, "n" : 8.0, "c" : 3.6}

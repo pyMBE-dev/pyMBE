@@ -1,0 +1,2 @@
+# pKa-values for phosphorilated aminoacids J U and Z from Bienkiewicz & K.J. Lumb, J Biomol NMR 15: 203-206 (1999). 
+{"object_type":"pka-set","J" : 5.96, "U" : 6.30, "Z" : 5.96}
