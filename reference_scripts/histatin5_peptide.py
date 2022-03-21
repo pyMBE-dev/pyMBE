@@ -43,7 +43,9 @@ sg=sugar.sugar_library()
 
 # Simulation parameters
 sg.set_reduced_units(unit_length=0.4*sg.units.nm)
-pH_range = np.linspace(2, 12, num=21)
+initial_pH=2
+final_pH=12
+pH_range = np.linspace(initial_pH, final_pH, num=21)
 Samples_per_pH= 1000
 MD_steps_per_sample=1000
 steps_eq=int(Samples_per_pH/3)
@@ -120,7 +122,7 @@ print('The ionisable groups in your peptide are ', dict_titrable_groups)
 
 # Setup the acid-base reactions of the peptide using the constant pH ensemble
 
-RE=sg.setup_constantpH_reactions(counter_ion=cation)
+RE=sg.setup_constantpH_reactions(counter_ion=cation, pH=initial_pH)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 
@@ -130,7 +132,7 @@ sg.track_ionization(system=system)
 
 type_dict=sg.get_all_stored_types()
 non_interacting_type=max(type_dict.keys())+1
-RE.set_non_interacting_type(non_interacting_type)
+RE.set_non_interacting_type(type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
 # Setup the potential energy
@@ -175,7 +177,7 @@ for pH_value in pH_range:
         
         else:
         
-            RE.reaction(total_ionisible_groups)
+            RE.reaction(steps=total_ionisible_groups)
 
         if ( step > steps_eq):
 
