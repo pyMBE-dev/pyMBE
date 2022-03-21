@@ -8,7 +8,7 @@ to ESPResSo using Pint library.
 
 ## Requirements
 
-- ESPResSo v4.2 [link to Espresso](https://espressomd.org/wordpress/download/)
+- ESPResSo v4.1 [link to Espresso](https://espressomd.org/wordpress/download/)
 - Pint v0.17 [link to Pint](https://pint.readthedocs.io/en/stable/)
 - (for visualization) VMD v1.9.3 [link to VMD](https://www.ks.uiuc.edu/Research/vmd/)
 
@@ -17,7 +17,7 @@ to ESPResSo using Pint library.
 - `sugar.py` : source code of Sugar library
 - `peptide_simulation_example.py` : example script on how to use Sugar to setup a peptide simulation in ESPResSo
 - `sugar_tutorial.ipynb` : jupyter notebook containing a tutorial to Sugar library
-- `reference_scripts/`: folder with scripts built to reproduce reference data to ensure the reliability of Sugar
+- `reference_scripts/`: folder with scripts to reproduce reference data to ensure the reliability of Sugar
 - `handy_scripts/`: folder with various handy scripts complementary with Sugar, contains:
 	- `vmd-traj.py` : trajectory processing script. Since trajectories with a varying number of particles cannot be readen by VMD, this script
                 processes the output trajectory .vtf files from espresso to make them readable by VMD.

@@ -349,14 +349,14 @@ class sugar_library(object):
 
         
         if id is None:
-            
-            if len(system.part.all()) == 0:
+
+            if len(system.part[:].id) == 0:
                 
                 bead_id=0
 
             else:
                 
-                bead_id=max(system.part.all().id)+1
+                bead_id=max(system.part[:].id)+1
         system.part.add(id=[bead_id], pos=[position], type=[type], q=[q])
 
         # particle id bookeeping
@@ -400,7 +400,7 @@ class sugar_library(object):
 
             raise ValueError("Residue.central_bead must contain a particle object.")
 
-        central_bead_position=system.part.by_id(central_bead_id).pos
+        central_bead_position=system.part[central_bead_id].pos
                 
         # create the lateral beads        
         
@@ -412,7 +412,7 @@ class sugar_library(object):
                 bond_vector=self.generate_trialvectors(bond.params.get('r_0'))
                 bead_position=central_bead_position+bond_vector
                 side_bead_id=self.create_particle_in_system(particle=sg_object, system=system, position=bead_position)
-                system.part.by_id(central_bead_id).add_bond((bond, side_bead_id))
+                system.part[central_bead_id].add_bond((bond, side_bead_id))
                 if 'side-'+sg_object.name in residue_ids_dict.keys():
                     residue_ids_dict['side-'+sg_object.name].append(side_bead_id)
                 else:
@@ -425,7 +425,7 @@ class sugar_library(object):
                 residue_position=central_bead_position+bond_vector
                 lateral_residue_ids_dict=self.create_residue_in_system(residue=sg_object, system=system, central_bead_position=residue_position)
                 lateral_residue_central_bead_id=next(value for key,value in lateral_residue_ids_dict.items() if 'central-' in key)[0]
-                system.part.by_id(central_bead_id).add_bond((bond, lateral_residue_central_bead_id))
+                system.part[central_bead_id].add_bond((bond, lateral_residue_central_bead_id))
                 
                 for key in lateral_residue_ids_dict:
                     
@@ -484,7 +484,7 @@ class sugar_library(object):
                 residue_ids_dict=self.create_residue_in_system(residue=residue, system=system, central_bead_position=first_residue_position,  use_default_bond= use_default_bond)
                 central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
                 previous_residue=residue
-                residue_position=system.part.by_id(central_bead_id).pos
+                residue_position=system.part[central_bead_id].pos
                 previous_residue_id=central_bead_id
                 first_residue=False
                 
@@ -495,7 +495,7 @@ class sugar_library(object):
                 residue_position=residue_position+bond_vector
                 residue_ids_dict=self.create_residue_in_system(residue=residue, system=system, central_bead_position=residue_position,use_default_bond= use_default_bond)
                 central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
-                system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
+                system.part[central_bead_id].add_bond((bond, previous_residue_id))
                 previous_residue_id=central_bead_id
             
             molecule_dicts.append(residue_ids_dict)
@@ -963,7 +963,7 @@ class sugar_library(object):
 
         return clean_sequence
 
-    def setup_constantpH_reactions(self, counter_ion, pH, exclusion_radius=None):
+    def setup_constantpH_reactions(self, counter_ion, exclusion_radius=None):
         """
         Set up the Acid/Base reactions for acidic/basidic residues in mol. The reaction steps are done following the constant pH ensamble procedure. 
 
@@ -989,7 +989,7 @@ class sugar_library(object):
         if 'reactions' not in self.stored_objects.keys():
             self.stored_objects['reactions']={}
 
-        RE = reaction_ensemble.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude, exclusion_radius=exclusion_radius.magnitude, seed=self.SEED, constant_pH=pH)
+        RE = reaction_ensemble.ConstantpHEnsemble(temperature=self.kT.to('reduced_energy').magnitude, exclusion_radius=exclusion_radius.magnitude, seed=self.SEED)
         
         for particle in self.stored_objects['particle'].values():
             
@@ -1001,7 +1001,9 @@ class sugar_library(object):
                     
                     RE.add_reaction(gamma=gamma,
                                     reactant_types=[particle.type["protonated"]],
+                                    reactant_coefficients=[1],
                                     product_types=[particle.type["unprotonated"], counter_ion.type],
+                                    product_coefficients=[1,1],
                                     default_charges={particle.type["unprotonated"]: particle.q["unprotonated"],
                                     particle.type["protonated"]: particle.q["protonated"],
                                     counter_ion.type: counter_ion.q})
@@ -1623,7 +1625,7 @@ class sugar_library(object):
 
         for id_list in ids_lists_in_object:
             for id in id_list:
-                system.part.by_id(id).remove()
+                system.part[id].remove()
 
         # Update sugar storage of ids
 
@@ -1658,9 +1660,9 @@ class sugar_library(object):
 
         for id_list in object_ids:
             for id in id_list:
-                if system.part.by_id(id).q > 0:
+                if system.part[id].q > 0:
                     N_pos+=1
-                elif system.part.by_id(id).q < 0:
+                elif system.part[id].q < 0:
                     N_neg+=1
 
         if (N_pos % abs(anion.q) == 0):
@@ -1707,7 +1709,7 @@ class sugar_library(object):
         for id_list in ids_lists_in_object:
             z_one_object=0
             for id in id_list:
-                z_one_object+=system.part.by_id(id).q
+                z_one_object+=system.part[id].q
             Z_list.append(z_one_object)
         
         return Z_list
@@ -1731,7 +1733,7 @@ class sugar_library(object):
                 for key in residue_dict.keys():
                     charge_key=[]                      
                     for id in residue_dict[key]:                         
-                        charge_key.append(system.part.by_id(id).q)
+                        charge_key.append(system.part[id].q)
                     
                     if 'side-' in key:
                         new_key=key.replace('side-', '')
