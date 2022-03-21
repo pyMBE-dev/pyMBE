@@ -12,6 +12,10 @@ to ESPResSo using Pint library.
 - Pint v0.17 [link to Pint](https://pint.readthedocs.io/en/stable/)
 - (for visualization) VMD v1.9.3 [link to VMD](https://www.ks.uiuc.edu/Research/vmd/)
 
+A deprecated version of sugar compatible with ESPResSo v4.1.4 can be found in the brach `sugar_espresso4.1.4`
+Note that further developments of sugar will only be developed for ESPResSo v4.2 and thus further support for
+that branch is not planned. 
+
 ## Contents
 
 - `sugar.py` : source code of Sugar library
