@@ -4,7 +4,6 @@ class sugar_library(object):
     units = pint.UnitRegistry()
     import numpy as np
     import random as rn
-    import scipy.constants
     import time
 
     # Default values    
@@ -12,10 +11,10 @@ class sugar_library(object):
     TEMPERATURE = 298.15 * units.K
     PARTICLE_SIZE = 0.355 * units.nm
     SEED=None
-    N_A=scipy.constants.Avogadro / units.mol
-    Kb=scipy.constants.Boltzmann * units.J / units.K
-    e=scipy.constants.elementary_charge *units.C
-    pi=scipy.constants.pi
+    N_A=6.02214076e23    / units.mol
+    Kb=1.38064852e-23    * units.J / units.K
+    e=1.60217662e-19 *units.C
+    pi=3.14159265359
     initial_simulation_time=None
     stored_objects={}
     id_map={}
