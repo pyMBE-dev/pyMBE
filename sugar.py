@@ -963,7 +963,7 @@ class sugar_library(object):
 
         return clean_sequence
 
-    def setup_constantpH_reactions(self, counter_ion, pH, exclusion_radius=None):
+    def setup_constantpH_reactions(self, counter_ion, pH, exclusion_range=None):
         """
         Set up the Acid/Base reactions for acidic/basidic residues in mol. The reaction steps are done following the constant pH ensamble procedure. 
 
@@ -978,9 +978,9 @@ class sugar_library(object):
 
         from espressomd import reaction_ensemble
 
-        if exclusion_radius is None:
+        if exclusion_range is None:
 
-            exclusion_radius=self.search_largest_particle_diameter_in_system()
+            exclusion_range=self.search_largest_particle_diameter_in_system()
 
         if self.SEED is None:
 
@@ -989,7 +989,7 @@ class sugar_library(object):
         if 'reactions' not in self.stored_objects.keys():
             self.stored_objects['reactions']={}
 
-        RE = reaction_ensemble.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude, exclusion_radius=exclusion_radius.magnitude, seed=self.SEED, constant_pH=pH)
+        RE = reaction_ensemble.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude, exclusion_range=exclusion_range.magnitude, seed=self.SEED, constant_pH=pH)
         
         for particle in self.stored_objects['particle'].values():
             
