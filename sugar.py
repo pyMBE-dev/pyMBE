@@ -1762,7 +1762,7 @@ class sugar_library(object):
         if combining_rule not in implemented_combinatiorial_rules:
             raise ValueError('In the current version of sugar, the only combinatorial rules implemented are ', implemented_combinatiorial_rules)
 
-        particle_name_list=self.id_map['particle'].keys()
+        particle_name_list=self.stored_objects['particle'].keys()
 
         if sigma is None:
 
