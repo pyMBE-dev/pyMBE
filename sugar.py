@@ -1861,7 +1861,7 @@ class sugar_library(object):
         type_dict: (dict)  dictionary with all particle types stored and its keys
         """
 
-        particle_name_list=self.id_map['particle'].keys()
+        particle_name_list=self.stored_objects['particle'].keys()
 
         type_dict={}
         for particle_name in particle_name_list:
