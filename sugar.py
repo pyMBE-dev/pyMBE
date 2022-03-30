@@ -49,9 +49,9 @@ class sugar_library(object):
     def set_reduced_units(self, unit_length=0.355*units.nm,  unit_charge=units.e, temperature=298.15 * units.K):
         
         self.units=self.pint.UnitRegistry()
-        self.N_A=self.scipy.constants.Avogadro / self.units.mol
-        self.Kb=self.scipy.constants.Boltzmann * self.units.J / self.units.K
-        self.e=self.scipy.constants.elementary_charge *self.units.C
+        self.N_A=6.02214076e23  / self.units.mol
+        self.Kb=1.38064852e-23 * self.units.J / self.units.K
+        self.e=1.60217662e-19 *self.units.C
         self.TEMPERATURE=temperature.to('K').magnitude*self.units.K
         unit_energy=self.TEMPERATURE*self.Kb
         self.units.define(f'reduced_energy = {unit_energy} ')
