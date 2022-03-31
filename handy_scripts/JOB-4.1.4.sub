@@ -43,9 +43,10 @@ echo "pypresso $espresso_input"
 pypresso $espresso_input || exit 3
 
 # transfer the data back
+# do not copy back sugar and other undersired files
+
 echo "cp -r $SCRATCHDIR/* $DATADIR/${SYSNAME}"
-scp -r $SCRATCHDIR/frames ${DATADIR}/${SYSNAME} || export CLEAN_SCRATCH=false
-scp -r $SCRATCHDIR/*.txt ${DATADIR}/${SYSNAME} || export CLEAN_SCRATCH=false
+scp -r $SCRATCHDIR/frames $SCRATCHDIR/*.txt $SCRATCHDIR/$espresso_input  ${DATADIR}/${SYSNAME} || export CLEAN_SCRATCH=false
 
 
 echo "Finished"
