@@ -2,25 +2,31 @@
 #PBS -N test
 
 # use the following command for submiting jobs
-# qsub -l select=ncpus=1:mem=4gb:scratch_local=4gb:cpu_flag=bmi2:cl_hildor=False -l walltime=1:0:00 JOB-4.1.4.sub
+# qsub -l select=ncpus=1:mem=8gb:scratch_local=8gb:os=debian10:cl_adan=False:cl_hildor=False:cl_charon=False -l walltime=1:0:00 JOB-4.1.4.sub
+
 echo "Load modules"
 
 # load modules needed to run espresso
 module purge
 module load espresso_md-4.1.4
-node=$PBS_JOBID
-echo "node: $node"
 
-job_id=${node:0:7}
-echo "job id:"
+module list
+
+# For backtracing the job
+full_job_id=$PBS_JOBID
+echo "full JOB_ID: $full_job_id"
+job_id=${full_job_id:0:8}
+echo "job id: $job_id"
+host=` qstat -f $job_id | grep 'exec_host2' `
+echo "host: $host"
+
+
 
 # load pint from Pablo's installation
 
 TOIN=/storage/brno2/home/blancoapa/shared/
 export PATH=$TOIN/bin:$PATH
 export PYTHONPATH=$TOIN/lib:$PYTHONPATH
-
-echo "pypresso: $pypresso"
 
 espresso_input="peptide_simulation_example.py"
 DATADIR="/storage/brno2/home/blancoapa/test_magda"
