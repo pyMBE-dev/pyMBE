@@ -4,16 +4,14 @@ import espressomd
 import numpy as np
 import os
 import sys
-import csv
 import espressomd.reaction_ensemble
 from espressomd import interactions
 
 path=os.getcwd()
-sugar_dir=path+'/../'
+sugar_dir=path+'/sugar_library'
 sys.path.insert(0, sugar_dir)
 
 import sugar
-import general_functions
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 from espressomd.io.writer import vtf
@@ -22,10 +20,9 @@ if not os.path.exists('./frames'):
 
 # Simulation parameters
 
-#initial_pH=2
-#final_pH=12
-#pH_range = np.linspace(initial_pH, final_pH, num=20)
-pH_range = [4]
+initial_pH=2
+final_pH=12
+pH_range = np.linspace(initial_pH, final_pH, num=20)
 
 Samples_per_pH= 100
 MD_steps_per_sample=1000
@@ -39,11 +36,11 @@ sg=sugar.sugar_library()
 
 # Peptide parameters
 
-sequence="nGHAEGc"
+sequence="nHHHEEEc"
 model='2beadAA'  # Model with 2 beads per each aminoacid
-pep_concentration=1.56e-4 *sg.units.mol/sg.units.L
-N_peptide_chains=1
-residue_positions=[0,2,4,6] # Residue positions to calculate its average charge
+pep_concentration=5.56e-4 *sg.units.mol/sg.units.L
+N_peptide_chains=5
+residue_positions=[0,3,5,len(sequence)-1] # Residue positions to calculate its average charge
 
     # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
@@ -147,37 +144,6 @@ Z_groups_pH=[] # List of the average charge of groups in residue_positions at ea
 # Main loop for performing simulations at different pH-values
 
 for pH_value in pH_range:
- 
-    # output file with results of simulation
-    system_name = general_functions.get_system_name_peptide(seq = sequence,
-                                    model = model,
-                                    pH = pH_value, 
-                                    c_pep = pep_concentration,
-                                    c_salt = c_salt,
-                                    n_chains = N_peptide_chains,
-                                    )
-    
-    if not os.path.exists('./'+system_name):
-        #print ("make dir", system_name)
-        os.makedirs(system_name)
-
-    output_filename = system_name+"/"+system_name+".csv" 
-    #print("output_filename: ", output_filename)
-    frames_dir = system_name+"/frames"
-
-    if not os.path.exists(frames_dir):
-        #print ("make dir", frames_dir)
-        os.makedirs(frames_dir)
-
-    # Write the initial state
-    with open(frames_dir+'/trajectory0.vtf', mode='w+t') as coordinates:
-        vtf.writevsf(system, coordinates)
-        vtf.writevcf(system, coordinates)
-
-    f = open(output_filename, "w")
-    f.write("time,Charge,Degree_ionization_first_group,Degree_ionization_second_group,E_tot,E_kin,E_el,E_nonb,E_b,Temperature\n")
-    style = "{:10.2f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} {:8.3f} \n"
-    writer = csv.writer(f)
 
     # Sample list inicialization
 
@@ -202,72 +168,44 @@ for pH_value in pH_range:
 
             # Get peptide net charge
 
-            Z_net = sg.get_net_charge(system=system, object=peptide)
-            #Z_sim.append(np.mean(np.array(Z_net_list)))
+            Z_net_list = sg.get_net_charge(system=system, object=peptide)
+            Z_sim.append(np.mean(np.array(Z_net_list)))
             
             # Get the charge of the residues in residue_position
+
             Z_charge_res_dict = sg.get_charge_in_residues(system=system, molecule=peptide)
             Z_groups_av=[]
-
-            z_pos=[]
             for residue_position in residue_positions:
+                z_pos_av=[]
                 for molecule_dict in Z_charge_res_dict:
-                    z_pos.append(molecule_dict[residue_position][sequence[residue_position]])
-            print("z_pos: ", z_pos)
-                #Z_groups_av.append(np.mean(np.array(z_pos_av)))
-            #Z_groups_time_series.append(Z_groups_av)
+                    z_pos_av.append(molecule_dict[residue_position][sequence[residue_position]])
+                Z_groups_av.append(np.mean(np.array(z_pos_av)))
+            Z_groups_time_series.append(Z_groups_av)
+        if (step % N_samples_print == 0) :
 
-            if (step % N_samples_print == 0) :
+            N_frame+=1
+            with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
+                vtf.writevsf(system, coordinates)
+                vtf.writevcf(system, coordinates)
 
-                N_frame+=1
-                with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
-                    vtf.writevsf(system, coordinates)
-                    vtf.writevcf(system, coordinates)
-
-            time = system.time
-
-            charge_peptide = Z_net[0]
-            degree_ionization_first_group = z_pos[1][0]
-            degree_ionization_second_group = z_pos[2][0]
-            Energy = system.analysis.energy()
-            n_part = len(system.part)
-            Temperature = 2./3.*Energy['kinetic']/n_part # kineticka teplota v redukovancyh jednotkach = (okamzita_teplota) / (pozadovana_teplota)
-            writer.writerow(
-                    [
-                        time, 
-                        charge_peptide,
-                        degree_ionization_first_group,
-                        degree_ionization_second_group,
-                        Energy['total'], 
-                        Energy['kinetic'], 
-                        Energy['coulomb'], 
-                        Energy['non_bonded'], 
-                        Energy['bonded'], 
-                        Temperature,
-                ]
-            )
-
-    #sg.write_progress(step=list(pH_range).index(pH_value), total_steps=len(pH_range))
-    #Z_pH.append(np.array(Z_sim))
-    #Z_groups_pH.append(np.array(Z_groups_time_series))
+    sg.write_progress(step=list(pH_range).index(pH_value), total_steps=len(pH_range))
+    Z_pH.append(np.array(Z_sim))
+    Z_groups_pH.append(np.array(Z_groups_time_series))
 
     print("pH = {:6.4g} done".format(pH_value))
-
-print("finished")
-exit()
 
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-#Z_HH = sg.calculate_HH(object=peptide, pH=list(pH_range))
+Z_HH = sg.calculate_HH(object=peptide, pH=list(pH_range))
 
 # Estimate the statistical error and the autocorrelation time of the data
-#av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = sg.block_analyze(input_data=Z_pH)
+av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = sg.block_analyze(input_data=Z_pH)
 
-#group_averages=[]
-#for time_serie_pH in Z_groups_pH:
-#    group_averages.append(sg.block_analyze(input_data=np.transpose(time_serie_pH)))
+group_averages=[]
+for time_serie_pH in Z_groups_pH:
+    group_averages.append(sg.block_analyze(input_data=np.transpose(time_serie_pH)))
 
 # Print the results
 
-#print(av_net_charge)
+print(av_net_charge)
