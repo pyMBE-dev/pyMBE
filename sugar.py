@@ -370,7 +370,7 @@ class sugar_library(object):
         
         return  bead_id
         
-    def create_residue_in_system(self, residue, system, central_bead_position=None, use_default_bond=False):
+    def create_residue_in_system(self, residue, system, central_bead_position=None, use_default_bond=False, backbone_vector=None):
         """
         Creates a residue in the espresso system
         Inputs:
@@ -408,7 +408,10 @@ class sugar_library(object):
             if sg_object.object_type == 'particle': # Only one bead
                 
                 bond=self.search_bond(particle1=residue.central_bead, particle2=sg_object, hard_check=True, use_default_bond=use_default_bond)
-                bond_vector=self.generate_trialvectors(bond.params.get('r_0'))
+                if backbone_vector is None:
+                    bond_vector=self.generate_trialvectors(bond.params.get('r_0'))
+                else:
+                    bond_vector=self.generate_trial_perpendicular_vector(vector=backbone_vector,magnitude=bond.params.get('r_0'))
                 bead_position=central_bead_position+bond_vector
                 side_bead_id=self.create_particle_in_system(particle=sg_object, system=system, position=bead_position)
                 system.part[central_bead_id].add_bond((bond, side_bead_id))
@@ -420,7 +423,10 @@ class sugar_library(object):
             elif sg_object.object_type == 'residue': # More than one bead
                 
                 bond=self.search_bond(particle1=residue.central_bead, particle2=sg_object.central_bead, hard_check=True, use_default_bond=use_default_bond)
-                bond_vector=self.generate_trialvectors(bond.params.get('r_0'))
+                if backbone_vector is None:
+                    bond_vector=self.generate_trialvectors(bond.params.get('r_0'))
+                else:
+                    bond_vector=self.generate_trial_perpendicular_vector(vector=backbone_vector,magnitude=bond.params.get('r_0'))
                 residue_position=central_bead_position+bond_vector
                 lateral_residue_ids_dict=self.create_residue_in_system(residue=sg_object, system=system, central_bead_position=residue_position)
                 lateral_residue_central_bead_id=next(value for key,value in lateral_residue_ids_dict.items() if 'central-' in key)[0]
@@ -480,18 +486,19 @@ class sugar_library(object):
             if first_residue:
 
                 residue_position=first_residue_position
-                residue_ids_dict=self.create_residue_in_system(residue=residue, system=system, central_bead_position=first_residue_position,  use_default_bond= use_default_bond)
+                backbone_vector=self.generate_trialvectors(1)
+                residue_ids_dict=self.create_residue_in_system(residue=residue, system=system, central_bead_position=first_residue_position,  use_default_bond= use_default_bond, backbone_vector=backbone_vector)
                 central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
                 previous_residue=residue
                 residue_position=system.part[central_bead_id].pos
                 previous_residue_id=central_bead_id
                 first_residue=False
                 
+                
             else:
 
-                bond=self.search_bond(particle1=residue.central_bead, particle2=previous_residue.central_bead, hard_check=True, use_default_bond=use_default_bond)
-                bond_vector=self.generate_trialvectors(bond.params.get('r_0'))
-                residue_position=residue_position+bond_vector
+                bond=self.search_bond(particle1=residue.central_bead, particle2=previous_residue.central_bead, hard_check=True, use_default_bond=use_default_bond)                
+                residue_position=residue_position+backbone_vector*bond.params.get('r_0')
                 residue_ids_dict=self.create_residue_in_system(residue=residue, system=system, central_bead_position=residue_position,use_default_bond= use_default_bond)
                 central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
                 system.part[central_bead_id].add_bond((bond, previous_residue_id))
@@ -1044,6 +1051,16 @@ class sugar_library(object):
 
         return vec
 
+    def generate_trial_perpendicular_vector(self, vector, magnitude):
+        """
+        """
+
+        
+        if vector[1] == 0 and vector[2] == 0 and vector[0] == 1:
+            raise ValueError('zero vector')
+            
+        return self.np.cross(vector, self.generate_trialvectors(1))*magnitude
+
     def setup_electrostatic_interactions(self, system, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
         """
         Setups electrostatic interactions in espressomd. 
@@ -1129,7 +1146,7 @@ class sugar_library(object):
 
         return
 
-    def minimize_system_energy(self, system, skin=1, gamma=0.1, Nsteps=10000, time_step=1e-3, max_displacement=0.1, verbose=True, reset=True):
+    def minimize_system_energy(self, system, skin=1, gamma=1, Nsteps=10000, time_step=1e-5, max_displacement=0.1, verbose=True, reset=True):
         """
         Does a steppest descent minimization to relax the system energy
 
@@ -1145,19 +1162,19 @@ class sugar_library(object):
         if verbose:
 
             print("\n*** Minimazing system energy... ***\n")
-
+        system.force_cap=100
         system.cell_system.skin = skin
         system.time_step=time_step
         if verbose:
             print("steepest descent")
-        system.integrator.set_steepest_descent(f_max=0, gamma=gamma, max_displacement=max_displacement)
+        system.integrator.set_steepest_descent(f_max=1e-3, gamma=gamma, max_displacement=max_displacement)
         system.integrator.run(int(Nsteps/2))
         if verbose:
             print("velocity verlet")
         system.integrator.set_vv()  # to switch back to velocity Verlet
         system.integrator.run(int(Nsteps/2))
         system.thermostat.turn_off()
-
+        system.force_cap=0
         # Reset the time of the system to 0
         if reset:
             system.time = 0.
@@ -1846,7 +1863,6 @@ class sugar_library(object):
                             'offset' : offset.to('reduced_length').magnitude, 
                             'shift' : shift}
                 self.stored_objects['LennardJones'][interaction_key]=param_dict
-
             else:
 
                 print('WARNING missing parameters for Lennard Jones interaction between ', [name1,name2], ', no interaction has been defined')
