@@ -115,10 +115,8 @@ print('The non interacting type is set to ', non_interacting_type)
 # Setup the potential energy
 
 sg.setup_lj_interactions(system=system)
+sg.minimize_system_energy(system=system)
 sg.setup_electrostatic_interactions(system=system, c_salt=c_salt)
-
-# Minimize the system energy to avoid huge starting force due to random inicialization of the system
-
 sg.minimize_system_energy(system=system)
 
 # Setup espresso to do langevin dynamics

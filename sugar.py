@@ -1162,7 +1162,7 @@ class sugar_library(object):
         if verbose:
 
             print("\n*** Minimazing system energy... ***\n")
-        system.force_cap=100
+        #system.force_cap=100
         system.cell_system.skin = skin
         system.time_step=time_step
         if verbose:
@@ -1174,7 +1174,7 @@ class sugar_library(object):
         system.integrator.set_vv()  # to switch back to velocity Verlet
         system.integrator.run(int(Nsteps/2))
         system.thermostat.turn_off()
-        system.force_cap=0
+        #system.force_cap=0
         # Reset the time of the system to 0
         if reset:
             system.time = 0.
