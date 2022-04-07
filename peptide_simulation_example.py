@@ -33,7 +33,7 @@ sg=sugar.sugar_library()
 sequence="nHHHEEEc"
 model='2beadAA'  # Model with 2 beads per each aminoacid
 pep_concentration=5.56e-4 *sg.units.mol/sg.units.L
-N_peptide_chains=5
+N_peptide_chains=1
 residue_positions=[0,3,5,len(sequence)-1] # Residue positions to calculate its average charge
 
     # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
@@ -92,12 +92,17 @@ sg.add_bonds_to_system(system=system)
 
 # Create your molecules into the espresso system
 
+
+
+
 for _ in range(N_peptide_chains):
     sg.create_object_in_system(object=peptide, system=system, use_default_bond=True)
 
 sg.create_counterions_in_system(object=peptide,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
 c_salt_calculated=sg.create_added_salt_in_system(system=system,cation=cation,anion=anion,c_salt=c_salt)
-
+with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
+    vtf.writevsf(system, coordinates)
+    vtf.writevcf(system, coordinates)
 # Setup the acid-base reactions of the peptide using the constant pH ensemble
 
 RE=sg.setup_constantpH_reactions(counter_ion=cation)
@@ -116,11 +121,16 @@ print('The non interacting type is set to ', non_interacting_type)
 # Setup the potential energy
 
 sg.setup_lj_interactions(system=system)
+sg.minimize_system_energy(system=system)
 sg.setup_electrostatic_interactions(system=system, c_salt=c_salt)
-
+sg.minimize_system_energy(system=system)
 # Minimize the system energy to avoid huge starting force due to random inicialization of the system
 
-sg.minimize_system_energy(system=system)
+
+
+with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
+    vtf.writevsf(system, coordinates)
+    vtf.writevcf(system, coordinates)
 
 # Setup espresso to do langevin dynamics
 
@@ -128,9 +138,7 @@ sg.setup_langevin_dynamics(system=system)
 
 # Write the initial state
 
-with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
-    vtf.writevsf(system, coordinates)
-    vtf.writevcf(system, coordinates)
+
 
 N_frame=0
 Z_pH=[] # List of the average global charge at each pH
