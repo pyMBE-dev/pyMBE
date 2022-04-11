@@ -988,7 +988,7 @@ class sugar_library(object):
         if 'reactions' not in self.stored_objects.keys():
             self.stored_objects['reactions']={}
 
-        RE = reaction_ensemble.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude, exclusion_range=exclusion_range.magnitude, seed=self.SEED, constant_pH=pH)
+        RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude, exclusion_range=exclusion_range.magnitude, seed=self.SEED, constant_pH=pH)
         
         for particle in self.stored_objects['particle'].values():
             
