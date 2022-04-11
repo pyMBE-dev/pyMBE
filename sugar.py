@@ -975,7 +975,7 @@ class sugar_library(object):
 
         """
 
-        from espressomd import reaction_ensemble
+        from espressomd import reaction_methods
 
         if exclusion_range is None:
 
