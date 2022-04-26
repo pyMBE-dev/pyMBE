@@ -503,7 +503,8 @@ class sugar_library(object):
                 central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
                 system.part[central_bead_id].add_bond((bond, previous_residue_id))
                 previous_residue_id=central_bead_id
-            
+                previous_residue=residue
+
             molecule_dicts.append(residue_ids_dict)
 
         # for particle id bookeeping
@@ -1938,7 +1939,14 @@ class sugar_library(object):
         
 
         visualizer = visualization.openGLLive(
-        system, bond_type_radius=[0.3])
+                system, bond_type_radius=[0.3], particle_coloring='type', draw_axis=False, background_color=[1, 1, 1],
+        particle_type_colors=[[1.02,0.51,0], # Brown
+                            [1,1,1],  # Grey
+                            [2.55,0,0], # Red
+                            [0,0,2.05],  # Blue
+                            [0,0,2.05],  # Blue
+                            [2.55,0,0], # Red
+                            [2.05,1.02,0]]) # Orange
         visualizer.screenshot(filename)
 
         return
