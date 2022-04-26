@@ -6,7 +6,6 @@ import sugar
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-import espressomd.reaction_ensemble
 from espressomd import interactions
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
