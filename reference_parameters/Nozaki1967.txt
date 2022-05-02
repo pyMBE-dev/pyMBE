@@ -1,2 +1,0 @@
-# pKa-values from Y. Nozaki and C. Tanford, Methods Enzymol., 1967, 11, 715–734.
-{"object_type":"pKa", "D" : 4.00,  "E" : 4.40, "H" : 6.30, "Y" : 9.6, "K" : 10.4, "R" : 12.0, "C" : 9.5, "n" : 7.5, "c" : 3.8}

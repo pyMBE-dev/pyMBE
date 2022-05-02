@@ -19,6 +19,7 @@ class sugar_library(object):
     stored_objects={}
     id_map={}
     type_map={}
+    pka_set={}
 
     # Library output
 
@@ -82,52 +83,68 @@ class sugar_library(object):
 
             pass
         
+        particle.name=name
         particle.object_type='particle'
         particle.diameter=diameter
         particle.epsilon=epsilon
         
         if type is None:
             type=self.propose_unused_type()
+        else:
+            if self.check_particle_type_exists(particle=particle):
+                raise ValueError("ERROR you have already created a particle object with the same type as ", particle.name)
         
         if acidity is None:
             acidity='inert'
-
-        acidity_valid_keys=['inert','acidic', 'basic']
-        if acidity not in acidity_valid_keys:
-            raise ValueError(name+' provided acidity not supported, valid keys are ', acidity_valid_keys)
-        particle.acidity=acidity
-        if acidity == 'inert':
-            particle.type=type
-
-            if q is None:
-                raise ValueError(name+' particle charge must be defined')
-            else:
-                particle.q=q
-
-        else:
-            
-            protonated_type=self.propose_unused_type()
-            unprotonated_type=self.propose_unused_type()+1
-            particle.type={'protonated': protonated_type,'unprotonated': unprotonated_type}
-            
-            if acidity == 'acidic':
-
-                particle.q={'unprotonated': -1, 'protonated': 0}
-
-            elif acidity == 'basic':
-
-                particle.q={'protonated': 1,  'unprotonated': 0}
         
-        particle.name=name
-        
-        if self.check_particle_type_exists(particle=particle):
-
-            raise ValueError("ERROR you have already created a particle object with the same type as ", particle.name)
-
+        self.set_particle_acidity(particle=particle, acidity=acidity)
         self.store_object(object=particle, verbose=True)
         self.type_map[particle.name]=particle.type
 
         return particle
+
+    def set_particle_acidity(self, particle, acidity):
+        """
+        Sets up a particle to become an acidic or basic particle
+        Inputs:
+        particle: (class) sugar particle object
+        acidity: (string) defines the particle acidic properties can be 'inert', 'acidic' or 'basic'
+        """
+
+        acidity_valid_keys=['inert','acidic', 'basic']
+        
+        if acidity not in acidity_valid_keys:
+            raise ValueError(particle.name+' provided acidity not supported, valid keys are ', acidity_valid_keys)
+
+        particle.acidity=acidity
+
+        if particle.acidity != 'inert':
+
+            type_labels=['protonated','unprotonated']
+            if particle.type is None:
+                particle.type={}
+                for label in type_labels:
+                    particle.type[label]=self.propose_unused_type()
+
+            elif isinstance(particle.type,int):
+                particle.type={'protonated': particle.type,
+                'unprotonated': self.propose_unused_type()}
+            elif isinstance(particle.type,dict):
+                for key in particle.type.keys():
+                    if key not in type_labels:
+                        raise ValueError('Label not supported for particle type, valid options are ', type_labels, ' given ', particle.keys())
+            else:
+                raise ValueError('Unsopported variable type given in particle.type: ', particle.type)
+        
+        if particle.acidity == 'acidic':
+
+            particle.q={'unprotonated': -1, 'protonated': 0}
+
+        elif particle.acidity == 'basic':
+
+            particle.q={'protonated': 1,  'unprotonated': 0}
+        
+        return
 
     def residue(self, name, central_bead, side_chains):
         """
@@ -637,9 +654,9 @@ class sugar_library(object):
 
         return
     
-    def load_parameters(self,filename, verbose=False):
+    def load_interaction_parameters(self,filename, verbose=False):
         """
-        Loads the parameters stored in filename into sugar
+        Loads the interaction parameters stored in filename into sugar
         Inputs:
         filename: (string) name of the file to be read
         verbose: (boolean) switches on/off the reading prints
@@ -652,7 +669,6 @@ class sugar_library(object):
         molecule_param_list=[]
         peptide_param_list=[]
         bond_param_list=[]
-        pKa_list=[]
 
         with open(filename) as f:
             for line in f:
@@ -670,9 +686,6 @@ class sugar_library(object):
                     peptide_param_list.append(param_dict)
                 elif object_type == 'bond':
                     bond_param_list.append(param_dict)
-                elif object_type == 'pKa':
-                    param_dict.pop('object_type')
-                    pKa_list.append(param_dict)                
                 else:
                     raise ValueError(object_type+' is not a known sugar object type')
                 if verbose:
@@ -752,19 +765,40 @@ class sugar_library(object):
                 raise ValueError("current implementation of sugar only supports harmonic bonds")
 
             self.define_bond(bond=bond, particle1=particle1, particle2=particle2)
+            
+        return
+    
+    def load_pKa_set(self,filename, verbose=False):
+        """
+        Loads the parameters stored in filename into sugar
+        Inputs:
+        filename: (string) name of the file to be read
+        verbose: (boolean) switches on/off the reading prints
+        """
+        import json
+        from espressomd import interactions
+
+        pKa_list=[]
+
+        with open(filename) as f:
+            for line in f:
+                if line[0] == '#':
+                    continue
+                param_dict=json.loads(line)
+                pKa_list.append(param_dict)    
+                if verbose:
+                    print('Added: '+line)
 
         for pka_set in pKa_list:
+            self.check_pka_set(pka_set=pka_set)
             for pka_key in pka_set: 
-                if 'pKa' in self.stored_objects.keys():
+                if pka_key in self.pka_set.keys():
 
-                    if pka_key in self.stored_objects['pKa'].keys():
+                    print("WARNING overwritting stored pKa value for ", pka_key)
 
-                        print("WARNING overwritting stored pKa value for ", pka_key)
-                else:
-
-                    self.stored_objects['pKa']={}
-
-                self.stored_objects['pKa'][pka_key]=pka_set[pka_key]
+                self.pka_set[pka_key]=pka_set[pka_key]
+                if pka_key in self.stored_objects['particle'].keys():
+                    self.set_particle_acidity(particle=self.stored_objects['particle'][pka_key],acidity=pka_set[pka_key]['acidity'])
             
         return
 
@@ -970,7 +1004,7 @@ class sugar_library(object):
 
         return clean_sequence
 
-    def setup_constantpH_reactions(self, counter_ion, exclusion_radius=None):
+    def setup_constantpH_reactions(self, counter_ion, exclusion_radius=None, pka_set=None):
         """
         Set up the Acid/Base reactions for acidic/basidic residues in mol. The reaction steps are done following the constant pH ensamble procedure. 
 
@@ -978,6 +1012,7 @@ class sugar_library(object):
         
         counter_ion:(class) particle class object as defined in sugar library
         exclusion_radius:(float) exclusion radius for the constant pH ensamble
+        pka_set:(dict,optional) dictionary with the desired pka_set, by default the one stored in sugar will be used
         Output:
         RE: instance of the espresso class reaction_ensemble.ConstantpHEnsemble
 
@@ -993,20 +1028,28 @@ class sugar_library(object):
 
             self.create_random_seed()
 
+        if pka_set is None:
+            pka_set=self.pka_set    
+
+        self.check_pka_set(pka_set=pka_set)
+
         if 'reactions' not in self.stored_objects.keys():
             self.stored_objects['reactions']={}
 
         RE = reaction_ensemble.ConstantpHEnsemble(temperature=self.kT.to('reduced_energy').magnitude, exclusion_radius=exclusion_radius.magnitude, seed=self.SEED)
         
-        for particle in self.stored_objects['particle'].values():
-            
-            if particle.name in self.stored_objects['pKa'].keys() and  particle.name  not in self.stored_objects['reactions'].keys():
+        for name in pka_set.keys():
 
-                gamma=10**-self.stored_objects['pKa'][particle.name]
-                
-                if particle.acidity in ['basic','acidic']: # acid-base particle 
-                    
-                    RE.add_reaction(gamma=gamma,
+            if name in self.stored_objects['particle'].keys():
+                particle=self.stored_objects['particle'][name]
+                self.set_particle_acidity(particle=particle,acidity=pka_set[name]['acidity'])
+
+            else:
+
+                raise ValueError('Undefined sugar particle with name ', name)
+            
+            gamma=10**-pka_set[name]['pka_value']
+            RE.add_reaction(gamma=gamma,
                                     reactant_types=[particle.type["protonated"]],
                                     reactant_coefficients=[1],
                                     product_types=[particle.type["unprotonated"], counter_ion.type],
@@ -1015,16 +1058,17 @@ class sugar_library(object):
                                     particle.type["protonated"]: particle.q["protonated"],
                                     counter_ion.type: counter_ion.q})
 
-                else:
-
-                    print('WARNING the acidity of '+ particle.name + ' is not defined')
-        
-                self.stored_objects['reactions'][particle.name]={'gamma':gamma,
-                                    'reactant_types':[particle.type["protonated"]],
-                                    'reactant_coefficients':[1],
-                                    'product_types':[particle.type["unprotonated"], counter_ion.type],
-                                    'product_coefficients':[1,1]}
         return RE
+
+    def check_pka_set(self, pka_set):
+        """"
+        Checks that the given pka_set has the formatting expected by sugar
+        """
+        required_keys=['pka_value','acidity']
+        for required_key in required_keys:
+            for pka_entry in pka_set:
+                if required_key not in pka_entry.values():
+                    raise ValueError('missing a requiered key ', required_keys, 'in the following entry of pka_set', pka_entry)
 
     def generate_trialvectors(self,mag):
         """
@@ -1052,15 +1096,21 @@ class sugar_library(object):
 
         return vec
 
-    def generate_trial_perpendicular_vector(self, vector, magnitude):
+    def generate_trial_perpendicular_vector(self, vector, magnitude=1):
         """
+        Generates a random vector perpendicular to the input vector
+        Inputs:
+        vector: (list) array with the componentes of the input vector
+        magnitude: (float) magnitude desired for the output vector
+        Returns:
+        perpendicular_vector: (numpy array) random vector perpendicular to the input vector
         """
 
-        
-        if vector[1] == 0 and vector[2] == 0 and vector[0] == 1:
+        np_vec=self.np.array(vector)
+        if np_vec[1] == 0 and np_vec[2] == 0 and np_vec[0] == 1:
             raise ValueError('zero vector')
             
-        return self.np.cross(vector, self.generate_trialvectors(1))*magnitude
+        return self.np.cross(np_vec, self.generate_trialvectors(1))*magnitude
 
     def setup_electrostatic_interactions(self, system, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
         """
@@ -1190,8 +1240,7 @@ class sugar_library(object):
         system: instance of espressmd system class
         time_step: time s
 
-        """
-        
+        """        
 
         kT=self.TEMPERATURE*self.units.k
 
@@ -1408,13 +1457,13 @@ class sugar_library(object):
 
         return titrable_particle_number
 
-    def calculate_HH(self, object, pH=None):
+    def calculate_HH(self, sequence, pH=None, pka_set=None):
         """
         Calculates the ideal Henderson-Hasselbach titration curve in the given pH range
 
         Inputs:
         pH: (list of floats) list of pH values
-        sugar_object: particle/residue/molecule object as defined in sugar library
+        sequence: (list of strings or string)
 
         Outputs:
         Z_HH: (list of floats) Henderson-Hasselbach prediction of the protein charge in the given pH
@@ -1428,67 +1477,35 @@ class sugar_library(object):
 
             raise ValueError("pH must contain a list with the pH-values where the Henderson-Hassebach titration curve will be calculated. Given: ", pH)        
 
+        if pka_set is None:
+            pka_set=self.pka_set
+        
+        self.check_pka_set(pka_set=pka_set)
+
         Z_HH=[]
 
         for pH_value in pH:
             
             Z=0
+            for name in sequence:
 
-            for particle in self.search_particles(object=object, sort_different_particles=False):
-                
-                if particle.name in self.stored_objects['pKa'].keys() and  particle.acidity in ['acidic','basic']:
-    
-                    Z+=self.calculate_HH_part(pH=pH_value, particle=particle)
+                if pka_set[name]['acidity'] == 'acidic':
+
+                    psi=-1
+
+                elif pka_set[name]['acidity']== 'basic':
+
+                    psi=+1
+
+                else:
+
+                    psi=0
+
+                Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))
                             
             Z_HH.append(Z)
 
         return Z_HH
-
-    def calculate_HH_part(self, pH, particle):
-        """
-        Calculates the ideal Henderson-Hassebach titration curve of part at one pH-value
-
-        Inputs:
-        pH: (float) pH value
-        particle: particle class object as defined in sugar library
-
-        Outputs:
-        z: (float) Henderson-Hasselnach prediction of charge of part at the given pH
-        """  
-
-        if particle.object_type != 'particle': 
-
-            raise ValueError("part must an instance of a particle object as defined in sugar library. Given: ", particle.object_type)
-
-        if not isinstance(pH,float) or   isinstance(pH,int):
-
-            raise ValueError("pH  must contain a float or integer number with the pH-value, given: ", pH)
-
-        pKa=self.stored_objects['pKa'][particle.name]
-
-        ground_charge=min([abs(q) for q in particle.q.values()])
-
-        if particle.acidity in ['acidic','basic']:
-
-            if particle.acidity == 'acidic':
-
-                psi=-1
-
-            elif particle.acidity == 'basic':
-
-                psi=+1
-
-            else:
-
-                raise ValueError("Unvalid particle acidity, known options are 'acidic' or 'basic'. Given:  ", particle.acidity)
-
-            z=ground_charge+psi/(1+10**(psi*(pH-pKa)))
-
-        else:
-            
-            z=0
-
-        return z
 
     def create_added_salt_in_system(self, system, cation, anion, c_salt):
         
