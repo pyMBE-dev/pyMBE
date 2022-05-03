@@ -794,6 +794,9 @@ class sugar_library(object):
                 if verbose:
                     print('Added: '+line)
 
+        if 'particle' not in self.stored_objects.keys():
+            self.stored_objects['particle']={}
+
         for pka_set in pKa_list:
             self.check_pka_set(pka_set=pka_set)
             for pka_key in pka_set: 
@@ -1469,11 +1472,7 @@ class sugar_library(object):
 
         if pH is None:
 
-            pH=self.np.linspace(2,12,50)
-        
-        elif not isinstance(pH,list):
-
-            raise ValueError("pH must contain a list with the pH-values where the Henderson-Hassebach titration curve will be calculated. Given: ", pH)        
+            pH=self.np.linspace(2,12,50)    
 
         if pka_set is None:
             pka_set=self.pka_set
