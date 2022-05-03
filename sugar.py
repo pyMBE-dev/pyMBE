@@ -67,7 +67,7 @@ class sugar_library(object):
 
         self.print_reduced_units()
 
-    def particle(self, name, type=None, q=None, diameter=None, acidity=None, epsilon=None):
+    def particle(self, name, type=None, q=0, diameter=None, acidity=None, epsilon=None):
         """
         Returns a sugar particle object. 
         Checks if the user has created another particle object with a shared type.
@@ -87,12 +87,15 @@ class sugar_library(object):
         particle.object_type='particle'
         particle.diameter=diameter
         particle.epsilon=epsilon
-        
+        particle.q=q
+
         if type is None:
             type=self.propose_unused_type()
-        else:
-            if self.check_particle_type_exists(particle=particle):
-                raise ValueError("ERROR you have already created a particle object with the same type as ", particle.name)
+        
+        particle.type=type
+
+        if self.check_particle_type_exists(particle=particle):
+            raise ValueError("ERROR you have already created a particle object with the same type as ", particle.name)
         
         if acidity is None:
             acidity='inert'
@@ -125,10 +128,12 @@ class sugar_library(object):
                 particle.type={}
                 for label in type_labels:
                     particle.type[label]=self.propose_unused_type()
+                    self.type_map[particle.name]=particle.type
 
             elif isinstance(particle.type,int):
-                particle.type={'protonated': particle.type,
-                'unprotonated': self.propose_unused_type()}
+                particle.type={'protonated': particle.type}
+                self.type_map[particle.name]=particle.type
+                particle.type['unprotonated']= self.propose_unused_type()
             elif isinstance(particle.type,dict):
                 for key in particle.type.keys():
                     if key not in type_labels:
@@ -768,7 +773,7 @@ class sugar_library(object):
             
         return
     
-    def load_pKa_set(self,filename, verbose=False):
+    def load_pka_set(self,filename, verbose=False):
         """
         Loads the parameters stored in filename into sugar
         Inputs:
@@ -1033,9 +1038,6 @@ class sugar_library(object):
 
         self.check_pka_set(pka_set=pka_set)
 
-        if 'reactions' not in self.stored_objects.keys():
-            self.stored_objects['reactions']={}
-
         RE = reaction_ensemble.ConstantpHEnsemble(temperature=self.kT.to('reduced_energy').magnitude, exclusion_radius=exclusion_radius.magnitude, seed=self.SEED)
         
         for name in pka_set.keys():
@@ -1043,13 +1045,8 @@ class sugar_library(object):
             if name in self.stored_objects['particle'].keys():
                 particle=self.stored_objects['particle'][name]
                 self.set_particle_acidity(particle=particle,acidity=pka_set[name]['acidity'])
-
-            else:
-
-                raise ValueError('Undefined sugar particle with name ', name)
-            
-            gamma=10**-pka_set[name]['pka_value']
-            RE.add_reaction(gamma=gamma,
+                gamma=10**-pka_set[name]['pka_value']
+                RE.add_reaction(gamma=gamma,
                                     reactant_types=[particle.type["protonated"]],
                                     reactant_coefficients=[1],
                                     product_types=[particle.type["unprotonated"], counter_ion.type],
@@ -1057,7 +1054,8 @@ class sugar_library(object):
                                     default_charges={particle.type["unprotonated"]: particle.q["unprotonated"],
                                     particle.type["protonated"]: particle.q["protonated"],
                                     counter_ion.type: counter_ion.q})
-
+            
+            
         return RE
 
     def check_pka_set(self, pka_set):
@@ -1066,8 +1064,8 @@ class sugar_library(object):
         """
         required_keys=['pka_value','acidity']
         for required_key in required_keys:
-            for pka_entry in pka_set:
-                if required_key not in pka_entry.values():
+            for pka_entry in pka_set.values():
+                if required_key not in pka_entry.keys():
                     raise ValueError('missing a requiered key ', required_keys, 'in the following entry of pka_set', pka_entry)
 
     def generate_trialvectors(self,mag):
@@ -1452,7 +1450,7 @@ class sugar_library(object):
 
         for particle_name in particle_dict.keys():
 
-            if particle_name in self.stored_objects['pKa'].keys():
+            if particle_name in self.pka_set.keys():
                 titrable_particle_number[particle_name]=particle_dict[particle_name]
 
         return titrable_particle_number
@@ -1488,20 +1486,22 @@ class sugar_library(object):
             
             Z=0
             for name in sequence:
+                
+                if name in pka_set.keys():
 
-                if pka_set[name]['acidity'] == 'acidic':
+                    if pka_set[name]['acidity'] == 'acidic':
 
-                    psi=-1
+                        psi=-1
 
-                elif pka_set[name]['acidity']== 'basic':
+                    elif pka_set[name]['acidity']== 'basic':
 
-                    psi=+1
+                        psi=+1
 
-                else:
+                    else:
 
-                    psi=0
+                        psi=0
 
-                Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))
+                    Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))
                             
             Z_HH.append(Z)
 
@@ -1570,7 +1570,7 @@ class sugar_library(object):
 
         for particle in self.stored_objects['particle'].values():
 
-            if particle.name in self.stored_objects['pKa'].keys():
+            if particle.name in self.pka_set.keys():
 
                 for acidbase_type in particle.type.values():
 

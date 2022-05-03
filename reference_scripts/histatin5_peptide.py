@@ -64,7 +64,7 @@ cation=sg.particle(name='Na', type=sg.propose_unused_type(), q=1, diameter=0.2*s
 anion=sg.particle(name='Cl', type=sg.propose_unused_type(), q=-1, diameter=0.36*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
 
     # Load pKa set
-sg.load_parameters(filename='reference_parameters/Nozaki1967.txt')
+sg.load_pka_set(filename='reference_parameters/pka_sets/Nozaki1967.txt')
     # use generic paramenters for the peptide
 
 acidic_aminoacids=['c','E','D','Y','C']
@@ -201,7 +201,7 @@ for pH_value in pH_range:
     
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = sg.calculate_HH(object=histidin5, pH=list(pH_range))
+Z_HH = sg.calculate_HH(sequence=histidin5.sequence, pH=list(pH_range))
 
 # Estimate the statistical error and the autocorrelation time of the data
 print("Charge analysis")

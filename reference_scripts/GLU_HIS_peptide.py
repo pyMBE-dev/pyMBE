@@ -56,8 +56,8 @@ residue_positions=[0,3,5,len(sequence)-1] # Residue positions to calculate its a
 
     # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-sg.load_parameters(filename='reference_parameters/Lunkad2021.txt') 
-sg.load_parameters(filename='reference_parameters/CRC1991.txt')
+sg.load_interaction_parameters(filename='reference_parameters/interaction_parameters/Lunkad2021.txt') 
+sg.load_pka_set(filename='reference_parameters/pka_sets/CRC1991.txt')
 
     # Create an instance of a sugar molecule object for the peptide
 
@@ -79,7 +79,7 @@ dict_titrable_groups=sg.count_titrable_particles(object=peptide)
 total_ionisible_groups=sum(dict_titrable_groups.values())
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
-print('The ionisable groups in your peptide is ', dict_titrable_groups)
+print('The ionisable groups in your peptide are ', dict_titrable_groups)
 
     # Create an instance of an espresso system
 
@@ -185,7 +185,7 @@ for pH_value in pH_range:
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = sg.calculate_HH(object=peptide, pH=list(pH_range))
+Z_HH = sg.calculate_HH(sequence=peptide.sequence, pH=list(pH_range))
 
 # Plot the results
 

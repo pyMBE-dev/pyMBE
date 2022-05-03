@@ -1,5 +1,0 @@
-# pKa-values for phosphorilated aminoacids J U and Z from Bienkiewicz & K.J. Lumb, J Biomol NMR 15: 203-206 (1999). 
-{"J" : {'pka_value': 5.96, 'acidity': 'acidic'}, 
-"U" : {'pka_value': 6.30, 'acidity': 'acidic'},
-"Z" : {'pka_value': 5.96, 'acidity': 'acidic'},
-}
