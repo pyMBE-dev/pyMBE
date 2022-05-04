@@ -75,7 +75,7 @@ volume=L**3
 N_peptide_chains=int(volume*sg.N_A*pep_concentration)
 L=volume ** (1./3.) # Side of the simulation box
 calculated_peptide_concentration=N_peptide_chains/(volume*sg.N_A)
-dict_titrable_groups=sg.count_titrable_particles(object=peptide)
+dict_titrable_groups=sg.count_titrable_particles(sugar_object=peptide)
 total_ionisible_groups=sum(dict_titrable_groups.values())
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
@@ -92,9 +92,9 @@ sg.add_bonds_to_system(system=system)
 # Create your molecules into the espresso system
 
 for _ in range(N_peptide_chains):
-    sg.create_object_in_system(object=peptide, system=system, use_default_bond=True)
+    sg.create_sugar_object_in_system(sugar_object=peptide, system=system, use_default_bond=True)
 
-sg.create_counterions_in_system(object=peptide,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
+sg.create_counterions_in_system(sugar_object=peptide,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
 c_salt_calculated=sg.create_added_salt_in_system(system=system,cation=cation,anion=anion,c_salt=c_salt)
 
 # Setup the acid-base reactions of the peptide using the constant pH ensemble
@@ -132,7 +132,7 @@ with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
 N_frame=0
 Z_pH=[] # List of the average global charge at each pH
 Rg_pH=[] 
-first_peptide_id=sg.get_ids(object=peptide)[0][0]
+first_peptide_id=sg.get_ids(sugar_object=peptide)[0][0]
 # Main loop for performing simulations at different pH-values
 
 for pH_value in pH_range:
@@ -161,7 +161,7 @@ for pH_value in pH_range:
 
             # Get peptide net charge
 
-            Z_net_list = sg.get_net_charge(system=system, object=peptide)
+            Z_net_list = sg.get_net_charge(system=system, sugar_object=peptide)
             Z_sim.append(np.mean(np.array(Z_net_list)))
 
             Rg = system.analysis.calc_rg(chain_start=first_peptide_id, number_of_chains=N_peptide_chains, chain_length=len(sequence)*2)
@@ -185,7 +185,7 @@ for pH_value in pH_range:
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = sg.calculate_HH(sequence=peptide.sequence, pH=list(pH_range))
+Z_HH = sg.calculate_HH(sequence=peptide.sequence, pH=pH_range)
 
 # Plot the results
 

@@ -38,8 +38,8 @@ residue_positions=[0,3,5,len(sequence)-1] # Residue positions to calculate its a
 
     # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-sg.load_parameters(filename='reference_parameters/Lunkad2021.txt') 
-sg.load_parameters(filename='reference_parameters/Hass2015.txt')
+sg.load_interaction_parameters(filename='reference_parameters/interaction_parameters/Lunkad2021.txt') 
+sg.load_pka_set(filename='reference_parameters/pka_sets/Hass2015.txt')
 
     # Use a generic parametrization for the aminoacids not parametrized
 
@@ -76,7 +76,7 @@ anion=sg.particle(name='Cl', type=sg.propose_unused_type(), q=-1, diameter=0.35*
 volume=N_peptide_chains/(sg.N_A*pep_concentration)
 L=volume ** (1./3.) # Side of the simulation box
 calculated_peptide_concentration=N_peptide_chains/(volume*sg.N_A)
-dict_titrable_groups=sg.count_titrable_particles(object=peptide)
+dict_titrable_groups=sg.count_titrable_particles(sugar_object=peptide)
 total_ionisible_groups=sum(dict_titrable_groups.values())
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
@@ -96,9 +96,9 @@ sg.add_bonds_to_system(system=system)
 
 
 for _ in range(N_peptide_chains):
-    sg.create_object_in_system(object=peptide, system=system, use_default_bond=True)
+    sg.create_sugar_object_in_system(sugar_object=peptide, system=system, use_default_bond=True)
 
-sg.create_counterions_in_system(object=peptide,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
+sg.create_counterions_in_system(sugar_object=peptide,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
 c_salt_calculated=sg.create_added_salt_in_system(system=system,cation=cation,anion=anion,c_salt=c_salt)
 with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
     vtf.writevsf(system, coordinates)
@@ -171,7 +171,7 @@ for pH_value in pH_range:
 
             # Get peptide net charge
 
-            Z_net_list = sg.get_net_charge(system=system, object=peptide)
+            Z_net_list = sg.get_net_charge(system=system, sugar_object=peptide)
             Z_sim.append(np.mean(np.array(Z_net_list)))
             
             # Get the charge of the residues in residue_position
@@ -200,7 +200,7 @@ for pH_value in pH_range:
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = sg.calculate_HH(object=peptide, pH=list(pH_range))
+Z_HH = sg.calculate_HH(sequence=peptide.sequence, pH=pH_range)
 
 # Estimate the statistical error and the autocorrelation time of the data
 av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = sg.block_analyze(input_data=Z_pH)

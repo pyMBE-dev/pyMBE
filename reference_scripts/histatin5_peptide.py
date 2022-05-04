@@ -72,7 +72,7 @@ basic_aminoacids=['R','n','K','H']
 N_aminoacids=len(sg.protein_sequence_parser(sequence=sequence))
 
 for aminoacid_key in sg.protein_sequence_parser(sequence=sequence):
-    if aminoacid_key not in sg.stored_objects['particle'].keys():
+    if aminoacid_key not in sg.stored_sugar_objects['particle'].keys():
         if aminoacid_key in acidic_aminoacids:
             sg.particle(name=aminoacid_key, acidity='acidic', diameter=bead_size, epsilon=1*sg.units('reduced_energy'))
         elif aminoacid_key in basic_aminoacids:
@@ -107,11 +107,11 @@ sg.add_bonds_to_system(system=system)
 N_peptide_chains=int(L**3*pep_concentration*sg.N_A)
 
 for _ in range(N_peptide_chains):
-    sg.create_object_in_system(object=histidin5, system=system, use_default_bond=True)
+    sg.create_sugar_object_in_system(sugar_object=histidin5, system=system, use_default_bond=True)
 
-dict_titrable_groups=sg.count_titrable_particles(object=histidin5)
+dict_titrable_groups=sg.count_titrable_particles(sugar_object=histidin5)
 total_ionisible_groups=sum(dict_titrable_groups.values())
-sg.create_counterions_in_system(object=histidin5,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
+sg.create_counterions_in_system(sugar_object=histidin5,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
 c_salt_calculated=sg.create_added_salt_in_system(system=system,cation=cation,anion=anion,c_salt=c_salt)
 
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
@@ -155,7 +155,7 @@ with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
 Rg_pH=[]
 Z_pH=[]
 N_frame=0
-first_peptide_id=sg.get_ids(object=histidin5)[0][0]
+first_peptide_id=sg.get_ids(sugar_object=histidin5)[0][0]
 
 # Main loop for performing simulations at different pH-values
 
@@ -179,7 +179,7 @@ for pH_value in pH_range:
 
         if ( step > steps_eq):
 
-            Z_net_list = sg.get_net_charge(system=system, object=histidin5)
+            Z_net_list = sg.get_net_charge(system=system, sugar_object=histidin5)
             Z_sim.append(np.mean(np.array(Z_net_list)))
             Rg = system.analysis.calc_rg(chain_start=first_peptide_id, number_of_chains=N_peptide_chains, chain_length=N_aminoacids)
             Rg_value = sg.units.Quantity(Rg[0], 'reduced_length')
@@ -201,7 +201,7 @@ for pH_value in pH_range:
     
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = sg.calculate_HH(sequence=histidin5.sequence, pH=list(pH_range))
+Z_HH = sg.calculate_HH(sequence=histidin5.sequence, pH=pH_range)
 
 # Estimate the statistical error and the autocorrelation time of the data
 print("Charge analysis")

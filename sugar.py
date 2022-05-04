@@ -1,4 +1,4 @@
-class sugar_library(object):
+class sugar_library():
 
     import pint
     units = pint.UnitRegistry()
@@ -16,7 +16,7 @@ class sugar_library(object):
     e=1.60217662e-19 *units.C
     pi=3.14159265359
     initial_simulation_time=None
-    stored_objects={}
+    stored_sugar_objects={}
     id_map={}
     type_map={}
     pka_set={}
@@ -84,7 +84,7 @@ class sugar_library(object):
             pass
         
         particle.name=name
-        particle.object_type='particle'
+        particle.sugar_object_type='particle'
         particle.diameter=diameter
         particle.epsilon=epsilon
         particle.q=q
@@ -101,7 +101,7 @@ class sugar_library(object):
             acidity='inert'
         
         self.set_particle_acidity(particle=particle, acidity=acidity)
-        self.store_object(object=particle, verbose=True)
+        self.store_sugar_object(sugar_object=particle, verbose=True)
         self.type_map[particle.name]=particle.type
 
         return particle
@@ -169,8 +169,8 @@ class sugar_library(object):
         residue.name=name
         residue.central_bead=central_bead
         residue.side_chains=side_chains
-        residue.object_type='residue'
-        self.store_object(object=residue, verbose=True)
+        residue.sugar_object_type='residue'
+        self.store_sugar_object(sugar_object=residue, verbose=True)
 
         return residue
 
@@ -190,8 +190,8 @@ class sugar_library(object):
 
         molecule.residue_list=residue_list
         molecule.name=name
-        molecule.object_type='molecule'
-        self.store_object(object=molecule, verbose=True)
+        molecule.sugar_object_type='molecule'
+        self.store_sugar_object(sugar_object=molecule, verbose=True)
 
         return molecule
 
@@ -216,16 +216,16 @@ class sugar_library(object):
         residue_list=[]
 
         if model == '2beadAA':
-            C_particle=self.stored_objects['particle']['CA']
+            C_particle=self.stored_sugar_objects['particle']['CA']
         
-        if 'residue' not in self.stored_objects.keys():
-            self.stored_objects['residue']={}
+        if 'residue' not in self.stored_sugar_objects.keys():
+            self.stored_sugar_objects['residue']={}
 
         for residue_name in clean_sequence:
             
-            if residue_name not in self.stored_objects['residue'].keys():
+            if residue_name not in self.stored_sugar_objects['residue'].keys():
                 
-                AA_particle=self.stored_objects['particle'][residue_name]
+                AA_particle=self.stored_sugar_objects['particle'][residue_name]
 
                 if model == '1beadAA':
 
@@ -244,7 +244,7 @@ class sugar_library(object):
 
                 residue=self.residue(name=residue_name, central_bead=central_bead,side_chains=side_chains)
             else:
-                residue=self.stored_objects['residue'][residue_name]
+                residue=self.stored_sugar_objects['residue'][residue_name]
             
             residue_list.append(residue)
         peptide=self.molecule(name=name, residue_list=residue_list)
@@ -252,7 +252,7 @@ class sugar_library(object):
         peptide.sequence=clean_sequence
         return peptide
 
-    def store_object(self,object, verbose=False):
+    def store_sugar_object(self,sugar_object, verbose=False):
         """
         Stores object in sugar for bookeeping
         Input:
@@ -260,13 +260,13 @@ class sugar_library(object):
         verbose: (boolean) prints a warning if the object is already stored
         """
 
-        if not self.check_object_stored(object=object, verbose=verbose):
-            if object.object_type not in self.stored_objects:
-                self.stored_objects[object.object_type]={}
-            self.stored_objects[object.object_type][object.name]=object
+        if not self.check_sugar_object_stored(sugar_object=sugar_object, verbose=verbose):
+            if sugar_object.sugar_object_type not in self.stored_sugar_objects:
+                self.stored_sugar_objects[sugar_object.sugar_object_type]={}
+            self.stored_sugar_objects[sugar_object.sugar_object_type][sugar_object.name]=sugar_object
         return    
         
-    def check_object_stored(self, object, verbose=False):
+    def check_sugar_object_stored(self, sugar_object, verbose=False):
         """
         Checks if the user has already created a  object with the same name
         Input:
@@ -274,11 +274,11 @@ class sugar_library(object):
         verbose: (boolean) prints a warning if the object is already stored
         """
 
-        if object.object_type not in self.stored_objects.keys():
+        if sugar_object.sugar_object_type not in self.stored_sugar_objects.keys():
 
             return False
 
-        if object.name not in self.stored_objects[object.object_type].keys():
+        if sugar_object.name not in self.stored_sugar_objects[sugar_object.sugar_object_type].keys():
 
             return False
 
@@ -306,7 +306,7 @@ class sugar_library(object):
             print('WARNING, you have already defined a bond between particle1 and particle2')
             print('The previously defined bond have been overwritten')
 
-        self.stored_objects['bonds'][bond_key]=bond
+        self.stored_sugar_objects['bonds'][bond_key]=bond
 
         return
 
@@ -320,7 +320,7 @@ class sugar_library(object):
         id = desired particle id
         '''
 
-        if particle.object_type != 'particle':
+        if particle.sugar_object_type != 'particle':
 
             raise ValueError("particle must be an instance of a sugar particle object")
 
@@ -405,14 +405,14 @@ class sugar_library(object):
         central_bead_id: (id) id of the central bead of the residue
         """
         
-        if residue.object_type != 'residue':
+        if residue.sugar_object_type != 'residue':
 
             raise ValueError("residue must be an instance of a sugar residue object")
 
         residue_ids_dict={}        
 
         # create the principal bead
-        if self.check_object_stored(object=residue.central_bead):
+        if self.check_sugar_object_stored(sugar_object=residue.central_bead):
             
             central_bead_id=self.create_particle_in_system(particle=residue.central_bead, system=system, position=central_bead_position)
             residue_ids_dict['central-'+residue.central_bead.name]=[central_bead_id]
@@ -427,7 +427,7 @@ class sugar_library(object):
         
         for sg_object in residue.side_chains:
 
-            if sg_object.object_type == 'particle': # Only one bead
+            if sg_object.sugar_object_type == 'particle': # Only one bead
                 
                 bond=self.search_bond(particle1=residue.central_bead, particle2=sg_object, hard_check=True, use_default_bond=use_default_bond)
                 if backbone_vector is None:
@@ -442,7 +442,7 @@ class sugar_library(object):
                 else:
                     residue_ids_dict['side-'+sg_object.name]=[side_bead_id]
 
-            elif sg_object.object_type == 'residue': # More than one bead
+            elif sg_object.sugar_object_type == 'residue': # More than one bead
                 
                 bond=self.search_bond(particle1=residue.central_bead, particle2=sg_object.central_bead, hard_check=True, use_default_bond=use_default_bond)
                 if backbone_vector is None:
@@ -496,7 +496,7 @@ class sugar_library(object):
         particle_ids: (list) list with the ids of the particles created
         """
         
-        if molecule.object_type != 'molecule':
+        if molecule.sugar_object_type != 'molecule':
 
             raise ValueError("molecule must be an instance of a sugar residue object")
 
@@ -572,13 +572,13 @@ class sugar_library(object):
         particle2 = instance of a particle object from sugar library
         """
 
-        if 'bonds' not in self.stored_objects.keys():
-            self.stored_objects['bonds']={}
+        if 'bonds' not in self.stored_sugar_objects.keys():
+            self.stored_sugar_objects['bonds']={}
             return False
 
         bond_key=frozenset([particle1.name, particle2.name])
 
-        if bond_key not in self.stored_objects['bonds'].keys():
+        if bond_key not in self.stored_sugar_objects['bonds'].keys():
 
             return False
 
@@ -593,10 +593,10 @@ class sugar_library(object):
         particle: sugar particle object
         """
 
-        if 'particle' not in self.stored_objects.keys():
+        if 'particle' not in self.stored_sugar_objects.keys():
             return False
 
-        for stored_particle in self.stored_objects['particle'].values():
+        for stored_particle in self.stored_sugar_objects['particle'].values():
 
             if particle.type in self.get_particle_types(particle=stored_particle):
 
@@ -620,20 +620,20 @@ class sugar_library(object):
         if self.check_bond_defined(particle1=particle1, particle2=particle2):
 
             bond_key=frozenset([particle1.name, particle2.name])
-            bond=self.stored_objects['bonds'][bond_key]
+            bond=self.stored_sugar_objects['bonds'][bond_key]
             return bond
         
         else:
 
             if  use_default_bond:
             
-                if 'default' not in self.stored_objects['bonds'].keys():
+                if 'default' not in self.stored_sugar_objects['bonds'].keys():
 
                     raise ValueError('Default bond is not defined')
 
                 else:
 
-                    return self.stored_objects['bonds']['default']
+                    return self.stored_sugar_objects['bonds']['default']
 
             else:
                 
@@ -654,7 +654,7 @@ class sugar_library(object):
         system: instance of a system object of espresso library
         """
 
-        for bond in self.stored_objects['bonds'].values():
+        for bond in self.stored_sugar_objects['bonds'].values():
             system.bonded_inter.add(bond)
 
         return
@@ -718,17 +718,17 @@ class sugar_library(object):
                             epsilon=not_requiered_attributes.pop('epsilon'))
 
         for residue_param in residue_param_list:
-            central_bead=self.stored_objects['particle'][residue_param.pop('central_bead_name')]
+            central_bead=self.stored_sugar_objects['particle'][residue_param.pop('central_bead_name')]
             side_chains=[]
             for side_chain_name in self.residue_param.pop('side_chains_names'):
 
-                if side_chain_name in self.stored_objects['particle'].keys() and side_chain_name in self.stored_objects['residue'].keys():
+                if side_chain_name in self.stored_sugar_objects['particle'].keys() and side_chain_name in self.stored_objects['residue'].keys():
                     raise ValueError(side_chain_name+ 'is defined both as a particle name and a residue name, please rename to avoid the ambiguity')
 
-                elif side_chain_name in self.stored_objects['particle'].keys():
-                    side_chains.append(self.stored_objects['particle'][side_chain_name])
-                elif side_chain_name in self.stored_objects['residue'].keys():
-                    side_chains.append(self.stored_objects['residue'][side_chain_name])
+                elif side_chain_name in self.stored_sugar_objects['particle'].keys():
+                    side_chains.append(self.stored_sugar_objects['particle'][side_chain_name])
+                elif side_chain_name in self.stored_sugar_objects['residue'].keys():
+                    side_chains.append(self.stored_sugar_objects['residue'][side_chain_name])
                 else:
                     raise ValueError('Objects in residue side chains must be either particles or residues')
                 
@@ -740,7 +740,7 @@ class sugar_library(object):
             residue_name_list=molecule_param.pop('residue_name_list')
             residue_list=[]
             for residue_name in residue_name_list:
-                residue_list.append(self.stored_objects['residue'][residue_name])
+                residue_list.append(self.stored_sugar_objects['residue'][residue_name])
 
             self.molecule(name=molecule_param.pop('name'),
                         residue_list=residue_list)
@@ -755,8 +755,8 @@ class sugar_library(object):
             
             name1=bond_param.pop('name1')
             name2=bond_param.pop('name2')
-            particle1=self.stored_objects['particle'][name1]
-            particle2=self.stored_objects['particle'][name2]
+            particle1=self.stored_sugar_objects['particle'][name1]
+            particle2=self.stored_sugar_objects['particle'][name2]
             bond_type=bond_param.pop('bond_type')
 
             if bond_type == 'harmonic':
@@ -794,8 +794,8 @@ class sugar_library(object):
                 if verbose:
                     print('Added: '+line)
 
-        if 'particle' not in self.stored_objects.keys():
-            self.stored_objects['particle']={}
+        if 'particle' not in self.stored_sugar_objects.keys():
+            self.stored_sugar_objects['particle']={}
 
         for pka_set in pKa_list:
             self.check_pka_set(pka_set=pka_set)
@@ -805,8 +805,8 @@ class sugar_library(object):
                     print("WARNING overwritting stored pKa value for ", pka_key)
 
                 self.pka_set[pka_key]=pka_set[pka_key]
-                if pka_key in self.stored_objects['particle'].keys():
-                    self.set_particle_acidity(particle=self.stored_objects['particle'][pka_key],acidity=pka_set[pka_key]['acidity'])
+                if pka_key in self.stored_sugar_objects['particle'].keys():
+                    self.set_particle_acidity(particle=self.stored_sugar_objects['particle'][pka_key],acidity=pka_set[pka_key]['acidity'])
             
         return
 
@@ -816,9 +816,9 @@ class sugar_library(object):
         Input:
         bond: (class) instance of a bond object from espressomd library
         """
-        if 'bonds' not in self.stored_objects.keys():
-            self.stored_objects['bonds']={}
-        self.stored_objects['bonds']['default']=bond
+        if 'bonds' not in self.stored_sugar_objects.keys():
+            self.stored_sugar_objects['bonds']={}
+        self.stored_sugar_objects['bonds']['default']=bond
 
         return
 
@@ -835,10 +835,10 @@ class sugar_library(object):
                             'cutoff' : cutoff,
                             'offset' : offset, 
                             'shift' : shift}
-        if 'LennardJones' not in self.stored_objects.keys():
-            self.stored_objects['LennardJones']={}
+        if 'LennardJones' not in self.stored_sugar_objects.keys():
+            self.stored_sugar_objects['LennardJones']={}
 
-        self.stored_objects['LennardJones']['default']=default_param
+        self.stored_sugar_objects['LennardJones']['default']=default_param
 
     def create_variable_with_units(self, variable_dict):
         """
@@ -1045,8 +1045,8 @@ class sugar_library(object):
         
         for name in pka_set.keys():
 
-            if name in self.stored_objects['particle'].keys():
-                particle=self.stored_objects['particle'][name]
+            if name in self.stored_sugar_objects['particle'].keys():
+                particle=self.stored_sugar_objects['particle'][name]
                 self.set_particle_acidity(particle=particle,acidity=pka_set[name]['acidity'])
                 gamma=10**-pka_set[name]['pka_value']
                 RE.add_reaction(gamma=gamma,
@@ -1381,7 +1381,7 @@ class sugar_library(object):
 
         return
 
-    def search_particles(self, object, sort_different_particles=False):
+    def search_particles(self, sugar_object, sort_different_particles=False):
         """
         Searches for all particles in object 
         Inputs:
@@ -1392,32 +1392,32 @@ class sugar_library(object):
         """
         particle_list=[]
         
-        if object.object_type == 'particle':
+        if sugar_object.sugar_object_type == 'particle':
             particle_list.append(object)
-        elif object.object_type == 'residue':
-            particle_list.append(object.central_bead)
-            for side_object in object.side_chains:
-                if side_object.object_type=='particle': 
+        elif sugar_object.sugar_object_type == 'residue':
+            particle_list.append(sugar_object.central_bead)
+            for side_object in sugar_object.side_chains:
+                if side_object.sugar_object_type=='particle': 
                     side_particle_list=[side_object]
-                elif side_object.object_type=='residue':
-                    side_particle_list=self.search_particles(object=side_object)
+                elif side_object.sugar_object_type=='residue':
+                    side_particle_list=self.search_particles(sugar_object=side_object)
                 particle_list+=side_particle_list
             
-        elif object.object_type == 'molecule':
-            for residue in object.residue_list:
-                particle_list+=self.search_particles(object=residue)
+        elif sugar_object.sugar_object_type == 'molecule':
+            for residue in sugar_object.residue_list:
+                particle_list+=self.search_particles(sugar_object=residue)
         if sort_different_particles:
             sorted_particle_list=[]
             for particle_name in [particle.name for particle in particle_list]:
                 if particle_name not in [particle.name for particle in sorted_particle_list]:
-                    sorted_particle_list.append(self.stored_objects['particle'][particle_name])
+                    sorted_particle_list.append(self.sugar_stored_objects['particle'][particle_name])
                 
             return sorted_particle_list
         else:
 
             return particle_list
 
-    def count_particles(self, object):
+    def count_particles(self, sugar_object):
         """
         Counts how many particle of each type are in object and stores them in a dictionary
         Inputs:
@@ -1426,7 +1426,7 @@ class sugar_library(object):
         particle_number:(dict) number of particles of each type in object
         """
 
-        particle_list=self.search_particles(object=object,sort_different_particles=False)
+        particle_list=self.search_particles(sugar_object=sugar_object,sort_different_particles=False)
 
         particle_number={}
 
@@ -1439,7 +1439,7 @@ class sugar_library(object):
 
         return particle_number
 
-    def count_titrable_particles(self, object):
+    def count_titrable_particles(self, sugar_object):
         """
         Counts how many titrable particle of each type are in object and stores them in a dictionary
         Inputs:
@@ -1448,7 +1448,7 @@ class sugar_library(object):
         titrable_particle_number:(dict) number of particles of each type in object
         """
 
-        particle_dict=self.count_particles(object=object)
+        particle_dict=self.count_particles(sugar_object=sugar_object)
         titrable_particle_number={}
 
         for particle_name in particle_dict.keys():
@@ -1567,7 +1567,7 @@ class sugar_library(object):
 
         acidbase_types_list=[]
 
-        for particle in self.stored_objects['particle'].values():
+        for particle in self.stored_sugar_objects['particle'].values():
 
             if particle.name in self.pka_set.keys():
 
@@ -1579,7 +1579,7 @@ class sugar_library(object):
 
         return
 
-    def get_ids(self,object):
+    def get_ids(self,sugar_object):
         """
         Returns all particles ids in the system matching the object.
         Inputs:
@@ -1588,17 +1588,17 @@ class sugar_library(object):
         id_list:(list) list with the ids in the system matching the object.
         """
 
-        self.check_object_stored(object=object)
+        self.check_sugar_object_stored(sugar_object=sugar_object)
 
-        if object.object_type == 'particle':
+        if sugar_object.sugar_object_type == 'particle':
             id_list=[]
-            for id in self.id_map['particle'][object.name]:
+            for id in self.id_map['particle'][sugar_object.name]:
                 id_list.append([id]) 
             return id_list
 
-        elif object.object_type == 'residue':
+        elif sugar_object.sugar_object_type == 'residue':
             all_residue_id_list=[]
-            for residue_dict in self.id_map['residue'][object.name]:
+            for residue_dict in self.id_map['residue'][sugar_object.name]:
                 residue_id_list=[]
                 for id_list in residue_dict.values():
                     for id in id_list:
@@ -1606,9 +1606,9 @@ class sugar_library(object):
                 all_residue_id_list.append(residue_id_list)
             return all_residue_id_list
 
-        elif object.object_type == 'molecule':
+        elif sugar_object.sugar_object_type == 'molecule':
             all_molecule_id_list=[]
-            for molecule in self.id_map['molecule'][object.name]:
+            for molecule in self.id_map['molecule'][sugar_object.name]:
                 molecule_id_list=[]
                 for residue_dict in molecule:
                     for id_list in residue_dict.values():    
@@ -1619,9 +1619,9 @@ class sugar_library(object):
             return all_molecule_id_list
         return
 
-    def create_object_in_system(self, object, system, position=None, use_default_bond=False):
+    def create_sugar_object_in_system(self, sugar_object, system, position=None, use_default_bond=False):
         """
-        Creates all particles contained in the object in the system of espresso
+        Creates all particles contained in the sugar object in the system of espresso
         Inputs:
         object:(class) particle, residue or molecule/peptide object
         system: (class)espresso class object with all system variables.
@@ -1629,21 +1629,21 @@ class sugar_library(object):
         """
 
         allowed_objects=['particle','residue','molecule']
-        if object.object_type not in allowed_objects:
+        if sugar_object.sugar_object_type not in allowed_objects:
             raise ValueError('Object type not supported, supported types are ', allowed_objects)
 
-        if object.object_type == 'particle':
-            self.create_particle_in_system(particle=object, system=system, position=position)
+        if sugar_object.sugar_object_type == 'particle':
+            self.create_particle_in_system(particle=sugar_object, system=system, position=position)
 
-        elif object.object_type == 'residue':
-            self.create_residue_in_system(residue=object, system=system, central_bead_position=position,use_default_bond=use_default_bond)
+        elif sugar_object.sugar_object_type == 'residue':
+            self.create_residue_in_system(residue=sugar_object, system=system, central_bead_position=position,use_default_bond=use_default_bond)
 
-        elif object.object_type == 'molecule':
-            self.create_molecule_in_system(molecule=object, system=system, use_default_bond=use_default_bond, first_residue_position=position)
+        elif sugar_object.sugar_object_type == 'molecule':
+            self.create_molecule_in_system(molecule=sugar_object, system=system, use_default_bond=use_default_bond, first_residue_position=position)
 
         return
     
-    def destroy_object_in_system(self, object, system):
+    def destroy_sugar_object_in_system(self, sugar_object, system):
         """
         Destroys all particles contained in the object from the espresso system 
         Inputs:
@@ -1651,10 +1651,10 @@ class sugar_library(object):
         system: (class)espresso class object with all system variables.
         """
         allowed_objects=['particle','residue','molecule']
-        if object.object_type not in allowed_objects:
+        if sugar_object.sugar_object_type not in allowed_objects:
             raise ValueError('Object type not supported, supported types are ', allowed_objects)
         
-        ids_lists_in_object=self.get_ids(object=object)
+        ids_lists_in_object=self.get_ids(sugar_object=sugar_object)
 
         for id_list in ids_lists_in_object:
             for id in id_list:
@@ -1662,21 +1662,21 @@ class sugar_library(object):
 
         # Update sugar storage of ids
 
-        if object.object_type == 'particle':
+        if sugar_object.sugar_object_type == 'particle':
             for id_list in ids_lists_in_object:
                 for id in id_list:
-                    self.id_map['particle'][object.name].remove(id)
+                    self.id_map['particle'][sugar_object.name].remove(id)
 
-        elif object.object_type == 'residue':
+        elif sugar_object.sugar_object_type == 'residue':
             self.id_map['residue'].pop(object.name)
 
-        elif object.object_type == 'molecule':
-            self.id_map['molecule'].pop(object.name)
+        elif sugar_object.sugar_object_type == 'molecule':
+            self.id_map['molecule'].pop(sugar_object.name)
 
 
         return
 
-    def create_counterions_in_system(self, object, cation, anion, system):
+    def create_counterions_in_system(self, sugar_object, cation, anion, system):
         """
         Creates cation and anion particles in the system to counter the charge of the particles contained in object
         Inputs:
@@ -1686,7 +1686,7 @@ class sugar_library(object):
         anion: (class) particle class object, as defined in sugar library, with a negative charge
         """
         
-        object_ids=self.get_ids(object=object)
+        object_ids=self.get_ids(sugar_object=sugar_object)
 
         N_pos=0
         N_neg=0
@@ -1704,7 +1704,7 @@ class sugar_library(object):
 
         else:
 
-            raise ValueError('The number of positive charges in the object must be divisible by the  charge of the anion')
+            raise ValueError('The number of positive charges in the sugar_object must be divisible by the  charge of the anion')
 
         if (N_neg % abs(cation.q) == 0):
 
@@ -1712,7 +1712,7 @@ class sugar_library(object):
 
         else:
 
-            raise ValueError('The number of negative charges in the object must be divisible by the  charge of the cation')
+            raise ValueError('The number of negative charges in the sugar_object must be divisible by the  charge of the cation')
         
         for _ in range(N_anion):
             self.create_particle_in_system(particle=anion,system=system)
@@ -1724,19 +1724,19 @@ class sugar_library(object):
 
         return N_pos, N_neg
 
-    def get_net_charge(self, system, object):
+    def get_net_charge(self, system, sugar_object):
         """ 
         Calculates the charge of the protein and its square
 
         Inputs:
-        object:(class) particle, residue or molecule/peptide object
+        sugar_object:(class) particle, residue or molecule/peptide object
         system: (class)espresso class object with all system variables.
 
         Outputs:
         Z_list: (list) list with the net charge of the objects in the system
         """
 
-        ids_lists_in_object=self.get_ids(object=object)
+        ids_lists_in_object=self.get_ids(sugar_object=sugar_object)
         Z_list=[]
         
         for id_list in ids_lists_in_object:
@@ -1751,7 +1751,7 @@ class sugar_library(object):
         """
         Returns a list with the charge in each residue of molecule stored in  dictionaries
         Inputs:
-        object:(class) particle, residue or molecule/peptide object
+        sugar_object:(class) particle, residue or molecule/peptide object
         system: (class) espresso class object with all system variables.
         Returns:
         charge_in_residues: (list) list with the charge in each residue of molecule stored in dictionaries
@@ -1796,7 +1796,7 @@ class sugar_library(object):
         if combining_rule not in implemented_combinatiorial_rules:
             raise ValueError('In the current version of sugar, the only combinatorial rules implemented are ', implemented_combinatiorial_rules)
 
-        particle_name_list=self.stored_objects['particle'].keys()
+        particle_name_list=self.stored_sugar_objects['particle'].keys()
 
         if sigma is None:
 
@@ -1807,13 +1807,13 @@ class sugar_library(object):
             cutoff=2**(1./6.)*self.units('reduced_length')
 
         # For bookeeping
-        if 'LennardJones' not in self.stored_objects.keys():
-            self.stored_objects['LennardJones']={}
+        if 'LennardJones' not in self.stored_sugar_objects.keys():
+            self.stored_sugar_objects['LennardJones']={}
 
         all_types=[]
         type_dict={}
         for particle_name in particle_name_list:
-            particle_type_list=self.get_particle_types(particle=self.stored_objects['particle'][particle_name])
+            particle_type_list=self.get_particle_types(particle=self.stored_sugar_objects['particle'][particle_name])
             all_types+=particle_type_list
             for type in particle_type_list:
                 type_dict[type]=particle_name
@@ -1825,8 +1825,8 @@ class sugar_library(object):
             name1=type_dict[type1]
             name2=type_dict[type2]
  
-            particle1=self.stored_objects['particle'][name1]
-            particle2=self.stored_objects['particle'][name2]
+            particle1=self.stored_sugar_objects['particle'][name1]
+            particle2=self.stored_sugar_objects['particle'][name2]
 
             pair_interaction_defined=True
             interaction_key=frozenset(type_pair)
@@ -1839,10 +1839,10 @@ class sugar_library(object):
                     offset=combined_sigma.to("reduced_length")-sigma.to("reduced_length")
                     
 
-            elif use_default_values and 'default' in self.stored_objects['LennardJones'].keys():
+            elif use_default_values and 'default' in self.stored_sugar_objects['LennardJones'].keys():
 
-                sigma=self.stored_objects['LennardJones']['default']['sigma']
-                offset=self.stored_objects['LennardJones']['default']['offset']
+                sigma=self.stored_sugar_objects['LennardJones']['default']['sigma']
+                offset=self.stored_sugar_objects['LennardJones']['default']['offset']
 
             else:
             
@@ -1854,15 +1854,15 @@ class sugar_library(object):
 
                     epsilon=self.np.sqrt(particle1.epsilon*particle2.epsilon)
 
-            elif use_default_values and 'default' in self.stored_objects['LennardJones'].keys():
+            elif use_default_values and 'default' in self.stored_sugar_objects['LennardJones'].keys():
 
-                epsilon=self.stored_objects['LennardJones']['default']['epsilon']
+                epsilon=self.stored_sugar_objects['LennardJones']['default']['epsilon']
                 
             else:
             
                 pair_interaction_defined=False
 
-            if interaction_key in self.stored_objects['LennardJones'].keys():
+            if interaction_key in self.stored_sugar_objects['LennardJones'].keys():
                 pair_interaction_defined=False
                 print('Lennard Jones interaction is already defined for ', interaction_key)
                 continue          
@@ -1879,7 +1879,7 @@ class sugar_library(object):
                             'cutoff' : cutoff.to('reduced_length').magnitude,
                             'offset' : offset.to('reduced_length').magnitude, 
                             'shift' : shift}
-                self.stored_objects['LennardJones'][interaction_key]=param_dict
+                self.stored_sugar_objects['LennardJones'][interaction_key]=param_dict
             else:
 
                 print('WARNING missing parameters for Lennard Jones interaction between ', [name1,name2], ', no interaction has been defined')
@@ -1894,11 +1894,11 @@ class sugar_library(object):
         type_dict: (dict)  dictionary with all particle types stored and its keys
         """
 
-        particle_name_list=self.stored_objects['particle'].keys()
+        particle_name_list=self.stored_sugar_objects['particle'].keys()
 
         type_dict={}
         for particle_name in particle_name_list:
-            particle_type_list=self.get_particle_types(particle=self.stored_objects['particle'][particle_name])
+            particle_type_list=self.get_particle_types(particle=self.stored_sugar_objects['particle'][particle_name])
             for type in particle_type_list:
                 type_dict[type]=particle_name
 
@@ -1917,7 +1917,7 @@ class sugar_library(object):
             return 0*self.units('reduced_length')
         
         for particle_name in self.id_map['particle'].keys():
-            particle=self.stored_objects['particle'][particle_name]
+            particle=self.stored_sugar_objects['particle'][particle_name]
             if particle.diameter is not None:
                 diameter_list.append(particle.diameter)
 
