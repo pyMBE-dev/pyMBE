@@ -310,11 +310,11 @@ class sugar_library():
 
         return
 
-    def create_particle_in_system(self, particle, system, position=None, state=None, id=None):
+    def create_particle_in_espresso(self, particle, espresso_system, position=None, state=None, id=None):
         '''
         Creates a particle in the espresso system.
         particle = instance of a particle object from sugar library
-        system = instance of a system object from espressomd library
+        espresso_system = instance of a system object from espressomd library
         position = array with the cartesian coordinates to create the particle, by default random
         state = for particles with more than one possible state, defines in which state are created
         id = desired particle id
@@ -328,7 +328,7 @@ class sugar_library():
         
         # By default, the particle is placed in a random position
             
-            position=self.np.random.random((1, 3))[0] *self.np.copy(system.box_l)
+            position=self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
                 
         if state is None:
 
@@ -371,14 +371,14 @@ class sugar_library():
         
         if id is None:
 
-            if len(system.part[:].id) == 0:
+            if len(espresso_system.part[:].id) == 0:
                 
                 bead_id=0
 
             else:
                 
-                bead_id=max(system.part[:].id)+1
-        system.part.add(id=[bead_id], pos=[position], type=[type], q=[q])
+                bead_id=max(espresso_system.part[:].id)+1
+        espresso_system.part.add(id=[bead_id], pos=[position], type=[type], q=[q])
 
         # particle id bookeeping
 
@@ -392,12 +392,12 @@ class sugar_library():
         
         return  bead_id
         
-    def create_residue_in_system(self, residue, system, central_bead_position=None, use_default_bond=False, backbone_vector=None):
+    def create_residue_in_espresso(self, residue, espresso_system, central_bead_position=None, use_default_bond=False, backbone_vector=None):
         """
         Creates a residue in the espresso system
         Inputs:
         residue: instance of a residue object as defined in sugar library
-        system: instance of a system object of espresso library
+        espresso_system: instance of a system object of espresso library
         position: (list) coordinates where the central bead will be created, random by default
         use_default_bond: (boolean, default=False) returns the default bond if no bond has been defined between  particle1 and particle2
         Returns:
@@ -414,14 +414,14 @@ class sugar_library():
         # create the principal bead
         if self.check_sugar_object_stored(sugar_object=residue.central_bead):
             
-            central_bead_id=self.create_particle_in_system(particle=residue.central_bead, system=system, position=central_bead_position)
+            central_bead_id=self.create_particle_in_espresso(particle=residue.central_bead, espresso_system=espresso_system, position=central_bead_position)
             residue_ids_dict['central-'+residue.central_bead.name]=[central_bead_id]
 
         else:
 
             raise ValueError("Residue.central_bead must contain a particle object.")
 
-        central_bead_position=system.part[central_bead_id].pos
+        central_bead_position=espresso_system.part[central_bead_id].pos
                 
         # create the lateral beads        
         
@@ -435,8 +435,8 @@ class sugar_library():
                 else:
                     bond_vector=self.generate_trial_perpendicular_vector(vector=backbone_vector,magnitude=bond.params.get('r_0'))
                 bead_position=central_bead_position+bond_vector
-                side_bead_id=self.create_particle_in_system(particle=sg_object, system=system, position=bead_position)
-                system.part[central_bead_id].add_bond((bond, side_bead_id))
+                side_bead_id=self.create_particle_in_espresso(particle=sg_object, espresso_system=espresso_system, position=bead_position)
+                espresso_system.part[central_bead_id].add_bond((bond, side_bead_id))
                 if 'side-'+sg_object.name in residue_ids_dict.keys():
                     residue_ids_dict['side-'+sg_object.name].append(side_bead_id)
                 else:
@@ -450,9 +450,9 @@ class sugar_library():
                 else:
                     bond_vector=self.generate_trial_perpendicular_vector(vector=backbone_vector,magnitude=bond.params.get('r_0'))
                 residue_position=central_bead_position+bond_vector
-                lateral_residue_ids_dict=self.create_residue_in_system(residue=sg_object, system=system, central_bead_position=residue_position)
+                lateral_residue_ids_dict=self.create_residue_in_espresso(residue=sg_object, espresso_system=espresso_system, central_bead_position=residue_position)
                 lateral_residue_central_bead_id=next(value for key,value in lateral_residue_ids_dict.items() if 'central-' in key)[0]
-                system.part[central_bead_id].add_bond((bond, lateral_residue_central_bead_id))
+                espresso_system.part[central_bead_id].add_bond((bond, lateral_residue_central_bead_id))
                 
                 for key in lateral_residue_ids_dict:
                     
@@ -484,12 +484,12 @@ class sugar_library():
 
         return  residue_ids_dict
 
-    def create_molecule_in_system(self, molecule, system, first_residue_position=None, use_default_bond=False):
+    def create_molecule_in_espresso(self, molecule, espresso_system, first_residue_position=None, use_default_bond=False):
         """
         Creates a molecule in the espresso system
         Inputs:
         molecule: instance of a molecule object as defined in sugar library
-        system: instance of a system object of espresso library
+        espresso_system: instance of a system object of espresso library
         first_residue_position: (list) coordinates where the first_residue_position will be created, random by default
         use_default_bond: (boolean, default=False) returns the default bond if no bond has been defined between  particle1 and particle2
         Returns:
@@ -509,10 +509,10 @@ class sugar_library():
 
                 residue_position=first_residue_position
                 backbone_vector=self.generate_trialvectors(1)
-                residue_ids_dict=self.create_residue_in_system(residue=residue, system=system, central_bead_position=first_residue_position,  use_default_bond= use_default_bond, backbone_vector=backbone_vector)
+                residue_ids_dict=self.create_residue_in_espresso(residue=residue, espresso_system=espresso_system, central_bead_position=first_residue_position,  use_default_bond= use_default_bond, backbone_vector=backbone_vector)
                 central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
                 previous_residue=residue
-                residue_position=system.part[central_bead_id].pos
+                residue_position=espresso_system.part[central_bead_id].pos
                 previous_residue_id=central_bead_id
                 first_residue=False
                 
@@ -521,9 +521,9 @@ class sugar_library():
 
                 bond=self.search_bond(particle1=residue.central_bead, particle2=previous_residue.central_bead, hard_check=True, use_default_bond=use_default_bond)                
                 residue_position=residue_position+backbone_vector*bond.params.get('r_0')
-                residue_ids_dict=self.create_residue_in_system(residue=residue, system=system, central_bead_position=residue_position,use_default_bond= use_default_bond)
+                residue_ids_dict=self.create_residue_in_espresso(residue=residue, espresso_system=espresso_system, central_bead_position=residue_position,use_default_bond= use_default_bond)
                 central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
-                system.part[central_bead_id].add_bond((bond, previous_residue_id))
+                espresso_system.part[central_bead_id].add_bond((bond, previous_residue_id))
                 previous_residue_id=central_bead_id
                 previous_residue=residue
 
@@ -646,16 +646,16 @@ class sugar_library():
 
                     return
 
-    def add_bonds_to_system(self, system):
+    def add_bonds_to_espresso(self, espresso_system):
         """
         Adds all the bonds stored in sugar to the espressomd system, 
         including the default bond if has been defined
         Inputs:
-        system: instance of a system object of espresso library
+        espresso_system: instance of a system object of espresso library
         """
 
         for bond in self.stored_sugar_objects['bonds'].values():
-            system.bonded_inter.add(bond)
+            espresso_system.bonded_inter.add(bond)
 
         return
     
@@ -1012,7 +1012,7 @@ class sugar_library():
 
         return clean_sequence
 
-    def setup_constantpH_reactions(self, counter_ion, exclusion_radius=None, pka_set=None):
+    def setup_constantpH_reactions_in_espresso(self, counter_ion, exclusion_radius=None, pka_set=None):
         """
         Set up the Acid/Base reactions for acidic/basidic residues in mol. The reaction steps are done following the constant pH ensamble procedure. 
 
@@ -1030,7 +1030,7 @@ class sugar_library():
 
         if exclusion_radius is None:
 
-            exclusion_radius=self.search_largest_particle_diameter_in_system()
+            exclusion_radius=self.search_largest_particle_diameter_in_sugar()
 
         if self.SEED is None:
 
@@ -1113,7 +1113,7 @@ class sugar_library():
             
         return self.np.cross(np_vec, self.generate_trialvectors(1))*magnitude
 
-    def setup_electrostatic_interactions(self, system, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
+    def setup_electrostatic_interactions_in_espresso(self, espresso_system, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
         """
         Setups electrostatic interactions in espressomd. 
         Inputs:
@@ -1169,13 +1169,13 @@ class sugar_library():
             coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.magnitude, accuracy=accuracy)
 
             if tune_p3m:
-                system.time_step=0.01
-                system.actors.add(coulomb)
+                espresso_system.time_step=0.01
+                espresso_system.actors.add(coulomb)
 
                 # save the optimal parameters and add them by hand
 
                 p3m_params = coulomb.get_params()
-                system.actors.remove(coulomb)
+                espresso_system.actors.remove(coulomb)
                 coulomb = espressomd.electrostatics.P3M(
                                             prefactor = COULOMB_PREFACTOR.magnitude,
                                             accuracy = accuracy,
@@ -1193,17 +1193,17 @@ class sugar_library():
                                                r_cut = KAPPA.to('reduced_length').magnitude)
 
         
-        system.actors.add(coulomb)
+        espresso_system.actors.add(coulomb)
         print("\n Electrostatics successfully added to the system \n")
 
         return
 
-    def minimize_system_energy(self, system, skin=1, gamma=1, Nsteps=10000, time_step=1e-5, max_displacement=0.1, verbose=True, reset=True):
+    def minimize_espresso_system_energy(self, espresso_system, skin=1, gamma=1, Nsteps=10000, time_step=1e-5, max_displacement=0.1, verbose=True, reset=True):
         """
         Does a steppest descent minimization to relax the system energy
 
         Inputs:
-        system: instance of espressmd system class
+        espresso_system: instance of espressmd system class
         skin: skin parameter for verlet list (default 2 reduced length)
         gamma: dammping constant (Default=1 reduced length)
         Nsteps: total number of steps of the minimization (Default=10000)
@@ -1214,31 +1214,31 @@ class sugar_library():
         if verbose:
 
             print("\n*** Minimazing system energy... ***\n")
-        #system.force_cap=100
-        system.cell_system.skin = skin
-        system.time_step=time_step
+        
+        espresso_system.cell_system.skin = skin
+        espresso_system.time_step=time_step
         if verbose:
             print("steepest descent")
-        system.integrator.set_steepest_descent(f_max=1e-3, gamma=gamma, max_displacement=max_displacement)
-        system.integrator.run(int(Nsteps/2))
+        espresso_system.integrator.set_steepest_descent(f_max=1e-3, gamma=gamma, max_displacement=max_displacement)
+        espresso_system.integrator.run(int(Nsteps/2))
         if verbose:
             print("velocity verlet")
-        system.integrator.set_vv()  # to switch back to velocity Verlet
-        system.integrator.run(int(Nsteps/2))
-        system.thermostat.turn_off()
-        #system.force_cap=0
+        espresso_system.integrator.set_vv()  # to switch back to velocity Verlet
+        espresso_system.integrator.run(int(Nsteps/2))
+        espresso_system.thermostat.turn_off()
+        
         # Reset the time of the system to 0
         if reset:
-            system.time = 0.
+            espresso_system.time = 0.
         if verbose:
             print("\n Minimization finished \n")
 
         return
 
-    def setup_langevin_dynamics(self,system, time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
+    def setup_langevin_dynamics_in_espresso(self,espresso_system, time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
         """
         Sets up Langevin Dynamics in espressomd.
-        system: instance of espressmd system class
+        espresso_system: instance of espressmd system class
         time_step: time s
 
         """        
@@ -1250,9 +1250,9 @@ class sugar_library():
             # Take the random seed from the system time
             self.create_random_seed()
             
-        system.time_step=time_step
-        system.integrator.set_vv()
-        system.thermostat.set_langevin(kT=kT.to('reduced_energy').magnitude, gamma=gamma, seed=self.SEED)
+        espresso_system.time_step=time_step
+        espresso_system.integrator.set_vv()
+        espresso_system.thermostat.set_langevin(kT=kT.to('reduced_energy').magnitude, gamma=gamma, seed=self.SEED)
 
         # Optimize the value of skin
 
@@ -1262,11 +1262,11 @@ class sugar_library():
 
             if max_skin is None:
 
-                max_skin=system.box_l[0]/2
+                max_skin=espresso_system.box_l[0]/2
 
-            system.cell_system.tune_skin(min_skin=min_skin, max_skin=max_skin, tol=tolerance, int_steps=int_steps, adjust_max_skin=adjust_max_skin)
+            espresso_system.cell_system.tune_skin(min_skin=min_skin, max_skin=max_skin, tol=tolerance, int_steps=int_steps, adjust_max_skin=adjust_max_skin)
 
-            print("Optimized skin value: ", system.cell_system.skin, "\n")
+            print("Optimized skin value: ", espresso_system.cell_system.skin, "\n")
 
         return
 
@@ -1506,13 +1506,13 @@ class sugar_library():
 
         return Z_HH
 
-    def create_added_salt_in_system(self, system, cation, anion, c_salt):
+    def create_added_salt_in_espresso(self, espresso_system, cation, anion, c_salt):
         
         """
-        Adds a c_salt concentration of cations and anions to the system
+        Adds a c_salt concentration of cations and anions to the espresso_system
 
         Inputs:
-        system: (class)espresso class object with all system variables.
+        espresso_system: (class)espresso class object with all system variables.
         cation: (class) particle class object, as defined in sugar, with a positive charge
         anion: (class) particle class object, as defined in sugar library, with a negative charge
         c_salt: (float) Added salt concentration
@@ -1528,7 +1528,7 @@ class sugar_library():
 
         # Calculate the number of ions in the simulation box
 
-        volume=self.units.Quantity(system.volume(), 'reduced_length**3')
+        volume=self.units.Quantity(espresso_system.volume(), 'reduced_length**3')
 
         if c_salt.check('[substance] [length]**-3'):
             
@@ -1548,21 +1548,21 @@ class sugar_library():
         N_anion=N_ions*abs(cation.q)
         
         for _ in range(N_cation):
-            self.create_particle_in_system(system=system, particle=cation)
+            self.create_particle_in_espresso(espresso_system=espresso_system, particle=cation)
         
         for _ in range(N_anion):
-            self.create_particle_in_system(system=system, particle=anion)
+            self.create_particle_in_espresso(espresso_system=espresso_system, particle=anion)
 
         print('\n Added salt concentration of ', c_salt_calculated.to('mol/L'), 'given by ', N_cation, ' cations and ', N_anion, ' anions')
         
         return c_salt_calculated
 
-    def track_ionization(self, system):
+    def setup_espresso_to_track_ionization(self, espresso_system):
         """
         Sets up espresso to track the average number of particles of the acid/base particles 
         
         Inputs:
-        system: espresso class object with all system variables
+        espresso_system: espresso class object with all espresso_system variables
         """
 
         acidbase_types_list=[]
@@ -1575,17 +1575,17 @@ class sugar_library():
 
                     acidbase_types_list.append(acidbase_type)
 
-        system.setup_type_map(acidbase_types_list)
+        espresso_system.setup_type_map(acidbase_types_list)
 
         return
 
-    def get_ids(self,sugar_object):
+    def get_ids_from_sugar(self,sugar_object):
         """
-        Returns all particles ids in the system matching the object.
+        Returns all particles ids stored in sugar that match the sugar_object.
         Inputs:
         object:(class) particle, residue or molecule/peptide object
         Returns:
-        id_list:(list) list with the ids in the system matching the object.
+        id_list:(list) list with corresponding ids.
         """
 
         self.check_sugar_object_stored(sugar_object=sugar_object)
@@ -1619,12 +1619,12 @@ class sugar_library():
             return all_molecule_id_list
         return
 
-    def create_sugar_object_in_system(self, sugar_object, system, position=None, use_default_bond=False):
+    def create_sugar_object_in_espresso(self, sugar_object, espresso_system, position=None, use_default_bond=False):
         """
         Creates all particles contained in the sugar object in the system of espresso
         Inputs:
         object:(class) particle, residue or molecule/peptide object
-        system: (class)espresso class object with all system variables.
+        espresso_system: (class)espresso class object with all system variables.
         use_default_bond: (boolean, default=False) returns the default bond if no bond has been defined between  particle1 and particle2
         """
 
@@ -1633,32 +1633,32 @@ class sugar_library():
             raise ValueError('Object type not supported, supported types are ', allowed_objects)
 
         if sugar_object.sugar_object_type == 'particle':
-            self.create_particle_in_system(particle=sugar_object, system=system, position=position)
+            self.create_particle_in_espresso(particle=sugar_object, espresso_system=espresso_system, position=position)
 
         elif sugar_object.sugar_object_type == 'residue':
-            self.create_residue_in_system(residue=sugar_object, system=system, central_bead_position=position,use_default_bond=use_default_bond)
+            self.create_residue_in_espresso(residue=sugar_object, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
 
         elif sugar_object.sugar_object_type == 'molecule':
-            self.create_molecule_in_system(molecule=sugar_object, system=system, use_default_bond=use_default_bond, first_residue_position=position)
+            self.create_molecule_in_espresso(molecule=sugar_object, espresso_system=espresso_system, use_default_bond=use_default_bond, first_residue_position=position)
 
         return
     
-    def destroy_sugar_object_in_system(self, sugar_object, system):
+    def destroy_sugar_object_in_system(self, sugar_object, espresso_system):
         """
         Destroys all particles contained in the object from the espresso system 
         Inputs:
         object:(class) particle, residue or molecule/peptide object
-        system: (class)espresso class object with all system variables.
+        espresso_system: (class)espresso class object with all espresso_system variables.
         """
         allowed_objects=['particle','residue','molecule']
         if sugar_object.sugar_object_type not in allowed_objects:
             raise ValueError('Object type not supported, supported types are ', allowed_objects)
         
-        ids_lists_in_object=self.get_ids(sugar_object=sugar_object)
+        ids_lists_in_object=self.get_ids_from_sugar(sugar_object=sugar_object)
 
         for id_list in ids_lists_in_object:
             for id in id_list:
-                system.part[id].remove()
+                espresso_system.part[id].remove()
 
         # Update sugar storage of ids
 
@@ -1676,26 +1676,26 @@ class sugar_library():
 
         return
 
-    def create_counterions_in_system(self, sugar_object, cation, anion, system):
+    def create_counterions_in_espresso(self, sugar_object, cation, anion, espresso_system):
         """
-        Creates cation and anion particles in the system to counter the charge of the particles contained in object
+        Creates cation and anion particles in the espresso_system to counter the charge of the particles contained in object
         Inputs:
         object:(class) particle, residue or molecule/peptide object
-        system: (class)espresso class object with all system variables.
+        espresso_system: (class)espresso class object with all system variables.
         cation: (class) particle class object, as defined in sugar, with a positive charge
         anion: (class) particle class object, as defined in sugar library, with a negative charge
         """
         
-        object_ids=self.get_ids(sugar_object=sugar_object)
+        object_ids=self.get_ids_from_sugar(sugar_object=sugar_object)
 
         N_pos=0
         N_neg=0
 
         for id_list in object_ids:
             for id in id_list:
-                if system.part[id].q > 0:
+                if espresso_system.part[id].q > 0:
                     N_pos+=1
-                elif system.part[id].q < 0:
+                elif espresso_system.part[id].q < 0:
                     N_neg+=1
 
         if (N_pos % abs(anion.q) == 0):
@@ -1715,44 +1715,44 @@ class sugar_library():
             raise ValueError('The number of negative charges in the sugar_object must be divisible by the  charge of the cation')
         
         for _ in range(N_anion):
-            self.create_particle_in_system(particle=anion,system=system)
+            self.create_particle_in_espresso(particle=anion,espresso_system=espresso_system)
 
         for _ in range(N_cation):
-            self.create_particle_in_system(particle=cation,system=system)
+            self.create_particle_in_espresso(particle=cation,espresso_system=espresso_system)
 
         print('Created ', N_cation, ' cations and ', N_anion, 'anions as counterions')
 
         return N_pos, N_neg
 
-    def get_net_charge(self, system, sugar_object):
+    def get_net_charge_from_espresso(self, espresso_system, sugar_object):
         """ 
         Calculates the charge of the protein and its square
 
         Inputs:
         sugar_object:(class) particle, residue or molecule/peptide object
-        system: (class)espresso class object with all system variables.
+        espresso_system: (class)espresso class object with all system variables.
 
         Outputs:
-        Z_list: (list) list with the net charge of the objects in the system
+        Z_list: (list) list with the net charge of the objects in the espresso_system
         """
 
-        ids_lists_in_object=self.get_ids(sugar_object=sugar_object)
+        ids_lists_in_object=self.get_ids_from_sugar(sugar_object=sugar_object)
         Z_list=[]
         
         for id_list in ids_lists_in_object:
             z_one_object=0
             for id in id_list:
-                z_one_object+=system.part[id].q
+                z_one_object+=espresso_system.part[id].q
             Z_list.append(z_one_object)
         
         return Z_list
 
-    def get_charge_in_residues(self, system, molecule):
+    def get_charge_in_residues(self, espresso_system, molecule):
         """
         Returns a list with the charge in each residue of molecule stored in  dictionaries
         Inputs:
         sugar_object:(class) particle, residue or molecule/peptide object
-        system: (class) espresso class object with all system variables.
+        espresso_system: (class) espresso class object with all system variables.
         Returns:
         charge_in_residues: (list) list with the charge in each residue of molecule stored in dictionaries
         """
@@ -1766,7 +1766,7 @@ class sugar_library():
                 for key in residue_dict.keys():
                     charge_key=[]                      
                     for id in residue_dict[key]:                         
-                        charge_key.append(system.part[id].q)
+                        charge_key.append(espresso_system.part[id].q)
                     
                     if 'side-' in key:
                         new_key=key.replace('side-', '')
@@ -1780,12 +1780,12 @@ class sugar_library():
         
         return charge_in_residues
 
-    def setup_lj_interactions(self, system, sigma=None, cutoff=None, shift='auto', use_default_values=False, combining_rule='Lorentz-Berthelot'):
+    def setup_lj_interactions_in_espresso(self, espresso_system, sigma=None, cutoff=None, shift='auto', use_default_values=False, combining_rule='Lorentz-Berthelot'):
         """
-        Setup lennard-jones interactions for all particles types present in the espresso system. 
+        Setup lennard-jones interactions for all particles types present in the  espresso_system. 
 
         Inputs:
-        system: (class) espresso class object with all system variables.
+        espresso_system: (class) espresso class object with all system variables.
         See section 6.1.2 of the user guide from espresso for a complete description of the rest of parameters
         """
     
@@ -1869,7 +1869,7 @@ class sugar_library():
 
             if pair_interaction_defined:
                 
-                system.non_bonded_inter[type1, type2].lennard_jones.set_params(epsilon = epsilon.to('reduced_energy').magnitude, 
+                espresso_system.non_bonded_inter[type1, type2].lennard_jones.set_params(epsilon = epsilon.to('reduced_energy').magnitude, 
                                                                                 sigma = sigma.to('reduced_length').magnitude, 
                                                                                 cutoff = cutoff.to('reduced_length').magnitude,
                                                                                 offset = offset.to('reduced_length').magnitude, 
@@ -1904,11 +1904,11 @@ class sugar_library():
 
         return type_dict
 
-    def search_largest_particle_diameter_in_system(self):
+    def search_largest_particle_diameter_in_sugar(self):
         """
-        Returns the largest particle diameter in the system
+        Returns the largest particle diameter stored in sugar
         Returns:
-        largest_diameter: (float) largest particle diameter in the system
+        largest_diameter: (float) largest particle diameter in stored in sugar
         """
 
         diameter_list=[]
@@ -1927,18 +1927,18 @@ class sugar_library():
         else:
             return 0*self.units('reduced_length')
 
-    def visualize_system(self, system):
+    def visualize_espresso_system(self, espresso_system):
         """
-        Uses espresso visualizator for displaying the current state of the system
+        Uses espresso visualizator for displaying the current state of the espresso_system
         """ 
         import threading
         from espressomd import visualization
          
-        visualizer = visualization.openGLLive(system)
+        visualizer = visualization.openGLLive(espresso_system)
         
         def main_thread():
             while True:
-                system.integrator.run(1)
+                espresso_system.integrator.run(1)
                 visualizer.update()
 
         t = threading.Thread(target=main_thread)
@@ -1947,15 +1947,15 @@ class sugar_library():
         visualizer.start()
         return
 
-    def do_snapshot_system(self,system, filename):
+    def do_snapshot_espresso_system(self,espresso_system, filename):
         """
-        Uses espresso visualizator for creating a snapshot of the current state of the system
+        Uses espresso visualizator for creating a snapshot of the current state of the espresso_system
         """ 
         from espressomd import visualization
         
 
         visualizer = visualization.openGLLive(
-                system, bond_type_radius=[0.3], particle_coloring='type', draw_axis=False, background_color=[1, 1, 1],
+                espresso_system, bond_type_radius=[0.3], particle_coloring='type', draw_axis=False, background_color=[1, 1, 1],
         particle_type_colors=[[1.02,0.51,0], # Brown
                             [1,1,1],  # Grey
                             [2.55,0,0], # Red

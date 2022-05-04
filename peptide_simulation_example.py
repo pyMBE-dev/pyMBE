@@ -84,11 +84,11 @@ print('The ionisable groups in your peptide is ', dict_titrable_groups)
 
     # Create an instance of an espresso system
 
-system=espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
+espresso_system=espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
 
 # Add all bonds to espresso system
 
-sg.add_bonds_to_system(system=system)
+sg.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
 
@@ -96,20 +96,20 @@ sg.add_bonds_to_system(system=system)
 
 
 for _ in range(N_peptide_chains):
-    sg.create_sugar_object_in_system(sugar_object=peptide, system=system, use_default_bond=True)
+    sg.create_sugar_object_in_espresso(sugar_object=peptide, espresso_system=espresso_system, use_default_bond=True)
 
-sg.create_counterions_in_system(sugar_object=peptide,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
-c_salt_calculated=sg.create_added_salt_in_system(system=system,cation=cation,anion=anion,c_salt=c_salt)
+sg.create_counterions_in_espresso(sugar_object=peptide,cation=cation,anion=anion,espresso_system=espresso_system) # Create counterions for the peptide chains
+c_salt_calculated=sg.create_added_salt_in_espresso(espresso_system=espresso_system,cation=cation,anion=anion,c_salt=c_salt)
 with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
-    vtf.writevsf(system, coordinates)
-    vtf.writevcf(system, coordinates)
+    vtf.writevsf(espresso_system, coordinates)
+    vtf.writevcf(espresso_system, coordinates)
 # Setup the acid-base reactions of the peptide using the constant pH ensemble
 
-RE=sg.setup_constantpH_reactions(counter_ion=cation)
+RE=sg.setup_constantpH_reactions_in_espresso(counter_ion=cation)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 
-sg.track_ionization(system=system)
+sg.setup_espresso_to_track_ionization(espresso_system=espresso_system)
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 
@@ -120,21 +120,21 @@ print('The non interacting type is set to ', non_interacting_type)
 
 # Setup the potential energy
 
-sg.setup_lj_interactions(system=system)
-sg.minimize_system_energy(system=system)
-sg.setup_electrostatic_interactions(system=system, c_salt=c_salt)
-sg.minimize_system_energy(system=system)
+sg.setup_lj_interactions_in_espresso(espresso_system=espresso_system)
+sg.minimize_espresso_system_energy(espresso_system=espresso_system)
+sg.setup_electrostatic_interactions_in_espresso(espresso_system=espresso_system, c_salt=c_salt)
+sg.minimize_espresso_system_energy(espresso_system=espresso_system)
 # Minimize the system energy to avoid huge starting force due to random inicialization of the system
 
 
 
 with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
-    vtf.writevsf(system, coordinates)
-    vtf.writevcf(system, coordinates)
+    vtf.writevsf(espresso_system, coordinates)
+    vtf.writevcf(espresso_system, coordinates)
 
 # Setup espresso to do langevin dynamics
 
-sg.setup_langevin_dynamics(system=system)
+sg.setup_langevin_dynamics_in_espresso(espresso_system=espresso_system)
 
 # Write the initial state
 
@@ -161,7 +161,7 @@ for pH_value in pH_range:
         
         if np.random.random() > probability_reaction:
 
-            system.integrator.run(steps=MD_steps_per_sample)
+            espresso_system.integrator.run(steps=MD_steps_per_sample)
         
         else:
         
@@ -171,12 +171,12 @@ for pH_value in pH_range:
 
             # Get peptide net charge
 
-            Z_net_list = sg.get_net_charge(system=system, sugar_object=peptide)
+            Z_net_list = sg.get_net_charge_from_espresso(espresso_system=espresso_system, sugar_object=peptide)
             Z_sim.append(np.mean(np.array(Z_net_list)))
             
             # Get the charge of the residues in residue_position
 
-            Z_charge_res_dict = sg.get_charge_in_residues(system=system, molecule=peptide)
+            Z_charge_res_dict = sg.get_charge_in_residues(espresso_system=espresso_system, molecule=peptide)
             Z_groups_av=[]
             for residue_position in residue_positions:
                 z_pos_av=[]
@@ -188,8 +188,8 @@ for pH_value in pH_range:
 
             N_frame+=1
             with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
-                vtf.writevsf(system, coordinates)
-                vtf.writevcf(system, coordinates)
+                vtf.writevsf(espresso_system, coordinates)
+                vtf.writevcf(espresso_system, coordinates)
 
     sg.write_progress(step=list(pH_range).index(pH_value), total_steps=len(pH_range))
     Z_pH.append(np.array(Z_sim))
