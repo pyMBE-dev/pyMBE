@@ -1019,10 +1019,11 @@ class sugar_library():
         Inputs:
         
         counter_ion:(class) particle class object as defined in sugar library
-        exclusion_radius:(float) exclusion radius for the constant pH ensamble
+        exclusion_radius:(float, optional) exclusion radius for the constant pH ensamble
         pka_set:(dict,optional) dictionary with the desired pka_set, by default the one stored in sugar will be used
         Output:
         RE: instance of the espresso class reaction_ensemble.ConstantpHEnsemble
+        sucessfull_reactions_labels: (list) list with the labels of the reactions that has been set up by sugar 
 
         """
 
@@ -1042,24 +1043,39 @@ class sugar_library():
         self.check_pka_set(pka_set=pka_set)
 
         RE = reaction_ensemble.ConstantpHEnsemble(temperature=self.kT.to('reduced_energy').magnitude, exclusion_radius=exclusion_radius.magnitude, seed=self.SEED)
-        
+        sucessfull_reactions_labels=[]
+
         for name in pka_set.keys():
+
+            if name not in self.type_map.keys():
+
+                print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in sg.type_map')
+                continue
 
             if name in self.stored_sugar_objects['particle'].keys():
                 particle=self.stored_sugar_objects['particle'][name]
                 self.set_particle_acidity(particle=particle,acidity=pka_set[name]['acidity'])
-                gamma=10**-pka_set[name]['pka_value']
-                RE.add_reaction(gamma=gamma,
-                                    reactant_types=[particle.es_type["protonated"]],
+
+            gamma=10**-pka_set[name]['pka_value']
+
+            if pka_set[name]['acidity'] == 'acidic':
+                charge_protonated=0
+                charge_unprotonated=-1
+            elif pka_set[name]['acidity'] == 'basic':
+                charge_protonated=1
+                charge_unprotonated=0
+
+            RE.add_reaction(gamma=gamma,
+                                    reactant_types=[self.type_map[name]["protonated"]],
                                     reactant_coefficients=[1],
-                                    product_types=[particle.es_type["unprotonated"], counter_ion.es_type],
+                                    product_types=[self.type_map[name]["unprotonated"], counter_ion.es_type],
                                     product_coefficients=[1,1],
-                                    default_charges={particle.es_type["unprotonated"]: particle.q["unprotonated"],
-                                    particle.es_type["protonated"]: particle.q["protonated"],
+                                    default_charges={self.type_map[name]["unprotonated"]: charge_unprotonated,
+                                    self.type_map[name]["protonated"]: charge_protonated,
                                     counter_ion.es_type: counter_ion.q})
+            sucessfull_reactions_labels.append(name)
             
-            
-        return RE
+        return RE, sucessfull_reactions_labels
 
     def check_pka_set(self, pka_set):
         """"
@@ -1726,14 +1742,14 @@ class sugar_library():
 
     def get_net_charge_from_espresso(self, espresso_system, sugar_object):
         """ 
-        Calculates the charge of the protein and its square
+        Calculates the net charge of all the objects in espresso compatibles with sugar_object
 
         Inputs:
         sugar_object:(class) particle, residue or molecule/peptide object
         espresso_system: (class)espresso class object with all system variables.
 
-        Outputs:
-        Z_list: (list) list with the net charge of the objects in the espresso_system
+        Returns:
+        Z_list: (list) list with the net charge of all the objects in espresso compatibles with sugar_object
         """
 
         ids_lists_in_object=self.get_ids_from_sugar(sugar_object=sugar_object)
@@ -1744,9 +1760,9 @@ class sugar_library():
             for id in id_list:
                 z_one_object+=espresso_system.part[id].q
             Z_list.append(z_one_object)
-        
-        return Z_list
 
+        return Z_list
+        
     def get_charge_in_residues(self, espresso_system, molecule):
         """
         Returns a list with the charge in each residue of molecule stored in  dictionaries

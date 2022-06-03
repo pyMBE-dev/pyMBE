@@ -99,7 +99,8 @@ c_salt_calculated=sg.create_added_salt_in_espresso(espresso_system=espresso_syst
 
 # Setup the acid-base reactions of the peptide using the constant pH ensemble
 
-RE=sg.setup_constantpH_reactions_in_espresso(counter_ion=cation)
+RE, sucessfull_reactions_labels=sg.setup_constantpH_reactions_in_espresso(counter_ion=cation)
+print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 
