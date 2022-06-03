@@ -60,8 +60,8 @@ bead_size=0.4*sg.units.nm
 # Solution parameters 
 
 c_salt=1e-3 * sg.units.mol/ sg.units.L
-cation=sg.particle(name='Na', type=sg.propose_unused_type(), q=1, diameter=0.2*sg.units.nm, epsilon=1*sg.units('reduced_energy'))
-anion=sg.particle(name='Cl', type=sg.propose_unused_type(), q=-1, diameter=0.36*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
+cation=sg.particle(name='Na',  q=1, diameter=0.2*sg.units.nm, epsilon=1*sg.units('reduced_energy'))
+anion=sg.particle(name='Cl',  q=-1, diameter=0.36*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
 
     # Load pKa set
 sg.load_pka_set(filename='reference_parameters/pka_sets/Nozaki1967.txt')

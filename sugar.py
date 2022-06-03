@@ -67,14 +67,14 @@ class sugar_library():
 
         self.print_reduced_units()
 
-    def particle(self, name, type=None, q=0, diameter=None, acidity=None, epsilon=None):
+    def particle(self, name, es_type=None, q=0, diameter=None, acidity=None, epsilon=None):
         """
         Returns a sugar particle object. 
         Checks if the user has created another particle object with a shared type.
         Updates the sugar list of particles.
         Inputs:
         name: (string) label of the particle
-        type: (int) particle type for espresso
+        es_type: (int) particle type for espresso
         q: (int) particle charge
         Returns:
         particle (class) sugar particle object
@@ -89,10 +89,10 @@ class sugar_library():
         particle.epsilon=epsilon
         particle.q=q
 
-        if type is None:
-            type=self.propose_unused_type()
+        if es_type is None:
+            es_type=self.propose_unused_type()
         
-        particle.type=type
+        particle.es_type=es_type
 
         if self.check_particle_type_exists(particle=particle):
             raise ValueError("ERROR you have already created a particle object with the same type as ", particle.name)
@@ -102,7 +102,7 @@ class sugar_library():
         
         self.set_particle_acidity(particle=particle, acidity=acidity)
         self.store_sugar_object(sugar_object=particle, verbose=True)
-        self.type_map[particle.name]=particle.type
+        self.type_map[particle.name]=particle.es_type
 
         return particle
 
@@ -124,22 +124,22 @@ class sugar_library():
         if particle.acidity != 'inert':
 
             type_labels=['protonated','unprotonated']
-            if particle.type is None:
-                particle.type={}
+            if particle.es_type is None:
+                particle.es_type={}
                 for label in type_labels:
-                    particle.type[label]=self.propose_unused_type()
-                    self.type_map[particle.name]=particle.type
+                    particle.es_type[label]=self.propose_unused_type()
+                    self.type_map[particle.name]=particle.es_type
 
-            elif isinstance(particle.type,int):
-                particle.type={'protonated': particle.type}
-                self.type_map[particle.name]=particle.type
-                particle.type['unprotonated']= self.propose_unused_type()
-            elif isinstance(particle.type,dict):
-                for key in particle.type.keys():
+            elif isinstance(particle.es_type,int):
+                particle.es_type={'protonated': particle.es_type}
+                self.type_map[particle.name]=particle.es_type
+                particle.es_type['unprotonated']= self.propose_unused_type()
+            elif isinstance(particle.es_type,dict):
+                for key in particle.es_type.keys():
                     if key not in type_labels:
                         raise ValueError('Label not supported for particle type, valid options are ', type_labels, ' given ', particle.keys())
             else:
-                raise ValueError('Unsopported variable type given in particle.type: ', particle.type)
+                raise ValueError('Unsopported variable type given in particle.type: ', particle.es_type)
         
         if particle.acidity == 'acidic':
 
@@ -352,21 +352,21 @@ class sugar_library():
 
             raise ValueError("Unvalid charge for bead: ", particle.name, " given ", particle.q)
 
-        if isinstance(particle.type, int):
+        if isinstance(particle.es_type, int):
             
-            type=particle.type
+            es_type=particle.es_type
 
-        elif isinstance(particle.type, dict):
+        elif isinstance(particle.es_type, dict):
 
             if state is None:
 
                 state=self.rn.choice(q.keys())
 
-            type=particle.type[state]
+            es_type=particle.es_type[state]
 
         else:
 
-            raise ValueError("Unvalid type for bead: ", particle.name, " given ", particle.type)
+            raise ValueError("Unvalid type for bead: ", particle.name, " given ", particle.es_type)
 
         
         if id is None:
@@ -378,7 +378,7 @@ class sugar_library():
             else:
                 
                 bead_id=max(espresso_system.part[:].id)+1
-        espresso_system.part.add(id=[bead_id], pos=[position], type=[type], q=[q])
+        espresso_system.part.add(id=[bead_id], pos=[position], type=[es_type], q=[q])
 
         # particle id bookeeping
 
@@ -557,8 +557,8 @@ class sugar_library():
                 if isinstance(value,int):
                     type_list.append(value)
                 elif isinstance(value,dict):
-                    for type in value.values():
-                        type_list.append(type)
+                    for es_type in value.values():
+                        type_list.append(es_type)
                 
             unused_type=max(type_list)+1
 
@@ -598,7 +598,7 @@ class sugar_library():
 
         for stored_particle in self.stored_sugar_objects['particle'].values():
 
-            if particle.type in self.get_particle_types(particle=stored_particle):
+            if particle.es_type in self.get_particle_types(particle=stored_particle):
 
                 return True
 
@@ -696,7 +696,7 @@ class sugar_library():
                 if verbose:
                     print('Added: '+line)
 
-        without_units=['q','type','acidity']
+        without_units=['q','es_type','acidity']
         with_units=['diameter','epsilon']
 
         for particle_param in particle_param_list:
@@ -711,7 +711,7 @@ class sugar_library():
                     not_requiered_attributes[not_requiered_key]=None
 
             self.particle(name=particle_param.pop('name'),
-                            type=not_requiered_attributes.pop('type'),
+                            es_type=not_requiered_attributes.pop('es_type'),
                             q=not_requiered_attributes.pop('q'),
                             acidity=not_requiered_attributes.pop('acidity'),
                             diameter=not_requiered_attributes.pop('diameter'),
@@ -864,19 +864,19 @@ class sugar_library():
         type_list: (list) list of types in particle
         """
         type_list=[]
-        if isinstance(particle.type, int):
+        if isinstance(particle.es_type, int):
             
-            type_list.append(particle.type)
+            type_list.append(particle.es_type)
 
-        elif isinstance(particle.type, dict):
+        elif isinstance(particle.es_type, dict):
 
-            for type in particle.type.values():
+            for es_type in particle.es_type.values():
 
-                type_list.append(type)
+                type_list.append(es_type)
 
         else:
 
-            raise ValueError("Unvalid type for bead: ", particle.name, " given ", particle.type)
+            raise ValueError("Unvalid type for bead: ", particle.name, " given ", particle.es_type)
 
         return type_list
 
@@ -1050,13 +1050,13 @@ class sugar_library():
                 self.set_particle_acidity(particle=particle,acidity=pka_set[name]['acidity'])
                 gamma=10**-pka_set[name]['pka_value']
                 RE.add_reaction(gamma=gamma,
-                                    reactant_types=[particle.type["protonated"]],
+                                    reactant_types=[particle.es_type["protonated"]],
                                     reactant_coefficients=[1],
-                                    product_types=[particle.type["unprotonated"], counter_ion.type],
+                                    product_types=[particle.es_type["unprotonated"], counter_ion.es_type],
                                     product_coefficients=[1,1],
-                                    default_charges={particle.type["unprotonated"]: particle.q["unprotonated"],
-                                    particle.type["protonated"]: particle.q["protonated"],
-                                    counter_ion.type: counter_ion.q})
+                                    default_charges={particle.es_type["unprotonated"]: particle.q["unprotonated"],
+                                    particle.es_type["protonated"]: particle.q["protonated"],
+                                    counter_ion.es_type: counter_ion.q})
             
             
         return RE
@@ -1571,7 +1571,7 @@ class sugar_library():
 
             if particle.name in self.pka_set.keys():
 
-                for acidbase_type in particle.type.values():
+                for acidbase_type in particle.es_type.values():
 
                     acidbase_types_list.append(acidbase_type)
 
@@ -1815,8 +1815,8 @@ class sugar_library():
         for particle_name in particle_name_list:
             particle_type_list=self.get_particle_types(particle=self.stored_sugar_objects['particle'][particle_name])
             all_types+=particle_type_list
-            for type in particle_type_list:
-                type_dict[type]=particle_name
+            for es_type in particle_type_list:
+                type_dict[es_type]=particle_name
 
         for type_pair in combinations_with_replacement(all_types, 2):
 
@@ -1899,8 +1899,8 @@ class sugar_library():
         type_dict={}
         for particle_name in particle_name_list:
             particle_type_list=self.get_particle_types(particle=self.stored_sugar_objects['particle'][particle_name])
-            for type in particle_type_list:
-                type_dict[type]=particle_name
+            for es_type in particle_type_list:
+                type_dict[es_type]=particle_name
 
         return type_dict
 

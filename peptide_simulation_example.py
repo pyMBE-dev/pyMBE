@@ -68,8 +68,8 @@ peptide = sg.peptide(name='generic_peptide', sequence=sequence, model=model)
 # Salt parameters
 
 c_salt=5e-3 * sg.units.mol/ sg.units.L
-cation=sg.particle(name='Na', type=sg.propose_unused_type(), q=1, diameter=0.35*sg.units.nm, epsilon=1*sg.units('reduced_energy'))
-anion=sg.particle(name='Cl', type=sg.propose_unused_type(), q=-1, diameter=0.35*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
+cation=sg.particle(name='Na', es_type=sg.propose_unused_type(), q=1, diameter=0.35*sg.units.nm, epsilon=1*sg.units('reduced_energy'))
+anion=sg.particle(name='Cl', es_type=sg.propose_unused_type(), q=-1, diameter=0.35*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
 
 # System parameters
 
