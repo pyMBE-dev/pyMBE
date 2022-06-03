@@ -6,10 +6,10 @@ import re
 
 frame_dir='./frames'            # Path to the directory of the frame trajectories
 reservoir_pos=[-2,-2,-2]        # Coordinates of the particle reservoir
-folded = True                  # Applies periodic boundary conditions
+folded = True                   # Applies periodic boundary conditions
 nametraj = "vmd-trajectory.vtf" # Name of the output vmd-readable trajectory file
 nametcl  = "visualization.tcl"  # Name of the script for vmd visualization
-radcyl = 3                      # Width of the simulation box
+radcyl = 1                      # Width of the simulation box
 
 # Create the list of files
 
@@ -108,6 +108,8 @@ N_type_frame={}
 radi_types={}
 name_types={}
 
+
+
 for frame in range(N_frame):
 
     for typ in type_list:
@@ -151,6 +153,13 @@ for typ in type_list:
     id0=id_at+1
     ids_type[typ]=ids_list
 
+# settup the hidding particle
+
+hidden_type='hid'
+hidden_name='hid'
+hidden_id=id0
+N_part+=1
+
 #write the vmd-readable trajectory file
 
 with open(nametraj, "w") as f_vmd:
@@ -178,6 +187,12 @@ with open(nametraj, "w") as f_vmd:
         f_vmd.write(" radius " + radi_types[typ])
         f_vmd.write(" name " + name_types[typ])
         f_vmd.write(" type " + str(typ) +"\n")
+
+    # write the hidding particle
+    f_vmd.write("atom " + str(hidden_id))
+    f_vmd.write(" radius " + '1')
+    f_vmd.write(" name " + hidden_name)
+    f_vmd.write(" type " + hidden_type +"\n")
 
     # write each frame coordinate
 
@@ -244,6 +259,13 @@ with open(nametraj, "w") as f_vmd:
 
                     f_vmd.write("\n")
 
+        # Write the hidding particle
+
+        f_vmd.write(str(hidden_id)+" ")
+        for cor in reservoir_pos:
+
+            f_vmd.write(str(cor)+" ")
+
 # Write an script to produce a good-looking visualization
 
 with open(nametcl, "w") as f_visual:
@@ -257,7 +279,7 @@ with open(nametcl, "w") as f_visual:
     f_visual.write("display resetview")
     f_visual.write("\n")
 
-    f_visual.write("pbc box_draw -color purple -width " + str(radcyl) + "\n")
+    f_visual.write("pbc box_draw -color gray -width " + str(radcyl) + "\n")
 
     color=0
 
@@ -266,7 +288,7 @@ with open(nametcl, "w") as f_visual:
         var="typ"+typ
         f_visual.write("set " + var + ' [atomselect top "name ' + typ + ' "]')
         f_visual.write("\n")
-        f_visual.write( "$"+ var + " set radius " +str(radi_types[typ]))
+        f_visual.write( "$"+ var + " set radius 0.6")
         f_visual.write("\n")
         f_visual.write("mol representation VDW 1.000000 16.000000")
         f_visual.write("\n")
@@ -280,10 +302,27 @@ with open(nametcl, "w") as f_visual:
         f_visual.write("\n \n")
         color=color+1
 
+
+
+    var="typ"+hidden_type
+    f_visual.write("set " + var + ' [atomselect top "name ' + hidden_type + ' "]')
+    f_visual.write("\n")
+    f_visual.write( "$"+ var + " set radius 1")
+    f_visual.write("\n")
+    f_visual.write("mol representation VDW 1.000000 16.000000")
+    f_visual.write("\n")
+    f_visual.write("mol selection name " + hidden_type)
+    f_visual.write("\n")
+    f_visual.write("mol material Goodsell")
+    f_visual.write("\n")
+    f_visual.write("mol color ColorID " + str(8))
+    f_visual.write("\n")
+    f_visual.write("mol addrep top")
+    f_visual.write("\n \n")
+
     f_visual.write("animate goto 0")
     f_visual.write("\n")
     f_visual.write("color Display Background white")
     f_visual.write("\n")
     f_visual.write("axes location off")
     f_visual.write("\n")
-
