@@ -31,7 +31,7 @@ sg=sugar.sugar_library()
 
 # Peptide parameters
 
-sequence="nHHHEEEc"
+sequence="nHHEEEc"
 model='2beadAA'  # Model with 2 beads per each aminoacid
 pep_concentration=5.56e-4 *sg.units.mol/sg.units.L
 N_peptide_chains=5
