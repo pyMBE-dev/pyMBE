@@ -544,6 +544,7 @@ class sugar_library():
             self.id_map['molecule'][molecule.name].append(molecule_dicts)
         return molecule_dicts
 
+
     def propose_unused_type(self):
         """
         Searches in sugar database the currently used particle types and returns an unused type
@@ -1031,9 +1032,9 @@ class sugar_library():
 
         """
 
-        from espressomd import reaction_ensemble
+        from espressomd import reaction_methods
 
-        if exclusion_radius is None:
+        if exclusion_range is None:
 
             exclusion_radius=self.search_largest_particle_diameter_in_sugar()
 
