@@ -224,8 +224,13 @@ class sugar_library():
         for residue_name in clean_sequence:
             
             if residue_name not in self.stored_sugar_objects['residue'].keys():
+
+                if residue_name == 'G':
+
+                    AA_particle=C_particle
+                else:
                 
-                AA_particle=self.stored_sugar_objects['particle'][residue_name]
+                    AA_particle=self.stored_sugar_objects['particle'][residue_name]
 
                 if model == '1beadAA':
 
@@ -236,11 +241,8 @@ class sugar_library():
                     
                     # terminal groups + glycine are represented with only 1 bead
                     
-                    if residue_name in ['c','n']: 
+                    if residue_name in ['c','n', 'G']: 
                         central_bead=AA_particle
-                        side_chains=[]
-                    if residue_name == 'G':
-                        central_bead=C_particle
                         side_chains=[]
                     else:
                         central_bead=C_particle
@@ -1032,9 +1034,9 @@ class sugar_library():
 
         """
 
-        from espressomd import reaction_methods
+        from espressomd import reaction_ensemble
 
-        if exclusion_range is None:
+        if exclusion_radius is None:
 
             exclusion_radius=self.search_largest_particle_diameter_in_sugar()
 
