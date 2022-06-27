@@ -43,9 +43,7 @@ sg=sugar.sugar_library()
 
 # Simulation parameters
 sg.set_reduced_units(unit_length=0.4*sg.units.nm)
-initial_pH=2
-final_pH=12
-pH_range = np.linspace(initial_pH, final_pH, num=21)
+pH_range = np.linspace(2, 12, num=21)
 Samples_per_pH= 1000
 MD_steps_per_sample=1000
 steps_eq=int(Samples_per_pH/3)
@@ -62,11 +60,11 @@ bead_size=0.4*sg.units.nm
 # Solution parameters 
 
 c_salt=1e-3 * sg.units.mol/ sg.units.L
-cation=sg.particle(name='Na', type=sg.propose_unused_type(), q=1, diameter=0.2*sg.units.nm, epsilon=1*sg.units('reduced_energy'))
-anion=sg.particle(name='Cl', type=sg.propose_unused_type(), q=-1, diameter=0.36*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
+cation=sg.particle(name='Na',  q=1, diameter=0.2*sg.units.nm, epsilon=1*sg.units('reduced_energy'))
+anion=sg.particle(name='Cl',  q=-1, diameter=0.36*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
 
     # Load pKa set
-sg.load_parameters(filename='reference_parameters/Nozaki1967.txt')
+sg.load_pka_set(filename='reference_parameters/pka_sets/Nozaki1967.txt')
     # use generic paramenters for the peptide
 
 acidic_aminoacids=['c','E','D','Y','C']
@@ -74,7 +72,7 @@ basic_aminoacids=['R','n','K','H']
 N_aminoacids=len(sg.protein_sequence_parser(sequence=sequence))
 
 for aminoacid_key in sg.protein_sequence_parser(sequence=sequence):
-    if aminoacid_key not in sg.stored_objects['particle'].keys():
+    if aminoacid_key not in sg.stored_sugar_objects['particle'].keys():
         if aminoacid_key in acidic_aminoacids:
             sg.particle(name=aminoacid_key, acidity='acidic', diameter=bead_size, epsilon=1*sg.units('reduced_energy'))
         elif aminoacid_key in basic_aminoacids:
@@ -98,23 +96,23 @@ L=22 * sg.units.nm # Side of the simulation box
 
     # Create an instance of an espresso system
 
-system=espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
+espresso_system=espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
 
 # Add all bonds to espresso system
 
-sg.add_bonds_to_system(system=system)
+sg.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
 
 N_peptide_chains=int(L**3*pep_concentration*sg.N_A)
 
 for _ in range(N_peptide_chains):
-    sg.create_object_in_system(object=histidin5, system=system, use_default_bond=True)
+    sg.create_sugar_object_in_espresso(sugar_object=histidin5, espresso_system=espresso_system, use_default_bond=True)
 
-dict_titrable_groups=sg.count_titrable_particles(object=histidin5)
+dict_titrable_groups=sg.count_titrable_particles(sugar_object=histidin5)
 total_ionisible_groups=sum(dict_titrable_groups.values())
-sg.create_counterions_in_system(object=histidin5,cation=cation,anion=anion,system=system) # Create counterions for the peptide chains
-c_salt_calculated=sg.create_added_salt_in_system(system=system,cation=cation,anion=anion,c_salt=c_salt)
+sg.create_counterions_in_espresso(sugar_object=histidin5,cation=cation,anion=anion,espresso_system=espresso_system) # Create counterions for the peptide chains
+c_salt_calculated=sg.create_added_salt_in_espresso(espresso_system=espresso_system,cation=cation,anion=anion,c_salt=c_salt)
 
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 print('The peptide concentration in your system is ', pep_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
@@ -122,42 +120,43 @@ print('The ionisable groups in your peptide are ', dict_titrable_groups)
 
 # Setup the acid-base reactions of the peptide using the constant pH ensemble
 
-RE=sg.setup_constantpH_reactions(counter_ion=cation, pH=initial_pH)
+RE, sucessfull_reactions_labels=sg.setup_constantpH_reactions_in_espresso(counter_ion=cation)
+print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 
-sg.track_ionization(system=system)
+sg.setup_espresso_to_track_ionization(espresso_system=espresso_system)
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 
 type_dict=sg.get_all_stored_types()
 non_interacting_type=max(type_dict.keys())+1
-RE.set_non_interacting_type(type=non_interacting_type)
+RE.set_non_interacting_type(non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
 # Setup the potential energy
 
-sg.setup_lj_interactions(system=system)
-sg.setup_electrostatic_interactions(system=system, c_salt=c_salt)
+sg.setup_lj_interactions_in_espresso(espresso_system=espresso_system)
+sg.setup_electrostatic_interactions_in_espresso(espresso_system=espresso_system, c_salt=c_salt)
 
 # Minimize the system energy to avoid huge starting force due to random inicialization of the system
 
-sg.minimize_system_energy(system=system)
+sg.minimize_espresso_system_energy(espresso_system=espresso_system)
 
 # Setup espresso to do langevin dynamics
 
-sg.setup_langevin_dynamics(system=system)
+sg.setup_langevin_dynamics_in_espresso(espresso_system=espresso_system)
 
 # Write the initial state
 
 with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
-    vtf.writevsf(system, coordinates)
-    vtf.writevcf(system, coordinates) 
+    vtf.writevsf(espresso_system, coordinates)
+    vtf.writevcf(espresso_system, coordinates) 
 
 Rg_pH=[]
 Z_pH=[]
 N_frame=0
-first_peptide_id=sg.get_ids(object=histidin5)[0][0]
+first_peptide_id=sg.get_ids_from_sugar(sugar_object=histidin5)[0][0]
 
 # Main loop for performing simulations at different pH-values
 
@@ -173,17 +172,17 @@ for pH_value in pH_range:
         
         if sg.np.random.random() > probability_reaction:
 
-            system.integrator.run(steps=MD_steps_per_sample)
+            espresso_system.integrator.run(steps=MD_steps_per_sample)
         
         else:
         
-            RE.reaction(steps=total_ionisible_groups)
+            RE.reaction(total_ionisible_groups)
 
         if ( step > steps_eq):
 
-            Z_net_list = sg.get_net_charge(system=system, object=histidin5)
+            Z_net_list = sg.get_net_charge_from_espresso(espresso_system=espresso_system, sugar_object=histidin5)
             Z_sim.append(np.mean(np.array(Z_net_list)))
-            Rg = system.analysis.calc_rg(chain_start=first_peptide_id, number_of_chains=N_peptide_chains, chain_length=N_aminoacids)
+            Rg = espresso_system.analysis.calc_rg(chain_start=first_peptide_id, number_of_chains=N_peptide_chains, chain_length=N_aminoacids)
             Rg_value = sg.units.Quantity(Rg[0], 'reduced_length')
             Rg_nm = Rg_value.to('nm').magnitude
             Rg_sim.append(Rg_nm)
@@ -192,8 +191,8 @@ for pH_value in pH_range:
 
             N_frame+=1
             with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
-                vtf.writevsf(system, coordinates)
-                vtf.writevcf(system, coordinates)
+                vtf.writevsf(espresso_system, coordinates)
+                vtf.writevcf(espresso_system, coordinates)
 
     sg.write_progress(step=list(pH_range).index(pH_value), total_steps=len(pH_range))
 
@@ -203,7 +202,7 @@ for pH_value in pH_range:
     
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = sg.calculate_HH(object=histidin5, pH=list(pH_range))
+Z_HH = sg.calculate_HH(sequence=histidin5.sequence, pH=pH_range)
 
 # Estimate the statistical error and the autocorrelation time of the data
 print("Charge analysis")

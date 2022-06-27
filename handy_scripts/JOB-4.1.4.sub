@@ -1,0 +1,58 @@
+#!/bin/bash
+#PBS -N test
+
+# use the following command for submiting jobs
+# qsub -l select=ncpus=1:mem=8gb:scratch_local=8gb:os=debian10:cl_adan=False:cl_hildor=False:cl_charon=False -l walltime=1:0:00 JOB-4.1.4.sub
+
+echo "Load modules"
+
+# load modules needed to run espresso
+module purge
+module load espresso_md-4.1.4
+
+module list
+
+# For backtracing the job
+full_job_id=$PBS_JOBID
+echo "full JOB_ID: $full_job_id"
+job_id=${full_job_id:0:8}
+echo "job id: $job_id"
+host=` qstat -f $job_id | grep 'exec_host2' `
+echo "host: $host"
+
+
+
+# load pint from Pablo's installation
+
+TOIN=/storage/brno2/home/blancoapa/shared/
+export PATH=$TOIN/bin:$PATH
+export PYTHONPATH=$TOIN/lib:$PYTHONPATH
+
+espresso_input="peptide_simulation_example.py"
+DATADIR="/storage/brno2/home/blancoapa/test_magda"
+SYSNAME="test"
+SOURCE="/storage/brno2/home/blancoapa/test_magda/code"
+
+# Note: the echo commands are useful for debugging because otherwise it is hard to see when this script failed
+
+# transfer data to the scratch
+echo "cp -r $SOURCE/* $SCRATCHDIR"
+scp -r $SOURCE/* $SCRATCHDIR || exit 1
+
+# change the working dir to the scratch
+echo "cd $SCRATCHDIR"
+cd $SCRATCHDIR || exit 2
+
+# run the simulation
+
+echo "pypresso $espresso_input"
+pypresso $espresso_input || exit 3
+
+# transfer the data back
+# do not copy back sugar and other undersired files
+
+echo "cp -r $SCRATCHDIR/* $DATADIR/${SYSNAME}"
+scp -r $SCRATCHDIR/frames $SCRATCHDIR/*.txt $SCRATCHDIR/$espresso_input  ${DATADIR}/${SYSNAME} || export CLEAN_SCRATCH=false
+
+
+echo "Finished"
