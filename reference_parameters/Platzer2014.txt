@@ -1,2 +1,0 @@
-# pKa-values from Platzer G, Okon M, McIntosh LP. 2014.  J. Biomol. NMR 60:109–29
-{"object_type":"pKa", "D" : 3.86, "E" : 4.34,  "H" : 6.45, "Y" : 9.76, "K" : 10.34, "R" : 13.9, "C" : 8.49, "n" : 8.23, "c" : 3.55}

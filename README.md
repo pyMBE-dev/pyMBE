@@ -12,6 +12,10 @@ to ESPResSo using Pint library.
 - Pint v0.17 [link to Pint](https://pint.readthedocs.io/en/stable/)
 - (for visualization) VMD v1.9.3 [link to VMD](https://www.ks.uiuc.edu/Research/vmd/)
 
+A deprecated version of sugar compatible with ESPResSo v4.1.4 can be found in the branch `sugar_espresso4.1.4`
+Note that further developments of sugar will only be developed for ESPResSo v4.2 and thus further support for
+that branch is not planned. 
+
 ## Contents
 
 - `sugar.py` : source code of Sugar library
@@ -45,11 +49,11 @@ and your simulations should be runned using ESPResSo
 
 ### Example script of the setting up of a peptide simulation with Sugar
 
-You can run the example script directly using your ESPResSo v4.1 instalation
+You can run the example script directly using your ESPResSo instalation
 
 `{$ESPResSo_build_path}/pypresso your_simulation_script.py`
 
-or alternatively you can modify the $ESPResSo_build_path variable in `Makefile` to match the path where you have build ESPResSo v4.1 and run the script with
+or alternatively you can modify the $ESPResSo_build_path variable in `Makefile` to match the path where you have build ESPResSo and run the script with
 
 `make run`
 
@@ -67,7 +71,7 @@ or alternatively you can run the command
 
 `make tutorial`
 
-provided that you have modified the $ESPResSo_build_path variable in `Makefile` to match the path where you have build ESPResSo v4.1
+provided that you have modified the $ESPResSo_build_path variable in `Makefile` to match the path where you have build ESPResSo
 
 ### Run reference script
 

@@ -1,0 +1,2 @@
+# pKa-values from Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.
+{"D" : {"pka_value": 4.0, "acidity": "acidic"},"E" : {"pka_value": 4.4, "acidity": "acidic"},"Y" : {"pka_value": 9.6, "acidity": "acidic"},"C" : {"pka_value": 8.3, "acidity": "acidic"},"H" : {"pka_value": 6.8, "acidity": "basic"},"K" : {"pka_value": 10.4, "acidity": "basic"},"R" : {"pka_value": 13.5, "acidity": "basic"},"n" : {"pka_value": 8.0, "acidity": "basic"},"c" : {"pka_value": 3.6, "acidity": "acidic"}}
