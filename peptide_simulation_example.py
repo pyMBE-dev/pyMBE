@@ -30,11 +30,10 @@ sg=sugar.sugar_library()
 
 # Peptide parameters
 
-sequence="nHHHEEEc"
+sequence="nGEGGHc"
 model='2beadAA'  # Model with 2 beads per each aminoacid
 pep_concentration=5.56e-4 *sg.units.mol/sg.units.L
 N_peptide_chains=1
-residue_positions=[0,3,5,len(sequence)-1] # Residue positions to calculate its average charge
 
     # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
@@ -91,9 +90,6 @@ espresso_system=espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
 sg.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
-
-
-
 
 for _ in range(N_peptide_chains):
     sg.create_sugar_object_in_espresso(sugar_object=peptide, espresso_system=espresso_system, use_default_bond=True)
@@ -175,16 +171,6 @@ for pH_value in pH_range:
             Z_net_list = sg.get_net_charge_from_espresso(espresso_system=espresso_system, sugar_object=peptide)
             Z_sim.append(np.mean(np.array(Z_net_list)))
             
-            # Get the charge of the residues in residue_position
-
-            Z_charge_res_dict = sg.get_charge_in_residues(espresso_system=espresso_system, molecule=peptide)
-            Z_groups_av=[]
-            for residue_position in residue_positions:
-                z_pos_av=[]
-                for molecule_dict in Z_charge_res_dict:
-                    z_pos_av.append(molecule_dict[residue_position][sequence[residue_position]])
-                Z_groups_av.append(np.mean(np.array(z_pos_av)))
-            Z_groups_time_series.append(Z_groups_av)
         if (step % N_samples_print == 0) :
 
             N_frame+=1
@@ -194,7 +180,6 @@ for pH_value in pH_range:
 
     sg.write_progress(step=list(pH_range).index(pH_value), total_steps=len(pH_range))
     Z_pH.append(np.array(Z_sim))
-    Z_groups_pH.append(np.array(Z_groups_time_series))
 
     print("pH = {:6.4g} done".format(pH_value))
 
@@ -205,10 +190,6 @@ Z_HH = sg.calculate_HH(sequence=peptide.sequence, pH=pH_range)
 
 # Estimate the statistical error and the autocorrelation time of the data
 av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = sg.block_analyze(input_data=Z_pH)
-
-group_averages=[]
-for time_serie_pH in Z_groups_pH:
-    group_averages.append(sg.block_analyze(input_data=np.transpose(time_serie_pH)))
 
 # Plot the results
 

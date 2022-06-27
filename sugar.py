@@ -234,10 +234,14 @@ class sugar_library():
 
                 elif model == '2beadAA':
                     
-                    if residue_name in ['c','n']: # terminal groups
+                    # terminal groups + glycine are represented with only 1 bead
+                    
+                    if residue_name in ['c','n']: 
                         central_bead=AA_particle
                         side_chains=[]
-                    
+                    if residue_name == 'G':
+                        central_bead=C_particle
+                        side_chains=[]
                     else:
                         central_bead=C_particle
                         side_chains=[AA_particle]
