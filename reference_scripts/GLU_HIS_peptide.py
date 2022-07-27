@@ -19,7 +19,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os
 import inspect
-import espressomd.reaction_ensemble
 from espressomd import interactions
 
 # For loading sugar from parent folder
@@ -41,7 +40,7 @@ sg=sugar.sugar_library()
 pH_range = np.linspace(2, 12, num=21)
 
 Samples_per_pH= 1000
-MD_steps_per_sample=100
+MD_steps_per_sample=1000
 steps_eq=int(Samples_per_pH/3)
 N_samples_print= 100  # Write the trajectory every 100 samples
 probability_reaction=0.5 
@@ -99,7 +98,7 @@ c_salt_calculated=sg.create_added_salt_in_espresso(espresso_system=espresso_syst
 
 # Setup the acid-base reactions of the peptide using the constant pH ensemble
 
-RE, sucessfull_reactions_labels=sg.setup_constantpH_reactions_in_espresso(counter_ion=cation)
+RE, sucessfull_reactions_labels=sg.setup_constantpH_reactions_in_espresso(counter_ion=cation, constant_pH=2)
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
@@ -110,7 +109,7 @@ sg.setup_espresso_to_track_ionization(espresso_system=espresso_system)
 
 type_dict=sg.get_all_stored_types()
 non_interacting_type=max(type_dict.keys())+1
-RE.set_non_interacting_type(non_interacting_type)
+RE.set_non_interacting_type(type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
 # Setup the potential energy
@@ -156,7 +155,7 @@ for pH_value in pH_range:
         
         else:
         
-            RE.reaction(total_ionisible_groups)
+            RE.reaction(steps=total_ionisible_groups)
 
         if ( step > steps_eq):
 

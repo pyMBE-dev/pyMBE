@@ -225,7 +225,7 @@ class sugar_library():
             
             if residue_name not in self.stored_sugar_objects['residue'].keys():
 
-                if residue_name == 'G':
+                if residue_name == 'G' and model == "2beadAA":
 
                     AA_particle=C_particle
                 else:
@@ -377,13 +377,13 @@ class sugar_library():
         
         if id is None:
 
-            if len(espresso_system.part[:].id) == 0:
+            if len(espresso_system.part.all()) == 0:
                 
                 bead_id=0
 
             else:
                 
-                bead_id=max(espresso_system.part[:].id)+1
+                bead_id=max(espresso_system.part.all().id)+1
         espresso_system.part.add(id=[bead_id], pos=[position], type=[es_type], q=[q])
 
         # particle id bookeeping
@@ -427,7 +427,7 @@ class sugar_library():
 
             raise ValueError("Residue.central_bead must contain a particle object.")
 
-        central_bead_position=espresso_system.part[central_bead_id].pos
+        central_bead_position=espresso_system.part.by_id(central_bead_id).pos
                 
         # create the lateral beads        
         
@@ -442,7 +442,7 @@ class sugar_library():
                     bond_vector=self.generate_trial_perpendicular_vector(vector=backbone_vector,magnitude=bond.params.get('r_0'))
                 bead_position=central_bead_position+bond_vector
                 side_bead_id=self.create_particle_in_espresso(particle=sg_object, espresso_system=espresso_system, position=bead_position)
-                espresso_system.part[central_bead_id].add_bond((bond, side_bead_id))
+                espresso_system.part.by_id(central_bead_id).add_bond((bond, side_bead_id))
                 if 'side-'+sg_object.name in residue_ids_dict.keys():
                     residue_ids_dict['side-'+sg_object.name].append(side_bead_id)
                 else:
@@ -458,7 +458,7 @@ class sugar_library():
                 residue_position=central_bead_position+bond_vector
                 lateral_residue_ids_dict=self.create_residue_in_espresso(residue=sg_object, espresso_system=espresso_system, central_bead_position=residue_position)
                 lateral_residue_central_bead_id=next(value for key,value in lateral_residue_ids_dict.items() if 'central-' in key)[0]
-                espresso_system.part[central_bead_id].add_bond((bond, lateral_residue_central_bead_id))
+                espresso_system.part.by_id(central_bead_id).add_bond((bond, lateral_residue_central_bead_id))
                 
                 for key in lateral_residue_ids_dict:
                     
@@ -518,7 +518,7 @@ class sugar_library():
                 residue_ids_dict=self.create_residue_in_espresso(residue=residue, espresso_system=espresso_system, central_bead_position=first_residue_position,  use_default_bond= use_default_bond, backbone_vector=backbone_vector)
                 central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
                 previous_residue=residue
-                residue_position=espresso_system.part[central_bead_id].pos
+                residue_position=espresso_system.part.by_id(central_bead_id).pos
                 previous_residue_id=central_bead_id
                 first_residue=False
                 
@@ -529,7 +529,7 @@ class sugar_library():
                 residue_position=residue_position+backbone_vector*bond.params.get('r_0')
                 residue_ids_dict=self.create_residue_in_espresso(residue=residue, espresso_system=espresso_system, central_bead_position=residue_position,use_default_bond= use_default_bond)
                 central_bead_id=next(value for key,value in residue_ids_dict.items() if 'central-' in key)[0]
-                espresso_system.part[central_bead_id].add_bond((bond, previous_residue_id))
+                espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
                 previous_residue_id=central_bead_id
                 previous_residue=residue
 
@@ -1019,7 +1019,7 @@ class sugar_library():
 
         return clean_sequence
 
-    def setup_constantpH_reactions_in_espresso(self, counter_ion, exclusion_radius=None, pka_set=None):
+    def setup_constantpH_reactions_in_espresso(self, counter_ion, constant_pH, exclusion_range=None, pka_set=None):
         """
         Set up the Acid/Base reactions for acidic/basidic residues in mol. The reaction steps are done following the constant pH ensamble procedure. 
 
@@ -1034,11 +1034,11 @@ class sugar_library():
 
         """
 
-        from espressomd import reaction_ensemble
+        from espressomd import reaction_methods
 
-        if exclusion_radius is None:
+        if exclusion_range is None:
 
-            exclusion_radius=self.search_largest_particle_diameter_in_sugar()
+            exclusion_range=self.search_largest_particle_diameter_in_sugar()
 
         if self.SEED is None:
 
@@ -1049,7 +1049,7 @@ class sugar_library():
 
         self.check_pka_set(pka_set=pka_set)
 
-        RE = reaction_ensemble.ConstantpHEnsemble(temperature=self.kT.to('reduced_energy').magnitude, exclusion_radius=exclusion_radius.magnitude, seed=self.SEED)
+        RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude, exclusion_range=exclusion_range.magnitude, seed=self.SEED, constant_pH=constant_pH)
         sucessfull_reactions_labels=[]
 
         for name in pka_set.keys():
@@ -1681,7 +1681,7 @@ class sugar_library():
 
         for id_list in ids_lists_in_object:
             for id in id_list:
-                espresso_system.part[id].remove()
+                espresso_system.part.by_id(id).remove()
 
         # Update sugar storage of ids
 
@@ -1716,9 +1716,9 @@ class sugar_library():
 
         for id_list in object_ids:
             for id in id_list:
-                if espresso_system.part[id].q > 0:
+                if espresso_system.part.by_id(id).q > 0:
                     N_pos+=1
-                elif espresso_system.part[id].q < 0:
+                elif espresso_system.part.by_id(id).q < 0:
                     N_neg+=1
 
         if (N_pos % abs(anion.q) == 0):
@@ -1765,7 +1765,7 @@ class sugar_library():
         for id_list in ids_lists_in_object:
             z_one_object=0
             for id in id_list:
-                z_one_object+=espresso_system.part[id].q
+                z_one_object+=espresso_system.part.by_id(id).q
             Z_list.append(z_one_object)
 
         return Z_list
@@ -1789,7 +1789,7 @@ class sugar_library():
                 for key in residue_dict.keys():
                     charge_key=[]                      
                     for id in residue_dict[key]:                         
-                        charge_key.append(espresso_system.part[id].q)
+                        charge_key.append(espresso_system.part.by_id(id).q)
                     
                     if 'side-' in key:
                         new_key=key.replace('side-', '')

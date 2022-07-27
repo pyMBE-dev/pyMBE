@@ -29,7 +29,6 @@ sys.path.insert(0, parentdir)
 import sugar
 
 import matplotlib.pyplot as plt
-import espressomd.reaction_ensemble
 from espressomd import interactions
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
@@ -59,7 +58,7 @@ bead_size=0.4*sg.units.nm
 
 # Solution parameters 
 
-c_salt=1e-3 * sg.units.mol/ sg.units.L
+c_salt=5e-3 * sg.units.mol/ sg.units.L
 cation=sg.particle(name='Na',  q=1, diameter=0.2*sg.units.nm, epsilon=1*sg.units('reduced_energy'))
 anion=sg.particle(name='Cl',  q=-1, diameter=0.36*sg.units.nm,  epsilon=1*sg.units('reduced_energy'))
 
@@ -120,7 +119,7 @@ print('The ionisable groups in your peptide are ', dict_titrable_groups)
 
 # Setup the acid-base reactions of the peptide using the constant pH ensemble
 
-RE, sucessfull_reactions_labels=sg.setup_constantpH_reactions_in_espresso(counter_ion=cation)
+RE, sucessfull_reactions_labels=sg.setup_constantpH_reactions_in_espresso(counter_ion=cation, constant_pH=2)
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
@@ -131,7 +130,7 @@ sg.setup_espresso_to_track_ionization(espresso_system=espresso_system)
 
 type_dict=sg.get_all_stored_types()
 non_interacting_type=max(type_dict.keys())+1
-RE.set_non_interacting_type(non_interacting_type)
+RE.set_non_interacting_type(type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
 # Setup the potential energy
@@ -176,7 +175,7 @@ for pH_value in pH_range:
         
         else:
         
-            RE.reaction(total_ionisible_groups)
+            RE.reaction(steps=total_ionisible_groups)
 
         if ( step > steps_eq):
 
