@@ -4,5 +4,5 @@ frames
 .ipynb_checkpoints/
 .vscode
 __pycache__
-*.vtf
+traj*.vtf
 *_system.png
