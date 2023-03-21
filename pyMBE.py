@@ -1469,3 +1469,89 @@ class pymbe_library():
             print(non_parametrized_labels)
             print('no interaction has been added for those particles in ESPResSo')
         return
+
+    def read_protein_vtf_file (self, filename):
+        """
+        Reads the input VTF file of the protein model
+
+        Args:
+            filename: path of the protein file
+        """
+
+        print (f'Loading protein coarse grain model file: {filename}')
+
+        protein_seq_list = []
+        coord_list = []
+        atom_id_list = []
+        label_dict = {}
+
+        with open (filename,'r') as protein_model:
+
+                for line in protein_model :
+                    line_split = line.split ()
+    
+                    if line_split : 
+                        line_header = line_split [0]
+
+                        if line_header == 'unitcell':    
+                            box = line_split[1:4]
+
+                        elif line_header == 'atom':
+
+                            atom_id  = line_split [1]
+                            atom_name = line_split [3]
+                            atom_resname = line_split [5]
+                            chain_id = line_split [7]
+                            atom_radius = line_split [9]
+
+                            atom_id_list.append (atom_id)                     
+                            label_dict [int(atom_id)] = [atom_name , atom_resname]
+
+                            if atom_name != 'CA' and atom_name != 'Ca':
+                                protein_seq_list.append(atom_name)
+                        
+                        elif line_header == 'bond' :
+                            
+                            atom_bond = line_split [1] 
+
+                        elif line_header.isnumeric (): 
+
+                            particle_id = line_split [0]
+                            particle_coord = line_split [1:] 
+                            particle_coord = [float(i) for i in particle_coord]
+
+                            coord_list.append (particle_coord)
+            
+        protein_sequence = ''.join(protein_seq_list)
+
+        print (f'Protein Sequence: {protein_sequence}')
+
+        numbered_resname = []
+        i = 0   
+        
+        for atom_id in label_dict.keys():
+    
+            if atom_id == 1:
+                name = label_dict[atom_id][0]
+                atom_rename = f'{name}{i}'
+                numbered_resname.append(atom_rename)
+
+            elif atom_id != 1: 
+            
+                if label_dict[atom_id-1][1] != label_dict[atom_id][1]:
+                    i += 1                    
+                    count = 1
+                    name = label_dict[atom_id][0]
+                    atom_rename = f'{name}{i}'
+                    numbered_resname.append(atom_rename)
+                    
+                elif label_dict[atom_id-1][1] == label_dict[atom_id][1]:
+                    if count == 2 or label_dict[atom_id][1] == 'GLY':
+                        i +=1  
+                        count = 0
+                    name = label_dict[atom_id][0]
+                    atom_rename = f'{name}{i}'
+                    numbered_resname.append(atom_rename)
+                    count +=1
+
+        return 
