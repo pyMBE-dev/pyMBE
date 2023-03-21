@@ -1519,15 +1519,19 @@ class pymbe_library():
                             particle_coord = [float(i) for i in particle_coord]
 
                             coord_list.append (particle_coord)
-            
 
-        self.change_coordinates_units_to_reduced_length(coordinates=coord_list)
+        axes_list = [0,1,2]
+        updated_pos = self.np.zeros(3,)
+        updated_coordinates_list = []
+    
+        for pos in coord_list:
+            for axis in axes_list:
+                updated_pos[axis] = (pos[axis]*self.units.angstrom).to('reduced_length').magnitude 
+            updated_coordinates_list.append (updated_pos)
 
         protein_sequence = ''.join(protein_seq_list)
 
         print (f'Protein Sequence: {protein_sequence}')
-
-
 
         numbered_resname = []
         i = 0   
@@ -1560,27 +1564,29 @@ class pymbe_library():
             # protein_dict [atom_rename] = {'resname': name,'position': coordinates ,'chain_id':chain_id, 'acidity':}
     
         return 
-    
-    def change_coordinates_units_to_reduced_length (self,coordinates):
 
+    def calculate_center_of_mass (self,molecule_name, espresso_system):
+        
         """
-        Changes the X-Y-Z coordinates units to reduced lenght magnitud
-
+        Calculates the center of mass
+        
         Args:
-            coordinates (list):
-        Return:
-            updated_coordinates (list):
+
         """
-        #NOTE in this case the units are in Angstrom because it was decided in the coarse grain model
-        #But should we give the user the option to put in which unit are the coordinates?
-
-        axes_list = [0,1,2]
-        updated_pos = self.np.zeros(3,)
-        updated_coordinates_list = []
+        #NOTE 
+        total_beads = 0
     
-        for pos in coordinates:
-            for axis in axes_list:
-                updated_pos[axis] = (pos[axis]*self.units.angstrom).to('reduced_length').magnitude 
-            updated_coordinates_list.append (updated_pos)
+        center_of_mass = self.np.zeros(3)
+        axis_list = [0,1,2]
 
-        return updated_coordinates_list
+        particle_id_list = self.df.loc [self.df['name']==molecule_name].to_list ()
+
+        for pid in particle_id_list:
+            for axis in axis_list:
+                center_of_mass [axis] += espresso_system.part.by_id(pid).pos[axis]     
+
+        center_of_mass = center_of_mass /total_beads  
+
+        return center_of_mass
+    
+    
