@@ -1470,7 +1470,7 @@ class pymbe_library():
             print('no interaction has been added for those particles in ESPResSo')
         return
 
-    def read_protein_vtf_file (self, filename):
+    def load_protein_vtf_file (self, filename):
         """
         Reads the input VTF file of the protein model
 
@@ -1508,23 +1508,26 @@ class pymbe_library():
                             label_dict [int(atom_id)] = [atom_name , atom_resname]
 
                             if atom_name != 'CA' and atom_name != 'Ca':
-                                protein_seq_list.append(atom_name)
-                        
+                                protein_seq_list.append(atom_name)                        
+
                         elif line_header == 'bond' :
-                            
                             atom_bond = line_split [1] 
 
                         elif line_header.isnumeric (): 
-
                             particle_id = line_split [0]
                             particle_coord = line_split [1:] 
                             particle_coord = [float(i) for i in particle_coord]
 
                             coord_list.append (particle_coord)
             
+
+        self.change_coordinates_units_to_reduced_length(coordinates=coord_list)
+
         protein_sequence = ''.join(protein_seq_list)
 
         print (f'Protein Sequence: {protein_sequence}')
+
+
 
         numbered_resname = []
         i = 0   
@@ -1554,4 +1557,30 @@ class pymbe_library():
                     numbered_resname.append(atom_rename)
                     count +=1
 
+            # protein_dict [atom_rename] = {'resname': name,'position': coordinates ,'chain_id':chain_id, 'acidity':}
+    
         return 
+    
+    def change_coordinates_units_to_reduced_length (self,coordinates):
+
+        """
+        Changes the X-Y-Z coordinates units to reduced lenght magnitud
+
+        Args:
+            coordinates (list):
+        Return:
+            updated_coordinates (list):
+        """
+        #NOTE in this case the units are in Angstrom because it was decided in the coarse grain model
+        #But should we give the user the option to put in which unit are the coordinates?
+
+        axes_list = [0,1,2]
+        updated_pos = self.np.zeros(3,)
+        updated_coordinates_list = []
+    
+        for pos in coordinates:
+            for axis in axes_list:
+                updated_pos[axis] = (pos[axis]*self.units.angstrom).to('reduced_length').magnitude 
+            updated_coordinates_list.append (updated_pos)
+
+        return updated_coordinates_list
