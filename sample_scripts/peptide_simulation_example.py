@@ -74,7 +74,7 @@ for aminoacid_key in sequence:
     already_defined_AA.append(aminoacid_key)
 
 generic_bond_lenght=0.4 * pmb.units.nm
-generic_harmonic_constant = 400 * pmb.units.N / pmb.units.m
+generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 generic_bond = interactions.HarmonicBond(k=generic_harmonic_constant.to('reduced_energy / reduced_length**2').magnitude,
                                  r_0=generic_bond_lenght.to('reduced_length').magnitude)
 
