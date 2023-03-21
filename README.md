@@ -39,7 +39,7 @@ and your simulations should be runned using ESPResSo
 
 `{$ESPResSo_build_path}/pypresso your_simulation_script.py`
 
-### Run Sugar tutorial
+### Run the tutorial of pyMBE
 
 You can run the interactive tutorial of pyMBE with the command
 
