@@ -18,4 +18,6 @@ if not os.path.exists('./frames'):
 #Directory of the protein model 
 protein_filename = 'tests/coarse_grain_model_of_1f6s.vtf'
 #Reads the VTF file of the protein model
-pmb.read_protein_vtf_file(filename=protein_filename)
+pmb.load_protein_vtf_file(filename=protein_filename)
+
+print(pmb.df.head(10))
