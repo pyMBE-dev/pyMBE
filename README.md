@@ -8,7 +8,6 @@ pyMBE provides tools to facilitate building up molecules with complex architectu
 - [Pint](https://pint.readthedocs.io/en/stable/) v0.20.01 
 - [Pandas](https://pandas.pydata.org/) v1.5.3
 - [Numpy](https://numpy.org/)
-- (for visualization) VMD v1.9.3 [link to VMD](https://www.ks.uiuc.edu/Research/vmd/)
 
 A deprecated version of pyMBE compatible with ESPResSo (under the historical name of pyMBE, Sugar)  can be found in the branch `sugar_espresso4.1.4`. Note that further developments of pyMBE will only be developed for ESPResSo v4.2.1 and its forthcoming realises and no further support for that branch is not planned. 
 
