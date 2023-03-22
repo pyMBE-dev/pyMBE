@@ -1568,15 +1568,50 @@ class pymbe_library():
             protein_coordinates [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1]}
 
         index = len(self.df)
+
         self.df.at [index,'name'] = name
         self.df.at [index,'pmb_type'] = 'protein'
+        self.df.at [index,'model'] = '2beadAA'
         self.df.at [index,('sequence','')] = protein_sequence      
-    
+
+        clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
+
+        residue_list = []
+
+        for residue_name in clean_sequence:
+
+            if residue_name not in residue_list:     
+                if residue_name in ['c','n', 'G']: 
+                    central_bead = residue_name
+                    side_chains = []
+                else:
+                    central_bead = 'CA'
+                    side_chains = [residue_name]
+
+                self.define_residue(name = 'AA-'+residue_name, 
+                                    central_bead = central_bead,
+                                    side_chains = side_chains)
+            
+            residue_list.append('AA-'+residue_name)
+
         return protein_coordinates
     
     def create_protein_in_espresso():
 
+
+
+
+
         return
+
+
+
+
+    def center_pmb_object_in_the_simulation_box (self, espresso_system):
+
+        return 
+
+
 
     def calculate_center_of_mass (self,molecule_name, espresso_system):
         
