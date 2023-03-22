@@ -958,12 +958,14 @@ class pymbe_library():
             radius_map(dict): Dictionary with the radius map {espresso_type: radius}.
 
         '''
-        radius_df = self.df[[('diameter',''),('state_one','es_type'),('state_two','es_type')]]
-        radius_df = radius_df.dropna()
-        radius_df['radius'] = radius_df['diameter']/2.0
-        state_one = self.pd.Series (radius_df.radius.values,index=radius_df.state_one.es_type.values)
-        state_two = self.pd.Series (radius_df.radius.values,index=radius_df.state_two.es_type.values)
+
+        df_state_one = self.df[[('diameter',''),('state_one','es_type')]].dropna().drop_duplicates()
+        df_state_two = self.df[[('diameter',''),('state_two','es_type')]].dropna().drop_duplicates()
+
+        state_one = self.pd.Series (df_state_one.diameter.values/2.0,index=df_state_one.state_one.es_type.values)
+        state_two = self.pd.Series (df_state_two.diameter.values/2.0,index=df_state_two.state_two.es_type.values)
         radius_map  = self.pd.concat([state_one,state_two],axis=0).to_dict()
+        
         return radius_map
     
     def get_pka_set(self):
