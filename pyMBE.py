@@ -492,7 +492,7 @@ class pymbe_library():
             return
         if not self.check_if_name_is_defined_in_df(name=name,
                                                     pmb_type_to_be_defined='molecule'):
-            raise ValueError(f"{name} must correspond to a label of a pmb_type='residue' defined on df")
+            raise ValueError(f"{name} must correspond to a label of a pmb_type='molecule' defined on df")
         first_residue = True
         molecule_info = []
         residue_list = self.df[self.df['name']==name].residue_list.values [0]
@@ -1567,14 +1567,12 @@ class pymbe_library():
         for i in range (0, len(numbered_resname)):   
             protein_coordinates [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1]}
 
-        index = len(self.df)
+        clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
 
+        index = len(self.df)
         self.df.at [index,'name'] = name
         self.df.at [index,'pmb_type'] = 'protein'
-        self.df.at [index,'model'] = '2beadAA'
-        self.df.at [index,('sequence','')] = protein_sequence      
-
-        clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
+        self.df.at [index,'model'] = '2beadAA' 
 
         residue_list = []
 
@@ -1593,13 +1591,52 @@ class pymbe_library():
                                     side_chains = side_chains)
             
             residue_list.append('AA-'+residue_name)
+        
+        self.df.at [index,('sequence','')] = protein_sequence  
+        self.df.at [index,('residue_list','')] = residue_list    
 
         return protein_coordinates
     
-    def create_protein_in_espresso():
+    def create_protein_in_espresso(self, name, number_of_proteins, espresso_system, positions):
 
+        """
+        """
 
+        if number_of_proteins <=0:
+            return
+        if not self.check_if_name_is_defined_in_df(name=name,
+                                                    pmb_type_to_be_defined='protein'):
+            raise ValueError(f"{name} must correspond to a label of a pmb_type='protein' defined on df")
 
+        protein_sequence = self.df [self.df['name']==name].sequence.values[0]
+        clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
+
+        self.copy_df_entry(name=name,column_name='molecule_id',number_of_copies=number_of_proteins)
+
+        protein_index = self.np.where(self.df['name']==name)
+        protein_index_list =list(protein_index[0])[-number_of_proteins:]
+        used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
+
+        # for molecule_index in protein_index_list:          
+        #     self.clean_df_row(index=int(molecule_index))
+        #     if self.df['molecule_id'].isnull().values.all():
+        #         molecule_id = 0        
+        #     else:
+        #         # check if a residue is part of another molecule
+        #         check_residue_name = self.df[self.df['residue_list'].astype(str).str.contains(name)]
+        #         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]                
+        #         if not check_residue_name.empty and pmb_type == 'molecule' :              
+        #             for value in check_residue_name.index.to_list():                  
+        #                 if value not in used_molecules_id:                              
+        #                     molecule_id = self.df.loc[value].molecule_id.values[0]                    
+        #                     break
+        #         else:
+        #             molecule_id = self.df['molecule_id'].max() +1
+        #     #assigns molecule_id to the residue defined       
+        #     self.add_value_to_df (key=('molecule_id',''),
+        #                         index=int (molecule_index),
+        #                         new_value=molecule_id, 
+        #                         warning=False)
 
 
         return
