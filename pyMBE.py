@@ -1470,7 +1470,7 @@ class pymbe_library():
             print('no interaction has been added for those particles in ESPResSo')
         return
 
-    def load_protein_vtf_file (self, filename):
+    def load_protein_vtf_in_df (self, filename):
         """
         Reads the input VTF file of the protein model
 
@@ -1560,10 +1560,16 @@ class pymbe_library():
                     atom_rename = f'{name}{i}'
                     numbered_resname.append(atom_rename)
                     count +=1
-
-            # protein_dict [atom_rename] = {'resname': name,'position': coordinates ,'chain_id':chain_id, 'acidity':}
+            
+             #definicion en el data frame
+            
+            print (atom_rename)
+            # protein_dict [atom_rename] = {'initial_pos': coordinates ,'chain_id':chain_id,}
     
         return 
+    def create_protein_in_espresso():
+
+        return
 
     def calculate_center_of_mass (self,molecule_name, espresso_system):
         
