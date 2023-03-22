@@ -1472,7 +1472,7 @@ class pymbe_library():
             print('no interaction has been added for those particles in ESPResSo')
         return
 
-    def load_protein_vtf_in_df (self, filename):
+    def load_protein_vtf_in_df (self, name, filename):
         """
         Reads the input VTF file of the protein model
 
@@ -1505,9 +1505,8 @@ class pymbe_library():
                             atom_resname = line_split [5]
                             chain_id = line_split [7]
                             atom_radius = line_split [9]
-
-                            atom_id_list.append (atom_id)                     
-                            label_dict [int(atom_id)] = [atom_name , atom_resname]
+               
+                            label_dict [int(atom_id)] = [atom_name , atom_resname, chain_id]
 
                             if atom_name != 'CA' and atom_name != 'Ca':
                                 protein_seq_list.append(atom_name)                        
@@ -1541,34 +1540,40 @@ class pymbe_library():
         for atom_id in label_dict.keys():
     
             if atom_id == 1:
-                name = label_dict[atom_id][0]
-                atom_rename = f'{name}{i}'
-                numbered_resname.append(atom_rename)
+                atom_name = label_dict[atom_id][0]
+                updated_name = [f'{atom_name}{i}',label_dict[atom_id][2]]
+                numbered_resname.append(updated_name)
 
             elif atom_id != 1: 
             
                 if label_dict[atom_id-1][1] != label_dict[atom_id][1]:
                     i += 1                    
                     count = 1
-                    name = label_dict[atom_id][0]
-                    atom_rename = f'{name}{i}'
-                    numbered_resname.append(atom_rename)
+                    atom_name = label_dict[atom_id][0]
+                    updated_name = [f'{atom_name}{i}',label_dict[atom_id][2]]
+                    numbered_resname.append(updated_name)
                     
                 elif label_dict[atom_id-1][1] == label_dict[atom_id][1]:
                     if count == 2 or label_dict[atom_id][1] == 'GLY':
                         i +=1  
                         count = 0
-                    name = label_dict[atom_id][0]
-                    atom_rename = f'{name}{i}'
-                    numbered_resname.append(atom_rename)
+                    atom_name = label_dict[atom_id][0]
+                    updated_name = [f'{atom_name}{i}',label_dict[atom_id][2]]
+                    numbered_resname.append(updated_name)
                     count +=1
-            
-             #definicion en el data frame
-            
-            print (atom_rename)
-            # protein_dict [atom_rename] = {'initial_pos': coordinates ,'chain_id':chain_id,}
+
+        protein_coordinates = {}
+
+        for i in range (0, len(numbered_resname)):   
+            protein_coordinates [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1]}
+
+        index = len(self.df)
+        self.df.at [index,'name'] = name
+        self.df.at [index,'pmb_type'] = 'protein'
+        self.df.at [index,('sequence','')] = protein_sequence      
     
-        return 
+        return protein_coordinates
+    
     def create_protein_in_espresso():
 
         return
