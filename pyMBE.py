@@ -291,7 +291,7 @@ class pymbe_library():
                 break
         return
 
-    def create_particle_in_espresso(self, name, espresso_system, number_of_particles, position=None):
+    def create_particle_in_espresso(self, name, espresso_system, number_of_particles, position=None,fix=False):
         """
         Creates `number_of_particles` particles of type `name` into `espresso_system`.
         Bookeeps the particle ids of the particle created into `pymbe.df`.
@@ -332,8 +332,10 @@ class pymbe_library():
             else:
                 bead_id = max (espresso_system.part.all().id) + 1
             created_pid_list.append(bead_id)
-            espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q)        
+            
+            espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q,fix =[fix,fix,fix])        
             self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, warning=False)          
+        
         return created_pid_list   
 
     def create_residue_in_espresso (self, name, espresso_system, number_of_residues, central_bead_position=None,use_default_bond=False, backbone_vector=None):
@@ -1649,7 +1651,7 @@ class pymbe_library():
                 residue_number = re.split(r'(\d+)', residue)[1]
                 residue_position = positions[residue]['initial_pos']
     
-                particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[residue_position])
+                particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[residue_position],fix = True)
 
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
 

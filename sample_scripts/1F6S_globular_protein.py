@@ -74,14 +74,24 @@ pmb.create_protein_in_espresso(name=protein_name,
 print(pmb.df)
 
 
-# particle_ids = pmb.df.loc[pmb.df['molecule_id']==0].particle_id.dropna().to_list()
 
-# from espressomd.cluster_analysis import Cluster
+# from espressomd import visualization
 
-# cluster = espressomd.cluster_analysis.Cluster ()
-# cluster.find_clusters()
+# filename = 'protein.png'
 
-# center_of_mass = cluster.center_of_mass(cluster.largest_cluster())
+# visualizer = visualization.openGLLive(
+#     espresso_system, bond_type_radius=[0.3], particle_coloring='type', draw_axis=False, background_color=[1, 1, 1],
+# particle_type_colors=[[1.02,0.51,0], # Brown
+#                 [1,1,1],  # Grey
+#                 [2.55,0,0], # Red
+#                 [0,0,2.05],  # Blue
+#                 [0,0,2.05],  # Blue
+#                 [2.55,0,0], # Red
+#                 [2.05,1.02,0]]) # Orange
+# visualizer.screenshot(filename)
 
+# from PIL import Image
+# img = Image.open(filename)
+# img.show()
 
 
