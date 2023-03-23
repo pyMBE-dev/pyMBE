@@ -3,6 +3,8 @@ import sys
 import inspect
 import espressomd
 
+
+
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir) 
@@ -70,3 +72,16 @@ pmb.create_protein_in_espresso(name=protein_name,
                                positions=protein_positions)
 
 print(pmb.df)
+
+
+# particle_ids = pmb.df.loc[pmb.df['molecule_id']==0].particle_id.dropna().to_list()
+
+# from espressomd.cluster_analysis import Cluster
+
+# cluster = espressomd.cluster_analysis.Cluster ()
+# cluster.find_clusters()
+
+# center_of_mass = cluster.center_of_mass(cluster.largest_cluster())
+
+
+
