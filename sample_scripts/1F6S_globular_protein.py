@@ -11,13 +11,14 @@ sys.path.insert(0, parentdir)
 import pyMBE
 pmb = pyMBE.pymbe_library()
 
+# Here you can adjust the width of the panda columns displayed when running the code 
+pmb.pd.options.display.max_colwidth = 10
+
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 if not os.path.exists('./frames'):
     os.makedirs('./frames')
 
-
 #System Parameters 
-
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
 c_protein =  2e-4 * pmb.units.mol / pmb.units.L 
 Box_V =  1. / (pmb.N_A*c_protein)
@@ -25,16 +26,47 @@ Box_L = Box_V**(1./3.)
 
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
 
-
 #Directory of the protein model 
+
+protein_name = '1f6s'
 protein_filename = 'sample_scripts/coarse_grain_model_of_1f6s.vtf'
+
 #Reads the VTF file of the protein model
-pdb_code = '1f6s'
+protein_positions = pmb.load_protein_vtf_in_df (name=protein_name,filename=protein_filename)
 
-protein_positions = pmb.load_protein_vtf_in_df (name=pdb_code,filename=protein_filename)
+#We define each aminoacid in the pyMBE data frame
 
-pmb.create_protein_in_espresso(name=pdb_code,
+pmb.load_pka_set (filename='reference_parameters/pka_sets/CRC1991.txt')
+
+acidic_aminoacids = ['c','E','D','Y','C']
+basic_aminoacids  = ['R','n','K','H']
+
+bead_size = 0.4*pmb.units.nm
+epsilon = 1*pmb.units('reduced_energy')
+
+already_defined_AA=[]
+
+protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
+
+for aminoacid_key in pmb.protein_sequence_parser(sequence=protein_sequence):
+    if aminoacid_key in already_defined_AA:
+        continue
+    if aminoacid_key in acidic_aminoacids:
+        pmb.define_particle (name=aminoacid_key, acidity='acidic', diameter=bead_size, epsilon=epsilon)
+    elif aminoacid_key in basic_aminoacids:
+        pmb.define_particle (name=aminoacid_key, acidity='basic', diameter=bead_size, epsilon=epsilon)
+    else:
+        pmb.define_particle (name=aminoacid_key, q=0, diameter=bead_size, epsilon=epsilon)
+    already_defined_AA.append(aminoacid_key)
+
+pmb.define_particle(name='CA',q=0,diameter=bead_size,epsilon=epsilon)
+pmb.define_particle(name='Ca',q=0,diameter=bead_size,epsilon=epsilon)
+
+
+
+pmb.create_protein_in_espresso(name=protein_name,
                                number_of_proteins=1,
                                espresso_system=espresso_system,
                                positions=protein_positions)
-print(pmb.df.head(100))
+
+print(pmb.df)

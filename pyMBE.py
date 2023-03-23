@@ -1567,10 +1567,7 @@ class pymbe_library():
         protein_coordinates = {}
 
         for i in range (0, len(numbered_resname)):   
-
-            print (updated_coordinates_list[i])
             protein_coordinates [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1]}
-            input ()
 
         clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
 
@@ -1616,7 +1613,6 @@ class pymbe_library():
                                                     pmb_type_to_be_defined='protein'):
             raise ValueError(f"{name} must correspond to a label of a pmb_type='protein' defined on df")
 
-
         self.copy_df_entry(name=name,column_name='molecule_id',number_of_copies=number_of_proteins)
 
         residue_list = self.df[self.df['name']==name].residue_list.values [0]
@@ -1641,28 +1637,28 @@ class pymbe_library():
                 else:
                     molecule_id = self.df['molecule_id'].max() +1
             #assigns molecule_id to the residue defined       
-                self.add_value_to_df (key=('molecule_id',''),
+            self.add_value_to_df (key=('molecule_id',''),
                                 index=int (molecule_index),
                                 new_value=molecule_id, 
                                 warning=False)
-
-            print (positions)
-            input ()
 
             for residue in positions.keys():
 
                 residue_name = re.split(r'\d+', residue)[0]
                 residue_number = re.split(r'(\d+)', residue)[1]
-
                 residue_position = positions[residue]['initial_pos']
+    
+                particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[residue_position])
 
+                index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
 
-                # alpha_part, num_part = re.split(r'(\d+)', residue, maxsplit=1)
+                self.add_value_to_df(key=('residue_id',''),
+                                            index=int (index),
+                                            new_value=residue_number)
 
-                print (residue, residue_name, residue_number,residue_position)
-                input ()
-
-
+                self.add_value_to_df(key=('molecule_id',''),
+                                        index=int (index),
+                                        new_value=molecule_id)
 
         return
 
