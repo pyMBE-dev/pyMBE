@@ -1636,7 +1636,8 @@ class pymbe_library():
                             break
                 else:
                     molecule_id = self.df['molecule_id'].max() +1
-            #assigns molecule_id to the residue defined       
+
+            #assigns molecule_id to the protein defined       
             self.add_value_to_df (key=('molecule_id',''),
                                 index=int (molecule_index),
                                 new_value=molecule_id, 
@@ -1662,36 +1663,57 @@ class pymbe_library():
 
         return
 
+    def center_pmb_object_in_the_simulation_box (self, name, espresso_system):
 
+        center_of_mass = self.calculate_center_of_mass(name=name,espresso_system=espresso_system)
 
+        box_center = [espresso_system.box_l[0]/2.0]*3
 
-    def center_pmb_object_in_the_simulation_box (self, espresso_system):
+        axis_list = [0,1,2]
+
+        pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
+
+        if pmb_type == 'protein':
+            molecule_id = self.df.loc[self.df['name']==name].molecule_id.values[0]
+            particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+
+            for pid in particle_id_list:
+
+                es_pos = espresso_system.part.by_id(pid).pos
+                espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
 
         return 
 
-
-
-    def calculate_center_of_mass (self,molecule_name, espresso_system):
+    def calculate_center_of_mass (self,name, espresso_system):
         
         """
-        Calculates the center of mass
-        
-        Args:
-
         """
-        #NOTE 
+
         total_beads = 0
-    
         center_of_mass = self.np.zeros(3)
         axis_list = [0,1,2]
-
-        particle_id_list = self.df.loc [self.df['name']==molecule_name].to_list ()
+        
+        molecule_id = self.df.loc [self.df['name']==name].molecule_id.values[0]
+        particle_id_list = self.df.loc[self.df['molecule_id']==0].particle_id.dropna().to_list()
 
         for pid in particle_id_list:
             for axis in axis_list:
-                center_of_mass [axis] += espresso_system.part.by_id(pid).pos[axis]     
+                center_of_mass [axis] += espresso_system.part.by_id(pid).pos[axis]
+                total_beads +=1      
 
         center_of_mass = center_of_mass /total_beads  
+
+
+        ### with espressomd
+
+        # from espressomd.cluster_analysis import Cluster
+
+        # particle_ids = self.df.loc[pmb.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+
+        # cluster = espressomd.cluster_analysis.Cluster ()
+        # cluster.find_clusters()
+
+        # center_of_mass = cluster.center_of_mass(cluster.largest_cluster())
 
         return center_of_mass
     
