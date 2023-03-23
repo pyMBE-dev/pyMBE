@@ -1522,13 +1522,15 @@ class pymbe_library():
                             coord_list.append (particle_coord)
 
         axes_list = [0,1,2]
-        updated_pos = self.np.zeros(3,)
         updated_coordinates_list = []
     
+        #NOTE Here we convert the units from the coarse grain from angstrom to reduced_lenght. Although we assume that are always in Angstrom and that the user does not change the units in the original coarse grain script.
+
         for pos in coord_list:
+            updated_pos = self.np.zeros(3,)
             for axis in axes_list:
                 updated_pos[axis] = (pos[axis]*self.units.angstrom).to('reduced_length').magnitude 
-            updated_coordinates_list.append (updated_pos)
+            updated_coordinates_list.append (updated_pos.tolist())
 
         protein_sequence = ''.join(protein_seq_list)
 
@@ -1565,7 +1567,10 @@ class pymbe_library():
         protein_coordinates = {}
 
         for i in range (0, len(numbered_resname)):   
+
+            print (updated_coordinates_list[i])
             protein_coordinates [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1]}
+            input ()
 
         clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
 
@@ -1578,12 +1583,13 @@ class pymbe_library():
 
         for residue_name in clean_sequence:
 
-            if residue_name not in residue_list:     
+            if residue_name not in residue_list:   
+
                 if residue_name in ['c','n', 'G']: 
                     central_bead = residue_name
                     side_chains = []
                 else:
-                    central_bead = 'CA'
+                    central_bead = 'CA'              
                     side_chains = [residue_name]
 
                 self.define_residue(name = 'AA-'+residue_name, 
@@ -1602,41 +1608,60 @@ class pymbe_library():
         """
         """
 
+        import re 
+
         if number_of_proteins <=0:
             return
         if not self.check_if_name_is_defined_in_df(name=name,
                                                     pmb_type_to_be_defined='protein'):
             raise ValueError(f"{name} must correspond to a label of a pmb_type='protein' defined on df")
 
-        protein_sequence = self.df [self.df['name']==name].sequence.values[0]
-        clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
 
         self.copy_df_entry(name=name,column_name='molecule_id',number_of_copies=number_of_proteins)
+
+        residue_list = self.df[self.df['name']==name].residue_list.values [0]
 
         protein_index = self.np.where(self.df['name']==name)
         protein_index_list =list(protein_index[0])[-number_of_proteins:]
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
 
-        # for molecule_index in protein_index_list:          
-        #     self.clean_df_row(index=int(molecule_index))
-        #     if self.df['molecule_id'].isnull().values.all():
-        #         molecule_id = 0        
-        #     else:
-        #         # check if a residue is part of another molecule
-        #         check_residue_name = self.df[self.df['residue_list'].astype(str).str.contains(name)]
-        #         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]                
-        #         if not check_residue_name.empty and pmb_type == 'molecule' :              
-        #             for value in check_residue_name.index.to_list():                  
-        #                 if value not in used_molecules_id:                              
-        #                     molecule_id = self.df.loc[value].molecule_id.values[0]                    
-        #                     break
-        #         else:
-        #             molecule_id = self.df['molecule_id'].max() +1
-        #     #assigns molecule_id to the residue defined       
-        #     self.add_value_to_df (key=('molecule_id',''),
-        #                         index=int (molecule_index),
-        #                         new_value=molecule_id, 
-        #                         warning=False)
+        for molecule_index in protein_index_list:          
+            self.clean_df_row(index=int(molecule_index))
+            if self.df['molecule_id'].isnull().values.all():
+                molecule_id = 0        
+            else:
+                 # check if a residue is part of another molecule
+                check_residue_name = self.df[self.df['residue_list'].astype(str).str.contains(name)]
+                pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]                
+                if not check_residue_name.empty and pmb_type == 'protein' :              
+                    for value in check_residue_name.index.to_list():                  
+                        if value not in used_molecules_id:                              
+                            molecule_id = self.df.loc[value].molecule_id.values[0]                    
+                            break
+                else:
+                    molecule_id = self.df['molecule_id'].max() +1
+            #assigns molecule_id to the residue defined       
+                self.add_value_to_df (key=('molecule_id',''),
+                                index=int (molecule_index),
+                                new_value=molecule_id, 
+                                warning=False)
+
+            print (positions)
+            input ()
+
+            for residue in positions.keys():
+
+                residue_name = re.split(r'\d+', residue)[0]
+                residue_number = re.split(r'(\d+)', residue)[1]
+
+                residue_position = positions[residue]['initial_pos']
+
+
+                # alpha_part, num_part = re.split(r'(\d+)', residue, maxsplit=1)
+
+                print (residue, residue_name, residue_number,residue_position)
+                input ()
+
 
 
         return
