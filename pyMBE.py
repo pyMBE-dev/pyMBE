@@ -1667,6 +1667,14 @@ class pymbe_library():
 
     def center_pmb_object_in_the_simulation_box (self, name, espresso_system):
 
+        """
+        Centers the pmb object of type `name` in the center of the simulation box
+        
+        Args:
+            name (str): Label of the residue type to be created. The residue type must be defined in `df`
+            espresso_system (cls): Instance of a system class from espressomd library.
+
+        """
         center_of_mass = self.calculate_center_of_mass(name=name,espresso_system=espresso_system)
 
         box_center = [espresso_system.box_l[0]/2.0]*3
@@ -1689,6 +1697,12 @@ class pymbe_library():
     def calculate_center_of_mass (self,name, espresso_system):
         
         """
+        Calculates the center of mass of type `name`
+        Args:
+            name (str): Label of the residue type to be created. The residue type must be defined in `df`
+            espresso_system (cls): Instance of a system class from espressomd library.
+        Return:
+            center_of_mass (lst): a list with the coordinates of the center of mass [ X, Y, Z]
         """
 
         total_beads = 0
@@ -1696,26 +1710,14 @@ class pymbe_library():
         axis_list = [0,1,2]
         
         molecule_id = self.df.loc [self.df['name']==name].molecule_id.values[0]
-        particle_id_list = self.df.loc[self.df['molecule_id']==0].particle_id.dropna().to_list()
+        particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
 
         for pid in particle_id_list:
+            total_beads +=1 
             for axis in axis_list:
                 center_of_mass [axis] += espresso_system.part.by_id(pid).pos[axis]
-                total_beads +=1      
 
         center_of_mass = center_of_mass /total_beads  
-
-
-        ### with espressomd
-
-        # from espressomd.cluster_analysis import Cluster
-
-        # particle_ids = self.df.loc[pmb.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
-
-        # cluster = espressomd.cluster_analysis.Cluster ()
-        # cluster.find_clusters()
-
-        # center_of_mass = cluster.center_of_mass(cluster.largest_cluster())
 
         return center_of_mass
     
