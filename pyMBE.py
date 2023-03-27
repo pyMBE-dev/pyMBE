@@ -1722,3 +1722,30 @@ class pymbe_library():
         return center_of_mass
     
     
+    def write_output_vtf_file (self, espresso_system, n_frame):
+    
+        '''
+        Writes the system information on a vtf file for each frame
+
+        Args: 
+            espresso_system (cls): Instance of a system class from espressomd library.
+            n_frame (int): number of current frame 
+
+        '''
+        number = 1000 + n_frame
+        box = espresso_system.box_l[0]
+
+        with open(f'frames/trajectory_{number}.vtf', mode='w+t') as coordinates:
+
+            coordinates.write (f'unitcell {box} {box} {box} \n')
+            
+            for particle in espresso_system.part: 
+                type_label = self.find_value_from_es_type(es_type=particle.type, column_name='label')
+                coordinates.write (f'atom {particle.id} radius 1 name {type_label} type {type_label}\n' )
+
+            coordinates.write (f'#timestep indexed\n')
+
+            for particle in espresso_system.part:
+                coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
+
+        return 
