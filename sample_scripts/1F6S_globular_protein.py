@@ -1,8 +1,12 @@
 import os
 import sys
 import inspect
+from tqdm import tqdm
 import espressomd
 
+from espressomd import interactions
+from espressomd.io.writer import vtf
+from espressomd import electrostatics 
 
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -25,6 +29,17 @@ c_salt    =  0.01  * pmb.units.mol / pmb.units.L
 c_protein =  2e-4 * pmb.units.mol / pmb.units.L 
 Box_V =  1. / (pmb.N_A*c_protein)
 Box_L = Box_V**(1./3.) 
+
+SEED = 77 
+solvent_permitivity = 78.3
+dt = 0.001
+
+Samples_per_pH = 1000
+MD_steps_per_sample = 1000
+steps_eq = int(Samples_per_pH/3)
+N_samples_print = 10  # Write the trajectory every 100 samples
+probability_reaction = 0.5 
+
 
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
 
@@ -71,11 +86,124 @@ pmb.create_protein_in_espresso(name=protein_name,
                                espresso_system=espresso_system,
                                positions=protein_positions)
 
+
+pmb.center_pmb_object_in_the_simulation_box (name=protein_name,espresso_system=espresso_system)
+
+cation_name = 'Na'
+anion_name = 'Cl'
+pmb.define_particle(name=cation_name,  q=1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
+pmb.define_particle(name=anion_name,  q=-1, diameter=0.36*pmb.units.nm,  epsilon=epsilon)
+
+
+pmb.create_counterions_in_espresso (pmb_object='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
+c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
+
+
+basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.drop_duplicates().to_list()
+acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.drop_duplicates().to_list()
+list_ionisible_groups = basic_groups + acidic_groups
+total_ionisible_groups = len (list_ionisible_groups)
+
+print('The box length of the system is', Box_L.to('reduced_length'), Box_L.to('nm'))
+print('The ionisable groups in the protein are ', list_ionisible_groups)
+
+RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso (counter_ion=cation_name, constant_pH=2, SEED = SEED )
+print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
+
+type_map =pmb.get_type_map()
+types = list (type_map.values())
+espresso_system.setup_type_map( type_list = types)
+
+# Setup the non-interacting type for speeding up the sampling of the reactions
+non_interacting_type = max(type_map.values())+1
+RE.set_non_interacting_type (type=non_interacting_type)
+print('The non interacting type is set to ', non_interacting_type)
+
+# Setup the potential energy
+pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
+
+print('\nMinimazing system energy\n')
+espresso_system.cell_system.skin = 0.4
+espresso_system.time_step = dt 
+print('steepest descent')
+espresso_system.integrator.set_steepest_descent(f_max=0, gamma=0.1, max_displacement=0.1)
+espresso_system.integrator.run(1000)
+print('velocity verlet')
+espresso_system.integrator.set_vv()  # to switch back to velocity Verlet
+espresso_system.integrator.run(1000)
+espresso_system.thermostat.turn_off()
+print('\nMinimization finished \n')
+
+#Electrostatic energy setup 
+print ('Electrostatics setup')
+bjerrum_length = pmb.e.to('reduced_charge')**2 / (4 *pmb.units.pi*pmb.units.eps0* solvent_permitivity * pmb.kT.to('reduced_energy'))
+coulomb_prefactor = bjerrum_length.to('reduced_length') * pmb.kT.to('reduced_energy')
+coulomb = espressomd.electrostatics.P3M ( prefactor = coulomb_prefactor.magnitude, accuracy=1e-3)
+
+print('\nBjerrum length ', bjerrum_length.to('nm'), '=', bjerrum_length.to('reduced_length'))
+
+espresso_system.time_step = dt
+espresso_system.actors.add(coulomb)
+
+# save the optimal parameters and add them by hand
+p3m_params = coulomb.get_params()
+espresso_system.actors.remove(coulomb)
+
+coulomb = espressomd.electrostatics.P3M (
+                            prefactor = coulomb_prefactor.magnitude,
+                            accuracy = 1e-3,
+                            mesh = p3m_params['mesh'],
+                            alpha = p3m_params['alpha'] ,
+                            cao = p3m_params['cao'],
+                            r_cut = p3m_params['r_cut'],
+                            tune = False,
+                                )
+
+espresso_system.actors.add(coulomb)
+
+print("\nElectrostatics successfully added to the system \n")
+
+#Save the initial state 
+with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
+    vtf.writevsf(espresso_system, coordinates)
+    vtf.writevcf(espresso_system, coordinates) 
+
+print (f'Optimizing skin\n')
+espresso_system.time_step = dt 
+espresso_system.integrator.set_vv()
+espresso_system.thermostat.set_langevin(kT=pmb.kT.to('reduced_energy').magnitude, gamma=0.1, seed=SEED)
+
+espresso_system.cell_system.tune_skin ( min_skin = 10, 
+                                        max_skin = espresso_system.box_l[0]/2., tol=1e-3, 
+                                        int_steps=1000, adjust_max_skin=True)
+
+print('Optimized skin value: ', espresso_system.cell_system.skin, '\n')
+
+
+
+for step in tqdm(range(Samples_per_pH+steps_eq)):
+        if pmb.np.random.random() > probability_reaction:
+            espresso_system.integrator.run(steps=MD_steps_per_sample)
+        else:
+            RE.reaction(steps=total_ionisible_groups)
+
 print(pmb.df)
 
 
 
-# from espressomd import visualization
+from espressomd import visualization
+
+espresso_system.time_step=1e-3
+espresso_system.thermostat.set_langevin(kT=1, gamma=1.0, seed=24)
+espresso_system.cell_system.tune_skin(min_skin=0.01, max_skin =4.0, tol=0.1, int_steps=1000)
+visualizer = espressomd.visualization.openGLLive(espresso_system, bond_type_radius=[0.3], background_color=[1, 1, 1],particle_type_colors=[[1.02,0.51,0], # Brown
+                [1,1,1],  # Grey
+                [2.55,0,0], # Red
+                [0,0,2.05],  # Blue
+                [0,0,2.05],  # Blue
+                [2.55,0,0], # Red
+                [2.05,1.02,0]])     
+visualizer.run(1)
 
 # filename = 'protein.png'
 
@@ -93,5 +221,3 @@ print(pmb.df)
 # from PIL import Image
 # img = Image.open(filename)
 # img.show()
-
-
