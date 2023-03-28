@@ -291,7 +291,7 @@ class pymbe_library():
                 break
         return
 
-    def create_particle_in_espresso(self, name, espresso_system, number_of_particles, position=None,fix=False):
+    def create_particle_in_espresso(self, name, espresso_system, number_of_particles, position=None, fix=False):
         """
         Creates `number_of_particles` particles of type `name` into `espresso_system`.
         Bookeeps the particle ids of the particle created into `pymbe.df`.
@@ -1721,7 +1721,6 @@ class pymbe_library():
 
         return center_of_mass
     
-    
     def write_output_vtf_file (self, espresso_system, n_frame):
     
         '''
@@ -1749,3 +1748,43 @@ class pymbe_library():
                 coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
 
         return 
+    
+    def generate_coordinates_outside_sphere (self, espresso_system, minimum_distance, maximum_distance):
+
+        """
+        Generates coordinates outside a sphere 
+
+        Args:
+            espresso_system (cls): Instance of a system class from espressomd library.
+            minimum_distance (int):
+            maximum_distance (int): 
+
+        """
+
+        if isinstance(minimum_distance,int):
+            min_value = minimum_distance # in order to avoid creating ions inside the protein 
+            
+        max_value = 0.5
+
+        box_l = espresso_system.box_l[0]
+
+        while True:
+            
+            rand = self.np.random.random() 
+
+            if rand > min_value and rand < max_value :
+                mag = rand*box_l
+                break 
+
+        phi = self.np.random.uniform(0,self.np.pi*2)
+        costheta = self.np.random.uniform(-1,1)
+        theta = self.np.arccos(costheta)
+
+        x = self.np.sin (theta) * self.np.cos (phi)
+        y = self.np.sin (theta) * self.np.sin (phi)
+        z = self.np.cos(theta)
+
+        vector = self.np.array([x,y,z])
+        vector = vector * mag
+
+        return vector
