@@ -1605,6 +1605,17 @@ class pymbe_library():
     def create_protein_in_espresso(self, name, number_of_proteins, espresso_system, positions):
 
         """
+        Creates a protein in the espresso: system
+        
+        Creates `number_of_proteins` molecule of type `name` into `espresso_system` in the coordinates obtained from the coarse grained model loaded
+
+        `name` must be defined into `pymbe.df` as a pmb_object of type molecule.
+        Args:
+            name (str): Label of the protein type to be created. The protein type must be defined in `pymbe.df`
+            espresso_system (cls): Instance of a system class from espressomd library.
+            number_of_proteins (int): Number of proteins of type `name` to be created.
+            positions (dict): dictionary with the coordinates that has the format {'ResidueNumber': {'initial_pos': [], 'chain_id': ''}}
+
         """
 
         import re 
@@ -1668,7 +1679,7 @@ class pymbe_library():
     def center_pmb_object_in_the_simulation_box (self, name, espresso_system):
 
         """
-        Centers the pmb object of type `name` in the center of the simulation box
+        Centers the pmb object of type `name` in the center of the simulation box. Returns the position updated on the system.
         
         Args:
             name (str): Label of the residue type to be created. The residue type must be defined in `df`
@@ -1678,8 +1689,6 @@ class pymbe_library():
         center_of_mass = self.calculate_center_of_mass(name=name,espresso_system=espresso_system)
 
         box_center = [espresso_system.box_l[0]/2.0]*3
-
-        axis_list = [0,1,2]
 
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
 
@@ -1724,7 +1733,8 @@ class pymbe_library():
     def write_output_vtf_file (self, espresso_system, n_frame):
     
         '''
-        Writes the system information on a vtf file for each frame
+        Writes the system information on a vtf file for each frame with additional information the format it follows is:
+        'atom {particle_id} radius {} name {label} type {label}'
 
         Args: 
             espresso_system (cls): Instance of a system class from espressomd library.
@@ -1766,7 +1776,7 @@ class pymbe_library():
         box_l = espresso_system.box_l[0]
 
         if center_position[0] == box_l/2.0:
-            
+
             min_value = (minimum_distance / box_l)
             if maximum_distance <= box_l/2.0:
                  max_value = maximum_distance/box_l
