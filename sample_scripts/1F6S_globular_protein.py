@@ -8,7 +8,6 @@ from espressomd import interactions
 from espressomd.io.writer import vtf
 from espressomd import electrostatics 
 
-
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir) 
@@ -17,7 +16,7 @@ sys.path.insert(0, parentdir)
 import pyMBE
 pmb = pyMBE.pymbe_library()
 
-import handy_functions
+from handy_scripts.handy_functions import  calculate_net_charge
 
 
 # Here you can adjust the width of the panda columns displayed when running the code 
@@ -28,6 +27,8 @@ if not os.path.exists('./frames'):
     os.makedirs('./frames')
 
 #System Parameters 
+pH_value = 2.0
+
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
 c_protein =  2e-4 * pmb.units.mol / pmb.units.L 
 Box_V =  1. / (pmb.N_A*c_protein)
@@ -110,7 +111,7 @@ total_ionisible_groups = len (list_ionisible_groups)
 print('The box length of the system is', Box_L.to('reduced_length'), Box_L.to('nm'))
 print('The ionisable groups in the protein are ', list_ionisible_groups)
 
-RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso (counter_ion=cation_name, constant_pH=2, SEED = SEED )
+RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso (counter_ion=cation_name, constant_pH=pH_value, SEED = SEED )
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 type_map =pmb.get_type_map()
@@ -183,21 +184,48 @@ espresso_system.cell_system.tune_skin ( min_skin = 10,
 print('Optimized skin value: ', espresso_system.cell_system.skin, '\n')
 
 
+observables_df = pmb.pd.DataFrame()
+time_step = []
+net_charge_list = []
+
+net_charge_amino_save = {}
+
 for step in tqdm(range(Samples_per_pH+steps_eq)):
+        
         if pmb.np.random.random() > probability_reaction:
             espresso_system.integrator.run(steps=MD_steps_per_sample)
         else:
             RE.reaction(steps=total_ionisible_groups)
 
+        calculated_net_charge = calculate_net_charge (espresso_system=espresso_system,pmb_df = pmb.df, name =protein_name)
+
+        net_charge = calculated_net_charge['net_charge']
+        net_charge_aminoacids = calculated_net_charge ['net_charge_aminoacids']
+
+        time_step.append (str(espresso_system.time))
+        net_charge_list.append (net_charge)
+
+        if len(net_charge_amino_save.keys()) == 0:
+            for amino in net_charge_aminoacids.keys():
+                net_charge_amino_save [amino] = []
+        for amino in net_charge_aminoacids.keys():            
+            net_charge_amino_save [amino].append (net_charge_aminoacids[amino])
+
         if (step % N_samples_print == 0 ):
             n_frame +=1
             pmb.write_output_vtf_file(espresso_system=espresso_system,n_frame=n_frame)
 
+observables_df['time'] = time_step 
+observables_df['Znet'] = net_charge_list
 
+for amino in net_charge_amino_save.keys():
+    observables_df[amino] = net_charge_amino_save[amino]
+
+observables_df.to_csv(f'pH-{pH_value}_observables_.csv',index=False)
 
 
 print(pmb.df)
-
+print (observables_df)
 
 
 from espressomd import visualization
