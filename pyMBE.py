@@ -1749,7 +1749,7 @@ class pymbe_library():
 
         return 
     
-    def generate_coordinates_outside_sphere (self, espresso_system, minimum_distance, maximum_distance):
+    def generate_coordinates_outside_sphere (self, espresso_system, center_position, minimum_distance, maximum_distance):
 
         """
         Generates coordinates outside a sphere 
@@ -1758,15 +1758,23 @@ class pymbe_library():
             espresso_system (cls): Instance of a system class from espressomd library.
             minimum_distance (int):
             maximum_distance (int): 
+            center_position (lst)
 
         """
-
-        if isinstance(minimum_distance,int):
-            min_value = minimum_distance # in order to avoid creating ions inside the protein 
-            
-        max_value = 0.5
-
+        #NOTE we need to review this implementation 
+        #center_position #expected a list with [x,y,z]
         box_l = espresso_system.box_l[0]
+
+        if center_position[0] == box_l/2.0:
+            
+            min_value = (minimum_distance / box_l)
+            if maximum_distance <= box_l/2.0:
+                 max_value = maximum_distance/box_l
+            else:
+                raise ValueError (f'The maximum value: {maximum_distance} is outside the limits of the simulation box {box_l}. It should be lower or equal to {box_l/2.0}')
+
+        # min_value = (minimum_distance + center_position[0]) / box_l# in order to avoid creating ions inside the protein     
+        # max_value = maximum_distance + center_position[0] #
 
         while True:
             
@@ -1787,4 +1795,6 @@ class pymbe_library():
         vector = self.np.array([x,y,z])
         vector = vector * mag
 
-        return vector
+        coordinates = [vector[0]+center_position[0],vector[1]+center_position[1],vector[2]+center_position[2]]
+
+        return coordinates
