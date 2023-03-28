@@ -17,6 +17,9 @@ sys.path.insert(0, parentdir)
 import pyMBE
 pmb = pyMBE.pymbe_library()
 
+import handy_functions
+
+
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
 
@@ -164,9 +167,9 @@ espresso_system.actors.add(coulomb)
 print("\nElectrostatics successfully added to the system \n")
 
 #Save the initial state 
-with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
-    vtf.writevsf(espresso_system, coordinates)
-    vtf.writevcf(espresso_system, coordinates) 
+
+n_frame = 0
+pmb.write_output_vtf_file(espresso_system=espresso_system,n_frame=n_frame)
 
 print (f'Optimizing skin\n')
 espresso_system.time_step = dt 
@@ -180,12 +183,18 @@ espresso_system.cell_system.tune_skin ( min_skin = 10,
 print('Optimized skin value: ', espresso_system.cell_system.skin, '\n')
 
 
-
 for step in tqdm(range(Samples_per_pH+steps_eq)):
         if pmb.np.random.random() > probability_reaction:
             espresso_system.integrator.run(steps=MD_steps_per_sample)
         else:
             RE.reaction(steps=total_ionisible_groups)
+
+        if (step % N_samples_print == 0 ):
+            n_frame +=1
+            pmb.write_output_vtf_file(espresso_system=espresso_system,n_frame=n_frame)
+
+
+
 
 print(pmb.df)
 
