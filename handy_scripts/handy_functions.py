@@ -269,6 +269,7 @@ def write_progress(self, step, total_steps):
     print("{0:.2g}% done, elapsed time {1:.2g}s; estimated completion in {2:.2g}s".format(perc_sim,elapsed_time.to(time_unit_elapsed_time),remaining_time.to(time_unit_remaining_time)))
 
     return
+
 def get_net_charge_from_espresso(self, espresso_system, sugar_object):
     """ 
     Calculates the net charge of all the objects in espresso compatibles with sugar_object
@@ -370,3 +371,65 @@ def do_snapshot_espresso_system(espresso_system, filename):
     return
 
 
+def calculate_net_charge (espresso_system, pmb_df):
+
+    '''
+    Calculates the net charge of the protein 
+
+    Args:
+        espresso_system: system information 
+        df (pandas df): data frame with the protein information
+
+    Return:
+
+    - calculated_charge (dict): a dictionary with the total net_charge of the protein and net_charge_aminoacids
+    
+    '''
+
+    acidic_charged_groups_label = ['D','E','Y','c'] # CYS removed since this proteins forms SS bonds
+    basic_charged_groups_label  = ['HH','KH','RH','nH','Ca']
+
+    charge_in_aminoacids = {}
+
+    basic_charges = 0
+    acidic_charges = 0
+
+    for particle in sugar_df.resname.keys():
+        
+        amino = sugar_df.resname [particle]
+
+        state_one = sugar_df[sugar_df.eq(amino).any(1)].state_one.label.iloc[0] 
+        state_two = sugar_df[sugar_df.eq(amino).any(1)].state_two.label.iloc[0]
+
+        if state_two is not np.nan and state_two in acidic_charged_groups_label: 
+
+                label = sugar_df[sugar_df.eq(amino).any(1)].state_two.label.iloc[0]
+
+                espresso_type = sugar_df.state_two.espresso_type [particle]
+                
+                charge = sugar_df.state_two.charge [particle]
+
+                amino_charge = espresso_system.number_of_particles(type= espresso_type) * charge
+
+                # acidic_charges += amino_charge
+                charge_in_aminoacids [label] = (amino_charge)
+
+        elif state_one in basic_charged_groups_label: 
+
+            label = sugar_df[sugar_df.eq(amino).any(1)].state_one.label.iloc[0] 
+
+            espresso_type = sugar_df.state_one.espresso_type [particle]
+            charge = sugar_df.state_one.charge [particle]
+
+            amino_charge = espresso_system.number_of_particles(type= espresso_type) * charge
+            
+            # basic_charges += amino_charge
+            charge_in_aminoacids [label] = (amino_charge)
+
+    net_charge = sum(charge_in_aminoacids.values())
+
+    charge_in_aminoacids.pop('Ca')
+
+    calculated_charge = {'net_charge':net_charge, 'net_charge_aminoacids':charge_in_aminoacids}
+
+    return calculated_charge
