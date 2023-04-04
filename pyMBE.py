@@ -1624,8 +1624,6 @@ class pymbe_library():
 
         return 
 
-
-
     def create_protein_in_espresso(self, name, number_of_proteins, espresso_system, positions):
 
         """
@@ -1713,16 +1711,26 @@ class pymbe_library():
             espresso_system (cls): Instance of a system class from espressomd library.
 
         """
-        center_of_mass = self.calculate_center_of_mass(name=name,espresso_system=espresso_system)
+        #NOTE: Esta funcion esta generalizada para que indicando un name y molecule_id/residue_id mueva el objecto al centro de la caja de simulacion. Deberia tambien estar dentro de create_protein() como un swift center_protein?
 
+        center_of_mass = self.calculate_center_of_mass(name=name,espresso_system=espresso_system)
         box_center = [espresso_system.box_l[0]/2.0]*3
 
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
 
-        if pmb_type == 'protein':
-            molecule_id = self.df.loc[self.df['name']==name].molecule_id.values[0]
-            particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+        pmb_objects = ['protein','molecule','peptide']
 
+        if pmb_type in pmb_objects:
+
+            particle_id_list = self.df.loc[self.df['molecule_id']==pmb_object_id].particle_id.dropna().to_list()
+            for pid in particle_id_list:
+
+                es_pos = espresso_system.part.by_id(pid).pos
+                espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
+
+        elif pmb_type == 'residue':
+            particle_id_list = self.df.loc[self.df['residue_id']==pmb_object_id].particle_id.dropna().to_list()
+            
             for pid in particle_id_list:
 
                 es_pos = espresso_system.part.by_id(pid).pos
@@ -1798,8 +1806,10 @@ class pymbe_library():
             center_position (lst)
 
         """
-        #NOTE we need to review this implementation 
+        #NOTE
+        # we need to review this implementation 
         #center_position #expected a list with [x,y,z]
+
         box_l = espresso_system.box_l[0]
 
         if center_position[0] == box_l/2.0:
