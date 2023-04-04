@@ -70,23 +70,14 @@ pmb.define_particle(name=anion_name,  q=-1, diameter=0.36*pmb.units.nm,  epsilon
 
 pmb.load_pka_set (filename='reference_parameters/pka_sets/CRC1991.txt')
 
-acidic_aminoacids = ['c','E','D','Y','C']
-basic_aminoacids  = ['R','n','K','H']
+
 
 already_defined_AA=[]
 
 protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
-for aminoacid_key in pmb.protein_sequence_parser(sequence=protein_sequence):
-    if aminoacid_key in already_defined_AA:
-        continue
-    if aminoacid_key in acidic_aminoacids:
-        pmb.define_particle (name=aminoacid_key, acidity='acidic', diameter=bead_size, epsilon=epsilon)
-    elif aminoacid_key in basic_aminoacids:
-        pmb.define_particle (name=aminoacid_key, acidity='basic', diameter=bead_size, epsilon=epsilon)
-    else:
-        pmb.define_particle (name=aminoacid_key, q=0, diameter=bead_size, epsilon=epsilon)
-    already_defined_AA.append(aminoacid_key)
+print (pmb.df)
+input ()
 
 pmb.define_particle(name='CA',q=0,diameter=bead_size,epsilon=epsilon)
 pmb.define_particle(name='Ca',q=0,diameter=bead_size,epsilon=epsilon)

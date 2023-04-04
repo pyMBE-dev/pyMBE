@@ -1139,7 +1139,7 @@ class pymbe_library():
                     raise ValueError('missing a requiered key ', required_keys, 'in the following entry of pka_set', pka_entry)
         return
 
-    def generate_trialvectors(self,center, radius, n_samples, seed=None):
+    def generate_trialvectors (self,center, radius, n_samples, seed=None):
         """
         Uniformly samples points from a hypersphere.
         Algorithm from
@@ -1474,7 +1474,7 @@ class pymbe_library():
             print('no interaction has been added for those particles in ESPResSo')
         return
 
-    def load_protein_vtf_in_df (self, name, filename):
+    def load_protein_vtf_in_df (self, name, filename, ):
         """
         Reads the input VTF file of the protein model
 
@@ -1580,6 +1580,10 @@ class pymbe_library():
 
         residue_list = []
 
+        already_defined_AA=[]
+        acidic_aminoacids = ['c','E','D','Y','C']
+        basic_aminoacids  = ['R','n','K','H']
+
         for residue_name in clean_sequence:
 
             if residue_name not in residue_list:   
@@ -1594,9 +1598,18 @@ class pymbe_library():
                 self.define_residue(name = 'AA-'+residue_name, 
                                     central_bead = central_bead,
                                     side_chains = side_chains)
-            
             residue_list.append('AA-'+residue_name)
-        
+
+        for residue_name in clean_sequence:
+            if residue_name in already_defined_AA:
+                continue
+            if residue_name in acidic_aminoacids:
+                self.define_particle (name=residue_name, acidity='acidic')
+            elif residue_name in basic_aminoacids:
+                self.define_particle (name=residue_name, acidity='basic')
+            else:
+                self.define_particle (name=residue_name, q=0)
+
         self.df.at [index,('sequence','')] = protein_sequence  
         self.df.at [index,('residue_list','')] = residue_list    
 
@@ -1662,7 +1675,7 @@ class pymbe_library():
                 residue_number = re.split(r'(\d+)', residue)[1]
                 residue_position = positions[residue]['initial_pos']
     
-                particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[residue_position],fix = True)
+                particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[residue_position], fix = True)
 
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
 
