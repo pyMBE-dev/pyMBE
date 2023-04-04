@@ -39,8 +39,8 @@ SEED = 77
 solvent_permitivity = 78.3
 dt = 0.001
 
-Samples_per_pH = 1000
-MD_steps_per_sample = 1000
+Samples_per_pH = 100
+MD_steps_per_sample = 100
 steps_eq = int(Samples_per_pH/3)
 N_samples_print = 10  # Write the trajectory every 100 samples
 probability_reaction = 0.5 
@@ -76,18 +76,16 @@ already_defined_AA=[]
 
 protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
-print (pmb.df)
-input ()
 
 pmb.define_particle(name='CA',q=0,diameter=bead_size,epsilon=epsilon)
 pmb.define_particle(name='Ca',q=0,diameter=bead_size,epsilon=epsilon)
 
 pmb.create_protein_in_espresso(name=protein_name,
-                               number_of_proteins=1,
+                               number_of_proteins=4,
                                espresso_system=espresso_system,
                                positions=protein_positions)
 
-pmb.center_pmb_object_in_the_simulation_box (name=protein_name,espresso_system=espresso_system)
+# pmb.center_pmb_object_in_the_simulation_box (name=protein_name,pmb_object_id=0,espresso_system=espresso_system)
 
 pmb.create_counterions_in_espresso (pmb_object='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
 

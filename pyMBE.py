@@ -1578,11 +1578,9 @@ class pymbe_library():
         self.df.at [index,'pmb_type'] = 'protein'
         self.df.at [index,'model'] = '2beadAA' 
 
-        residue_list = []
+        self.define_AA_particles_in_sequence (clean_sequence=clean_sequence)
 
-        already_defined_AA=[]
-        acidic_aminoacids = ['c','E','D','Y','C']
-        basic_aminoacids  = ['R','n','K','H']
+        residue_list = []
 
         for residue_name in clean_sequence:
 
@@ -1600,6 +1598,20 @@ class pymbe_library():
                                     side_chains = side_chains)
             residue_list.append('AA-'+residue_name)
 
+
+
+        self.df.at [index,('sequence','')] = protein_sequence  
+        self.df.at [index,('residue_list','')] = residue_list    
+
+        return protein_coordinates
+    
+    def define_AA_particles_in_sequence (self, clean_sequence):
+
+        already_defined_AA=[]
+
+        acidic_aminoacids = ['c','E','D','Y','C']
+        basic_aminoacids  = ['R','n','K','H']
+
         for residue_name in clean_sequence:
             if residue_name in already_defined_AA:
                 continue
@@ -1610,11 +1622,10 @@ class pymbe_library():
             else:
                 self.define_particle (name=residue_name, q=0)
 
-        self.df.at [index,('sequence','')] = protein_sequence  
-        self.df.at [index,('residue_list','')] = residue_list    
+        return 
 
-        return protein_coordinates
-    
+
+
     def create_protein_in_espresso(self, name, number_of_proteins, espresso_system, positions):
 
         """
@@ -1641,18 +1652,17 @@ class pymbe_library():
 
         self.copy_df_entry(name=name,column_name='molecule_id',number_of_copies=number_of_proteins)
 
-        residue_list = self.df[self.df['name']==name].residue_list.values [0]
-
         protein_index = self.np.where(self.df['name']==name)
         protein_index_list =list(protein_index[0])[-number_of_proteins:]
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
 
         for molecule_index in protein_index_list:          
+
             self.clean_df_row(index=int(molecule_index))
             if self.df['molecule_id'].isnull().values.all():
                 molecule_id = 0        
             else:
-                 # check if a residue is part of another molecule
+                # check if a residue is part of another molecule
                 check_residue_name = self.df[self.df['residue_list'].astype(str).str.contains(name)]
                 pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]                
                 if not check_residue_name.empty and pmb_type == 'protein' :              
@@ -1668,14 +1678,19 @@ class pymbe_library():
                                 index=int (molecule_index),
                                 new_value=molecule_id, 
                                 warning=False)
+            
 
+            protein_center = self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
+            
             for residue in positions.keys():
 
                 residue_name = re.split(r'\d+', residue)[0]
                 residue_number = re.split(r'(\d+)', residue)[1]
                 residue_position = positions[residue]['initial_pos']
+
+                position = residue_position + protein_center
     
-                particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[residue_position], fix = True)
+                particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[position], fix = True)
 
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
 
@@ -1686,10 +1701,9 @@ class pymbe_library():
                 self.add_value_to_df(key=('molecule_id',''),
                                         index=int (index),
                                         new_value=molecule_id)
-
         return
 
-    def center_pmb_object_in_the_simulation_box (self, name, espresso_system):
+    def center_pmb_object_in_the_simulation_box (self, name, pmb_object_id, espresso_system):
 
         """
         Centers the pmb object of type `name` in the center of the simulation box. Returns the position updated on the system.
@@ -1791,6 +1805,7 @@ class pymbe_library():
         if center_position[0] == box_l/2.0:
 
             min_value = (minimum_distance / box_l)
+            
             if maximum_distance <= box_l/2.0:
                  max_value = maximum_distance/box_l
             else:
