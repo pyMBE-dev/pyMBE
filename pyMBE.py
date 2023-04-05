@@ -1474,7 +1474,7 @@ class pymbe_library():
             print('no interaction has been added for those particles in ESPResSo')
         return
 
-    def load_protein_vtf_in_df (self, name, filename, ):
+    def load_protein_vtf_in_df (self, name, filename,unit_length=None):
         """
         Reads the input VTF file of the protein model
 
@@ -1488,6 +1488,7 @@ class pymbe_library():
         coord_list = []
         atom_id_list = []
         label_dict = {}
+        label_CA = False 
 
         with open (filename,'r') as protein_model:
 
@@ -1507,8 +1508,11 @@ class pymbe_library():
                             atom_resname = line_split [5]
                             chain_id = line_split [7]
                             atom_radius = line_split [9]
-               
+
                             label_dict [int(atom_id)] = [atom_name , atom_resname, chain_id]
+
+                            if atom_name == 'CA' or label_CA == True:
+                                label_CA = True
 
                             if atom_name != 'CA' and atom_name != 'Ca':
                                 protein_seq_list.append(atom_name)                        
@@ -1525,13 +1529,14 @@ class pymbe_library():
 
         axes_list = [0,1,2]
         updated_coordinates_list = []
-    
-        #NOTE Here we convert the units from the coarse grain from angstrom to reduced_lenght. Although we assume that are always in Angstrom and that the user does not change the units in the original coarse grain script.
+
+        if unit_length == None:
+            unit_length = 1 * self.units.angstrom 
 
         for pos in coord_list:
             updated_pos = self.np.zeros(3,)
             for axis in axes_list:
-                updated_pos[axis] = (pos[axis]*self.units.angstrom).to('reduced_length').magnitude 
+                updated_pos[axis] = (pos[axis]*unit_length).to('reduced_length').magnitude 
             updated_coordinates_list.append (updated_pos.tolist())
 
         protein_sequence = ''.join(protein_seq_list)
@@ -1578,6 +1583,9 @@ class pymbe_library():
         self.df.at [index,'pmb_type'] = 'protein'
         self.df.at [index,'model'] = '2beadAA' 
 
+        if label_CA:
+            self.define_particle(name='CA')
+
         self.define_AA_particles_in_sequence (clean_sequence=clean_sequence)
 
         residue_list = []
@@ -1597,8 +1605,6 @@ class pymbe_library():
                                     central_bead = central_bead,
                                     side_chains = side_chains)
             residue_list.append('AA-'+residue_name)
-
-
 
         self.df.at [index,('sequence','')] = protein_sequence  
         self.df.at [index,('residue_list','')] = residue_list    
@@ -1677,7 +1683,7 @@ class pymbe_library():
                                 new_value=molecule_id, 
                                 warning=False)
             
-
+            #NOTE FALTA MODIFICAR ACA USANDO LA OTRA FUNCION 
             protein_center = self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
             
             for residue in positions.keys():
@@ -1701,36 +1707,28 @@ class pymbe_library():
                                         new_value=molecule_id)
         return
 
-    def center_pmb_object_in_the_simulation_box (self, name, pmb_object_id, espresso_system):
+    def center_molecule_in_simulation_box (self, molecule_id, espresso_system):
 
         """
         Centers the pmb object of type `name` in the center of the simulation box. Returns the position updated on the system.
         
         Args:
-            name (str): Label of the residue type to be created. The residue type must be defined in `df`
+            molecule_id (int): ID of the molecue type to be centered. The molecule id must be defined in `df`
             espresso_system (cls): Instance of a system class from espressomd library.
 
         """
-        #NOTE: Esta funcion esta generalizada para que indicando un name y molecule_id/residue_id mueva el objecto al centro de la caja de simulacion. Deberia tambien estar dentro de create_protein() como un swift center_protein?
 
-        center_of_mass = self.calculate_center_of_mass(name=name,espresso_system=espresso_system)
+        center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
+
         box_center = [espresso_system.box_l[0]/2.0]*3
 
-        pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
+        pmb_type = self.df.loc[self.df['molecule_id']==molecule_id].pmb_type.values[0]
 
         pmb_objects = ['protein','molecule','peptide']
 
         if pmb_type in pmb_objects:
 
-            particle_id_list = self.df.loc[self.df['molecule_id']==pmb_object_id].particle_id.dropna().to_list()
-            for pid in particle_id_list:
-
-                es_pos = espresso_system.part.by_id(pid).pos
-                espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
-
-        elif pmb_type == 'residue':
-            particle_id_list = self.df.loc[self.df['residue_id']==pmb_object_id].particle_id.dropna().to_list()
-            
+            particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
             for pid in particle_id_list:
 
                 es_pos = espresso_system.part.by_id(pid).pos
@@ -1738,12 +1736,12 @@ class pymbe_library():
 
         return 
 
-    def calculate_center_of_mass (self,name, espresso_system):
+    def calculate_center_of_mass_of_molecule (self,molecule_id, espresso_system):
         
         """
         Calculates the center of mass of type `name`
         Args:
-            name (str): Label of the residue type to be created. The residue type must be defined in `df`
+            molecule_id (int): ID of the molecue type to be centered. The molecule id must be defined in `df`
             espresso_system (cls): Instance of a system class from espressomd library.
         Return:
             center_of_mass (lst): a list with the coordinates of the center of mass [ X, Y, Z]
@@ -1753,7 +1751,6 @@ class pymbe_library():
         center_of_mass = self.np.zeros(3)
         axis_list = [0,1,2]
         
-        molecule_id = self.df.loc [self.df['name']==name].molecule_id.values[0]
         particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
 
         for pid in particle_id_list:
@@ -1794,55 +1791,32 @@ class pymbe_library():
 
         return 
     
-    def generate_coordinates_outside_sphere (self, espresso_system, center_position, minimum_distance, maximum_distance):
+    def generate_coordinates_outside_sphere (self, espresso_system, center, min_dist, max_dist, n_samples):
 
         """
         Generates coordinates outside a sphere 
 
         Args:
             espresso_system (cls): Instance of a system class from espressomd library.
-            minimum_distance (int):
-            maximum_distance (int): 
-            center_position (lst)
+            center (): 
+            min_dist (int):
+            max_dist (int): 
+            n_samples (int)
 
         """
         #NOTE
-        # we need to review this implementation 
-        #center_position #expected a list with [x,y,z]
 
-        box_l = espresso_system.box_l[0]
+        coord_list = []
 
-        if center_position[0] == box_l/2.0:
+        # comprobar min_dist es positiva y menor que la distancia maxima 
+        # comprobar max_dist y min_dist <= box_l/2
 
-            min_value = (minimum_distance / box_l)
-            
-            if maximum_distance <= box_l/2.0:
-                 max_value = maximum_distance/box_l
-            else:
-                raise ValueError (f'The maximum value: {maximum_distance} is outside the limits of the simulation box {box_l}. It should be lower or equal to {box_l/2.0}')
-
-        # min_value = (minimum_distance + center_position[0]) / box_l# in order to avoid creating ions inside the protein     
-        # max_value = maximum_distance + center_position[0] #
-
-        while True:
+        for _ in n_samples:
             
             rand = self.np.random.random() 
+            rad = min_dist + rand*(max_dist-min_dist)
 
-            if rand > min_value and rand < max_value :
-                mag = rand*box_l
-                break 
+            coord = self.generate_trialvectors(center=center, radius=rad,n_samples=1)[0]
+            coord_list.append (coord)
 
-        phi = self.np.random.uniform(0,self.np.pi*2)
-        costheta = self.np.random.uniform(-1,1)
-        theta = self.np.arccos(costheta)
-
-        x = self.np.sin (theta) * self.np.cos (phi)
-        y = self.np.sin (theta) * self.np.sin (phi)
-        z = self.np.cos(theta)
-
-        vector = self.np.array([x,y,z])
-        vector = vector * mag
-
-        coordinates = [vector[0]+center_position[0],vector[1]+center_position[1],vector[2]+center_position[2]]
-
-        return coordinates
+        return coord_list

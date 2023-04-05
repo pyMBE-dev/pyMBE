@@ -58,6 +58,8 @@ protein_filename = 'sample_scripts/coarse_grain_model_of_1f6s.vtf'
 #Reads the VTF file of the protein model
 protein_positions = pmb.load_protein_vtf_in_df (name=protein_name,filename=protein_filename)
 
+pmb.define_particle(name='Ca',q=0,diameter=bead_size,epsilon=epsilon)
+
 
 # Solution 
 
@@ -72,13 +74,10 @@ pmb.load_pka_set (filename='reference_parameters/pka_sets/CRC1991.txt')
 
 
 
-already_defined_AA=[]
-
 protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
 
-pmb.define_particle(name='CA',q=0,diameter=bead_size,epsilon=epsilon)
-pmb.define_particle(name='Ca',q=0,diameter=bead_size,epsilon=epsilon)
+
 
 pmb.create_protein_in_espresso(name=protein_name,
                                number_of_proteins=4,
