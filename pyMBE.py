@@ -1661,8 +1661,9 @@ class pymbe_library():
         protein_index_list =list(protein_index[0])[-number_of_proteins:]
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
 
-        axis = self.np.array ([1.0,0,0])
-        angle = self.np.pi /4.0
+        axis = self.np.array ([1.0, 0 , 0])
+        angle = self.np.random.uniform(0,self.np.pi*2)
+        defined_center = []
 
         for molecule_index in protein_index_list:          
 
@@ -1687,13 +1688,11 @@ class pymbe_library():
                                 new_value=molecule_id, 
                                 warning=False)
             
-            #NOTE FALTA MODIFICAR ACA USANDO LA OTRA FUNCION 
             # protein_center = self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
 
             protein_center = self.generate_coordinates_outside_sphere(espresso_system = espresso_system, min_dist = 1, max_dist=espresso_system.box_l[0]/2.0 , n_samples=1, center=[0,0,0])[0]
 
             
-
             for residue in positions.keys():
 
                 residue_name = re.split(r'\d+', residue)[0]
@@ -1701,6 +1700,8 @@ class pymbe_library():
                 residue_position = positions[residue]['initial_pos']
 
                 # position = residue_position + protein_center
+
+                #NOTE work in progress 
                 position = self.rotate_vector(residue_position-protein_center, axis=axis,angle=angle) + protein_center
     
                 particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[position], fix = True)

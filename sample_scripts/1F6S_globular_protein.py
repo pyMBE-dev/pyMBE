@@ -78,7 +78,6 @@ protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
 
 
-
 pmb.create_protein_in_espresso(name=protein_name,
                                number_of_proteins=4,
                                espresso_system=espresso_system,
