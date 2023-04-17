@@ -1684,8 +1684,11 @@ class pymbe_library():
                                 warning=False)
             
             #NOTE FALTA MODIFICAR ACA USANDO LA OTRA FUNCION 
-            protein_center = self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
+            # protein_center = self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
             
+            protein_center = self.generate_coordinates_outside_sphere(espresso_system=espresso_system, center=[2.0,2.0,2.0], min_dist=1, max_dist=20.0 ,n_samples=[1])
+            print (protein_center)
+            input ()
             for residue in positions.keys():
 
                 residue_name = re.split(r'\d+', residue)[0]
@@ -1805,18 +1808,28 @@ class pymbe_library():
 
         """
         #NOTE
-
         coord_list = []
+        box_l = espresso_system.box_l[0]
+        print (min_dist,max_dist)
+        input ()
 
+        if not min_dist > 0: 
+            raise ValueError (f'The value of {min_dist} must be a positive value')
+        if not min_dist < max_dist:
+            raise ValueError(f'The min_dist ({min_dist} must be lower than the max_dist ({max_dist}))')
+        if not min_dist <= box_l/2.0 and max_dist <= box_l/2.0:
+            raise ValueError(f'The min_dist and max_dist parameter should have values between 0 and {box_l/2.0} (box_l/2)')
         # comprobar min_dist es positiva y menor que la distancia maxima 
         # comprobar max_dist y min_dist <= box_l/2
 
+        print (n_samples)
         for _ in n_samples:
-            
+            print ('n_samples',n_samples,)
             rand = self.np.random.random() 
             rad = min_dist + rand*(max_dist-min_dist)
 
             coord = self.generate_trialvectors(center=center, radius=rad,n_samples=1)[0]
             coord_list.append (coord)
-
+            print ('n_samples',n_samples, coord)
+            input ()
         return coord_list
