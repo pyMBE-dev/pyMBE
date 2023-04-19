@@ -1661,10 +1661,6 @@ class pymbe_library():
         protein_index_list =list(protein_index[0])[-number_of_proteins:]
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
 
-        axis = self.np.array ([1.0, 0 , 0])
-        angle = self.np.random.uniform(0,self.np.pi*2)
-        defined_center = []
-
         for molecule_index in protein_index_list:          
 
             self.clean_df_row(index=int(molecule_index))
@@ -1691,19 +1687,15 @@ class pymbe_library():
             # protein_center = self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
 
             protein_center = self.generate_coordinates_outside_sphere(espresso_system = espresso_system, min_dist = 1, max_dist=espresso_system.box_l[0]/2.0 , n_samples=1, center=[0,0,0])[0]
-
-            
+   
             for residue in positions.keys():
 
                 residue_name = re.split(r'\d+', residue)[0]
                 residue_number = re.split(r'(\d+)', residue)[1]
                 residue_position = positions[residue]['initial_pos']
 
-                # position = residue_position + protein_center
-
-                #NOTE work in progress 
-                position = self.rotate_vector(residue_position-protein_center, axis=axis,angle=angle) + protein_center
-    
+                position = residue_position + protein_center
+   
                 particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[position], fix = True)
 
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
@@ -1716,11 +1708,40 @@ class pymbe_library():
                                         index=int (index),
                                         new_value=molecule_id)
         return
+    
+    def activate_motion_of_rigid_object (self, name, espresso_system):
+        '''
+        Activates the motion of rigid object using the features of Virtual Sites from EsPRessoMD
 
-    def rotate_vector(self,vector, axis, angle):
-        return axis * self.np.dot(axis, vector) + self.math.cos(angle) * self.np.cross(
-            self.np.cross(axis, vector), axis) + self.math.sin(angle) * self.np.cross(axis, vector)
+        Args:
+            name (str): Label of the protein type to be created. The protein type must be defined in `pymbe.df`
+            espresso_system (cls): Instance of a system class from espressomd library.
+        '''
 
+        print ('activate_motion_of_rigid_object requires that espressodmd has the following feautures activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
+
+        pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
+
+        if pmb_type != 'protein':
+            raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
+
+        molecule_ids_list = self.df.loc[self.df['name']==name].molecule_id.to_list()
+
+        for molecule_id in molecule_ids_list:    
+
+            particle_ids_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+
+            center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
+
+            rigid_object_center = espresso_system.part.add(pos=center_of_mass,
+                                                           rotation=[True,True,True], 
+                                                           type=self.propose_unused_type())
+            
+            for particle_id in particle_ids_list:
+                pid = espresso_system.part.by_id(particle_id)
+                pid.vs_auto_relate_to(rigid_object_center.id)
+
+        return
 
     def center_molecule_in_simulation_box (self, molecule_id, espresso_system):
 
@@ -1776,6 +1797,40 @@ class pymbe_library():
         center_of_mass = center_of_mass /total_beads  
 
         return center_of_mass
+
+    def generate_coordinates_outside_sphere (self, espresso_system, center, min_dist, max_dist, n_samples):
+
+        """
+        Generates coordinates outside a sphere 
+
+        Args:
+            espresso_system (cls): Instance of a system class from espressomd library.
+            center (array): array with the coordinates of the center of the spheres.
+            min_dist (int): minimun distance from the center to generate coordinates
+            max_dist (int): maximum distance from the center to generate coordinates
+            n_samples (int): number of sample points to generate inside the sphere
+
+        """
+
+        coord_list = []
+        box_l = espresso_system.box_l[0]
+
+        if not min_dist > 0: 
+            raise ValueError (f'The value of {min_dist} must be a positive value')
+        if not min_dist < max_dist:
+            raise ValueError(f'The min_dist ({min_dist} must be lower than the max_dist ({max_dist}))')
+        if not min_dist <= box_l/2.0 and max_dist <= box_l/2.0:
+            raise ValueError(f'The min_dist and max_dist parameter should have values between 0 and {box_l/2.0} (box_l/2)')
+
+        for _ in range(n_samples):
+
+            rand = self.np.random.random() 
+            rad = min_dist + rand*(max_dist-min_dist)
+
+            coord = self.generate_trialvectors(center=center, radius=rad,n_samples=1)[0]
+            coord_list.append (coord)
+
+        return coord_list
     
     def write_output_vtf_file (self, espresso_system, n_frame):
     
@@ -1806,39 +1861,3 @@ class pymbe_library():
 
         return 
     
-    def generate_coordinates_outside_sphere (self, espresso_system, center, min_dist, max_dist, n_samples):
-
-        """
-        Generates coordinates outside a sphere 
-
-        Args:
-            espresso_system (cls): Instance of a system class from espressomd library.
-            center (): 
-            min_dist (int):
-            max_dist (int): 
-            n_samples (int)
-
-        """
-        #NOTE
-        coord_list = []
-        box_l = espresso_system.box_l[0]
-
-        # comprobar min_dist es positiva y menor que la distancia maxima 
-        # comprobar max_dist y min_dist <= box_l/2
-
-        if not min_dist > 0: 
-            raise ValueError (f'The value of {min_dist} must be a positive value')
-        if not min_dist < max_dist:
-            raise ValueError(f'The min_dist ({min_dist} must be lower than the max_dist ({max_dist}))')
-        if not min_dist <= box_l/2.0 and max_dist <= box_l/2.0:
-            raise ValueError(f'The min_dist and max_dist parameter should have values between 0 and {box_l/2.0} (box_l/2)')
-
-        for _ in range(n_samples):
-
-            rand = self.np.random.random() 
-            rad = min_dist + rand*(max_dist-min_dist)
-
-            coord = self.generate_trialvectors(center=center, radius=rad,n_samples=1)[0]
-            coord_list.append (coord)
-
-        return coord_list
