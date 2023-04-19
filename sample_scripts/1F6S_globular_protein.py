@@ -39,8 +39,8 @@ SEED = 77
 solvent_permitivity = 78.3
 dt = 0.001
 
-Samples_per_pH = 100
-MD_steps_per_sample = 100
+Samples_per_pH = 500
+MD_steps_per_sample = 500
 steps_eq = int(Samples_per_pH/3)
 N_samples_print = 10  # Write the trajectory every 100 samples
 probability_reaction = 0.5 
@@ -49,7 +49,7 @@ bead_size = 0.4*pmb.units.nm
 epsilon = 1*pmb.units('reduced_energy')
 
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
-
+espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 #Directory of the protein model 
 
 protein_name = '1f6s'
@@ -79,9 +79,13 @@ protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
 
 pmb.create_protein_in_espresso(name=protein_name,
-                               number_of_proteins=4,
+                               number_of_proteins=2,
                                espresso_system=espresso_system,
                                positions=protein_positions)
+
+
+pmb.activate_motion_of_rigid_object(espresso_system=espresso_system,name=protein_name)
+
 
 # pmb.center_pmb_object_in_the_simulation_box (name=protein_name,pmb_object_id=0,espresso_system=espresso_system)
 
