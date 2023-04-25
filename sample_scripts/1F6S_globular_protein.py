@@ -29,12 +29,12 @@ parser = argparse.ArgumentParser(description='Script to run globular protein sim
 parser.add_argument('--pH', type=float,help='Expected pH value')
 
 args = parser.parse_args ()
-pH_value = args.pH 
-print (f"Running simulation for: {pH_value}")
+# pH_value = args.pH 
+# print (f"Running simulation for: {pH_value}")
 
 
 #System Parameters 
-# pH_value = 2.0
+pH_value = 7.0
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
@@ -59,7 +59,7 @@ bead_size = 0.355*pmb.units.nm
 epsilon = 1*pmb.units('reduced_energy')
 
 
-WCA = False
+WCA = True
 Electrostatics = False
 
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
@@ -71,11 +71,9 @@ protein_filename = 'sample_scripts/coarse_grain_model_of_1f6s.vtf'
 
 #Reads the VTF file of the protein model
 protein_positions = pmb.load_protein_vtf_in_df (name=protein_name,filename=protein_filename)
-protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
-print (f'The protein sequence is: {protein_sequence}')
-
-pmb.define_particle(name='Ca',q=0,diameter=bead_size,epsilon=epsilon)
+#Metal Ion calcium definition
+pmb.define_particle(name='Ca',q=+2,diameter=bead_size,epsilon=epsilon)
 
 # Solution 
 cation_name = 'Na'
@@ -102,6 +100,7 @@ protein_id = pmb.df.loc[pmb.df['name']==protein_name].molecule_id.values[0]
 pmb.center_molecule_in_simulation_box (molecule_id=protein_id,espresso_system=espresso_system)
 
 pmb.create_counterions_in_espresso (pmb_object='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
+
 c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
 
@@ -113,7 +112,7 @@ total_ionisible_groups = len (list_ionisible_groups)
 print('The box length of the system is', Box_L.to('reduced_length'), Box_L.to('nm'))
 print('The ionisable groups in the protein are ', list_ionisible_groups)
 
-RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso (counter_ion=cation_name, constant_pH=pH_value, SEED = SEED )
+RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso (counter_ion=cation_name, constant_pH=2, SEED = SEED )
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 type_map =pmb.get_type_map()
@@ -128,8 +127,9 @@ print('The non interacting type is set to ', non_interacting_type)
 # Setup the potential energy
 
 if (WCA):
-    pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
 
+    pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
+    
     print('\nMinimazing system energy\n')
     espresso_system.cell_system.skin = 0.4
     espresso_system.time_step = dt 
@@ -188,20 +188,30 @@ espresso_system.cell_system.tune_skin ( min_skin = 10,
 
 print('Optimized skin value: ', espresso_system.cell_system.skin, '\n')
 
-
 observables_df = pmb.pd.DataFrame()
 time_step = []
 net_charge_list = []
-
 net_charge_amino_save = {}
+
+Z_sim=[]
+particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
+
 
 for step in tqdm(range(N_samples)):
         
         if pmb.np.random.random() > probability_reaction:
-            espresso_system.integrator.run(steps=integ_steps)
+            espresso_system.integrator.run (steps = integ_steps)
         else:
-            RE.reaction(steps=total_ionisible_groups)
+            RE.reaction(reaction_steps = total_ionisible_groups)
 
+        # Get peptide net charge        
+        # z_one_object=0
+        # for pid in particle_id_list:
+        #     z_one_object +=espresso_system.part.by_id(pid).q
+        #     print (pid, espresso_system.part.by_id(pid).q   )
+        # Z_sim.append(z_one_object)
+        # print (Z_sim)
+               
         calculated_net_charge = calculate_net_charge (espresso_system=espresso_system,pmb_df = pmb.df, name =protein_name)
 
         net_charge = calculated_net_charge['net_charge']
@@ -231,19 +241,19 @@ observables_df.to_csv(f'pH-{pH_value}_observables.csv',index=False)
 print(pmb.df)
 print (observables_df)
 
-# from espressomd import visualization
+from espressomd import visualization
 
-# espresso_system.time_step=1e-3
-# espresso_system.thermostat.set_langevin(kT=1, gamma=1.0, seed=24)
-# espresso_system.cell_system.tune_skin(min_skin=0.01, max_skin =4.0, tol=0.1, int_steps=1000)
-# visualizer = espressomd.visualization.openGLLive(espresso_system, bond_type_radius=[0.3], background_color=[1, 1, 1],particle_type_colors=[[1.02,0.51,0], # Brown
-#                 [1,1,1],  # Grey
-#                 [2.55,0,0], # Red
-#                 [0,0,2.05],  # Blue
-#                 [0,0,2.05],  # Blue
-#                 [2.55,0,0], # Red
-#                 [2.05,1.02,0]])     
-# visualizer.run(1)
+espresso_system.time_step=1e-3
+espresso_system.thermostat.set_langevin(kT=1, gamma=1.0, seed=24)
+espresso_system.cell_system.tune_skin(min_skin=0.01, max_skin =4.0, tol=0.1, int_steps=1000)
+visualizer = espressomd.visualization.openGLLive(espresso_system, bond_type_radius=[0.3], background_color=[1, 1, 1],particle_type_colors=[[1.02,0.51,0], # Brown
+                [1,1,1],  # Grey
+                [2.55,0,0], # Red
+                [0,0,2.05],  # Blue
+                [0,0,2.05],  # Blue
+                [2.55,0,0], # Red
+                [2.05,1.02,0]])     
+visualizer.run(1)
 
 # filename = 'protein.png'
 
