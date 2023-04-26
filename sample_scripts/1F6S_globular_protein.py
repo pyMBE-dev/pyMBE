@@ -31,8 +31,8 @@ parser.add_argument('--pH', type=float,help='Expected pH value')
 args = parser.parse_args ()
 
 #System Parameters 
-pH_value = 7.0
-# pH_value = args.pH 
+# pH_value = 7.0
+pH_value = args.pH 
 
 # print (f"Running simulation for: {pH_value}")
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
@@ -73,7 +73,7 @@ protein_filename = 'sample_scripts/coarse_grain_model_of_1f6s.vtf'
 protein_positions = pmb.load_protein_vtf_in_df (name=protein_name,filename=protein_filename)
 
 #Metal Ion calcium definition
-pmb.define_particle(name='Ca',q=0,diameter=bead_size,epsilon=epsilon)
+pmb.define_particle(name='Ca',q=+2,diameter=bead_size,epsilon=epsilon)
 
 # Solution 
 cation_name = 'Na'
@@ -92,7 +92,7 @@ pmb.create_protein_in_espresso(name=protein_name,
                                positions=protein_positions)
 
 #Here we activate the motion of the protein
-#pmb.activate_motion_of_rigid_object(espresso_system=espresso_system,name=protein_name)
+# pmb.activate_motion_of_rigid_object(espresso_system=espresso_system,name=protein_name)
 
 # If we want to center the first protein created
 protein_id = pmb.df.loc[pmb.df['name']==protein_name].molecule_id.values[0]
@@ -109,17 +109,11 @@ acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=
 list_ionisible_groups = basic_groups + acidic_groups
 total_ionisible_groups = len (list_ionisible_groups)
 
-print (pmb.df.loc[pmb.df['name']=='C'])
-
-print (acidic_groups)
-print (basic_groups)
-print (total_ionisible_groups)
-
-
 print('The box length of the system is', Box_L.to('reduced_length'), Box_L.to('nm'))
 print('The ionisable groups in the protein are ', list_ionisible_groups)
+print ('The total amount of ionizable groups are:',total_ionisible_groups)
 
-RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso (counter_ion=cation_name, constant_pH=2, SEED = SEED )
+RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso (counter_ion=cation_name, constant_pH= pH_value, SEED = SEED )
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 type_map = pmb.get_type_map()
@@ -212,14 +206,6 @@ for step in tqdm(range(N_samples)):
         else:
             RE.reaction( reaction_steps = total_ionisible_groups)
 
-        #Get peptide net charge        
-        # z_one_object=0
-        # for pid in particle_id_list:
-        #     z_one_object +=espresso_system.part.by_id(pid).q
-        #     print (pid, espresso_system.part.by_id(pid).q   )
-        # Z_sim.append(z_one_object)
-        # print (Z_sim)
-               
         calculated_net_charge = calculate_net_charge (espresso_system=espresso_system,pmb_df = pmb.df, name =protein_name)
 
         net_charge = calculated_net_charge['net_charge']
