@@ -1092,7 +1092,7 @@ class pymbe_library():
         """
         from espressomd import reaction_methods
         if exclusion_range is None:
-            exclusion_range = max(self.get_radius_map().values())
+            exclusion_range = max(self.get_radius_map().values())*2.0
         if pka_set is None:
             pka_set=self.get_pka_set()    
         self.check_pka_set(pka_set=pka_set)
@@ -1353,9 +1353,9 @@ class pymbe_library():
             object_charge[name]=0
         for id in object_ids:
             if espresso_system.part.by_id(id).q > 0:
-                object_charge['positive']+=1
+                object_charge['positive']+=1*(self.np.abs(espresso_system.part.by_id(id).q ))
             elif espresso_system.part.by_id(id).q < 0:
-                object_charge['negative']+=1
+                object_charge['negative']+=1*(self.np.abs(espresso_system.part.by_id(id).q ))
         if (object_charge['positive'] % abs(anion_charge) == 0):
             counterion_number[anion_name]=int(object_charge['positive']/abs(anion_charge))
         else:
@@ -1487,9 +1487,12 @@ class pymbe_library():
 
         protein_seq_list = []
         coord_list = []
-        atom_id_list = []
+
         label_dict = {}
         label_CA = False 
+
+        if unit_length == None:
+            unit_length = 1 * self.units.angstrom 
 
         with open (filename,'r') as protein_model:
 
@@ -1510,7 +1513,9 @@ class pymbe_library():
                             chain_id = line_split [7]
                             atom_radius = line_split [9]
 
-                            label_dict [int(atom_id)] = [atom_name , atom_resname, chain_id]
+                            diameter = ((float(atom_radius)*2.0)*unit_length).to('reduced_length').magnitude 
+
+                            label_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, diameter]
 
                             if atom_name == 'CA' or label_CA == True:
                                 label_CA = True
@@ -1531,8 +1536,7 @@ class pymbe_library():
         axes_list = [0,1,2]
         updated_coordinates_list = []
 
-        if unit_length == None:
-            unit_length = 1 * self.units.angstrom 
+
 
         for pos in coord_list:
             updated_pos = self.np.zeros(3,)
@@ -1551,7 +1555,7 @@ class pymbe_library():
     
             if atom_id == 1:
                 atom_name = label_dict[atom_id][0]
-                updated_name = [f'{atom_name}{i}',label_dict[atom_id][2]]
+                updated_name = [f'{atom_name}{i}',label_dict[atom_id][2],label_dict[atom_id][3]]
                 numbered_resname.append(updated_name)
 
             elif atom_id != 1: 
@@ -1560,7 +1564,7 @@ class pymbe_library():
                     i += 1                    
                     count = 1
                     atom_name = label_dict[atom_id][0]
-                    updated_name = [f'{atom_name}{i}',label_dict[atom_id][2]]
+                    updated_name = [f'{atom_name}{i}',label_dict[atom_id][2],label_dict[atom_id][3]]
                     numbered_resname.append(updated_name)
                     
                 elif label_dict[atom_id-1][1] == label_dict[atom_id][1]:
@@ -1568,14 +1572,14 @@ class pymbe_library():
                         i +=1  
                         count = 0
                     atom_name = label_dict[atom_id][0]
-                    updated_name = [f'{atom_name}{i}',label_dict[atom_id][2]]
+                    updated_name = [f'{atom_name}{i}',label_dict[atom_id][2],label_dict[atom_id][3]]
                     numbered_resname.append(updated_name)
                     count +=1
 
         protein_coordinates = {}
 
         for i in range (0, len(numbered_resname)):   
-            protein_coordinates [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1]}
+            protein_coordinates [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1], 'diameter':numbered_resname[i][2] }
 
         clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
 
@@ -1613,6 +1617,14 @@ class pymbe_library():
         return protein_coordinates
     
     def define_AA_particles_in_sequence (self, clean_sequence):
+
+        '''
+        Defines in the df the aminoacids presente in a 'clean_sequence' from a peptide/molecule/protein
+
+        Args:
+            clean_sequence: 
+
+        '''
 
         already_defined_AA=[]
 
@@ -1693,12 +1705,21 @@ class pymbe_library():
                 residue_name = re.split(r'\d+', residue)[0]
                 residue_number = re.split(r'(\d+)', residue)[1]
                 residue_position = positions[residue]['initial_pos']
+                
+                residue_diameter  = positions[residue]['diameter']
+                diameter = residue_diameter #*self.units.nm
 
                 position = residue_position + protein_center
    
                 particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[position], fix = True)
 
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
+
+                #NOTE there is still a bug trying to add the diameter in each AA.
+            
+                # self.add_value_to_df(key=('diameter',''),
+                #                             index=int (index),
+                #                             new_value=diameter)
 
                 self.add_value_to_df(key=('residue_id',''),
                                             index=int (index),
