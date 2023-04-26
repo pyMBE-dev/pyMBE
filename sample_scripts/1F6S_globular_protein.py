@@ -18,6 +18,7 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 from handy_scripts.handy_functions import  calculate_net_charge
+
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
 
@@ -27,14 +28,13 @@ if not os.path.exists('./frames'):
 
 parser = argparse.ArgumentParser(description='Script to run globular protein simulation in espressomd')
 parser.add_argument('--pH', type=float,help='Expected pH value')
-
 args = parser.parse_args ()
-# pH_value = args.pH 
-# print (f"Running simulation for: {pH_value}")
-
 
 #System Parameters 
 pH_value = 7.0
+# pH_value = args.pH 
+
+# print (f"Running simulation for: {pH_value}")
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
@@ -60,12 +60,12 @@ epsilon = 1*pmb.units('reduced_energy')
 
 
 WCA = True
-Electrostatics = False
+Electrostatics = True
 
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
 espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
-#Directory of the protein model 
 
+#Directory of the protein model 
 protein_name = '1f6s'
 protein_filename = 'sample_scripts/coarse_grain_model_of_1f6s.vtf'
 
@@ -73,7 +73,7 @@ protein_filename = 'sample_scripts/coarse_grain_model_of_1f6s.vtf'
 protein_positions = pmb.load_protein_vtf_in_df (name=protein_name,filename=protein_filename)
 
 #Metal Ion calcium definition
-pmb.define_particle(name='Ca',q=+2,diameter=bead_size,epsilon=epsilon)
+pmb.define_particle(name='Ca',q=0,diameter=bead_size,epsilon=epsilon)
 
 # Solution 
 cation_name = 'Na'
@@ -86,7 +86,6 @@ pmb.define_particle(name=anion_name,  q=-1, diameter=0.2*pmb.units.nm,  epsilon=
 pmb.load_pka_set (filename='reference_parameters/pka_sets/Nozaki1967.txt')
 
 #We create the protein in espresso 
-
 pmb.create_protein_in_espresso(name=protein_name,
                                number_of_proteins=1,
                                espresso_system=espresso_system,
@@ -104,10 +103,18 @@ pmb.create_counterions_in_espresso (pmb_object='particle',cation_name=cation_nam
 c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
 
-basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.drop_duplicates().to_list()
-acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.drop_duplicates().to_list()
+
+basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
+acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
 list_ionisible_groups = basic_groups + acidic_groups
 total_ionisible_groups = len (list_ionisible_groups)
+
+print (pmb.df.loc[pmb.df['name']=='C'])
+
+print (acidic_groups)
+print (basic_groups)
+print (total_ionisible_groups)
+
 
 print('The box length of the system is', Box_L.to('reduced_length'), Box_L.to('nm'))
 print('The ionisable groups in the protein are ', list_ionisible_groups)
@@ -115,7 +122,7 @@ print('The ionisable groups in the protein are ', list_ionisible_groups)
 RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso (counter_ion=cation_name, constant_pH=2, SEED = SEED )
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
-type_map =pmb.get_type_map()
+type_map = pmb.get_type_map()
 types = list (type_map.values())
 espresso_system.setup_type_map( type_list = types)
 
@@ -196,15 +203,16 @@ net_charge_amino_save = {}
 Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
+pmb.df.to_csv('df.csv')
 
 for step in tqdm(range(N_samples)):
         
         if pmb.np.random.random() > probability_reaction:
             espresso_system.integrator.run (steps = integ_steps)
         else:
-            RE.reaction(reaction_steps = total_ionisible_groups)
+            RE.reaction( reaction_steps = total_ionisible_groups)
 
-        # Get peptide net charge        
+        #Get peptide net charge        
         # z_one_object=0
         # for pid in particle_id_list:
         #     z_one_object +=espresso_system.part.by_id(pid).q
@@ -241,19 +249,19 @@ observables_df.to_csv(f'pH-{pH_value}_observables.csv',index=False)
 print(pmb.df)
 print (observables_df)
 
-from espressomd import visualization
+# from espressomd import visualization
 
-espresso_system.time_step=1e-3
-espresso_system.thermostat.set_langevin(kT=1, gamma=1.0, seed=24)
-espresso_system.cell_system.tune_skin(min_skin=0.01, max_skin =4.0, tol=0.1, int_steps=1000)
-visualizer = espressomd.visualization.openGLLive(espresso_system, bond_type_radius=[0.3], background_color=[1, 1, 1],particle_type_colors=[[1.02,0.51,0], # Brown
-                [1,1,1],  # Grey
-                [2.55,0,0], # Red
-                [0,0,2.05],  # Blue
-                [0,0,2.05],  # Blue
-                [2.55,0,0], # Red
-                [2.05,1.02,0]])     
-visualizer.run(1)
+# espresso_system.time_step=1e-3
+# espresso_system.thermostat.set_langevin(kT=1, gamma=1.0, seed=24)
+# espresso_system.cell_system.tune_skin(min_skin=0.01, max_skin =4.0, tol=0.1, int_steps=1000)
+# visualizer = espressomd.visualization.openGLLive(espresso_system, bond_type_radius=[0.3], background_color=[1, 1, 1],particle_type_colors=[[1.02,0.51,0], # Brown
+#                 [1,1,1],  # Grey
+#                 [2.55,0,0], # Red
+#                 [0,0,2.05],  # Blue
+#                 [0,0,2.05],  # Blue
+#                 [2.55,0,0], # Red
+#                 [2.05,1.02,0]])     
+# visualizer.run(1)
 
 # filename = 'protein.png'
 
