@@ -270,64 +270,6 @@ def write_progress(self, step, total_steps):
 
     return
 
-def get_net_charge_from_espresso(self, espresso_system, sugar_object):
-    """ 
-    Calculates the net charge of all the objects in espresso compatibles with sugar_object
-
-    Inputs:
-    sugar_object:(class) particle, residue or molecule/peptide object
-    espresso_system: (class)espresso class object with all system variables.
-
-    Returns:
-    Z_list: (list) list with the net charge of all the objects in espresso compatibles with sugar_object
-    """
-    
-    ids_lists_in_object=self.get_ids_from_sugar(sugar_object=sugar_object)
-    Z_list=[]
-    
-    for id_list in ids_lists_in_object:
-        z_one_object=0
-        for id in id_list:
-            z_one_object+=espresso_system.part.by_id(id).q
-        Z_list.append(z_one_object)
-
-    return Z_list
-
-    
-def get_charge_in_residues(self, espresso_system, molecule):
-    """
-    Returns a list with the charge in each residue of molecule stored in  dictionaries
-    Inputs:
-    sugar_object:(class) particle, residue or molecule/peptide object
-    espresso_system: (class) espresso class object with all system variables.
-    Returns:
-    charge_in_residues: (list) list with the charge in each residue of molecule stored in dictionaries
-    """
-    
-
-    charge_in_residues=[]
-
-    for molecule in self.id_map['molecule'][molecule.name]:
-        molecule_list=[]
-        for residue_dict in molecule:
-            charge_dict={}
-            for key in residue_dict.keys():
-                charge_key=[]                      
-                for id in residue_dict[key]:                         
-                    charge_key.append(espresso_system.part.by_id(id).q)
-                
-                if 'side-' in key:
-                    new_key=key.replace('side-', '')
-                elif 'central-' in key:
-                    new_key=key.replace('central-', '')
-                else:
-                    new_key=key
-                charge_dict[new_key]=charge_key
-            molecule_list.append(charge_dict)
-        charge_in_residues.append(molecule_list)
-    
-    return charge_in_residues
-
 def visualize_espresso_system(espresso_system):
     """
     Uses espresso visualizator for displaying the current state of the espresso_system
