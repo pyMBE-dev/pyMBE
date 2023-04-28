@@ -1676,6 +1676,7 @@ class pymbe_library():
         for molecule_index in protein_index_list:          
 
             self.clean_df_row(index=int(molecule_index))
+
             if self.df['molecule_id'].isnull().values.all():
                 molecule_id = 0        
             else:
@@ -1705,21 +1706,11 @@ class pymbe_library():
                 residue_name = re.split(r'\d+', residue)[0]
                 residue_number = re.split(r'(\d+)', residue)[1]
                 residue_position = positions[residue]['initial_pos']
-                
-                residue_diameter  = positions[residue]['diameter']
-                diameter = residue_diameter #*self.units.nm
-
                 position = residue_position + protein_center
-   
+
                 particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[position], fix = True)
 
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
-
-                #NOTE there is still a bug trying to add the diameter in each AA.
-            
-                # self.add_value_to_df(key=('diameter',''),
-                #                             index=int (index),
-                #                             new_value=diameter)
 
                 self.add_value_to_df(key=('residue_id',''),
                                             index=int (index),
@@ -1728,8 +1719,32 @@ class pymbe_library():
                 self.add_value_to_df(key=('molecule_id',''),
                                         index=int (index),
                                         new_value=molecule_id)
+                
+            if molecule_index == min(protein_index_list):
+                self.setup_particle_diameter(positions=positions)
+
         return
+
+    def setup_particle_diameter (self,positions):
+
+        import re 
     
+        for residue in positions.keys():
+
+            residue_name = re.split(r'\d+', residue)[0]
+            residue_number = re.split(r'(\d+)', residue)[1]
+            residue_diameter  = positions[residue]['diameter']
+            diameter = residue_diameter*self.units.nm
+
+            index = self.df[(self.df['residue_id']==residue_number) & (self.df['name']==residue_name) ].index.values[0]
+            
+            self.add_value_to_df(key= ('diameter',''),
+                        index=int (index),
+                        new_value=diameter)
+            
+        return 
+
+
     def activate_motion_of_rigid_object (self, name, espresso_system):
         '''
         Activates the motion of rigid object using the features of Virtual Sites from EsPRessoMD
