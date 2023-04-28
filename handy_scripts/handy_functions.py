@@ -388,40 +388,16 @@ def calculate_net_charge (espresso_system, pmb_df, name):
     charge_in_aminoacids = {}
 
     molecule_id = pmb_df.loc [pmb_df['name']==name].molecule_id.values[0]
-    particle_id_list = pmb_df.loc[pmb_df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+    particle_id_list = pmb_df.loc[pmb_df['molecule_id']==molecule_id].particle_id.dropna().to_list()  
     
-    for pid in particle_id_list: 
+    for pid in particle_id_list:    
 
-        acidity = pmb_df.loc[pmb_df['particle_id']==pid].acidity.values[0]
+        label =  pmb_df.loc[pmb_df['particle_id']==pid].name.values[0]
 
-        if acidity == 'inert':
-
-            charge = pmb_df.loc[pmb_df['particle_id']==pid].state_one.charge.values[0]
-
-            if charge != 0:
-                label = pmb_df.loc[pmb_df['particle_id']==pid].state_one.label.values[0]
-                es_type = pmb_df.loc[pmb_df['particle_id']==pid].state_one.es_type.values[0]
-                amino_charge = espresso_system.number_of_particles(type= es_type) * charge
-                charge_in_aminoacids [label] = (amino_charge)
-            continue
-
-        elif acidity == 'acidic':
-
-            label = pmb_df.loc[pmb_df['particle_id']==pid].state_two.label.values[0]
-            es_type = pmb_df.loc[pmb_df['particle_id']==pid].state_two.es_type.values[0]
-            charge = pmb_df.loc[pmb_df['particle_id']==pid].state_two.charge.values[0]
-
-            amino_charge = espresso_system.number_of_particles(type= es_type) * charge
-            charge_in_aminoacids [label] = (amino_charge)
-
-        elif acidity == 'basic':
-
-            label = pmb_df.loc[pmb_df['particle_id']==pid].state_one.label.values[0]
-            es_type = pmb_df.loc[pmb_df['particle_id']==pid].state_one.es_type.values[0]
-            charge = pmb_df.loc[pmb_df['particle_id']==pid].state_one.charge.values[0]
-
-            amino_charge = espresso_system.number_of_particles(type= es_type) * charge
-            charge_in_aminoacids [label] = (amino_charge)
+        if label in charge_in_aminoacids.keys():
+            charge_in_aminoacids[label]+=espresso_system.part.by_id(pid).q
+        else:
+            charge_in_aminoacids[label]=espresso_system.part.by_id(pid).q
 
     net_charge = sum(charge_in_aminoacids.values())
 
