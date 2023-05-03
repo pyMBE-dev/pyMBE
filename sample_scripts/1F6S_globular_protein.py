@@ -17,22 +17,27 @@ sys.path.insert(0, parentdir)
 import pyMBE
 pmb = pyMBE.pymbe_library()
 
-from handy_scripts.handy_functions import  calculate_net_charge
+from handy_scripts.handy_functions import calculate_net_charge_in_molecule
 
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
+
+#This line allows you to see the complete amount of rows in the dataframe
+pmb.pd.set_option('display.max_rows', None)
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 if not os.path.exists('./frames'):
     os.makedirs('./frames')
 
 parser = argparse.ArgumentParser(description='Script to run globular protein simulation in espressomd')
-parser.add_argument('--pH', type=float,help='Expected pH value')
+parser.add_argument('-pH', type=float, required= True,  help='Expected pH value')
 args = parser.parse_args ()
 
 #System Parameters 
-# pH_value = 7.0
 pH_value = args.pH 
+print (pH_value)
+
+#agregar check para cuando no se da un valor pH 
 
 # print (f"Running simulation for: {pH_value}")
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
@@ -58,7 +63,6 @@ probability_reaction = 0.5
 bead_size = 0.355*pmb.units.nm
 epsilon = 1*pmb.units('reduced_energy')
 
-
 WCA = True
 Electrostatics = True
 
@@ -67,13 +71,28 @@ espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
 #Directory of the protein model 
 protein_name = '1f6s'
-protein_filename = 'sample_scripts/coarse_grain_model_of_1f6s.vtf'
+protein_filename = os.path.join (parentdir,'sample_scripts/coarse_grain_model_of_1f6s.vtf' )
+
 
 #Reads the VTF file of the protein model
 protein_positions = pmb.load_protein_vtf_in_df (name=protein_name,filename=protein_filename)
 
+#Create dictionary with the value of epsilon for each residue
+protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
+clean_sequence = pmb.protein_sequence_parser(sequence=protein_sequence)
+
+epsilon_dict = {}
+for residue in clean_sequence:
+    if residue not in epsilon_dict.keys():
+        epsilon_dict [residue] = epsilon
+
+#Define epsilon for each particle
+pmb.define_epsilon_value_of_particles (eps_dict = epsilon_dict)
+
+# print (pmb.filter_df(pmb_type='particle'))
+
 #Metal Ion calcium definition
-pmb.define_particle(name='Ca',q=+2,diameter=bead_size,epsilon=epsilon)
+pmb.define_particle(name='Ca',q=+2,epsilon=epsilon)
 
 # Solution 
 cation_name = 'Na'
@@ -83,7 +102,7 @@ pmb.define_particle(name=anion_name,  q=-1, diameter=0.2*pmb.units.nm,  epsilon=
 
 # Here we upload the pka set from the reference_parameters folder 
 
-pmb.load_pka_set (filename='reference_parameters/pka_sets/Nozaki1967.txt')
+pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets/Nozaki1967.txt'))
 
 #We create the protein in espresso 
 pmb.create_protein_in_espresso(name=protein_name,
@@ -101,8 +120,6 @@ pmb.center_molecule_in_simulation_box (molecule_id=protein_id,espresso_system=es
 pmb.create_counterions_in_espresso (pmb_object='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
 
 c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
-
-
 
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
 acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
@@ -206,19 +223,19 @@ for step in tqdm(range(N_samples)):
         else:
             RE.reaction( reaction_steps = total_ionisible_groups)
 
-        calculated_net_charge = calculate_net_charge (espresso_system=espresso_system,pmb_df = pmb.df, name =protein_name)
+        calculated_net_charge = calculate_net_charge_in_molecule (espresso_system=espresso_system,pmb_df = pmb.df, name = protein_name)
 
         net_charge = calculated_net_charge['net_charge']
-        net_charge_aminoacids = calculated_net_charge ['net_charge_aminoacids']
+        net_charge_residues = calculated_net_charge ['net_charge_residues']
 
         time_step.append (str(espresso_system.time))
         net_charge_list.append (net_charge)
 
         if len(net_charge_amino_save.keys()) == 0:
-            for amino in net_charge_aminoacids.keys():
+            for amino in net_charge_residues.keys():
                 net_charge_amino_save [amino] = []
-        for amino in net_charge_aminoacids.keys():            
-            net_charge_amino_save [amino].append (net_charge_aminoacids[amino])
+        for amino in net_charge_residues.keys():            
+            net_charge_amino_save [amino].append (net_charge_residues[amino])
 
         if (step % stride_traj == 0  ):
             n_frame +=1
