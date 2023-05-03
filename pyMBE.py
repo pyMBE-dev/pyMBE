@@ -1623,7 +1623,6 @@ class pymbe_library():
 
         Args:
             clean_sequence: 
-
         '''
 
         already_defined_AA=[]
@@ -1727,6 +1726,14 @@ class pymbe_library():
 
     def setup_particle_diameter (self,positions):
 
+        '''
+        Setup the diamater of the aminoacids loaded from the coarse grain file
+
+        Args:
+            positions (dict):
+        '''
+
+
         import re 
     
         for residue in positions.keys():
@@ -1744,6 +1751,27 @@ class pymbe_library():
             
         return 
 
+    def define_epsilon_value_of_particles (self, eps_dict):
+
+        '''
+        Defines the epsilon value for the particles given in eps_dict in the df.
+
+        Args:
+            eps_dict (dict): dictionary with the values of epsilon with the corresponding units for each particle following the format {'name': epsilon}
+        '''
+        
+        for residue in eps_dict.keys():
+
+            label_list = self.df[self.df['name'] == residue].index.tolist()
+
+            for index in label_list:
+                epsilon = eps_dict[residue]
+
+                self.add_value_to_df(key= ('epsilon',''),
+                        index=int (index),
+                        new_value=epsilon)
+
+        return 
 
     def activate_motion_of_rigid_object (self, name, espresso_system):
         '''
