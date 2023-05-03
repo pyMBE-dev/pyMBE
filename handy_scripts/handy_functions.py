@@ -2,7 +2,7 @@
 NOTE: Many of this functions rely on a depracted version of the sugar library and need to be fixed
 """
 
-def setup_electrostatic_interactions_in_espresso(units, espresso_system, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
+def setup_electrostatic_interactions_in_espresso(units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
     """
     Setups electrostatic interactions in espressomd. 
     Inputs:
@@ -14,7 +14,7 @@ def setup_electrostatic_interactions_in_espresso(units, espresso_system, c_salt=
     accuracy: desired accuracy for electrostatics, by default 1e-3
     """
     import espressomd.electrostatics
-
+    import numpy as np
     #Initial checks
 
     valid_methods_list=['p3m', 'DH']
@@ -28,21 +28,24 @@ def setup_electrostatic_interactions_in_espresso(units, espresso_system, c_salt=
         raise ValueError('Please provide the added salt concentration c_salt to settup the Debye-Huckel potential')
         
 
-    BJERRUM_LENGTH = self.e.to('reduced_charge')**2 / (4 * self.units.pi * self.units.eps0 * solvent_permittivity * self.kT.to('reduced_energy'))
+    e = 1.60217662e-19 *units.C
+    N_A=6.02214076e23    / units.mol
+
+    BJERRUM_LENGTH = e.to('reduced_charge')**2 / (4 * units.pi * units.eps0 * solvent_permittivity * kT.to('reduced_energy'))
 
     print('\n Bjerrum length ', BJERRUM_LENGTH.to('nm'), '=', BJERRUM_LENGTH.to('reduced_length'))
 
-    COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * self.kT.to('reduced_energy') 
+    COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * kT.to('reduced_energy') 
     
     if c_salt is not None:
 
         if c_salt.check('[substance] [length]**-3'):
 
-            KAPPA=1./self.np.sqrt(8*self.units.pi*BJERRUM_LENGTH*self.N_A*c_salt)
+            KAPPA=1./np.sqrt(8*units.pi*BJERRUM_LENGTH*N_A*c_salt)
 
         elif c_salt.check('[length]**-3'):
             
-            KAPPA=1./self.np.sqrt(8*self.units.pi*BJERRUM_LENGTH*c_salt)
+            KAPPA=1./np.sqrt(8*units.pi*BJERRUM_LENGTH*c_salt)
 
         else:
 
@@ -313,10 +316,10 @@ def do_snapshot_espresso_system(espresso_system, filename):
     return
 
 
-def calculate_net_charge (espresso_system, pmb_df, name):
+def calculate_net_charge_in_molecule (espresso_system, pmb_df, name):
 
     '''
-    Calculates the net charge of a type `name` molecule. It returns a dictionary that contains the net charge and net charge by aminoacids of the molecule.
+    Calculates the net charge of a type `name` molecule. It returns a dictionary that contains the net charge and net charge by residues of the molecule.
 
     Args:
         espresso_system: system information 
@@ -324,10 +327,11 @@ def calculate_net_charge (espresso_system, pmb_df, name):
         name (str): name of the molecule to calculate de net charge
 
     Return:
-        calculated_charge (dict): a dictionary that has as keys net_charge and net_charge_aminoacids
+        calculated_charge (dict): a dictionary that has as keys net_charge and net_charge_residues
     '''
+    #sanity check: chequear que el name corresponde a una molecule/protein/peptide 
 
-    charge_in_aminoacids = {}
+    charge_in_residues = {}
 
     molecule_id = pmb_df.loc [pmb_df['name']==name].molecule_id.values[0]
     particle_id_list = pmb_df.loc[pmb_df['molecule_id']==molecule_id].particle_id.dropna().to_list()  
@@ -336,13 +340,13 @@ def calculate_net_charge (espresso_system, pmb_df, name):
 
         label =  pmb_df.loc[pmb_df['particle_id']==pid].name.values[0]
 
-        if label in charge_in_aminoacids.keys():
-            charge_in_aminoacids[label]+=espresso_system.part.by_id(pid).q
+        if label in charge_in_residues.keys():
+            charge_in_residues[label]+=espresso_system.part.by_id(pid).q
         else:
-            charge_in_aminoacids[label]=espresso_system.part.by_id(pid).q
+            charge_in_residues[label]=espresso_system.part.by_id(pid).q
 
-    net_charge = sum(charge_in_aminoacids.values())
+    net_charge = sum(charge_in_residues.values())
 
-    calculated_charge = {'net_charge':net_charge, 'net_charge_aminoacids':charge_in_aminoacids}
+    calculated_charge = {'net_charge':net_charge, 'net_charge_residues':charge_in_residues}
 
     return calculated_charge
