@@ -3,8 +3,12 @@
 .PHONY: visual 
 .PHONY: clean
 .PHONY: tests
+.PHONY: docs
 
 ESPResSo_build_path=~/espresso4.2/build
+
+docs:
+	pdoc ./pyMBE.py -o ./docs --docformat google 
 
 sample:
 	${ESPResSo_build_path}/pypresso sample_scripts/peptide_simulation_example.py

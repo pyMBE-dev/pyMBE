@@ -1,20 +1,26 @@
 class pymbe_library():
     """
     The library for the Molecular Brewer for ESPResSo (pyMBE)
+
+    Attributes:
+        TEMPERATURE(`obj`): Temperature of the system using the `pmb.units` UnitRegistry. Defaults to 298.15 K.
+        PARTICLE_SIZE(`obj`): Default particle size using the `pmb.units` UnitRegistry. Defaults to 0.355 nm.
+        N_A(`obj`): Avogadro number using the `pmb.units` UnitRegistry.
+        Kb(`obj`): Boltzmann constant using the `pmb.units` UnitRegistry.
+        e(`obj`): Elemental charge using the `pmb.units` UnitRegistry.
+        df(`obj`): PandasDataframe used to bookkeep all the information stored in pyMBE. Typically refered as `pmb.df`. 
     """
     import pint
-    units = pint.UnitRegistry()
     import numpy as np
     import pandas as pd 
     import json
-    import math
+    units = pint.UnitRegistry()
     # Default values    
     TEMPERATURE = 298.15 * units.K
     PARTICLE_SIZE = 0.355 * units.nm
     N_A=6.02214076e23    / units.mol
     Kb=1.38064852e-23    * units.J / units.K
     e=1.60217662e-19 *units.C
-    pi=3.14159265359
     df=None
     
     def __init__(self):
@@ -26,13 +32,46 @@ class pymbe_library():
         self.units.define(f'reduced_length = {self.PARTICLE_SIZE}')
         self.units.define(f'reduced_charge = 1*e')
         self.kT=self.TEMPERATURE*self.Kb
-        self.df = None
         self.setup_df()
         return
 
+    def add_bond_in_df (self,particle_id1,particle_id2, use_default_bond=False):
+        """
+        Adds a bond entry on the `pymbe.df` storing the particle_ids of the two bonded.
+
+        Args:
+            particle_id1 (`int`): particle_id of the type of the first particle type of the bonded particles
+            particle_id2 (`int`): particle_id of the type of the second particle type of the bonded particles
+            use_default_bond (`bool`, optional): Controls if a bond of type `default` is used to bond particle whose bonds types are not defined in `pmb.df`. Defaults to False.
+        """
+        particle_name1 = self.df.loc[self.df['particle_id']==particle_id1].name.values[0]
+        particle_name2 = self.df.loc[self.df['particle_id']==particle_id2].name.values[0]
+        bond_key = self.find_bond_key(particle_name1=particle_name1,
+                                    particle_name2=particle_name2, 
+                                    use_default_bond=use_default_bond)
+        if not bond_key:
+            return
+        self.copy_df_entry(name=bond_key,column_name='particle_id2',number_of_copies=1)
+        indexs = self.np.where(self.df['name']==bond_key)
+        index_list = list (indexs[0])
+        used_bond_df = self.df.loc[self.df['particle_id2'].notnull()]
+        #without this drop the program crashes when dropping duplicates because the 'bond' column is a dict
+        used_bond_df = used_bond_df.drop([('bond_object','')],axis =1 )
+        if len(used_bond_df.index) > 1: 
+            used_bond_df = used_bond_df.drop_duplicates(keep='first')
+        used_bond_index = used_bond_df.index.to_list()
+        for index in index_list:
+            if index not in used_bond_index:
+                self.clean_df_row(index=int(index))
+                self.df.at[index,'particle_id'] = particle_id1
+                self.df.at[index,'particle_id2'] = particle_id2
+                break
+        return
+
+
     def setup_df (self):
         """
-        Sets up `pymbe.df`
+        Sets up the pyMBE's dataframe `pymbe.df`
         """
 
         columns_name = self.pd.MultiIndex.from_tuples ([
@@ -67,7 +106,7 @@ class pymbe_library():
 
     def print_reduced_units(self):
         """
-        Prints the set of reduced units defined in pyMBE.units.
+        Prints the  current set of reduced units defined in pyMBE.units.
         """
         print("\nCurrent set of reduced units:")
         unit_length=self.units.Quantity(1,'reduced_length')
@@ -83,10 +122,10 @@ class pymbe_library():
         """
         Sets the set of reduced units used by pyMBE.units and it prints it.
 
-        Args: 
-            unit_length (cls): self.units object with units of length which will be used as reduced unit of lenght
-            unit_charge (cls): self.units object with units of charge which will be used as reduced unit of charge
-            temperature (cls): self.units object with units of temperature which will be used to calculate the reduced unit of energy = k_BT
+        Args:
+            unit_length (`obj`): Reduced unit of length defined using the `pmb.units` UnitRegistry 
+            unit_charge (`obj`): Reduced unit of charge defined using the `pmb.units` UnitRegistry 
+            temperature (`obj`): Temperature of the system, defined using the `pmb.units` UnitRegistry. It will be used to define the reduced unit of energy as k_B*temperature, where k_B is the Boltzmann constant.
         """
         self.units=self.pint.UnitRegistry()
         self.N_A=6.02214076e23 / self.units.mol
@@ -106,12 +145,12 @@ class pymbe_library():
         Defines a pyMBE object of type `particle` in  `pymbe.df`
 
         Args:
-            name (str): Unique label to identify the `particle` type 
-            q (int, optional): Charge of the `particle`. Defaults to 0.
-            diameter (cls, optional): Diameter used to setup Lennard-Jones interactions for the `particle`, should be given as a pyMBE.units object with units of length. Defaults to None
-            epsilon (cls, optional): Epsilon parameter used to setup Lennard-Jones interactions for the `particle`, should be given as a pyMBE.units object with units of energy. Defaults to None
-            acidity (str, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
-            pka (float, optional): If `particle` is an acid or a base, it its  pka-value.
+            name (`str`): Unique label that identifies the `particle`.  
+            q (`int`, optional): Charge of the `particle`. Defaults to 0.
+            diameter (`obj`, optional): Diameter used to setup Lennard-Jones interactions for the `particle`, should have units of length using the `pmb.units` UnitRegistry. Defaults to None.
+            epsilon (`obj`, optional): Epsilon parameter used to setup Lennard-Jones interactions for the `particle`, should have units of energy using the `pmb.units` UnitRegistry.. Defaults to None
+            acidity (`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
+            pka (`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
         """ 
         if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='particle'):
             index = self.df[self.df['name']==name].index[0]                                   
@@ -134,10 +173,10 @@ class pymbe_library():
         deprotonated states. In each state is set: `label`,`charge` and `es_type`. If its inert it will define only `state_one`
 
         Args:
-            name (str): Unique label to identify the `particle` type 
-            acidity (str): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
-            default_charge (int): Charge of the particle if its not set up the default is 0
-            pka (float, optional): If `particle` is an acid or a base, it its  pka-value.
+            name (`str`): Unique label that identifies the `particle`. 
+            acidity (`str`): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
+            default_charge (`int`): Charge of the particle. Defaults to 0.
+            pka (`float`, optional):  If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
         """
         acidity_valid_keys = ['inert','acidic', 'basic']
         if acidity not in acidity_valid_keys:
@@ -167,12 +206,12 @@ class pymbe_library():
 
     def define_residue(self, name, central_bead, side_chains):
         """
-        Defines a pyMBE object of type `residue` in the `pymbe.df`
+        Defines a pyMBE object of type `residue` in `pymbe.df`.
 
         Args:
-            name (str): Unique label to identify the `residue` type 
-            central_bead (str): Label of `name` of the `particle` pmb_type to be placed as central_bead of the residue
-            side_chains (list of str): List of `name`s corresponding to the `pmb_type`s to be placed as side_chains of the residue. Currently, only `pmb_types` of `particle` or `residue` are supported.
+            name (`str`): Unique label that identifies the `residue`.
+            central_bead (`str`): `name` of the `particle` to be placed as central_bead of the `residue`.
+            side_chains (`list` of `str`): List of `name`s of the pmb_objects to be placed as side_chains of the `residue`. Currently, only pmb_objects of type `particle`s or `residue`s are supported.
         """
         if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='residue'):
             return
@@ -185,11 +224,11 @@ class pymbe_library():
 
     def define_molecule(self, name, residue_list):
         """
-        Defines a pyMBE object of type `molecule` in the `pymbe.df`
+        Defines a pyMBE object of type `molecule` in `pymbe.df`.
 
         Args:
-            name (str): Unique label to identify the `molecule` type
-            residue_list (list of str): List of `name`s corresponding to `residue`s  of the `molecule`.  
+            name (`str`): Unique label that identifies the `molecule`.
+            residue_list (`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.  
         """
         if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='molecule'):
             return
@@ -201,12 +240,12 @@ class pymbe_library():
 
     def define_peptide(self, name, sequence, model):
         """
-        Returns a pyMBE object of type `molecule` in the `pymbe.df`
+        Defines a pyMBE object of type `peptide` in the `pymbe.df`.
 
         Args:
-            name (str): Unique label to identify the `peptide` type
-            sequence (string): string with the peptide sequence
-            model (string): string with the model name: '1beadAA' or '2beadAA'
+            name (`str`): Unique label that identifies the `peptide`.
+            sequence (`string`): Sequence of the `peptide`.
+            model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per aminoacid are supported.
         """
         if not self.check_if_name_is_defined_in_df(name = name, pmb_type_to_be_defined='peptide'):
             valid_keys = ['1beadAA','2beadAA']
@@ -242,9 +281,9 @@ class pymbe_library():
         Defines a pmb object of type `bond` in `pymbe.df`
         
         Args:
-            bond_object (cls): instance of a bond object from espressomd library
-            particle_name1 (str): label of the type of the first particle type of the bonded particles.
-            particle_name2 (str): label of the type of the second particle type of the bonded particles.
+            bond_object (`cls`): instance of a bond object from espressomd library
+            particle_name1 (`str`): `name` of the first `particle` to be bonded.
+            particle_name2 (`str`): `name` of the second `particle` to be bonded..
         """    
         index = len(self.df)
         for label in [particle_name1+'-'+particle_name2,particle_name2+'-'+particle_name1]:
@@ -259,53 +298,19 @@ class pymbe_library():
                                 new_value=self.json.dumps(bond_object.get_params()))
         return
 
-    def add_bond_in_df (self,particle_id1,particle_id2, use_default_bond=False):
-        """
-        Creates a bond entry on the `pymbe.df` storing the particle_ids of the two particles in the bond
-
-        Args: 
-            particle_id1 (int): particle_id of the type of the first particle type of the bonded particles
-            particle_id2 (int): particle_id of the type of the second particle type of the bonded particles
-            use_default_bond (bool, optional): Switch to control if a bond of type `default` is used to bond particle whose bonds types are not defined in `df`. Defaults to False.
-        """
-        particle_name1 = self.df.loc[self.df['particle_id']==particle_id1].name.values[0]
-        particle_name2 = self.df.loc[self.df['particle_id']==particle_id2].name.values[0]
-        bond_key = self.find_bond_key(particle_name1=particle_name1,
-                                    particle_name2=particle_name2, 
-                                    use_default_bond=use_default_bond)
-        if not bond_key:
-            return
-        self.copy_df_entry(name=bond_key,column_name='particle_id2',number_of_copies=1)
-        indexs = self.np.where(self.df['name']==bond_key)
-        index_list = list (indexs[0])
-        used_bond_df = self.df.loc[self.df['particle_id2'].notnull()]
-        #without this drop the program crashes when dropping duplicates because the 'bond' column is a dict
-        used_bond_df = used_bond_df.drop([('bond_object','')],axis =1 )
-        if len(used_bond_df.index) > 1: 
-            used_bond_df = used_bond_df.drop_duplicates(keep='first')
-        used_bond_index = used_bond_df.index.to_list()
-        for index in index_list:
-            if index not in used_bond_index:
-                self.clean_df_row(index=int(index))
-                self.df.at[index,'particle_id'] = particle_id1
-                self.df.at[index,'particle_id2'] = particle_id2
-                break
-        return
-
+    
     def create_particle_in_espresso(self, name, espresso_system, number_of_particles, position=None, fix=False):
         """
-        Creates `number_of_particles` particles of type `name` into `espresso_system`.
-        Bookeeps the particle ids of the particle created into `pymbe.df`.
-        Returns a list with the ids of the particles created.
-        `name` must be defined into `pymbe.df` as a pmb_object of type particle.
-
+        Creates `number_of_particles` particles of type `name` into `espresso_system` and bookkeeps them into `pymbe.df`.
+        
         Args:
-            name (str): Label of the particle type to be created. The particle type must be defined in `df
-            espresso_system (cls): Instance of a system class from espressomd library.
-            number_of_particles (int): Number of particles of type `name` to be created.
-            position (array of array, optional): Initial positions of the particles. If not given, particles are created in random positions
+            name (`str`): Label of the particle type to be created. `name` must be a `particle` defined in `pmb_df`. 
+            espresso_system (`cls`): Instance of a system object from the espressomd library.
+            number_of_particles (`int`): Number of particles to be created.
+            position (list of [`float`,`float`,`float`], optional): Initial positions of the particles. If not given, particles are created in random positions. Defaults to None.
+            fix(`bool`, optional): Controls if the particle motion is frozen in the integrator, it is used to create rigid objects. Defaults to False.
         Returns:
-            created_pid_list (:obj:`list` of :obj:`int`): List with the ids of the particles created into `espresso_system`.
+            created_pid_list(`list` of `float`): List with the ids of the particles created into `espresso_system`.
         """       
         if number_of_particles <=0:
             return
@@ -341,21 +346,17 @@ class pymbe_library():
 
     def create_residue_in_espresso (self, name, espresso_system, number_of_residues, central_bead_position=None,use_default_bond=False, backbone_vector=None):
         """
-        Creates `number_of_residues` residues of type `name` into `espresso_system`.
-        Bookeeps the residue ids of the residues created into `pymbe.df` in the correponding residues and particle entries.
-        Bookeeps the particles ids of the particles created into `pymbe.df` in the correponding particle entries.
-        Returns a dict with the ids of the particles created {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
-        `name` must be defined into `pymbe.df` as a pmb_object of type residue.
+        Creates `number_of_residues` residues of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
         Args:
-            name (str): Label of the residue type to be created. The residue type must be defined in `df`
-            espresso_system (cls): Instance of a system class from espressomd library.
-            number_of_residue (int): Number of residues of type `name` to be created.
-            central_bead_position (:obj:`list` of :obj:`float`): List with the coordinates of the position of the central bead
-            use_default_bond (bool): Switch to control if a bond of type `default` is used to bond particle whose bonds types are not defined in `df`
-            backbone_vector (:obj:`list` of :obj:`float`): List with the coordinates of the backbone vector of the molecule. All side chains will be created in perpendicular positions to `backbone_vector`
+            name(`str`): Label of the residue type to be created. `name` must be defined in `pmb.df`
+            espresso_system(`obj`): Instance of a system object from espressomd library.
+            number_of_residue(`int`): Number of residues of type `name` to be created.
+            central_bead_position(`list` of `float`): Position of the central bead.
+            use_default_bond (`bool`): Switch to control if a bond of type `default` is used to bond particle whose bonds types are not defined in `pmb.df`
+            backbone_vector (`list` of `float`): Backbone vector of the molecule. All side chains are created perpendicularly to `backbone_vector`.
         Returns:
-            residues_info (dict of int: dict): dict with the ids of the particles created {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
+            residues_info (`dict`): {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
         """
         if number_of_residues <= 0:
             return
@@ -471,25 +472,16 @@ class pymbe_library():
 
     def create_molecule_in_espresso(self, name, number_of_molecules,espresso_system, first_residue_position=None, use_default_bond=False):
         """
-        Creates a molecule in the espresso system
-
-        Creates `number_of_molecules` molecule of type `name` into `espresso_system`.
-        Bookeeps the molecule ids of the residues created into `pymbe.df` in the correponding residues and particle entries.
-        Bookeeps the particles ids of the particles created into `pymbe.df` in the correponding particle entries.
-        Returns a dict with the ids of the particles created {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":
-        [particle_id1, ...]}}} 
-        `name` must be defined into `pymbe.df` as a pmb_object of type molecule.
+        Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
         Args:
-            name (str): Label of the molecule type to be created. The molecule type must be defined in `pymbe.df`
-            espresso_system (cls): Instance of a system class from espressomd library.
-            number_of_molecules (int): Number of molecules of type `name` to be created.
-            first_residue_position (list, optional): coordinates where the first_residue_position will be created, random by default
-            use_default_bond (bool, optional): Switch to control if a bond of type `default` is used to bond particle whose bonds 
-            types are not defined in `pymbe.df`
+            name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
+            espresso_system(`obj`): Instance of a system object from espressomd library.
+            number_of_molecules(`int`): Number of molecules of type `name` to be created.
+            first_residue_position(`list`, optional): coordinates where the first_residue_position will be created, random by default
+            use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
         Returns:
-            molecules_info (dict of int: dict): dict with the ids of the particles created {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":
-        [particle_id1, ...]}}} 
+            molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
         """
         if number_of_molecules <= 0:
             return
@@ -581,38 +573,37 @@ class pymbe_library():
     
     def check_if_df_cell_has_a_value(self,index,key):
         """
-        Checks if a cell in the `pymbe.df` DataFrame at the specified index and column has a value.
+        Checks if a cell in the `pmb.df` at the specified index and column has a value.
 
         Args:
-            index (int): the index of the row to check.
-            key (str): the column label to check.
+            index(`int`): Index of the row to check.
+            key(`str`): Column label to check.
 
         Returns:
-            (bool): True if the cell has a value, False otherwise.
+            (`bool`): `True` if the cell has a value, `False` otherwise.
         """
         idx = self.pd.IndexSlice
         return not self.pd.isna(self.df.loc[index, idx[key]])
 
     def clean_df_row(self, index, columns_keys_to_clean=["particle_id", "particle_id2", "residue_id", "molecule_id"]):
         """
-        Cleans the columns of `pymbe.df` in `columns_keys_to_clean` of the row with index `index` by asigning them a np.nan value.
+        Cleans the columns of `pmb.df` in `columns_keys_to_clean` of the row with index `index` by asigning them a np.nan value.
 
         Args:
-            index (int): the index of the row to clean.
-            columns_keys_to_clean (list of str, optional): list with the column keys to be cleaned. 
-            Defaults to `particle_id`, `particle_id2`, `residue_id`, `molecule_id`.
+            index(`int`): Index of the row to clean.
+            columns_keys_to_clean(`list` of `str`, optional): List with the column keys to be cleaned. Defaults to [`particle_id`, `particle_id2`, `residue_id`, `molecule_id`].
         """   
         for column_key in columns_keys_to_clean:
             self.add_value_to_df(key=(column_key,''),index=index,new_value=self.np.nan, warning=False)
         return
     def add_value_to_df(self,index,key,new_value, warning=True):
         """
-        Adds a value to a cell in the `pymbe.df` DataFrame.
+        Adds a value to a cell in the `pmb.df` DataFrame.
 
         Args:
-            index (int): the index of the row to add the value to.
-            key (str): the column label to add the value to.
-            warning (bool, optional): If true, prints a warning if a value is being overwritten in `pymbe.df`. Defaults to true.
+            index(`int`): index of the row to add the value to.
+            key(`str`): the column label to add the value to.
+            warning(`bool`, optional): If true, prints a warning if a value is being overwritten in `pmb.df`. Defaults to true.
         """
         # Make sure index is a scalar integer value
         index = int (index)
@@ -631,17 +622,15 @@ class pymbe_library():
 
     def check_if_name_is_defined_in_df (self, name, pmb_type_to_be_defined):
         """
-        Checks if `name` is defined in `pymbe.df`.
-        If it is defined and it coresponds to a pmb_type different than `pmb_type_to_be_defined`, raises a ValueError.
+        Checks if `name` is defined in `pmb.df`.
 
         Args:
-            name (str): label to check if defined in `pymbe.df`.
-            pmb_type_to_be_defined (str): pmb object type corresponding to `name`.
+            name(`str`): label to check if defined in `pmb.df`.
+            pmb_type_to_be_defined(`str`): pmb object type corresponding to `name`.
 
         Returns:
-            bool: True for success, False otherwise.
+            `bool`: `True` for success, `False` otherwise.
         """
-
         if name in self.df['name'].unique():
             current_object_type = self.df[self.df['name']==name].pmb_type.values[0]
             if  current_object_type != pmb_type_to_be_defined:
@@ -652,15 +641,17 @@ class pymbe_library():
   
     def copy_df_entry(self, name, column_name, number_of_copies):
         '''
-        Creates 'number_of_copies' of a given 'name' into `pymbe.df`.
-        Returns the updated `pymbe.df`
+        Creates 'number_of_copies' of a given 'name' in `pymbe.df`.
 
         Args:
-            name (str): Label of the particle/residue/molecule type to be created. 
-                        must be defined in `pymbe.df`
-            column_name (str): Column name to use as a filter should be: particle_id/residue_id/molecule_id 
-            number_of_copies (int): number of copies of `name` to be created.
+            name(`str`): Label of the particle/residue/molecule type to be created. `name` must be defined in `pmb.df`
+            column_name(`str`): Column name to use as a filter. Currently, it only supports "particle_id", "residue_id" and "molecule_id" 
+            number_of_copies(`int`): number of copies of `name` to be created.
         '''
+
+        valid_column_names=["particle_id", "residue_id", "molecule_id" ]
+        if column_name not in valid_column_names:
+            raise ValueError(f"{column_name} is not a valid column_name, currently only the following are supported: {valid_column_names}")
         df_by_name = self.df.loc[self.df.name == name]
         if number_of_copies != 1:           
             if df_by_name[column_name].isnull().values.any():       
@@ -681,10 +672,10 @@ class pymbe_library():
 
     def propose_unused_type(self):
         """
-        Searches in `pymbe.df` all particle types defined and returns a new type
+        Searches in `pmb.df` all the different particle types defined and returns a new one.
 
         Returns:
-            unused_type: (int) unused particle type
+            unused_type(`int`): unused particle type
         """
         type_map=self.get_type_map()
         if type_map == {}:    
@@ -706,7 +697,13 @@ class pymbe_library():
             use_default_bond (bool, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
 
         Returns:
-            bond (cls): bond object from the espressomd library. 
+            bond (cls): bond object from the espressomd library.
+        
+        Note:
+            If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
+
+        Note:
+            If `hard_check`=`True` stops the code when no bond is found.
         """
         bond_key = self.find_bond_key(particle_name1=particle_name1, 
                                     particle_name2=particle_name2, 
@@ -723,16 +720,17 @@ class pymbe_library():
     def find_bond_key(self,particle_name1, particle_name2, use_default_bond=False):
         """
         Searches for the `name`  of the bond between `particle_name1` and `particle_name2` in `pymbe.df` and returns it.
-        If `use_default_bond` is activated and a "default" bond is defined, returns the default bond if no key is found.
-        Otherwise it does not return anything.
-
+        
         Args:
-            particle_name1 (str): label of the type of the first particle type of the bonded particles.
-            particle_name2 (str): label of the type of the second particle type of the bonded particles.
-            use_default_bond (bool, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
+            particle_name1(`str`): label of the type of the first particle type of the bonded particles.
+            particle_name2(`str`): label of the type of the second particle type of the bonded particles.
+            use_default_bond(`bool`, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to 'False'. 
 
         Returns:
             bond_key (str): `name` of the bond between `particle_name1` and `particle_name2` 
+
+        Note:
+            If `use_default_bond`=`True`, it returns "default" if no key is found.
         """
         bond_keys = [particle_name1 +'-'+ particle_name2, particle_name2 +'-'+ particle_name1 ]
         bond_defined=False
@@ -750,8 +748,7 @@ class pymbe_library():
         
     def add_bonds_to_espresso (self, espresso_system) :
         """
-        Adds all bonds defined in `pymbe.df` to `espresso_system`.
-        If no bonds are defined in `pymbe.df` prints a warning message.
+        Adds all bonds defined in `pmb.df` to `espresso_system`.
 
         Args:
             espresso_system (str): system object of espressomd library
@@ -769,11 +766,11 @@ class pymbe_library():
     
     def load_interaction_parameters (self, filename, verbose=False):
         """
-        Loads the interaction parameters stored in filename into `pymbe.df`
+        Loads the interaction parameters stored in filename into `pmb.df`
         
         Args:
-            filename (string): name of the file to be read
-            verbose (boolean): switches on/off the reading prints
+            filename(`str`): name of the file to be read
+            verbose(`bool`): switches on/off the reading prints
         """
         from espressomd import interactions
         without_units = ['q','es_type','acidity']
@@ -832,12 +829,14 @@ class pymbe_library():
     
     def load_pka_set(self,filename, verbose=False):
         """
-        Loads the parameters stored in `filename` into `pymbe.df`
-        Checks if `name` is defined in the `pymbe.df`, if it is prints a warning
-
+        Loads the pka_set stored in `filename` into `pmb.df`.
+        
         Args:
-            filename (str): name of the file with the pka set to be loaded. Expected format is {name:{"acidity": acidity, "pka_value":pka_value}}.
-            verbose (bool, optional): If activated, the function reports each pKa value loaded. Defaults to False
+            filename(`str`): name of the file with the pka set to be loaded. Expected format is {name:{"acidity": acidity, "pka_value":pka_value}}.
+            verbose(`bool`, optional): If activated, the function reports each pKa value loaded. Defaults to False
+
+        Note:
+            If `name` is already defined in the `pymbe.df`, it prints a warning.
         """
         pKa_list=[]
         with open(filename) as f:
@@ -858,10 +857,10 @@ class pymbe_library():
 
     def define_default_bond(self, bond_object):
         """
-        Asigns `bond` in `pymbe.df`  as the default bond type to be used by pyMBE.
+        Asigns `bond` in `pmb.df` as the default bond.
 
         Args:
-            bond (cls): bond object from espressomd library
+            bond (`obj`): instance of a bond object from the espressomd library.
         """
         if self.check_if_name_is_defined_in_df(name='default',pmb_type_to_be_defined='bond'):
             return
@@ -881,12 +880,12 @@ class pymbe_library():
 
     def create_variable_with_units(self, variable_dict):
         """
-        Returns a pint object with the value and units defined in variable_dict
+        Returns a pint object with the value and units defined in `variable_dict`.
 
         Args:
-            variable_dict(dict): contains the value and the units of the variable
+            variable_dict(`dict`): {'value': value, 'units': units}
         Returns:
-            variable_with_units(pint object): pint object containing the value and the desired units
+            variable_with_units(`obj`): variable with units using the pyMBE UnitRegistry.
         """        
         value=variable_dict.pop('value')
         units=variable_dict.pop('units')
@@ -896,13 +895,12 @@ class pymbe_library():
 
     def filter_df (self, pmb_type):
         """
-        Filters `pymbe.df` and returns a sub-set of it containing only 
-        rows with pmb object type=`pmb_type` and non-Nan columns
+        Filters `pmb.df` and returns a sub-set of it containing only rows with pmb_object_type=`pmb_type` and non-Nan columns.
         
         Args:
-            pmb_type (str): pmb object type to filter in `pymbe.df`
+            pmb_type(`str`): pmb_object_type to filter in `pmb.df`.
         Returns:
-            pmb_type_df (cls): pandas df filtered for rows with pmb object type=`pmb_type` and non-Nan columns
+            pmb_type_df(`obj`): filtered `pmb.df`.
         """
         pmb_type_df = self.df.loc[self.df['pmb_type']== pmb_type]
         pmb_type_df = pmb_type_df.dropna( axis=1, thresh=1)
@@ -911,10 +909,10 @@ class pymbe_library():
 
     def get_type_map(self):
         """
-        Searches all different espresso types assigned to particles  in `pymbe.df` and returns them in a dictionary {"name": espresso_type}
+        Gets all different espresso types assigned to particles  in `pmb.df`.
         
         Returns:
-            type_map(dict): Dictionary with the type map {"name": espresso_type}.
+            type_map(`dict`): {"name": espresso_type}.
         """
         if self.df.state_one['es_type'].isnull().values.any():         
             df_state_one = self.df.state_one.dropna(how='all')     
@@ -932,11 +930,10 @@ class pymbe_library():
 
     def get_charge_map (self):
         '''
-        Maps the charge associated to each `espresso_type` in `pymbe.df` and 
-        returns them in a dictionary {espresso_type: charge}
+        Gets the charge of each `espresso_type` in `pymbe.df`.
         
         Returns:
-            charge_map(dict): Dictionary with the charge map {espresso_type: charge}.
+            charge_map(`dict`): {espresso_type: charge}.
         '''
         if self.df.state_one['es_type'].isnull().values.any():         
             df_state_one = self.df.state_one.dropna()     
@@ -954,11 +951,10 @@ class pymbe_library():
     
     def get_radius_map(self):
         '''
-        Searches the diameter associate to each `espresso type` in `pymbe.df` and 
-        returns the radius in a dictionary {espresso_type: radius}
+        Gets the diameter of each `espresso type` in `pmb.df`. 
         
         Returns:
-            radius_map(dict): Dictionary with the radius map {espresso_type: radius}.
+            radius_map(`dict`): {espresso_type: radius}.
 
         '''
 
@@ -973,11 +969,10 @@ class pymbe_library():
     
     def get_pka_set(self):
         '''
-        Searches particles with `acidity` equal to "acidic" or "basic"  in `pymbe.df` and 
-        returns a dict of dict with the associated pka-value and acidity
+        Gets the pka-values and acidities of the particles with acid/base properties in `pmb.df`
         
         Returns:
-            pka_set (dict): Dictionary with the pka_set {"name" : {"pka_value": pka, "acidity": acidity}}
+            pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}
         '''
         titratables_AA_df = self.df[[('name',''),('pka',''),('acidity','')]].drop_duplicates().dropna()
         pka_set = {}
@@ -990,18 +985,20 @@ class pymbe_library():
 
     def protein_sequence_parser(self, sequence):
         '''
-        Parses `sequence` to complay to the one letter code used for aminoacids.
-        Accepted formats are:
-        1) List with one letter or three letter code of each aminoacid in each element
-        2) String with the sequence using the one letter code
-        3) String with the squence using the three letter code, each aminoacid must be separated by a hyphon "-"
-        Prints an error if finds a key unknown to the parser.
+        Parses `sequence` to the one letter code for aminoacids.
         
         Args:
-            sequence (string or list): sequence of the aminoacid. 
+            sequence(`str` or `lst`): Sequence of the aminoacid. 
 
-        Output:
-            clean_sequence (list): list with each aminoacid in `sequence` in the one letter code
+        Returns:
+            clean_sequence(`list`): `sequence` using the one letter code.
+        
+        Note:
+            Accepted formats for `sequence` are:
+            1) `lst` with one letter or three letter code of each aminoacid in each element
+            2) `str` with the sequence using the one letter code
+            3) `str` with the squence using the three letter code, each aminoacid must be separated by a hyphon "-"
+        
         '''
         # Aminoacid key
         keys={"ALA": "A",
@@ -1077,18 +1074,18 @@ class pymbe_library():
 
     def setup_constantpH_reactions_in_espresso(self, counter_ion, constant_pH, SEED, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
-        Set up the Acid/Base reactions for acidic/basidic residues in mol. The reaction steps are done following the constant pH ensamble procedure. 
+        Sets up the Acid/Base reactions for acidic/basic `particles` defined in `pmb.df` to be sampled in the constant pH ensamble. 
 
-        Args:      
-            counter_ion (str): name of counter_ion particle defined in pyMBE library
-            constant_pH (float): pH value to set up the reaction
-            SEED (int): Seed for the random number generator.
-            exclusion_radius (float, optional): exclusion radius for the constant pH ensamble
-            use_exclusion_radius_per_type (bool,optional): switch to use an specific exclusion radius per espresso type, by default is set to False.
-            pka_set (dict,optional): dictionary with the desired pka_set, by default the one stored in pyMBE will be used
+        Args:
+            counter_ion(`str`): `name` of the counter_ion `particle`.
+            constant_pH(`float`): pH-value.
+            SEED(`int`): Seed for the random number generator.
+            exclusion_range(`float`, optional): Bellow this value, no particles will be inserted.
+            use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius per each espresso_type. Defaults to `False`.
+            pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
         Returns:
-            RE (cls): instance of the espresso class reaction_ensemble.ConstantpHEnsemble
-            sucessfull_reactions_labels (list): list with the labels of the reactions that has been set up by pyMBE 
+            RE (`obj`): Instance of a reaction_ensemble.ConstantpHEnsemble object from the espressomd library.
+            sucessfull_reactions_labels(`lst`): Labels of the reactions set up by pyMBE.
         """
         from espressomd import reaction_methods
         if exclusion_range is None:
@@ -1129,9 +1126,9 @@ class pymbe_library():
     def check_pka_set(self, pka_set):
         """"
         Checks that `pka_set` has the formatting expected by the pyMBE library.
-        Raises a ValueError if `pka_set` does not comply with the expected format. 
+       
         Args:
-            pka_set (dict): dictionary to be checked. Should be structured following the format:
+            pka_set (dict): {"name" : {"pka_value": pka, "acidity": acidity}}
         """
         required_keys=['pka_value','acidity']
         for required_key in required_keys:
@@ -1143,17 +1140,18 @@ class pymbe_library():
     def generate_trialvectors (self,center, radius, n_samples, seed=None):
         """
         Uniformly samples points from a hypersphere.
-        Algorithm from
-        https://baezortega.github.io/2018/10/14/hypersphere-sampling/
-
+        
         Args:
-            center (array): array with the coordinates of the center of the spheres.
-            radius (float): magnitude of the radius of the sphere
-            n_samples (int): number of sample points to generate inside the sphere
-            seed (int, opt): seed for the random number generator
+            center(`lst`): Array with the coordinates of the center of the spheres.
+            radius(`float`): Radius of the sphere.
+            n_samples(`int`): Number of sample points to generate inside the sphere.
+            seed (`int`, optional): Seed for the random number generator
 
         Returns:
-            samples (list): list with the generated points
+            samples(`list`): Coordinates of the sample points inside the hypersphere.
+
+        Note:
+            Algorithm from: https://baezortega.github.io/2018/10/14/hypersphere-sampling/
         """
         # initial values
         center=self.np.array(center)
@@ -1177,11 +1175,11 @@ class pymbe_library():
         Generates a random vector perpendicular to `vector`.
         
         Args:
-            vector (list): array with the coordinates of the vector.
-            magnitude (float): magnitude desired of the vector perpendicular to `vector`.
+            vector(`lst`): Coordinates of the vector.
+            magnitude(`float`): magnitude of the vector perpendicular to `vector`.
 
         Returns:
-            perpendicular_vector (numpy array):  random vector perpendicular to the input vector.
+            perpendicular_vector(`np.array`): random vector perpendicular to `vector`.
         """
         np_vec=self.np.array(vector)
         if np_vec[1] == 0 and np_vec[2] == 0 and np_vec[0] == 1:
@@ -1190,19 +1188,20 @@ class pymbe_library():
         norm_perp_vec = perp_vec/self.np.linalg.norm(perp_vec)
         return center+norm_perp_vec*radius
 
-    def calculate_HH(self, sequence, pH=None, pka_set=None):
+    def calculate_HH(self, sequence, pH_list=None, pka_set=None):
         """
-        Calculates the ideal Henderson-Hasselbach titration curve in the given pH range
+        Calculates the ideal Henderson-Hasselbach titration curve of `sequence`.
 
         Args:
-            pH (list of floats): list of pH values
-            sequence (list of strings or string): list of aminoacids 
+            sequence(`lst`): List of `name`s of particles.
+            pH_list(`lst`): pH-values to calculate. 
+            pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}
 
         Returns:
-            Z_HH (list of floats): Henderson-Hasselbach prediction of the protein charge in the given pH
+            Z_HH (`lst`): Henderson-Hasselbach prediction of the charge of `sequence` in `pH_list`
         """
-        if pH is None:
-            pH=self.np.linspace(2,12,50)    
+        if pH_list is None:
+            pH_list=self.np.linspace(2,12,50)    
 
         if pka_set is None:
             pka_set=self.get_pka_set() 
@@ -1210,7 +1209,7 @@ class pymbe_library():
 
         Z_HH=[]
 
-        for pH_value in pH:    
+        for pH_value in pH_list:    
             Z=0
             for name in sequence:
                 
@@ -1230,16 +1229,16 @@ class pymbe_library():
 
     def create_added_salt_in_espresso(self, espresso_system, cation_name, anion_name, c_salt):    
         """
-        Adds a c_salt concentration of cations and anions to the espresso_system
+        Creates a `c_salt` concentration of `cation_name` and `anion_name` ions into the `espresso_system`.
 
         Args:
-            espresso_system (class): espresso class object with all system variables.
-            cation_name (str): particle defined in `pymbe.df` with `name`: cation_name that has a positive charge
-            anion_name (str): particle defined in `pymbe.df` with `name`: anion_name that has a negative charge
-            c_salt (float): Added salt concentration
+            espresso_system (`obj`): instance of a espresso system object.
+            cation_name(`str`): `name` of a particle with a positive charge.
+            anion_name(`str`): `name` of a particle with a negative charge.
+            c_salt (float): Salt concentration. 
             
         Returns:
-            c_salt_calculated (float): Calculated added salt concentration added to solution    
+            c_salt_calculated (float): Calculated salt concentration added to `espresso_system`.
         """
         cation_name_charge = self.df.loc[self.df['name']==cation_name].state_one.charge.values[0]
         anion_name_charge = self.df.loc[self.df['name']==anion_name].state_one.charge.values[0]     
@@ -1266,13 +1265,17 @@ class pymbe_library():
 
     def create_pmb_object_in_espresso(self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
         """
-        Creates all particles contained in the pmb object in the system of espresso
+        Creates all `particle`s associated to `pmb object` into  `espresso` a number of times equal to `number_of_objects`.
         
         Args:
-            name (str): Label of the pmb object to be created. The pmb object must be defined in `pymbe.df`
-            number_of_objects (int): Number of pmb object of type `name` to be created.
-            espresso_system (cls): Instance of a system class from espressomd library.
-            use_default_bond (bool): Switch to control if a bond of type `default` is used to bond particle whose bonds types are not defined in `df`
+            name(`str`): Unique label of the `pmb object` to be created. 
+            number_of_objects(`int`): Number of `pmb object`s to be created.
+            espresso_system(`obj`): Instance of a espresso system object from espressomd library.
+            position(`list`): Coordinates where the particles should be created.
+            use_default_bond(`bool`,optional): Controls if a `default` bond is used to bond particles with undefined bonds in `pmb.df`. Defaults to `False`.
+
+        Note:
+            If no `position` is given, particles will be created in random positions. For bonded particles, they will be created at a distance equal to the bond length. 
         """
         allowed_objects=['particle','residue','molecule']
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
@@ -1288,14 +1291,14 @@ class pymbe_library():
     
     def destroy_pmb_object_in_system(self, name, espresso_system):
         """
-        Destroys the object labeled `name` and all particles associated with it from the espresso system.
-        Removes the destroyed objects from `df`.
-        NOTE: if `name` corresponds to a object_type `particle`, only the particles that are not part of bigger objects
-        (i.e. `residue`, `molecule`) will be destroyed. To destroy particles in such objects, destroy the bigger object instead.
+        Destroys all particles associated with `name` in `espresso_system` amd removes the destroyed pmb_objects from `pmb.df` 
 
         Args:
             name (str): Label of the pmb object to be destroyed. The pmb object must be defined in `pymbe.df`.
             espresso_system (cls): Instance of a system class from espressomd library.
+
+        Note:
+            If `name`  is a object_type=`particle`, only the mathcing particles that are not part of bigger objects (e.g. `residue`, `molecule`) will be destroyed. To destroy particles in such objects, destroy the bigger object instead.
         """
         allowed_objects = ['particle','residue','molecule']
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
@@ -1331,22 +1334,22 @@ class pymbe_library():
 
         return
 
-    def create_counterions_in_espresso(self, pmb_object, cation_name, anion_name, espresso_system):
+    def create_counterions_in_espresso(self, pmb_object_name, cation_name, anion_name, espresso_system):
         """
-        Creates cation and anion particles in the espresso_system to counter the charge of the particles contained in object
+        Creates particles of `cation_name` and `anion_name` in `espresso_system` to counter the net charge of `pmb_object`.
         
         Args:
-            pmb_object (str): particle, residue or molecule/peptide object
-            espresso_system (class): espresso class object with all system variables.
-            cation_name (str): particle defined in `pymbe.df` with `name`: cation_name that has a positive charge
-            anion_name (str): particle defined in `pymbe.df` with `name`: anion_name that has a negative charge
+            pmb_object_name(`str`): `name` of a pymbe object.
+            espresso_system(`obj`): Instance of a system object from the espressomd library.
+            cation_name(`str`): `name` of a particle with a positive charge.
+            anion_name(`str`): `name` of a particle with a negative charge.
 
         Returns: 
-            counterion_number (dict): dictionary with the number of counterions created {"name": number}
+            counterion_number (dict): {"name": number}
         """
         cation_charge = self.df.loc[self.df['name']==cation_name].state_one.charge.iloc[0]
         anion_charge = self.df.loc[self.df['name']==anion_name].state_one.charge.iloc[0]
-        object_ids = self.df.loc [self.df['pmb_type']== pmb_object].particle_id.dropna().tolist()
+        object_ids = self.df.loc [self.df['pmb_type']== pmb_object_name].particle_id.dropna().tolist()
         counterion_number={}
         object_charge={}
         for name in ['positive', 'negative']:
@@ -1379,14 +1382,14 @@ class pymbe_library():
     
     def find_value_from_es_type(self, es_type, column_name):
         """
-        Finds a value in `pymbe.df`  for a `column_name` and `es_type` pair.
+        Finds a value in `pmb.df` for a `column_name` and `es_type` pair.
 
         Args:
-            es_type (int): value of the espresso type
-            column_name (str): name of the column in `pymbe.df`
+            es_type(`int`): value of the espresso type
+            column_name(`str`): name of the column in `pymbe.df`
 
         Returns:
-            column_name_value (any): value in `pymbe.df` matching  `column_name` and `es_type`
+            Value in `pymbe.df` matching  `column_name` and `es_type`
         """
         idx = self.pd.IndexSlice
         for state in ['state_one', 'state_two']:
@@ -1409,10 +1412,16 @@ class pymbe_library():
         Check the documentation of ESPResSo for more info about the potential https://espressomd.github.io/doc4.2.0/inter_non-bonded.html
 
         Args:
-            espresso_system (class): espresso class object with all system variables.
-            cutoff (float, optional): cut-off length of the potential. Defaults to 2**(1./6.) in reduced_lenght units, corresponding to a purely steric potential
-            shift (string, optional): if set to `auto` shifts the potential to be continous at `cutoff`. Defaults to `auto`.
-            combining_rule (string, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
+            espresso_system(`obj`): Instance of a system object from the espressomd library.
+            cutoff(`float`, optional): cut-off length of the LJ potential. Defaults to None.
+            shift (`string`, optional): If set to `auto` shifts the potential to be continous at `cutoff`. Defaults to `auto`.
+            combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
+
+        Note:
+            If no `cutoff`  is given, its value is set to 2**(1./6.) in reduced_lenght units, corresponding to a purely steric potential.
+
+        Note:
+            Currently, the only `combining_rule` supported is Lorentz-Berthelot.
         """
         from itertools import combinations_with_replacement
         sigma=1*self.units('reduced_length')
@@ -1477,10 +1486,15 @@ class pymbe_library():
 
     def load_protein_vtf_in_df (self, name, filename,unit_length=None):
         """
-        Reads the input VTF file of the protein model
+        Loads a coarse-grained protein model in a vtf file `filename` into the `pmb.df` and it labels it with `name`.
 
         Args:
-            filename: path of the protein file
+            name(`str`): Unique label to identify the protein.
+            filename(`str`): Path to the vtf file with the coarse-grained model.
+            unit_length(`obj`): unit of lenght of the the coordinates in `filename` using the pyMBE UnitRegistry. Defaults to None.
+
+        Note:
+            If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
         """
 
         print (f'Loading protein coarse grain model file: {filename}')
@@ -1616,21 +1630,22 @@ class pymbe_library():
 
         return protein_coordinates
     
-    def define_AA_particles_in_sequence (self, clean_sequence):
-
+    def define_AA_particles_in_sequence (self, sequence):
         '''
-        Defines in the df the aminoacids presente in a 'clean_sequence' from a peptide/molecule/protein
+        Defines in `pmb.df` all the different particles in `sequence`.
 
         Args:
-            clean_sequence: 
+            sequence(`lst`):  Sequence of the peptide or protein. 
+
+        Note:
+            It assumes that the names in `sequence` correspond to aminoacid names using the standard  one letter code.
         '''
 
         already_defined_AA=[]
-
         acidic_aminoacids = ['c','E','D','Y','C']
         basic_aminoacids  = ['R','n','K','H']
 
-        for residue_name in clean_sequence:
+        for residue_name in sequence:
             if residue_name in already_defined_AA:
                 continue
             if residue_name in acidic_aminoacids:
@@ -1639,23 +1654,19 @@ class pymbe_library():
                 self.define_particle (name=residue_name, acidity='basic')
             else:
                 self.define_particle (name=residue_name, q=0)
-
         return 
 
     def create_protein_in_espresso(self, name, number_of_proteins, espresso_system, positions):
-
         """
-        Creates a protein in the espresso: system
-        
-        Creates `number_of_proteins` molecule of type `name` into `espresso_system` in the coordinates obtained from the coarse grained model loaded
+        Creates `number_of_proteins` molecule of type `name` into `espresso_system` in the coordinates in `positions`
 
-        `name` must be defined into `pymbe.df` as a pmb_object of type molecule.
+        PABLO-NOTE: The structure of `positions` needs to be discussed with Pao
+
         Args:
-            name (str): Label of the protein type to be created. The protein type must be defined in `pymbe.df`
-            espresso_system (cls): Instance of a system class from espressomd library.
-            number_of_proteins (int): Number of proteins of type `name` to be created.
-            positions (dict): dictionary with the coordinates that has the format {'ResidueNumber': {'initial_pos': [], 'chain_id': ''}}
-
+            name(`str`): Label of the protein to be created. 
+            espresso_system(`obj`): Instance of a system object from the espressomd library.
+            number_of_proteins(`int`): Number of proteins to be created.
+            positions(`dict`): {'ResidueNumber': {'initial_pos': [], 'chain_id': ''}}
         """
 
         import re 
@@ -1725,26 +1736,21 @@ class pymbe_library():
         return
 
     def setup_particle_diameter (self,positions):
-
         '''
-        Setup the diamater of the aminoacids loaded from the coarse grain file
+        Sets up the diameter of the particles in `positions`.
+        PABLO-NOTE: The structure of `positions` needs to be discussed with Pao
 
         Args:
-            positions (dict):
+            positions (dict):{'ResidueNumber': {'initial_pos': [], 'chain_id': ''}}
         '''
-
-
         import re 
-    
+   
         for residue in positions.keys():
-
             residue_name = re.split(r'\d+', residue)[0]
             residue_number = re.split(r'(\d+)', residue)[1]
             residue_diameter  = positions[residue]['diameter']
             diameter = residue_diameter*self.units.nm
-
             index = self.df[(self.df['residue_id']==residue_number) & (self.df['name']==residue_name) ].index.values[0]
-            
             self.add_value_to_df(key= ('diameter',''),
                         index=int (index),
                         new_value=diameter)
@@ -1752,176 +1758,131 @@ class pymbe_library():
         return 
 
     def define_epsilon_value_of_particles (self, eps_dict):
-
         '''
-        Defines the epsilon value for the particles given in eps_dict in the df.
+        Defines the epsilon value of the particles in `eps_dict` into the `pmb.df`.
 
         Args:
-            eps_dict (dict): dictionary with the values of epsilon with the corresponding units for each particle following the format {'name': epsilon}
+            eps_dict(`dict`):  {'name': epsilon}
         '''
-        
         for residue in eps_dict.keys():
-
             label_list = self.df[self.df['name'] == residue].index.tolist()
-
             for index in label_list:
                 epsilon = eps_dict[residue]
-
                 self.add_value_to_df(key= ('epsilon',''),
                         index=int (index),
                         new_value=epsilon)
-
         return 
 
     def activate_motion_of_rigid_object (self, name, espresso_system):
         '''
-        Activates the motion of rigid object using the features of Virtual Sites from EsPRessoMD
+        Activates the motion of the rigid object `name` in the `espresso_system`.
 
         Args:
-            name (str): Label of the protein type to be created. The protein type must be defined in `pymbe.df`
-            espresso_system (cls): Instance of a system class from espressomd library.
+            name(`str`): Label of the object.
+            espresso_system(`obj`): Instance of a system object from the espressomd library.
+
+        Note:
+            It requires that espressodmd has the following feautures activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
         '''
-
         print ('activate_motion_of_rigid_object requires that espressodmd has the following feautures activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
-
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
-
         if pmb_type != 'protein':
             raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
-
         molecule_ids_list = self.df.loc[self.df['name']==name].molecule_id.to_list()
-
         for molecule_id in molecule_ids_list:    
-
             particle_ids_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
-
             center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
-
             rigid_object_center = espresso_system.part.add(pos=center_of_mass,
                                                            rotation=[True,True,True], 
                                                            type=self.propose_unused_type())
-            
             for particle_id in particle_ids_list:
                 pid = espresso_system.part.by_id(particle_id)
                 pid.vs_auto_relate_to(rigid_object_center.id)
-
         return
 
     def center_molecule_in_simulation_box (self, molecule_id, espresso_system):
-
         """
-        Centers the pmb object of type `name` in the center of the simulation box. Returns the position updated on the system.
+        Centers the pmb object matching `molecule_id` in the center of the simulation box in `espresso_md`.
         
         Args:
-            molecule_id (int): ID of the molecue type to be centered. The molecule id must be defined in `df`
-            espresso_system (cls): Instance of a system class from espressomd library.
-
+            molecule_id(`int`): Id of the molecule to be centered.
+            espresso_system(`obj`): Instance of a system object from the espressomd library.
         """
-
         center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
-
         box_center = [espresso_system.box_l[0]/2.0]*3
-
         pmb_type = self.df.loc[self.df['molecule_id']==molecule_id].pmb_type.values[0]
-
         pmb_objects = ['protein','molecule','peptide']
-
         if pmb_type in pmb_objects:
-
             particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
             for pid in particle_id_list:
-
                 es_pos = espresso_system.part.by_id(pid).pos
                 espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
-
         return 
 
     def calculate_center_of_mass_of_molecule (self,molecule_id, espresso_system):
-        
         """
         Calculates the center of mass of type `name`
         Args:
-            molecule_id (int): ID of the molecue type to be centered. The molecule id must be defined in `df`
-            espresso_system (cls): Instance of a system class from espressomd library.
-        Return:
-            center_of_mass (lst): a list with the coordinates of the center of mass [ X, Y, Z]
+            molecule_id(`int`): Id of the molecule to be centered.
+            espresso_system(`obj`): Instance of a system object from the espressomd library.
+        
+        Returns:
+            center_of_mass(`lst`): Coordinates of the center of mass.
         """
-
         total_beads = 0
         center_of_mass = self.np.zeros(3)
         axis_list = [0,1,2]
-        
         particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
-
         for pid in particle_id_list:
             total_beads +=1 
             for axis in axis_list:
                 center_of_mass [axis] += espresso_system.part.by_id(pid).pos[axis]
-
         center_of_mass = center_of_mass /total_beads  
-
         return center_of_mass
 
-    def generate_coordinates_outside_sphere (self, espresso_system, center, min_dist, max_dist, n_samples):
+    def generate_coordinates_outside_sphere (self, center, radius, max_dist, n_samples):
 
         """
-        Generates coordinates outside a sphere 
+        Generates coordinates outside a sphere centered.
 
         Args:
-            espresso_system (cls): Instance of a system class from espressomd library.
-            center (array): array with the coordinates of the center of the spheres.
-            min_dist (int): minimun distance from the center to generate coordinates
-            max_dist (int): maximum distance from the center to generate coordinates
-            n_samples (int): number of sample points to generate inside the sphere
+            center(`lst`): Coordinates of the center of the sphere.
+            radius(`float`): Radius of the sphere.
+            max_dist(`float`): Maximum distance from the center of the spahre to generate coordinates.
+            n_samples(`int`): Number of sample points.
 
+        Returns:
+            coord_list(`lst`): Coordinates of the sample points.
         """
-
+        if not radius > 0: 
+            raise ValueError (f'The value of {radius} must be a positive value')
+        if not radius < max_dist:
+            raise ValueError(f'The min_dist ({radius} must be lower than the max_dist ({max_dist}))')
         coord_list = []
-        box_l = espresso_system.box_l[0]
-
-        if not min_dist > 0: 
-            raise ValueError (f'The value of {min_dist} must be a positive value')
-        if not min_dist < max_dist:
-            raise ValueError(f'The min_dist ({min_dist} must be lower than the max_dist ({max_dist}))')
-        if not min_dist <= box_l/2.0 and max_dist <= box_l/2.0:
-            raise ValueError(f'The min_dist and max_dist parameter should have values between 0 and {box_l/2.0} (box_l/2)')
-
         for _ in range(n_samples):
-
             rand = self.np.random.random() 
-            rad = min_dist + rand*(max_dist-min_dist)
-
+            rad = radius + rand*(max_dist-radius)
             coord = self.generate_trialvectors(center=center, radius=rad,n_samples=1)[0]
             coord_list.append (coord)
-
         return coord_list
     
-    def write_output_vtf_file (self, espresso_system, n_frame):
-    
+    def write_output_vtf_file (self, espresso_system, filename):
         '''
-        Writes the system information on a vtf file for each frame with additional information the format it follows is:
-        'atom {particle_id} radius {} name {label} type {label}'
+        Writes a snapshot of `espresso_system` on the vtf file `filename`.
 
-        Args: 
-            espresso_system (cls): Instance of a system class from espressomd library.
-            n_frame (int): number of current frame 
+        Args:
+            espresso_system(`obj`): Instance of a system object from the espressomd library.
+            filename(`str`): Path to the vtf file.
 
         '''
-        number = 1000 + n_frame
         box = espresso_system.box_l[0]
-
-        with open(f'frames/trajectory_{number}.vtf', mode='w+t') as coordinates:
-
+        with open(filename, mode='w+t') as coordinates:
             coordinates.write (f'unitcell {box} {box} {box} \n')
-            
             for particle in espresso_system.part: 
                 type_label = self.find_value_from_es_type(es_type=particle.type, column_name='label')
                 coordinates.write (f'atom {particle.id} radius 1 name {type_label} type {type_label}\n' )
-
             coordinates.write (f'#timestep indexed\n')
-
             for particle in espresso_system.part:
                 coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
-
         return 
     
