@@ -116,7 +116,7 @@ with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
     vtf.writevcf(espresso_system, coordinates) 
 
 # Create counterions for the peptide chains
-pmb.create_counterions_in_espresso (pmb_object='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
+pmb.create_counterions_in_espresso (pmb_object_name='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
 c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
 #List of ionisible groups 

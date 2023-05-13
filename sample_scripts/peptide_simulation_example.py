@@ -105,7 +105,7 @@ pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
 pmb.create_pmb_object_in_espresso (name=peptide, number_of_objects= N_peptide_chains,espresso_system=espresso_system, use_default_bond=True)
-pmb.create_counterions_in_espresso (pmb_object='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) # Create counterions for the peptide chains
+pmb.create_counterions_in_espresso (pmb_object_name='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) # Create counterions for the peptide chains
 
 c_salt_calculated = pmb.create_added_salt_in_espresso(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
@@ -293,7 +293,7 @@ print("Net charge analysis")
 av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(input_data=Z_pH)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-Z_HH = pmb.calculate_HH(sequence= sequence, pH=pH_range)
+Z_HH = pmb.calculate_HH(sequence= sequence, pH_list=pH_range)
 
 fig, ax = plt.subplots(figsize=(10, 7))
 plt.errorbar(pH_range, av_net_charge, yerr=err_net_charge, fmt = '-o', capsize=3, label='Simulation')

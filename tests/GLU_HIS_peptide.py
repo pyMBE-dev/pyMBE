@@ -90,7 +90,7 @@ pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 pmb.create_pmb_object_in_espresso (name=sequence, number_of_objects= N_peptide_chains,espresso_system=espresso_system, use_default_bond=True)
 
 # Create counterions for the peptide chains
-pmb.create_counterions_in_espresso(pmb_object='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) 
+pmb.create_counterions_in_espresso(pmb_object_name='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) 
 c_salt_calculated=pmb.create_added_salt_in_espresso(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
 #List of ionisible groups 

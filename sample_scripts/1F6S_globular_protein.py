@@ -117,7 +117,7 @@ pmb.create_protein_in_espresso(name=protein_name,
 protein_id = pmb.df.loc[pmb.df['name']==protein_name].molecule_id.values[0]
 pmb.center_molecule_in_simulation_box (molecule_id=protein_id,espresso_system=espresso_system)
 
-pmb.create_counterions_in_espresso (pmb_object='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
+pmb.create_counterions_in_espresso (pmb_object_name='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
 
 c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 

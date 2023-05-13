@@ -140,6 +140,7 @@ class pymbe_library():
     def calculate_center_of_mass_of_molecule (self,molecule_id, espresso_system):
         """
         Calculates the center of mass of type `name`
+        
         Args:
             molecule_id(`int`): Id of the molecule to be centered.
             espresso_system(`obj`): Instance of a system object from the espressomd library.
@@ -281,11 +282,14 @@ class pymbe_library():
 
         Args:
             name(`str`): Label of the particle/residue/molecule type to be created. `name` must be defined in `pmb.df`
-            column_name(`str`): Column name to use as a filter. Currently, it only supports "particle_id", "residue_id" and "molecule_id" 
+            column_name(`str`): Column name to use as a filter. 
             number_of_copies(`int`): number of copies of `name` to be created.
+        
+        Note:
+            Currently, column_name only supports "particle_id", "particle_id2", "residue_id" and "molecule_id" 
         '''
 
-        valid_column_names=["particle_id", "residue_id", "molecule_id" ]
+        valid_column_names=["particle_id", "residue_id", "molecule_id", "particle_id2" ]
         if column_name not in valid_column_names:
             raise ValueError(f"{column_name} is not a valid column_name, currently only the following are supported: {valid_column_names}")
         df_by_name = self.df.loc[self.df.name == name]
