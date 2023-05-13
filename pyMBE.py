@@ -3,35 +3,47 @@ class pymbe_library():
     The library for the Molecular Brewer for ESPResSo (pyMBE)
 
     Attributes:
-        TEMPERATURE(`obj`): Temperature of the system using the `pmb.units` UnitRegistry. Defaults to 298.15 K.
-        PARTICLE_SIZE(`obj`): Default particle size using the `pmb.units` UnitRegistry. Defaults to 0.355 nm.
         N_A(`obj`): Avogadro number using the `pmb.units` UnitRegistry.
         Kb(`obj`): Boltzmann constant using the `pmb.units` UnitRegistry.
         e(`obj`): Elemental charge using the `pmb.units` UnitRegistry.
         df(`obj`): PandasDataframe used to bookkeep all the information stored in pyMBE. Typically refered as `pmb.df`. 
+        kT(`obj`): Thermal energy using the `pmb.units` UnitRegistry. it is used as the unit of reduced energy.
     """
     import pint
     import numpy as np
     import pandas as pd 
     import json
     units = pint.UnitRegistry()
-    # Default values    
-    TEMPERATURE = 298.15 * units.K
-    PARTICLE_SIZE = 0.355 * units.nm
     N_A=6.02214076e23    / units.mol
     Kb=1.38064852e-23    * units.J / units.K
     e=1.60217662e-19 *units.C
     df=None
+    kT=None
 
-    def __init__(self):
+    def __init__(self, temperature=None, reduced_length=None):
         """
-        Initializes the pymbe_library object with default settings and sets up `pymbe.df` for storing the data.
+        Initializes the pymbe_library by setting up the reduced unit system with `temperature` and `reduced_length` 
+        and sets up  the `pmb.df` for bookkepping.
+
+        Args:
+            - temperature(`obj`,optional): Value of the temperature in the pyMBE UnitRegistry. Defaults to None.
+            - reduced_length(`obj`, optional): Value of the reduced_length in the pyMBE UnitRegistry. Defaults to None.
+        
+        Note:
+            - If no `temperature` is given, a value of 298.15 K is assumed by default.
+
+        Note:
+            - If no `reduced_length` is given, a value of 0.355 nm is assumed by default. 
         """
         # Default definitions of reduced units
-        self.units.define(f'reduced_energy = {self.TEMPERATURE * self.Kb}')
-        self.units.define(f'reduced_length = {self.PARTICLE_SIZE}')
+        if temperature is None:
+            temperature= 298.15 * self.units.K
+        if reduced_length is None:
+            reduced_length= 0.355 * self.units.nm
+        self.kT=temperature*self.Kb
+        self.units.define(f'reduced_energy = {self.kT}')
+        self.units.define(f'reduced_length = {reduced_length}')
         self.units.define(f'reduced_charge = 1*e')
-        self.kT=self.TEMPERATURE*self.Kb
         self.setup_df()
         return
     
@@ -118,6 +130,7 @@ class pymbe_library():
         Adds a value to a cell in the `pmb.df` DataFrame.
 
         Args:
+
             index(`int`): index of the row to add the value to.
             key(`str`): the column label to add the value to.
             warning(`bool`, optional): If true, prints a warning if a value is being overwritten in `pmb.df`. Defaults to true.
@@ -139,8 +152,8 @@ class pymbe_library():
 
     def calculate_center_of_mass_of_molecule (self,molecule_id, espresso_system):
         """
-        Calculates the center of mass of type `name`
-        
+        Calculates the center of mass of type `name`.
+
         Args:
             molecule_id(`int`): Id of the molecule to be centered.
             espresso_system(`obj`): Instance of a system object from the espressomd library.
@@ -1484,7 +1497,7 @@ class pymbe_library():
         unit_charge=self.units.Quantity(1,'reduced_charge')
         print(unit_length.to('nm'), "=", unit_length)
         print(unit_energy.to('J'), "=", unit_energy)
-        print('Temperature:', self.TEMPERATURE)
+        print('Temperature:', (self.kT/self.Kb).to("K"))
         print(unit_charge.to('C'), "=", unit_charge)
         print()
 
@@ -1676,12 +1689,10 @@ class pymbe_library():
         self.N_A=6.02214076e23 / self.units.mol
         self.Kb=1.38064852e-23 * self.units.J / self.units.K
         self.e=1.60217662e-19 *self.units.C
-        self.TEMPERATURE=temperature.to('K').magnitude*self.units.K
-        unit_energy=self.TEMPERATURE*self.Kb
-        self.units.define(f'reduced_energy = {unit_energy} ')
+        self.kT=temperature*self.Kb
+        self.units.define(f'reduced_energy = {self.kT} ')
         self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = {unit_charge}')        
-        self.kT=self.TEMPERATURE*self.Kb
         self.print_reduced_units()
         return
 
