@@ -106,7 +106,7 @@ pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets
 
 #We create the protein in espresso 
 pmb.create_protein_in_espresso(name=protein_name,
-                               number_of_proteins=1,
+                               number_of_proteins=3,
                                espresso_system=espresso_system,
                                positions=protein_positions)
 
@@ -193,7 +193,7 @@ if (WCA):
 #Save the initial state 
 
 n_frame = 0
-pmb.write_output_vtf_file(espresso_system=espresso_system,n_frame=n_frame)
+pmb.write_output_vtf_file(espresso_system=espresso_system,filename=f"frames/trajectory{n_frame}.vtf")
 
 print (f'Optimizing skin\n')
 espresso_system.time_step = dt 
@@ -239,7 +239,7 @@ for step in tqdm(range(N_samples)):
 
         if (step % stride_traj == 0  ):
             n_frame +=1
-            pmb.write_output_vtf_file(espresso_system=espresso_system,n_frame=n_frame)
+            pmb.write_output_vtf_file(espresso_system=espresso_system,filename=f"frames/trajectory{n_frame}.vtf")
 
 observables_df['time'] = time_step 
 observables_df['Znet'] = net_charge_list

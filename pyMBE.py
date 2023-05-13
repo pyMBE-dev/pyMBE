@@ -20,29 +20,35 @@ class pymbe_library():
     df=None
     kT=None
 
-    def __init__(self, temperature=None, reduced_length=None):
+    def __init__(self, temperature=None, unit_length=None, unit_charge=None):
         """
         Initializes the pymbe_library by setting up the reduced unit system with `temperature` and `reduced_length` 
         and sets up  the `pmb.df` for bookkepping.
 
         Args:
             - temperature(`obj`,optional): Value of the temperature in the pyMBE UnitRegistry. Defaults to None.
-            - reduced_length(`obj`, optional): Value of the reduced_length in the pyMBE UnitRegistry. Defaults to None.
+            - unit_length(`obj`, optional): Value of the unit of length in the pyMBE UnitRegistry. Defaults to None.
+            - unit_charge (`obj`): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
         
-        Note:
+       Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
 
         Note:
-            - If no `reduced_length` is given, a value of 0.355 nm is assumed by default. 
+            - If no `unit_length` is given, a value of 0.355 nm is assumed by default.
+
+        Note:
+            - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
         """
         # Default definitions of reduced units
         if temperature is None:
             temperature= 298.15 * self.units.K
-        if reduced_length is None:
-            reduced_length= 0.355 * self.units.nm
+        if unit_length is None:
+            unit_length= 0.355 * self.units.nm
+        if unit_charge is None:
+            unit_charge=self.units.e
         self.kT=temperature*self.Kb
         self.units.define(f'reduced_energy = {self.kT}')
-        self.units.define(f'reduced_length = {reduced_length}')
+        self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = 1*e')
         self.setup_df()
         return
@@ -183,32 +189,31 @@ class pymbe_library():
 
         Returns:
             Z_HH (`lst`): Henderson-Hasselbach prediction of the charge of `sequence` in `pH_list`
+
+        Note:
+            If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated
+
+        Note:
+            If no `pka_set` is given, the pKa values are taken from `pmb.df`
         """
         if pH_list is None:
             pH_list=self.np.linspace(2,12,50)    
-
         if pka_set is None:
             pka_set=self.get_pka_set() 
         self.check_pka_set(pka_set=pka_set)
-
         Z_HH=[]
-
         for pH_value in pH_list:    
             Z=0
-            for name in sequence:
-                
+            for name in sequence: 
                 if name in pka_set.keys():
-
                     if pka_set[name]['acidity'] == 'acidic':
                         psi=-1
                     elif pka_set[name]['acidity']== 'basic':
                         psi=+1
                     else:
                         psi=0
-                    Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))
-                            
+                    Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))                      
             Z_HH.append(Z)
-
         return Z_HH
 
     def center_molecule_in_simulation_box (self, molecule_id, espresso_system):
@@ -547,8 +552,7 @@ class pymbe_library():
             created_pid_list.append(bead_id)
             
             espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q,fix =[fix,fix,fix])        
-            self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, warning=False)          
-        
+            self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, warning=False)                  
         return created_pid_list
 
     def create_pmb_object_in_espresso(self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
@@ -589,25 +593,21 @@ class pymbe_library():
             number_of_proteins(`int`): Number of proteins to be created.
             positions(`dict`): {'ResidueNumber': {'initial_pos': [], 'chain_id': ''}}
         """
-
         import re 
-
         if number_of_proteins <=0:
             return
         if not self.check_if_name_is_defined_in_df(name=name,
-                                                    pmb_type_to_be_defined='protein'):
-            raise ValueError(f"{name} must correspond to a label of a pmb_type='protein' defined on df")
+                                                  pmb_type_to_be_defined='protein'):
+            raise ValueError(f"{name} must correspond to a name of a pmb_type='protein' defined on df")
 
         self.copy_df_entry(name=name,column_name='molecule_id',number_of_copies=number_of_proteins)
 
         protein_index = self.np.where(self.df['name']==name)
         protein_index_list =list(protein_index[0])[-number_of_proteins:]
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
-
+        box_half=espresso_system.box_l[0]/2.0
         for molecule_index in protein_index_list:          
-
             self.clean_df_row(index=int(molecule_index))
-
             if self.df['molecule_id'].isnull().values.all():
                 molecule_id = 0        
             else:
@@ -624,22 +624,25 @@ class pymbe_library():
 
             #assigns molecule_id to the protein defined       
             self.add_value_to_df (key=('molecule_id',''),
-                                index=int (molecule_index),
+                                index=int(molecule_index),
                                 new_value=molecule_id, 
                                 warning=False)
-            
-            # protein_center = self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
 
-            protein_center = self.generate_coordinates_outside_sphere(espresso_system = espresso_system, min_dist = 1, max_dist=espresso_system.box_l[0]/2.0 , n_samples=1, center=[0,0,0])[0]
+            protein_center = self.generate_coordinates_outside_sphere(radius = 1, 
+                                                                        max_dist=box_half, 
+                                                                        n_samples=1, 
+                                                                        center=[box_half]*3)[0]
    
             for residue in positions.keys():
-
                 residue_name = re.split(r'\d+', residue)[0]
                 residue_number = re.split(r'(\d+)', residue)[1]
                 residue_position = positions[residue]['initial_pos']
                 position = residue_position + protein_center
-
-                particle_id = self.create_particle_in_espresso(name=residue_name,espresso_system=espresso_system,number_of_particles=1,position=[position], fix = True)
+                particle_id = self.create_particle_in_espresso(name=residue_name,
+                                                            espresso_system=espresso_system,
+                                                            number_of_particles=1,
+                                                            position=[position], 
+                                                            fix = True)
 
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
 
@@ -1462,7 +1465,7 @@ class pymbe_library():
         if label_CA:
             self.define_particle(name='CA')
 
-        self.define_AA_particles_in_sequence (clean_sequence=clean_sequence)
+        self.define_AA_particles_in_sequence (sequence=clean_sequence)
 
         residue_list = []
 
@@ -1676,16 +1679,31 @@ class pymbe_library():
 
     
     
-    def set_reduced_units(self, unit_length=0.355*units.nm,  unit_charge=units.e, temperature=298.15 * units.K):
+    def set_reduced_units(self, unit_length=None,unit_charge=None,temperature=None):
         """
         Sets the set of reduced units used by pyMBE.units and it prints it.
 
         Args:
-            unit_length (`obj`): Reduced unit of length defined using the `pmb.units` UnitRegistry 
-            unit_charge (`obj`): Reduced unit of charge defined using the `pmb.units` UnitRegistry 
-            temperature (`obj`): Temperature of the system, defined using the `pmb.units` UnitRegistry. It will be used to define the reduced unit of energy as k_B*temperature, where k_B is the Boltzmann constant.
+            unit_length (`obj`): Reduced unit of length defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            unit_charge (`obj`): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            temperature (`obj`): Temperature of the system, defined using the `pmb.units` UnitRegistry. Defaults to None. 
+
+        Note:
+            - If no `temperature` is given, a value of 298.15 K is assumed by default.
+
+        Note:
+            - If no `unit_length` is given, a value of 0.355 nm is assumed by default.
+
+        Note:
+            - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
         """
         self.units=self.pint.UnitRegistry()
+        if unit_length is None:
+            unit_length=0.355*self.units.nm
+        if temperature is None:
+            temperature=298.15 * self.units.K
+        if unit_charge is None:
+            unit_charge=self.units.e
         self.N_A=6.02214076e23 / self.units.mol
         self.Kb=1.38064852e-23 * self.units.J / self.units.K
         self.e=1.60217662e-19 *self.units.C
