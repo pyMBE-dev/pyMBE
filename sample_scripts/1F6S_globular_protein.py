@@ -85,6 +85,8 @@ epsilon_dict = {}
 for residue in clean_sequence:
     if residue not in epsilon_dict.keys():
         epsilon_dict [residue] = epsilon
+        
+    epsilon_dict ['CA'] = epsilon
 
 #Define epsilon for each particle
 pmb.define_epsilon_value_of_particles (eps_dict = epsilon_dict)

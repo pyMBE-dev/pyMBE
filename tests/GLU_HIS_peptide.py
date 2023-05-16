@@ -285,7 +285,7 @@ print("Rg analysis")
 av_rg, err_rg, tau_rg, block_size = block_analyze(input_data=Rg_pH)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-Z_HH = pmb.calculate_HH(sequence=sequence, pH=pH_range)
+Z_HH = pmb.calculate_HH(sequence=sequence, pH_list=pH_range)
 
 # Load the reference data 
 
