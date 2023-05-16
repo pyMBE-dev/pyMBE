@@ -1609,7 +1609,7 @@ class pymbe_library():
 
     def search_bond (self, particle_name1, particle_name2, hard_check=False, use_default_bond=False) :
         """
-        Searches for between the particle types given by `particle_name1` and `particle_name2` in `pymbe.df` and returns it.
+        Searches for bonds between the particle types given by `particle_name1` and `particle_name2` in `pymbe.df` and returns it.
         If `use_default_bond` is activated and a "default" bond is defined, returns that default bond instead.
         If no bond is found, it prints a message and it does not return nothing. If `hard_check` is activated, the code stops if no bond is found.
 
@@ -1918,7 +1918,7 @@ class pymbe_library():
             for particle in espresso_system.part: 
                 type_label = self.find_value_from_es_type(es_type=particle.type, column_name='label')
                 coordinates.write (f'atom {particle.id} radius 1 name {type_label} type {type_label}\n' )
-            coordinates.write (f'#timestep indexed\n')
+            coordinates.write (f'timestep indexed\n')
             for particle in espresso_system.part:
                 coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
         return 
