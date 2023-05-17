@@ -564,8 +564,6 @@ class pymbe_library():
         """
         Creates `number_of_proteins` molecule of type `name` into `espresso_system` in the coordinates in `positions`
 
-        PABLO-NOTE: The structure of `positions` needs to be discussed with Pao
-
         Args:
             name(`str`): Label of the protein to be created. 
             espresso_system(`obj`): Instance of a system object from the espressomd library.
@@ -1333,6 +1331,9 @@ class pymbe_library():
             filename(`str`): Path to the vtf file with the coarse-grained model.
             unit_length(`obj`): unit of lenght of the the coordinates in `filename` using the pyMBE UnitRegistry. Defaults to None.
 
+        Returns:
+            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
+
         Note:
             If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
         """
@@ -1390,7 +1391,14 @@ class pymbe_library():
         axes_list = [0,1,2]
         updated_coordinates_list = []
 
-
+        # Pablo-NOTE:
+        # 1- Lines 1397-1403 could be done before in line 1389
+        # 2- Definir el diametro del CA
+        # 3- Cambiar load_protein_vtf_in_df por read_protein_vtf --> topology_dict
+        # 4- Nueva funcion define_protein ()
+        # 5- Tener cuidado con label_CA
+        # 6- Limpiar codigo, borrar variables e condiciones innecesarias
+        # 7- Hacer funciones de las lineas repetidas de codigo entre create_molecule y create_protein (las que hacen copias en el df)
 
         for pos in coord_list:
             updated_pos = self.np.zeros(3,)
@@ -1430,10 +1438,12 @@ class pymbe_library():
                     numbered_resname.append(updated_name)
                     count +=1
 
-        protein_coordinates = {}
+        topology_dict = {}
 
         for i in range (0, len(numbered_resname)):   
-            protein_coordinates [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1], 'diameter':numbered_resname[i][2] }
+            topology_dict [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1], 'diameter':numbered_resname[i][2] }
+
+        #### CORTAR
 
         clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
 
@@ -1468,7 +1478,7 @@ class pymbe_library():
         self.df.at [index,('sequence','')] = protein_sequence  
         self.df.at [index,('residue_list','')] = residue_list    
 
-        return protein_coordinates
+        return topology_dict
 
     def print_reduced_units(self):
         """
@@ -1848,20 +1858,19 @@ class pymbe_library():
             print('no interaction has been added for those particles in ESPResSo')
         return
 
-    def setup_particle_diameter (self,positions):
+    def setup_particle_diameter (self,topology_dict):
         '''
         Sets up the diameter of the particles in `positions`.
-        PABLO-NOTE: The structure of `positions` needs to be discussed with Pao
 
         Args:
-            positions (dict):{'ResidueNumber': {'initial_pos': [], 'chain_id': ''}}
+            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
         '''
         import re 
    
-        for residue in positions.keys():
+        for residue in topology_dict.keys():
             residue_name = re.split(r'\d+', residue)[0]
             residue_number = re.split(r'(\d+)', residue)[1]
-            residue_diameter  = positions[residue]['diameter']
+            residue_diameter  = topology_dict[residue]['diameter']
             diameter = residue_diameter*self.units.nm
             index = self.df[(self.df['residue_id']==residue_number) & (self.df['name']==residue_name) ].index.values[0]
             self.add_value_to_df(key= ('diameter',''),
