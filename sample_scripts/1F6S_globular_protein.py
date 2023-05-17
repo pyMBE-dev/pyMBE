@@ -85,6 +85,8 @@ epsilon_dict = {}
 for residue in clean_sequence:
     if residue not in epsilon_dict.keys():
         epsilon_dict [residue] = epsilon
+        
+    epsilon_dict ['CA'] = epsilon
 
 #Define epsilon for each particle
 pmb.define_epsilon_value_of_particles (eps_dict = epsilon_dict)
@@ -106,7 +108,7 @@ pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets
 
 #We create the protein in espresso 
 pmb.create_protein_in_espresso(name=protein_name,
-                               number_of_proteins=1,
+                               number_of_proteins=3,
                                espresso_system=espresso_system,
                                positions=protein_positions)
 
@@ -117,7 +119,7 @@ pmb.create_protein_in_espresso(name=protein_name,
 protein_id = pmb.df.loc[pmb.df['name']==protein_name].molecule_id.values[0]
 pmb.center_molecule_in_simulation_box (molecule_id=protein_id,espresso_system=espresso_system)
 
-pmb.create_counterions_in_espresso (pmb_object='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
+pmb.create_counterions_in_espresso (pmb_object_name='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
 
 c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
@@ -193,7 +195,7 @@ if (WCA):
 #Save the initial state 
 
 n_frame = 0
-pmb.write_output_vtf_file(espresso_system=espresso_system,n_frame=n_frame)
+pmb.write_output_vtf_file(espresso_system=espresso_system,filename=f"frames/trajectory{n_frame}.vtf")
 
 print (f'Optimizing skin\n')
 espresso_system.time_step = dt 
@@ -239,7 +241,7 @@ for step in tqdm(range(N_samples)):
 
         if (step % stride_traj == 0  ):
             n_frame +=1
-            pmb.write_output_vtf_file(espresso_system=espresso_system,n_frame=n_frame)
+            pmb.write_output_vtf_file(espresso_system=espresso_system,filename=f"frames/trajectory{n_frame}.vtf")
 
 observables_df['time'] = time_step 
 observables_df['Znet'] = net_charge_list

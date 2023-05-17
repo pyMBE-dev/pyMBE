@@ -92,7 +92,7 @@ pmb.create_pmb_object_in_espresso (name=sequence, number_of_objects= N_peptide_c
 
 
 # Create counterions for the peptide chains
-pmb.create_counterions_in_espresso (pmb_object='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) 
+pmb.create_counterions_in_espresso (pmb_object_name='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) 
 c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
 
@@ -290,7 +290,7 @@ print("Rg analysis")
 av_rg, err_rg, tau_rg, block_size = block_analyze(input_data=Rg_pH)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-Z_HH = pmb.calculate_HH(sequence=sequence, pH=pH_range)
+Z_HH = pmb.calculate_HH(sequence=sequence, pH_list=pH_range)
 
 # Load the reference data 
 reference_file_Path = str(parentdir)+"/reference_data/Lys-AspMSDE.csv"
