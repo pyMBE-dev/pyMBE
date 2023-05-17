@@ -54,7 +54,7 @@ solvent_permitivity = 78.3
 t_max = 1e3 #  in LJ units of time
 stride_obs = 10 #  in LJ units of time
 stride_traj = 100 # in LJ units of time
-dt = 0.001
+dt = 0.01
 N_samples = int (t_max / stride_obs)
 integ_steps = int (stride_obs/dt)
 
@@ -85,7 +85,7 @@ epsilon_dict = {}
 for residue in clean_sequence:
     if residue not in epsilon_dict.keys():
         epsilon_dict [residue] = epsilon
-        
+
     epsilon_dict ['CA'] = epsilon
 
 #Define epsilon for each particle
@@ -108,7 +108,7 @@ pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets
 
 #We create the protein in espresso 
 pmb.create_protein_in_espresso(name=protein_name,
-                               number_of_proteins=3,
+                               number_of_proteins=1,
                                espresso_system=espresso_system,
                                positions=protein_positions)
 
