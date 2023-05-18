@@ -26,17 +26,13 @@ class pymbe_library():
         and sets up  the `pmb.df` for bookkepping.
 
         Args:
-            - temperature(`obj`,optional): Value of the temperature in the pyMBE UnitRegistry. Defaults to None.
-            - unit_length(`obj`, optional): Value of the unit of length in the pyMBE UnitRegistry. Defaults to None.
-            - unit_charge (`obj`): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            temperature(`obj`,optional): Value of the temperature in the pyMBE UnitRegistry. Defaults to None.
+            unit_length(`obj`, optional): Value of the unit of length in the pyMBE UnitRegistry. Defaults to None.
+            unit_charge (`obj`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
         
-       Note:
+        Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
-
-        Note:
             - If no `unit_length` is given, a value of 0.355 nm is assumed by default.
-
-        Note:
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
         """
         # Default definitions of reduced units
@@ -62,7 +58,7 @@ class pymbe_library():
             espresso_system(`obj`): Instance of a system object from the espressomd library.
 
         Note:
-            It requires that espressodmd has the following feautures activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
+            - It requires that espressodmd has the following feautures activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
         '''
         print ('activate_motion_of_rigid_object requires that espressodmd has the following feautures activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
@@ -191,10 +187,8 @@ class pymbe_library():
             Z_HH (`lst`): Henderson-Hasselbach prediction of the charge of `sequence` in `pH_list`
 
         Note:
-            If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated
-
-        Note:
-            If no `pka_set` is given, the pKa values are taken from `pmb.df`
+            - If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated
+            - If no `pka_set` is given, the pKa values are taken from `pmb.df`
         """
         if pH_list is None:
             pH_list=self.np.linspace(2,12,50)    
@@ -244,7 +238,7 @@ class pymbe_library():
             key(`str`): Column label to check.
 
         Returns:
-            (`bool`): `True` if the cell has a value, `False` otherwise.
+            `bool`: `True` if the cell has a value, `False` otherwise.
         """
         idx = self.pd.IndexSlice
         return not self.pd.isna(self.df.loc[index, idx[key]])
@@ -269,7 +263,7 @@ class pymbe_library():
             return False
 
     def check_pka_set(self, pka_set):
-        """"
+        """
         Checks that `pka_set` has the formatting expected by the pyMBE library.
        
         Args:
@@ -304,7 +298,7 @@ class pymbe_library():
             number_of_copies(`int`): number of copies of `name` to be created.
         
         Note:
-            Currently, column_name only supports "particle_id", "particle_id2", "residue_id" and "molecule_id" 
+            - Currently, column_name only supports "particle_id", "particle_id2", "residue_id" and "molecule_id" 
         '''
 
         valid_column_names=["particle_id", "residue_id", "molecule_id", "particle_id2" ]
@@ -567,7 +561,7 @@ class pymbe_library():
             use_default_bond(`bool`,optional): Controls if a `default` bond is used to bond particles with undefined bonds in `pmb.df`. Defaults to `False`.
 
         Note:
-            If no `position` is given, particles will be created in random positions. For bonded particles, they will be created at a distance equal to the bond length. 
+            - If no `position` is given, particles will be created in random positions. For bonded particles, they will be created at a distance equal to the bond length. 
         """
         allowed_objects=['particle','residue','molecule']
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
@@ -806,7 +800,7 @@ class pymbe_library():
             sequence(`lst`):  Sequence of the peptide or protein. 
 
         Note:
-            It assumes that the names in `sequence` correspond to aminoacid names using the standard  one letter code.
+            - It assumes that the names in `sequence` correspond to aminoacid names using the standard  one letter code.
         '''
 
         already_defined_AA=[]
@@ -966,6 +960,24 @@ class pymbe_library():
             self.df.at [index,'model'] = model
             self.df.at [index,('sequence','')] = clean_sequence
         return
+    
+    def define_residue(self, name, central_bead, side_chains):
+        """
+        Defines a pyMBE object of type `residue` in `pymbe.df`.
+
+        Args:
+            name (`str`): Unique label that identifies the `residue`.
+            central_bead (`str`): `name` of the `particle` to be placed as central_bead of the `residue`.
+            side_chains (`list` of `str`): List of `name`s of the pmb_objects to be placed as side_chains of the `residue`. Currently, only pmb_objects of type `particle`s or `residue`s are supported.
+        """
+        if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='residue'):
+            return
+        index = len(self.df)
+        self.df.at [index, 'name'] = name
+        self.df.at [index,'pmb_type'] = 'residue'
+        self.df.at [index,'central_bead'] = central_bead
+        self.df.at [index,('side_chains','')] = side_chains
+        return 
 
     def destroy_pmb_object_in_system(self, name, espresso_system):
         """
@@ -976,7 +988,7 @@ class pymbe_library():
             espresso_system (cls): Instance of a system class from espressomd library.
 
         Note:
-            If `name`  is a object_type=`particle`, only the mathcing particles that are not part of bigger objects (e.g. `residue`, `molecule`) will be destroyed. To destroy particles in such objects, destroy the bigger object instead.
+            - If `name`  is a object_type=`particle`, only the mathcing particles that are not part of bigger objects (e.g. `residue`, `molecule`) will be destroyed. To destroy particles in such objects, destroy the bigger object instead.
         """
         allowed_objects = ['particle','residue','molecule']
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
@@ -1012,24 +1024,6 @@ class pymbe_library():
 
         return
 
-    def define_residue(self, name, central_bead, side_chains):
-        """
-        Defines a pyMBE object of type `residue` in `pymbe.df`.
-
-        Args:
-            name (`str`): Unique label that identifies the `residue`.
-            central_bead (`str`): `name` of the `particle` to be placed as central_bead of the `residue`.
-            side_chains (`list` of `str`): List of `name`s of the pmb_objects to be placed as side_chains of the `residue`. Currently, only pmb_objects of type `particle`s or `residue`s are supported.
-        """
-        if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='residue'):
-            return
-        index = len(self.df)
-        self.df.at [index, 'name'] = name
-        self.df.at [index,'pmb_type'] = 'residue'
-        self.df.at [index,'central_bead'] = central_bead
-        self.df.at [index,('side_chains','')] = side_chains
-        return 
-
     def filter_df (self, pmb_type):
         """
         Filters `pmb.df` and returns a sub-set of it containing only rows with pmb_object_type=`pmb_type` and non-Nan columns.
@@ -1056,7 +1050,7 @@ class pymbe_library():
             bond_key (str): `name` of the bond between `particle_name1` and `particle_name2` 
 
         Note:
-            If `use_default_bond`=`True`, it returns "default" if no key is found.
+            - If `use_default_bond`=`True`, it returns "default" if no key is found.
         """
         bond_keys = [particle_name1 +'-'+ particle_name2, particle_name2 +'-'+ particle_name1 ]
         bond_defined=False
@@ -1154,7 +1148,7 @@ class pymbe_library():
             samples(`list`): Coordinates of the sample points inside the hypersphere.
 
         Note:
-            Algorithm from: https://baezortega.github.io/2018/10/14/hypersphere-sampling/
+            - Algorithm from: https://baezortega.github.io/2018/10/14/hypersphere-sampling/
         """
         # initial values
         center=self.np.array(center)
@@ -1323,7 +1317,7 @@ class pymbe_library():
             verbose(`bool`, optional): If activated, the function reports each pKa value loaded. Defaults to False
 
         Note:
-            If `name` is already defined in the `pymbe.df`, it prints a warning.
+            - If `name` is already defined in the `pymbe.df`, it prints a warning.
         """
         pKa_list=[]
         with open(filename) as f:
@@ -1355,7 +1349,7 @@ class pymbe_library():
             topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
 
         Note:
-            If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
+            - If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
         """
 
         print (f'Loading protein coarse grain model file: {filename}')
@@ -1539,10 +1533,10 @@ class pymbe_library():
             clean_sequence(`list`): `sequence` using the one letter code.
         
         Note:
-            Accepted formats for `sequence` are:
-            1) `lst` with one letter or three letter code of each aminoacid in each element
-            2) `str` with the sequence using the one letter code
-            3) `str` with the squence using the three letter code, each aminoacid must be separated by a hyphon "-"
+            - Accepted formats for `sequence` are:
+                - `lst` with one letter or three letter code of each aminoacid in each element
+                - `str` with the sequence using the one letter code
+                - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphon "-"
         
         '''
         # Aminoacid key
@@ -1633,10 +1627,8 @@ class pymbe_library():
             bond (cls): bond object from the espressomd library.
         
         Note:
-            If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
-
-        Note:
-            If `hard_check`=`True` stops the code when no bond is found.
+            - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
+            - If `hard_check`=`True` stops the code when no bond is found.
         """
         bond_key = self.find_bond_key(particle_name1=particle_name1, 
                                     particle_name2=particle_name2, 
@@ -1694,17 +1686,13 @@ class pymbe_library():
         Sets the set of reduced units used by pyMBE.units and it prints it.
 
         Args:
-            unit_length (`obj`): Reduced unit of length defined using the `pmb.units` UnitRegistry. Defaults to None. 
-            unit_charge (`obj`): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
-            temperature (`obj`): Temperature of the system, defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            unit_length (`obj`,optional): Reduced unit of length defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            unit_charge (`obj`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            temperature (`obj`,optional): Temperature of the system, defined using the `pmb.units` UnitRegistry. Defaults to None. 
 
         Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
-
-        Note:
             - If no `unit_length` is given, a value of 0.355 nm is assumed by default.
-
-        Note:
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
         """
         self.units=self.pint.UnitRegistry()
@@ -1825,10 +1813,8 @@ class pymbe_library():
             combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
 
         Note:
-            If no `cutoff`  is given, its value is set to 2**(1./6.) in reduced_lenght units, corresponding to a purely steric potential.
-
-        Note:
-            Currently, the only `combining_rule` supported is Lorentz-Berthelot.
+            - If no `cutoff`  is given, its value is set to 2**(1./6.) in reduced_lenght units, corresponding to a purely steric potential.
+            - Currently, the only `combining_rule` supported is Lorentz-Berthelot.
         """
         from itertools import combinations_with_replacement
         sigma=1*self.units('reduced_length')
