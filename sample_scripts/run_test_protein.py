@@ -12,6 +12,16 @@ import os
 import sys
 import inspect
 
+for pH_value in np.arange(2.0, 7.5, 0.5):
+    print (f'Currently running {pH_value}')
+    os.system(f'../pypresso 1F6S_globular_protein.py -pH {pH_value}')
+
+os.system('mkdir observables_results')
+os.system('mv pH-* observables_results')
+os.system('python3 ../handy_scripts/data_analysis.py observables_results/')
+
+
+
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir) 
