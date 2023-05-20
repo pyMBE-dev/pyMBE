@@ -647,7 +647,7 @@ class pymbe_library():
                                         new_value=molecule_id)
                 
             if molecule_index == min(protein_index_list):
-                self.setup_particle_diameter(positions=positions)
+                self.setup_particle_diameter(topology_dict=positions)
 
         return
 
@@ -936,25 +936,10 @@ class pymbe_library():
             valid_keys = ['1beadAA','2beadAA']
             if model not in valid_keys:
                 raise ValueError('Invalid label for the peptide model, please choose between 1beadAA or 2beadAA')
-            clean_sequence = self.protein_sequence_parser(sequence=sequence)
-            residue_list = []
-            for residue_name in clean_sequence:
-                if model == '1beadAA':
-                    central_bead = residue_name
-                    side_chains = []
-                elif model == '2beadAA':
-                    # terminal groups + glycine are represented with only 1 bead
-                    if residue_name in ['c','n', 'G']: 
-                        central_bead = residue_name
-                        side_chains = []
-                    else:
-                        central_bead = 'CA'
-                        side_chains = [residue_name]
-                if residue_name not in residue_list: 
-                    self.define_residue(name = 'AA-'+residue_name, 
-                                        central_bead = central_bead,
-                                        side_chains = side_chains)
-                residue_list.append('AA-'+residue_name)
+        
+            clean_sequence = self.protein_sequence_parser(sequence=sequence)    
+            residue_list = self.define_AA_residues(sequence=clean_sequence,model=model)
+
             self.define_molecule(name = name, residue_list=residue_list)
             index = self.df.loc[self.df['name'] == name].index.item() 
             self.df.at [index,'model'] = model
@@ -1336,7 +1321,7 @@ class pymbe_library():
                 self.define_particle(name=pka_key,acidity=acidity, pka=pka_value)
         return
 
-    def load_protein_vtf_in_df (self, name, filename,unit_length=None):
+    def read_protein_vtf_in_df (self, name, filename,unit_length=None):
         """
         Loads a coarse-grained protein model in a vtf file `filename` into the `pmb.df` and it labels it with `name`.
 
@@ -1354,11 +1339,11 @@ class pymbe_library():
 
         print (f'Loading protein coarse grain model file: {filename}')
 
-        protein_seq_list = []
+
         coord_list = []
 
         label_dict = {}
-        label_CA = False 
+
 
         if unit_length == None:
             unit_length = 1 * self.units.angstrom 
@@ -1371,10 +1356,7 @@ class pymbe_library():
                     if line_split : 
                         line_header = line_split [0]
 
-                        if line_header == 'unitcell':    
-                            box = line_split[1:4]
-
-                        elif line_header == 'atom':
+                        if line_header == 'atom':
 
                             atom_id  = line_split [1]
                             atom_name = line_split [3]
@@ -1385,18 +1367,9 @@ class pymbe_library():
                             diameter = ((float(atom_radius)*2.0)*unit_length).to('reduced_length').magnitude 
 
                             label_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, diameter]
-
-                            if atom_name == 'CA' or label_CA == True:
-                                label_CA = True
-
-                            if atom_name != 'CA' and atom_name != 'Ca':
-                                protein_seq_list.append(atom_name)                        
-
-                        elif line_header == 'bond' :
-                            atom_bond = line_split [1] 
-
+         
                         elif line_header.isnumeric (): 
-                            particle_id = line_split [0]
+
                             particle_coord = line_split [1:] 
                             particle_coord = [float(i) for i in particle_coord]
 
@@ -1407,7 +1380,6 @@ class pymbe_library():
 
         # Pablo-NOTE:
         # 1- Lines 1397-1403 could be done before in line 1389
-        # 2- Definir el diametro del CA
         # 3- Cambiar load_protein_vtf_in_df por read_protein_vtf --> topology_dict
         # 4- Nueva funcion define_protein ()
         # 5- Tener cuidado con label_CA
@@ -1419,10 +1391,6 @@ class pymbe_library():
             for axis in axes_list:
                 updated_pos[axis] = (pos[axis]*unit_length).to('reduced_length').magnitude 
             updated_coordinates_list.append (updated_pos.tolist())
-
-        protein_sequence = ''.join(protein_seq_list)
-
-        print (f'Protein Sequence: {protein_sequence}')
 
         numbered_resname = []
         i = 0   
@@ -1457,26 +1425,52 @@ class pymbe_library():
         for i in range (0, len(numbered_resname)):   
             topology_dict [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1], 'diameter':numbered_resname[i][2] }
 
-        #### CORTAR
+        return topology_dict
 
-        clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
+    def define_protein (self,name,topology_dict):
+
+        import re 
+
+        protein_seq_list = []     
+    
+        for residue in topology_dict.keys():
+
+            residue_name = re.split(r'\d+', residue)[0]
+
+            if residue_name != 'CA' and residue_name != 'Ca':
+                protein_seq_list.append(residue_name)       
+            if residue_name == 'CA':
+                model = '2beadAA' 
+                self.define_particle(name='CA')
+                break
+    
+        protein_sequence = ''.join(protein_seq_list)
+        clean_sequence = self.protein_sequence_parser(sequence=sequence)
+
+        self.define_AA_particles_in_sequence (sequence=clean_sequence)
+        residue_list = self.define_AA_residues(sequence=clean_sequence,model=model)
 
         index = len(self.df)
         self.df.at [index,'name'] = name
         self.df.at [index,'pmb_type'] = 'protein'
-        self.df.at [index,'model'] = '2beadAA' 
+        self.df.at [index,'model'] = model
+        self.df.at [index,('sequence','')] = protein_sequence  #SHOULD BE CLEAN_SEQUENCE
+        self.df.at [index,('residue_list','')] = residue_list    
 
-        if label_CA:
-            self.define_particle(name='CA')
+        return 
 
-        self.define_AA_particles_in_sequence (sequence=clean_sequence)
+    def define_AA_residues (self,sequence, model):
 
         residue_list = []
 
-        for residue_name in clean_sequence:
+        for residue_name in sequence:
 
-            if residue_name not in residue_list:   
+            if model == '1beadAA':
 
+                central_bead = residue_name
+                side_chains = []
+
+            elif model == '2beadAA':
                 if residue_name in ['c','n', 'G']: 
                     central_bead = residue_name
                     side_chains = []
@@ -1484,15 +1478,15 @@ class pymbe_library():
                     central_bead = 'CA'              
                     side_chains = [residue_name]
 
+            if residue_name not in residue_list:   
+
                 self.define_residue(name = 'AA-'+residue_name, 
                                     central_bead = central_bead,
                                     side_chains = side_chains)
+                
             residue_list.append('AA-'+residue_name)
 
-        self.df.at [index,('sequence','')] = protein_sequence  
-        self.df.at [index,('residue_list','')] = residue_list    
-
-        return topology_dict
+        return residue_list
 
     def print_reduced_units(self):
         """
