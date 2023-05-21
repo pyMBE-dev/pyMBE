@@ -1807,8 +1807,10 @@ class pymbe_library():
             combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
 
         Note:
-            - If no `cutoff`  is given, its value is set to 2**(1./6.) in reduced_lenght units, corresponding to a purely steric potential.
-            - Currently, the only `combining_rule` supported is Lorentz-Berthelot.
+            If no `cutoff`  is given, its value is set to 2**(1./6.) in reduced_lenght units, corresponding to a purely steric potential.
+
+        Note:
+            Currently, the only `combining_rule` supported is Lorentz-Berthelot.
         """
         from itertools import combinations_with_replacement
         sigma=1*self.units('reduced_length')
@@ -1819,7 +1821,7 @@ class pymbe_library():
         if cutoff is None:
             cutoff=2**(1./6.)*self.units('reduced_length')
         particles_types_with_LJ_parameters = []
-        particles_types_without_LJ_parameters= []
+        non_parametrized_labels= []
         for particle_type in self.get_type_map().values():
             check_list=[]
             for key in compulsory_parameters_in_df:
@@ -1827,33 +1829,43 @@ class pymbe_library():
                                                         column_name=key)
                 check_list.append(self.np.isnan(value_in_df))
             if any(check_list):
-                particles_types_without_LJ_parameters.append(particle_type)
+                non_parametrized_labels.append(self.find_value_from_es_type(es_type=particle_type, 
+                                                                            column_name='label'))
             else:
                 particles_types_with_LJ_parameters.append(particle_type)
         for type_pair in combinations_with_replacement(particles_types_with_LJ_parameters, 2):
-            pair_parameters={}
+            diameter_list=[]
+            epsilon_list=[]
+            label_list=[]
+            Non_interacting_pair=False
+            # Search the LJ parameters of the type pair
             for ptype in type_pair:
-                pair_parameters[ptype]={}
-                pair_parameters[ptype]["label"]=self.find_value_from_es_type(es_type=ptype, column_name='label')
-                pair_parameters[ptype]["diameter"]=self.find_value_from_es_type(es_type=ptype, column_name='diameter')
-                pair_parameters[ptype]["epsilon"]=self.find_value_from_es_type(es_type=ptype, column_name='epsilon')
+                diameter=self.find_value_from_es_type(es_type=ptype, column_name='diameter').to('reduced_length').magnitude
+                label=self.find_value_from_es_type(es_type=ptype, column_name='label')
+                epsilon=self.find_value_from_es_type(es_type=ptype, column_name='epsilon').to('reduced_energy').magnitude
+                if diameter == 0:
+                    Non_interacting_pair=True
+                    break
+                elif diameter < 0:
+                    raise ValueError(f"Particle {label} has a negative diameter = {diameter}, check your pmb.df")
+                else:   
+                    label_list.append(label)
+                    diameter_list.append(diameter)
+                    epsilon_list.append(epsilon)
+            # If the diameter of one of the particle types is 0, no LJ interaction is setup
+            if Non_interacting_pair:
+                pass
             if combining_rule == 'Lorentz-Berthelot':
-                combined_sigma=0
-                epsilon=1
-                for ptype in type_pair:
-                    combined_sigma+=pair_parameters[ptype]["diameter"]
-                    epsilon*=pair_parameters[ptype]["epsilon"]
-                offset=combined_sigma/2.-sigma
-                epsilon=self.np.sqrt(epsilon)
-            else:
-                raise ValueError('Undefined combination rule, please report this bug to the developers')
-            espresso_system.non_bonded_inter[type_pair[0],type_pair[1]].lennard_jones.set_params(epsilon = epsilon.to('reduced_energy').magnitude, 
+                diameter_sum=self.np.sum(diameter_list)
+                epsilon=self.np.sqrt(self.np.prod(epsilon_list))
+                offset=diameter_sum/2.-sigma.to('reduced_length').magnitude
+            espresso_system.non_bonded_inter[type_pair[0],type_pair[1]].lennard_jones.set_params(epsilon = epsilon, 
                                                                                     sigma = sigma.to('reduced_length').magnitude, 
                                                                                     cutoff = cutoff.to('reduced_length').magnitude,
-                                                                                    offset = offset.to('reduced_length').magnitude, 
+                                                                                    offset = offset, 
                                                                                     shift = shift)                                                                                          
             index = len(self.df)
-            self.df.at [index, 'name'] = f'LJ: {pair_parameters[type_pair[0]]["label"]}-{pair_parameters[type_pair[1]]["label"]}'
+            self.df.at [index, 'name'] = f'LJ: {label_list[0]}-{label_list[1]}'
             lj_params=espresso_system.non_bonded_inter[type_pair[0], type_pair[1]].lennard_jones.get_params()
             self.add_value_to_df(index=index,
                                 key=('pmb_type',''),
@@ -1861,14 +1873,8 @@ class pymbe_library():
             self.add_value_to_df(index=index,
                                 key=('parameters_of_the_potential',''),
                                 new_value=self.json.dumps(lj_params))                
-        if particles_types_without_LJ_parameters:
-            non_parametrized_labels=[]
-            for ptype in particles_types_without_LJ_parameters:
-                non_parametrized_labels.append(self.find_value_from_es_type(es_type=ptype, 
-                                                                            column_name='label')) 
-            print('WARNING: missing LJ parameters for the following particle labels:')
-            print(non_parametrized_labels)
-            print('no interaction has been added for those particles in ESPResSo')
+        if non_parametrized_labels:
+            print(f'WARNING: No LJ interaction has been added in ESPResSo for particles with labels: {non_parametrized_labels}. Please, check your pmb.df to ensure if this is your desired setup.')
         return
 
     def setup_particle_diameter (self,topology_dict):
