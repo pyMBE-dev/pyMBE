@@ -622,6 +622,7 @@ class pymbe_library():
         protein_index = self.np.where(self.df['name']==name)
         protein_index_list =list(protein_index[0])[-number_of_proteins:]
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
+        
         box_half=espresso_system.box_l[0]/2.0
 
         for molecule_index in protein_index_list:     
@@ -995,7 +996,7 @@ class pymbe_library():
             self.df.at [index,('sequence','')] = clean_sequence
         return
     
-    def define_protein (self, name, topology_dict):
+    def define_protein (self, name, topology_dict, model = None):
         """
         Defines a pyMBE object of type `protein` in `pymbe.df`.
 
@@ -1005,19 +1006,21 @@ class pymbe_library():
         """
         import re 
 
+        #NOTE 
+
         protein_seq_list = []     
     
         for residue in topology_dict.keys():
 
             residue_name = re.split(r'\d+', residue)[0]
-            
-            if residue_name != 'CA' and residue_name != 'Ca':
-                protein_seq_list.append(residue_name)       
-            
+
             if residue_name == 'CA':
                 model = '2beadAA' 
-                self.define_particle(name='CA') 
-                
+                self.define_particle(name='CA')
+                continue
+
+            if residue_name != 'CA' and residue_name != 'Ca':
+                protein_seq_list.append(residue_name)      
 
         if model is None:
             model = '1beadAA'   
@@ -1026,9 +1029,8 @@ class pymbe_library():
         clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
 
         self.define_AA_particles_in_sequence (sequence=clean_sequence)
-        residue_list = self.define_AA_residues(sequence=clean_sequence,model=model)
+        residue_list = self.define_AA_residues(sequence=clean_sequence, model=model)
 
-        
         index = len(self.df)
         self.df.at [index,'name'] = name
         self.df.at [index,'pmb_type'] = 'protein'
@@ -1413,105 +1415,6 @@ class pymbe_library():
                 self.define_particle(name=pka_key,acidity=acidity, pka=pka_value)
         return
 
-    def read_protein_vtf_in_df (self,filename,unit_length=None):
-        """
-        Loads a coarse-grained protein model in a vtf file `filename` into the `pmb.df` and it labels it with `name`.
-
-        Args:
-            filename(`str`): Path to the vtf file with the coarse-grained model.
-            unit_length(`obj`): unit of lenght of the the coordinates in `filename` using the pyMBE UnitRegistry. Defaults to None.
-
-        Returns:
-            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
-
-        Note:
-            - If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
-        """
-
-        print (f'Loading protein coarse grain model file: {filename}')
-
-
-        coord_list = []
-        label_dict = {}
-
-        if unit_length == None:
-            unit_length = 1 * self.units.angstrom 
-
-        with open (filename,'r') as protein_model:
-
-                for line in protein_model :
-                    line_split = line.split ()
-    
-                    if line_split : 
-                        line_header = line_split [0]
-
-                        if line_header == 'atom':
-
-                            atom_id  = line_split [1]
-                            atom_name = line_split [3]
-                            atom_resname = line_split [5]
-                            chain_id = line_split [7]
-                            atom_radius = line_split [9]
-
-                            diameter = ((float(atom_radius)*2.0)*unit_length).to('reduced_length').magnitude 
-
-                            label_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, diameter]
-         
-                        elif line_header.isnumeric (): 
-
-                            particle_coord = line_split [1:] 
-                            particle_coord = [float(i) for i in particle_coord]
-                            coord_list.append (particle_coord)
-
-        axes_list = [0,1,2]
-        updated_coordinates_list = []
-
-        # Pablo-NOTE:
-        # 1- Lines 1397-1403 could be done before in line 1389
-        # 6- Limpiar codigo, borrar variables e condiciones innecesarias
-        # 7- Hacer funciones de las lineas repetidas de codigo entre create_molecule y create_protein (las que hacen copias en el df)
-
-        for pos in coord_list:
-            updated_pos = self.np.zeros(3,)
-            for axis in axes_list:
-                updated_pos[axis] = (pos[axis]*unit_length).to('reduced_length').magnitude 
-            updated_coordinates_list.append (updated_pos.tolist())
-
-        numbered_resname = []
-        i = 0   
-        
-        for atom_id in label_dict.keys():
-    
-            if atom_id == 1:
-                atom_name = label_dict[atom_id][0]
-                updated_name = [f'{atom_name}{i}',label_dict[atom_id][2],label_dict[atom_id][3]]
-                numbered_resname.append(updated_name)
-
-            elif atom_id != 1: 
-            
-                if label_dict[atom_id-1][1] != label_dict[atom_id][1]:
-                    i += 1                    
-                    count = 1
-                    atom_name = label_dict[atom_id][0]
-                    updated_name = [f'{atom_name}{i}',label_dict[atom_id][2],label_dict[atom_id][3]]
-                    numbered_resname.append(updated_name)
-                    
-                elif label_dict[atom_id-1][1] == label_dict[atom_id][1]:
-                    if count == 2 or label_dict[atom_id][1] == 'GLY':
-                        i +=1  
-                        count = 0
-                    atom_name = label_dict[atom_id][0]
-                    updated_name = [f'{atom_name}{i}',label_dict[atom_id][2],label_dict[atom_id][3]]
-                    numbered_resname.append(updated_name)
-                    count +=1
-
-        topology_dict = {}
-
-        for i in range (0, len(numbered_resname)):   
-            topology_dict [numbered_resname[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_resname[i][1], 'diameter':numbered_resname[i][2] }
-
-        return topology_dict
-
     def print_reduced_units(self):
         """
         Prints the  current set of reduced units defined in pyMBE.units.
@@ -1628,6 +1531,103 @@ class pymbe_library():
                             raise ValueError("Unknown code for a residue: ", residue, " please review the input sequence")
                     clean_sequence.append(residue_ok)
         return clean_sequence
+    
+    def read_protein_vtf_in_df (self,filename,unit_length=None):
+        """
+        Loads a coarse-grained protein model in a vtf file `filename` into the `pmb.df` and it labels it with `name`.
+
+        Args:
+            filename(`str`): Path to the vtf file with the coarse-grained model.
+            unit_length(`obj`): unit of lenght of the the coordinates in `filename` using the pyMBE UnitRegistry. Defaults to None.
+
+        Returns:
+            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
+
+        Note:
+            - If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
+        """
+
+        print (f'Loading protein coarse grain model file: {filename}')
+
+        coord_list = []
+        particles_dict = {}
+
+        if unit_length == None:
+            unit_length = 1 * self.units.angstrom 
+
+        with open (filename,'r') as protein_model:
+
+                for line in protein_model :
+                    line_split = line.split ()
+    
+                    if line_split : 
+                        line_header = line_split [0]
+
+                        if line_header == 'atom':
+
+                            atom_id  = line_split [1]
+                            atom_name = line_split [3]
+                            atom_resname = line_split [5]
+                            chain_id = line_split [7]
+                            atom_radius = line_split [9]
+                            diameter = ((float(atom_radius)*2.0)*unit_length).to('reduced_length').magnitude 
+
+                            particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, diameter]
+         
+                        elif line_header.isnumeric (): 
+
+                            atom_coord = line_split [1:] 
+                            atom_coord = [float(i) for i in atom_coord]
+                            coord_list.append (atom_coord)
+
+        axes_list = [0,1,2]
+        updated_coordinates_list = []
+
+        # Pablo-NOTE:
+        # 1- Lines 1397-1403 could be done before in line 1389
+
+        for pos in coord_list:
+            updated_pos = self.np.zeros(3,)
+            
+            for axis in axes_list:
+                updated_pos[axis] = (pos[axis]*unit_length).to('reduced_length').magnitude 
+            updated_coordinates_list.append (updated_pos.tolist())
+
+        numbered_label = []
+        i = 0   
+        
+        for atom_id in particles_dict.keys():
+    
+            if atom_id == 1:
+                atom_name = particles_dict[atom_id][0]
+                numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
+                numbered_label.append(numbered_name)
+
+            elif atom_id != 1: 
+            
+                if particles_dict[atom_id-1][1] != particles_dict[atom_id][1]:
+                    i += 1                    
+                    count = 1
+                    atom_name = particles_dict[atom_id][0]
+                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
+                    numbered_label.append(numbered_name)
+                    
+                elif particles_dict[atom_id-1][1] == particles_dict[atom_id][1]:
+                    if count == 2 or particles_dict[atom_id][1] == 'GLY':
+                        i +=1  
+                        count = 0
+                    atom_name = particles_dict[atom_id][0]
+                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
+                    numbered_label.append(numbered_name)
+                    count +=1
+
+        topology_dict = {}
+
+        for i in range (0, len(numbered_label)):   
+            topology_dict [numbered_label[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_label[i][1], 'diameter':numbered_label[i][2] }
+
+        return topology_dict
+
 
     def search_bond (self, particle_name1, particle_name2, hard_check=False, use_default_bond=False) :
         """
