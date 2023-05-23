@@ -151,7 +151,44 @@ class pymbe_library():
                     print(f'WARNING: overwritting the value of the entry `{key}`: old_value = {old_value} new_value = {new_value}')
         self.df.loc[index,idx[key]] = new_value
         return
+    
+    def assign_molecule_id (self, name, molecule_index, pmb_type, used_molecules_id):
+        """
+        Assigns the `molecule_id` of the pmb object given by `pmb_type`
+        
+        Args:
+            name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
+            pmb_type(`str`): pmb_object_type to assign the `molecule_id` 
+            molecule_index (`int`): index of the current `pmb_object_type` to assign the `molecule_id`
+            used_molecules_id (`lst`): list with the `molecule_id` values already used.
+        
+        Returns:
+            molecule_id(`int`): Id of the molecule
+        """
 
+        self.clean_df_row(index=int(molecule_index))
+        
+        if self.df['molecule_id'].isnull().values.all():
+            molecule_id = 0        
+        else:
+            # check if a residue is part of another molecule
+            check_residue_name = self.df[self.df['residue_list'].astype(str).str.contains(name)]
+            pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]                
+            if not check_residue_name.empty and pmb_type == pmb_type :              
+                for value in check_residue_name.index.to_list():                  
+                    if value not in used_molecules_id:                              
+                        molecule_id = self.df.loc[value].molecule_id.values[0]                    
+                        break
+            else:
+                molecule_id = self.df['molecule_id'].max() +1
+
+        self.add_value_to_df (key=('molecule_id',''),
+                                index=int(molecule_index),
+                                new_value=molecule_id, 
+                                warning=False)
+
+        return molecule_id
+    
     def calculate_center_of_mass_of_molecule (self,molecule_id, espresso_system):
         """
         Calculates the center of mass of type `name`.
@@ -404,6 +441,7 @@ class pymbe_library():
             print(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
 
+
     def create_molecule_in_espresso(self, name, number_of_molecules,espresso_system, first_residue_position=None, use_default_bond=False):
         """
         Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
@@ -433,26 +471,11 @@ class pymbe_library():
         molecules_index = self.np.where(self.df['name']==name)
         molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
-        for molecule_index in molecule_index_list:          
-            self.clean_df_row(index=int(molecule_index))
-            if self.df['molecule_id'].isnull().values.all():
-                molecule_id = 0        
-            else:
-                # check if a residue is part of another molecule
-                check_residue_name = self.df[self.df['residue_list'].astype(str).str.contains(name)]
-                pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]                
-                if not check_residue_name.empty and pmb_type == 'molecule' :              
-                    for value in check_residue_name.index.to_list():                  
-                        if value not in used_molecules_id:                              
-                            molecule_id = self.df.loc[value].molecule_id.values[0]                    
-                            break
-                else:
-                    molecule_id = self.df['molecule_id'].max() +1
-            #assigns molecule_id to the residue defined       
-            self.add_value_to_df (key=('molecule_id',''),
-                                index=int (molecule_index),
-                                new_value=molecule_id, 
-                                warning=False)
+
+        for molecule_index in molecule_index_list:         
+
+            molecule_id = self.assign_molecule_id (name=name,pmb_type='molecule',used_molecules_id=used_molecules_id,molecule_index=molecule_index)
+
             for residue in residue_list:
                 if first_residue:
                     residue_position = first_residue_position
@@ -601,27 +624,9 @@ class pymbe_library():
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
         box_half=espresso_system.box_l[0]/2.0
 
-        for molecule_index in protein_index_list:          
-            self.clean_df_row(index=int(molecule_index))
-            if self.df['molecule_id'].isnull().values.all():
-                molecule_id = 0        
-            else:
-                # check if a residue is part of another molecule
-                check_residue_name = self.df[self.df['residue_list'].astype(str).str.contains(name)]
-                pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]                
-                if not check_residue_name.empty and pmb_type == 'protein' :              
-                    for value in check_residue_name.index.to_list():                  
-                        if value not in used_molecules_id:                              
-                            molecule_id = self.df.loc[value].molecule_id.values[0]                    
-                            break
-                else:
-                    molecule_id = self.df['molecule_id'].max() +1
+        for molecule_index in protein_index_list:     
 
-            #assigns molecule_id to the protein defined       
-            self.add_value_to_df (key=('molecule_id',''),
-                                index=int(molecule_index),
-                                new_value=molecule_id, 
-                                warning=False)
+            molecule_id = self.assign_molecule_id (name=name,pmb_type='protein',used_molecules_id=used_molecules_id,molecule_index=molecule_index)
 
             protein_center = self.generate_coordinates_outside_sphere(radius = 1, 
                                                                         max_dist=box_half, 
@@ -629,10 +634,12 @@ class pymbe_library():
                                                                         center=[box_half]*3)[0]
    
             for residue in positions.keys():
+
                 residue_name = re.split(r'\d+', residue)[0]
                 residue_number = re.split(r'(\d+)', residue)[1]
                 residue_position = positions[residue]['initial_pos']
                 position = residue_position + protein_center
+
                 particle_id = self.create_particle_in_espresso(name=residue_name,
                                                             espresso_system=espresso_system,
                                                             number_of_particles=1,
@@ -1001,16 +1008,19 @@ class pymbe_library():
         protein_seq_list = []     
     
         for residue in topology_dict.keys():
+
             residue_name = re.split(r'\d+', residue)[0]
+            
             if residue_name != 'CA' and residue_name != 'Ca':
                 protein_seq_list.append(residue_name)       
+            
             if residue_name == 'CA':
                 model = '2beadAA' 
-                self.define_particle(name='CA')
-                break 
+                self.define_particle(name='CA') 
+                
 
         if model is None:
-            model = '1beadAA'
+            model = '1beadAA'   
 
         protein_sequence = ''.join(protein_seq_list)
         clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
@@ -1018,6 +1028,7 @@ class pymbe_library():
         self.define_AA_particles_in_sequence (sequence=clean_sequence)
         residue_list = self.define_AA_residues(sequence=clean_sequence,model=model)
 
+        
         index = len(self.df)
         self.df.at [index,'name'] = name
         self.df.at [index,'pmb_type'] = 'protein'
