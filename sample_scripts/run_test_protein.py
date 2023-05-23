@@ -16,10 +16,11 @@ for pH_value in np.arange(2.0, 7.5, 0.5):
     print (f'Currently running {pH_value}')
     os.system(f'../pypresso 1F6S_globular_protein.py -pH {pH_value}')
 
-os.system('mkdir observables_results')
-os.system('mv pH-* observables_results')
-os.system('python3 ../handy_scripts/data_analysis.py observables_results/')
+if not os.path.exists('./observables_results'):
+    os.system('mkdir observables_results')
 
+os.system('mv pH*.csv observables_results')
+os.system('python3 ../handy_scripts/data_analysis.py observables_results/')
 
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -31,13 +32,12 @@ pmb = pyMBE.pymbe_library()
 
 filename = '../reference_data/alac-10mM-torres2022.dat'
 
-# filename_fortran = 'results/fortrancode/analyzed_observables_fortran_code.csv'
-
 filename_espresso = 'analyzed_observables.csv'
 
 protein_name = '1f6s'
 protein_filename = os.path.join (parentdir,'sample_scripts/coarse_grain_model_of_1f6s.vtf' )
-pmb.load_protein_vtf_in_df (name=protein_name,filename=protein_filename)
+topology_dict=pmb.read_protein_vtf_in_df (filename=protein_filename)
+pmb.define_protein(name=protein_name,topology_dict=topology_dict)
 protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
 pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets/Nozaki1967.txt'))

@@ -37,9 +37,6 @@ args = parser.parse_args ()
 pH_value = args.pH 
 print (pH_value)
 
-#agregar check para cuando no se da un valor pH 
-
-# print (f"Running simulation for: {pH_value}")
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
@@ -73,13 +70,14 @@ espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 protein_name = '1f6s'
 protein_filename = os.path.join (parentdir,'sample_scripts/coarse_grain_model_of_1f6s.vtf' )
 
-
 #Reads the VTF file of the protein model
-protein_positions = pmb.load_protein_vtf_in_df (name=protein_name,filename=protein_filename)
+topology_dict = pmb.read_protein_vtf_in_df (filename=protein_filename)
+#Defines the protein in the pmb.df
+pmb.define_protein (name=protein_name,topology_dict=topology_dict)
+
 
 #Create dictionary with the value of epsilon for each residue
-protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
-clean_sequence = pmb.protein_sequence_parser(sequence=protein_sequence)
+clean_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
 epsilon_dict = {}
 for residue in clean_sequence:
@@ -90,8 +88,6 @@ for residue in clean_sequence:
 
 #Define epsilon for each particle
 pmb.define_epsilon_value_of_particles (eps_dict = epsilon_dict)
-
-# print (pmb.filter_df(pmb_type='particle'))
 
 #Metal Ion calcium definition
 pmb.define_particle(name='Ca',q=+2,epsilon=epsilon)
@@ -106,11 +102,16 @@ pmb.define_particle(name=anion_name,  q=-1, diameter=0.2*pmb.units.nm,  epsilon=
 
 pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets/Nozaki1967.txt'))
 
+#NOTE 
+index = pmb.df.loc[pmb.df['name']=='C'].index.values[0] 
+pmb.df.at[index,'acidity'] = 'inert'
+pmb.df.at[index,'pka'] = pmb.np.NaN
+
 #We create the protein in espresso 
 pmb.create_protein_in_espresso(name=protein_name,
                                number_of_proteins=1,
                                espresso_system=espresso_system,
-                               positions=protein_positions)
+                               positions=topology_dict)
 
 #Here we activate the motion of the protein
 # pmb.activate_motion_of_rigid_object(espresso_system=espresso_system,name=protein_name)
@@ -146,51 +147,51 @@ print('The non interacting type is set to ', non_interacting_type)
 
 # Setup the potential energy
 
-if (WCA):
+# if (WCA):
 
-    pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
-    
-    print('\nMinimazing system energy\n')
-    espresso_system.cell_system.skin = 0.4
-    espresso_system.time_step = dt 
-    print('steepest descent')
-    espresso_system.integrator.set_steepest_descent(f_max=0, gamma=0.1, max_displacement=0.1)
-    espresso_system.integrator.run(1000)
-    print('velocity verlet')
-    espresso_system.integrator.set_vv()  # to switch back to velocity Verlet
-    espresso_system.integrator.run(1000)
-    espresso_system.thermostat.turn_off()
-    print('\nMinimization finished \n')
+# pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
 
-    if (Electrostatics):
+print('\nMinimazing system energy\n')
+espresso_system.cell_system.skin = 0.4
+espresso_system.time_step = dt 
+print('steepest descent')
+espresso_system.integrator.set_steepest_descent(f_max=0, gamma=0.1, max_displacement=0.1)
+espresso_system.integrator.run(1000)
+print('velocity verlet')
+espresso_system.integrator.set_vv()  # to switch back to velocity Verlet
+espresso_system.integrator.run(1000)
+espresso_system.thermostat.turn_off()
+print('\nMinimization finished \n')
+
+    # if (Electrostatics):
         #Electrostatic energy setup 
-        print ('Electrostatics setup')
-        bjerrum_length = pmb.e.to('reduced_charge')**2 / (4 *pmb.units.pi*pmb.units.eps0* solvent_permitivity * pmb.kT.to('reduced_energy'))
-        coulomb_prefactor = bjerrum_length.to('reduced_length') * pmb.kT.to('reduced_energy')
-        coulomb = espressomd.electrostatics.P3M ( prefactor = coulomb_prefactor.magnitude, accuracy=1e-3)
+print ('Electrostatics setup')
+bjerrum_length = pmb.e.to('reduced_charge')**2 / (4 *pmb.units.pi*pmb.units.eps0* solvent_permitivity * pmb.kT.to('reduced_energy'))
+coulomb_prefactor = bjerrum_length.to('reduced_length') * pmb.kT.to('reduced_energy')
+coulomb = espressomd.electrostatics.P3M ( prefactor = coulomb_prefactor.magnitude, accuracy=1e-3)
 
-        print('\nBjerrum length ', bjerrum_length.to('nm'), '=', bjerrum_length.to('reduced_length'))
+print('\nBjerrum length ', bjerrum_length.to('nm'), '=', bjerrum_length.to('reduced_length'))
 
-        espresso_system.time_step = dt
-        espresso_system.actors.add(coulomb)
+espresso_system.time_step = dt
+espresso_system.actors.add(coulomb)
 
-        # save the optimal parameters and add them by hand
-        p3m_params = coulomb.get_params()
-        espresso_system.actors.remove(coulomb)
+# save the optimal parameters and add them by hand
+p3m_params = coulomb.get_params()
+espresso_system.actors.remove(coulomb)
 
-        coulomb = espressomd.electrostatics.P3M (
-                                    prefactor = coulomb_prefactor.magnitude,
-                                    accuracy = 1e-3,
-                                    mesh = p3m_params['mesh'],
-                                    alpha = p3m_params['alpha'] ,
-                                    cao = p3m_params['cao'],
-                                    r_cut = p3m_params['r_cut'],
-                                    tune = False,
-                                        )
+coulomb = espressomd.electrostatics.P3M (
+                            prefactor = coulomb_prefactor.magnitude,
+                            accuracy = 1e-3,
+                            mesh = p3m_params['mesh'],
+                            alpha = p3m_params['alpha'] ,
+                            cao = p3m_params['cao'],
+                            r_cut = p3m_params['r_cut'],
+                            tune = False,
+                                )
 
-        espresso_system.actors.add(coulomb)
+espresso_system.actors.add(coulomb)
 
-        print("\nElectrostatics successfully added to the system \n")
+print("\nElectrostatics successfully added to the system \n")
 
 #Save the initial state 
 
@@ -251,7 +252,7 @@ for amino in net_charge_amino_save.keys():
 
 observables_df.to_csv(f'pH-{pH_value}_observables.csv',index=False)
 
-print(pmb.df)
+# print(pmb.df)
 print (observables_df)
 
 # from espressomd import visualization
