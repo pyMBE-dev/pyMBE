@@ -996,7 +996,7 @@ class pymbe_library():
             self.df.at [index,('sequence','')] = clean_sequence
         return
     
-    def define_protein (self, name, topology_dict, model = None):
+    def define_protein (self, name, topology_dict, model):
         """
         Defines a pyMBE object of type `protein` in `pymbe.df`.
 
@@ -1006,24 +1006,28 @@ class pymbe_library():
         """
         import re 
 
-        #NOTE 
-
         protein_seq_list = []     
     
+        #NOTE buscar funcion match
+        # agregar valid keys 
+        # if 'CA' in topology_dict.keys():
+                # model = '2beadAA' 
+                # self.define_particle(name='CA')
+                #check model '2beadAA' sino que escriba un warning
+
+        # if model is None:
+        #     model = '1beadAA'  
+
         for residue in topology_dict.keys():
 
             residue_name = re.split(r'\d+', residue)[0]
-
+            if residue_name != 'CA' and residue_name != 'Ca':
+                protein_seq_list.append(residue_name)      
+            
             if residue_name == 'CA':
                 model = '2beadAA' 
                 self.define_particle(name='CA')
                 continue
-
-            if residue_name != 'CA' and residue_name != 'Ca':
-                protein_seq_list.append(residue_name)      
-
-        if model is None:
-            model = '1beadAA'   
 
         protein_sequence = ''.join(protein_seq_list)
         clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
@@ -1583,9 +1587,7 @@ class pymbe_library():
         axes_list = [0,1,2]
         updated_coordinates_list = []
 
-        # Pablo-NOTE:
-        # 1- Lines 1397-1403 could be done before in line 1389
-
+        #NOTE mover esto donde se leen las coordenadas
         for pos in coord_list:
             updated_pos = self.np.zeros(3,)
             
