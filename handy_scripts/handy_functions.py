@@ -126,25 +126,17 @@ def minimize_espresso_system_energy(espresso_system, skin=1, gamma=1, Nsteps=100
 
     return
 
-def setup_langevin_dynamics_in_espresso(self,espresso_system, time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
+def setup_langevin_dynamics_in_espresso(espresso_system, kT, SEED,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
     """
     Sets up Langevin Dynamics in espressomd.
     espresso_system: instance of espressmd system class
     time_step: time s
 
     """        
-
-    # MOVE to some handy_functions file
-    kT=self.TEMPERATURE*self.units.k
-
-    if self.SEED is None:
-
-        # Take the random seed from the system time
-        self.create_random_seed()
         
     espresso_system.time_step=time_step
     espresso_system.integrator.set_vv()
-    espresso_system.thermostat.set_langevin(kT=kT.to('reduced_energy').magnitude, gamma=gamma, seed=self.SEED)
+    espresso_system.thermostat.set_langevin(kT=kT.to('reduced_energy').magnitude, gamma=gamma, seed= SEED)
 
     # Optimize the value of skin
 
