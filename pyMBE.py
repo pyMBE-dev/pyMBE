@@ -10,6 +10,7 @@ class pymbe_library():
         kT(`obj`): Thermal energy using the `pmb.units` UnitRegistry. it is used as the unit of reduced energy.
     """
     import pint
+    import re
     import numpy as np
     import pandas as pd 
     import json
@@ -610,7 +611,7 @@ class pymbe_library():
             number_of_proteins(`int`): Number of proteins to be created.
             positions(`dict`): {'ResidueNumber': {'initial_pos': [], 'chain_id': ''}}
         """
-        import re 
+
         if number_of_proteins <=0:
             return
         if not self.check_if_name_is_defined_in_df(name=name,
@@ -636,8 +637,8 @@ class pymbe_library():
    
             for residue in positions.keys():
 
-                residue_name = re.split(r'\d+', residue)[0]
-                residue_number = re.split(r'(\d+)', residue)[1]
+                residue_name = self.re.split(r'\d+', residue)[0]
+                residue_number = self.re.split(r'(\d+)', residue)[1]
                 residue_position = positions[residue]['initial_pos']
                 position = residue_position + protein_center
 
@@ -656,9 +657,6 @@ class pymbe_library():
                 self.add_value_to_df(key=('molecule_id',''),
                                         index=int (index),
                                         new_value=molecule_id)
-                
-            if molecule_index == min(protein_index_list):
-                self.setup_particle_diameter(topology_dict=positions)
 
         return
 
@@ -929,7 +927,6 @@ class pymbe_library():
                         new_value=epsilon)
         return 
 
-
     def define_molecule(self, name, residue_list):
         """
         Defines a pyMBE object of type `molecule` in `pymbe.df`.
@@ -972,7 +969,23 @@ class pymbe_library():
         
         self.set_particle_acidity ( name=name, acidity = acidity , default_charge=q, pka=pka)
         return 
+    
+    def define_particles_parameter_from_dict (self, param_dict, param_name):
+        '''
+        Defines the `param_name` value of the particles in `param_dict` into the `pmb.df`.
 
+        Args:
+            param_dict(`dict`):  {'name': `param_name` value}
+        '''
+        for residue in param_dict.keys():
+            label_list = self.df[self.df['name'] == residue].index.tolist()
+            for index in label_list:
+                value = param_dict[residue]
+                self.add_value_to_df(key= (param_name,''),
+                        index=int (index),
+                        new_value=value)
+        return 
+    
     def define_peptide(self, name, sequence, model):
         """
         Defines a pyMBE object of type `peptide` in the `pymbe.df`.
@@ -996,38 +1009,32 @@ class pymbe_library():
             self.df.at [index,('sequence','')] = clean_sequence
         return
     
-    def define_protein (self, name, topology_dict, model):
+    def define_protein (self, name,model, topology_dict ):
         """
         Defines a pyMBE object of type `protein` in `pymbe.df`.
 
         Args:
             name (`str`): Unique label that identifies the `protein`.
+            model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per aminoacid are supported.
             topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
         """
-        import re 
 
         protein_seq_list = []     
     
-        #NOTE buscar funcion match
-        # agregar valid keys 
-        # if 'CA' in topology_dict.keys():
-                # model = '2beadAA' 
-                # self.define_particle(name='CA')
-                #check model '2beadAA' sino que escriba un warning
+        #NOTE re.match es lo mismo que usar re.split
 
-        # if model is None:
-        #     model = '1beadAA'  
+        valid_keys = ['1beadAA','2beadAA']
+
+        if model not in valid_keys:
+            raise ValueError('Invalid label for the peptide model, please choose between 1beadAA or 2beadAA')
+        
+        if model == '2beadAA':
+            self.define_particle(name='CA')
 
         for residue in topology_dict.keys():
-
-            residue_name = re.split(r'\d+', residue)[0]
+            residue_name = self.re.split(r'\d+', residue)[0]
             if residue_name != 'CA' and residue_name != 'Ca':
-                protein_seq_list.append(residue_name)      
-            
-            if residue_name == 'CA':
-                model = '2beadAA' 
-                self.define_particle(name='CA')
-                continue
+                protein_seq_list.append(residue_name)                  
 
         protein_sequence = ''.join(protein_seq_list)
         clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
@@ -1573,27 +1580,14 @@ class pymbe_library():
                             atom_name = line_split [3]
                             atom_resname = line_split [5]
                             chain_id = line_split [7]
-                            atom_radius = line_split [9]
-                            diameter = ((float(atom_radius)*2.0)*unit_length).to('reduced_length').magnitude 
 
-                            particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, diameter]
+                            particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id]
          
                         elif line_header.isnumeric (): 
 
                             atom_coord = line_split [1:] 
-                            atom_coord = [float(i) for i in atom_coord]
+                            atom_coord = [(float(i)*unit_length).to('reduced_length').magnitude for i in atom_coord]
                             coord_list.append (atom_coord)
-
-        axes_list = [0,1,2]
-        updated_coordinates_list = []
-
-        #NOTE mover esto donde se leen las coordenadas
-        for pos in coord_list:
-            updated_pos = self.np.zeros(3,)
-            
-            for axis in axes_list:
-                updated_pos[axis] = (pos[axis]*unit_length).to('reduced_length').magnitude 
-            updated_coordinates_list.append (updated_pos.tolist())
 
         numbered_label = []
         i = 0   
@@ -1602,7 +1596,7 @@ class pymbe_library():
     
             if atom_id == 1:
                 atom_name = particles_dict[atom_id][0]
-                numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
+                numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2]]
                 numbered_label.append(numbered_name)
 
             elif atom_id != 1: 
@@ -1611,7 +1605,7 @@ class pymbe_library():
                     i += 1                    
                     count = 1
                     atom_name = particles_dict[atom_id][0]
-                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
+                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2]]
                     numbered_label.append(numbered_name)
                     
                 elif particles_dict[atom_id-1][1] == particles_dict[atom_id][1]:
@@ -1619,14 +1613,14 @@ class pymbe_library():
                         i +=1  
                         count = 0
                     atom_name = particles_dict[atom_id][0]
-                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
+                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2]]
                     numbered_label.append(numbered_name)
                     count +=1
 
         topology_dict = {}
 
         for i in range (0, len(numbered_label)):   
-            topology_dict [numbered_label[i][0]] = {'initial_pos': updated_coordinates_list[i] ,'chain_id':numbered_label[i][1], 'diameter':numbered_label[i][2] }
+            topology_dict [numbered_label[i][0]] = {'initial_pos': coord_list[i] ,'chain_id':numbered_label[i][1] }
 
         return topology_dict
 
@@ -1910,14 +1904,13 @@ class pymbe_library():
         Args:
             topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
         '''
-        import re 
-   
         for residue in topology_dict.keys():
-            residue_name = re.split(r'\d+', residue)[0]
-            residue_number = re.split(r'(\d+)', residue)[1]
+            residue_name = self.re.split(r'\d+', residue)[0]
+            residue_number = self.re.split(r'(\d+)', residue)[1]
             residue_diameter  = topology_dict[residue]['diameter']
             diameter = residue_diameter*self.units.nm
             index = self.df[(self.df['residue_id']==residue_number) & (self.df['name']==residue_name) ].index.values[0]
+
             self.add_value_to_df(key= ('diameter',''),
                         index=int (index),
                         new_value=diameter)
