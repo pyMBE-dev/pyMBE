@@ -22,7 +22,6 @@ if not os.path.exists('./observables_results'):
 os.system('mv pH*.csv observables_results')
 os.system('python3 ../handy_scripts/data_analysis.py observables_results/')
 
-
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir) 
@@ -35,15 +34,17 @@ filename = '../reference_data/alac-10mM-torres2022.dat'
 filename_espresso = 'analyzed_observables.csv'
 
 protein_name = '1f6s'
+# pmb.df = pd.read_csv ('df.csv')
+
 protein_filename = os.path.join (parentdir,'sample_scripts/coarse_grain_model_of_1f6s.vtf' )
 topology_dict=pmb.read_protein_vtf_in_df (filename=protein_filename)
-pmb.define_protein(name=protein_name,topology_dict=topology_dict)
-protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
+pmb.define_protein(name=protein_name,topology_dict=topology_dict,model='2beadAA')
 
 pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets/Nozaki1967.txt'))
-
+protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 pH_range = np.linspace(2, 7, num=31)
-Z_HH = pmb.calculate_HH (sequence = protein_sequence, pH_list =pH_range )
+Z_HH = pmb.calculate_HH (sequence = protein_sequence, pH_list =pH_range, )
+
 Z_HH_Ca = []
 # Here we have to add +2 for the Calcium in the protein 
 

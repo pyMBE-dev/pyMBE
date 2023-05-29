@@ -18,6 +18,9 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 from handy_scripts.handy_functions import calculate_net_charge_in_molecule
+from handy_scripts.handy_functions import setup_electrostatic_interactions_in_espresso
+from handy_scripts.handy_functions import minimize_espresso_system_energy
+from handy_scripts.handy_functions import setup_langevin_dynamics_in_espresso
 
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
@@ -57,7 +60,6 @@ integ_steps = int (stride_obs/dt)
 
 probability_reaction = 0.5 
 
-bead_size = 0.355*pmb.units.nm
 epsilon = 1*pmb.units('reduced_energy')
 
 WCA = True
@@ -73,39 +75,38 @@ protein_filename = os.path.join (parentdir,'sample_scripts/coarse_grain_model_of
 #Reads the VTF file of the protein model
 topology_dict = pmb.read_protein_vtf_in_df (filename=protein_filename)
 #Defines the protein in the pmb.df
-pmb.define_protein (name=protein_name,topology_dict=topology_dict)
+pmb.define_protein (name=protein_name, topology_dict=topology_dict, model = '2beadAA')
 
-
-#Create dictionary with the value of epsilon for each residue
+#Create dictionary with the value of epsilon and diameter for each residue
 clean_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
 epsilon_dict = {}
+diameter_dict = {}
+
 for residue in clean_sequence:
     if residue not in epsilon_dict.keys():
         epsilon_dict [residue] = epsilon
+        diameter_dict [residue] = 0.355*pmb.units.nm
+    epsilon_dict  ['CA'] = epsilon
+    diameter_dict ['CA'] = 0.355*pmb.units.nm
 
-    epsilon_dict ['CA'] = epsilon
+#Define epsilon and diameter for each particle into pmb.df
 
-#Define epsilon for each particle
-pmb.define_epsilon_value_of_particles (eps_dict = epsilon_dict)
+pmb.define_particles_parameter_from_dict (param_dict = epsilon_dict,param_name ='epsilon')
+pmb.define_particles_parameter_from_dict (param_dict = diameter_dict,param_name ='diameter')
 
 #Metal Ion calcium definition
-pmb.define_particle(name='Ca',q=+2,epsilon=epsilon)
+pmb.define_particle(name = 'Ca', q=+2, diameter=0.355*pmb.units.nm, epsilon=epsilon)
 
 # Solution 
 cation_name = 'Na'
 anion_name = 'Cl'
-pmb.define_particle(name=cation_name,  q=1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
-pmb.define_particle(name=anion_name,  q=-1, diameter=0.2*pmb.units.nm,  epsilon=epsilon)
+
+pmb.define_particle(name = cation_name, q = 1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
+pmb.define_particle(name = anion_name,  q =-1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
 
 # Here we upload the pka set from the reference_parameters folder 
-
 pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets/Nozaki1967.txt'))
-
-#NOTE 
-index = pmb.df.loc[pmb.df['name']=='C'].index.values[0] 
-pmb.df.at[index,'acidity'] = 'inert'
-pmb.df.at[index,'pka'] = pmb.np.NaN
 
 #We create the protein in espresso 
 pmb.create_protein_in_espresso(name=protein_name,
@@ -147,67 +148,24 @@ print('The non interacting type is set to ', non_interacting_type)
 
 # Setup the potential energy
 
-# if (WCA):
+if (WCA):
 
-# pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
+    print ('Setup of LJ interactions.. ')
 
-print('\nMinimazing system energy\n')
-espresso_system.cell_system.skin = 0.4
-espresso_system.time_step = dt 
-print('steepest descent')
-espresso_system.integrator.set_steepest_descent(f_max=0, gamma=0.1, max_displacement=0.1)
-espresso_system.integrator.run(1000)
-print('velocity verlet')
-espresso_system.integrator.set_vv()  # to switch back to velocity Verlet
-espresso_system.integrator.run(1000)
-espresso_system.thermostat.turn_off()
-print('\nMinimization finished \n')
+    pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
 
-    # if (Electrostatics):
-        #Electrostatic energy setup 
-print ('Electrostatics setup')
-bjerrum_length = pmb.e.to('reduced_charge')**2 / (4 *pmb.units.pi*pmb.units.eps0* solvent_permitivity * pmb.kT.to('reduced_energy'))
-coulomb_prefactor = bjerrum_length.to('reduced_length') * pmb.kT.to('reduced_energy')
-coulomb = espressomd.electrostatics.P3M ( prefactor = coulomb_prefactor.magnitude, accuracy=1e-3)
+    minimize_espresso_system_energy (espresso_system=espresso_system)
 
-print('\nBjerrum length ', bjerrum_length.to('nm'), '=', bjerrum_length.to('reduced_length'))
+    if (Electrostatics):
 
-espresso_system.time_step = dt
-espresso_system.actors.add(coulomb)
-
-# save the optimal parameters and add them by hand
-p3m_params = coulomb.get_params()
-espresso_system.actors.remove(coulomb)
-
-coulomb = espressomd.electrostatics.P3M (
-                            prefactor = coulomb_prefactor.magnitude,
-                            accuracy = 1e-3,
-                            mesh = p3m_params['mesh'],
-                            alpha = p3m_params['alpha'] ,
-                            cao = p3m_params['cao'],
-                            r_cut = p3m_params['r_cut'],
-                            tune = False,
-                                )
-
-espresso_system.actors.add(coulomb)
-
-print("\nElectrostatics successfully added to the system \n")
+        setup_electrostatic_interactions_in_espresso(units=pmb.units,espresso_system=espresso_system,kT=pmb.kT)
 
 #Save the initial state 
 
 n_frame = 0
 pmb.write_output_vtf_file(espresso_system=espresso_system,filename=f"frames/trajectory{n_frame}.vtf")
 
-print (f'Optimizing skin\n')
-espresso_system.time_step = dt 
-espresso_system.integrator.set_vv()
-espresso_system.thermostat.set_langevin(kT=pmb.kT.to('reduced_energy').magnitude, gamma=0.1, seed=SEED)
-
-espresso_system.cell_system.tune_skin ( min_skin = 10, 
-                                        max_skin = espresso_system.box_l[0]/2., tol=1e-3, 
-                                        int_steps=1000, adjust_max_skin=True)
-
-print('Optimized skin value: ', espresso_system.cell_system.skin, '\n')
+setup_langevin_dynamics_in_espresso (espresso_system=espresso_system, kT = pmb.kT, SEED = SEED)
 
 observables_df = pmb.pd.DataFrame()
 time_step = []
@@ -217,7 +175,8 @@ net_charge_amino_save = {}
 Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
-pmb.df.to_csv('df.csv')
+#Save `pmb.df` to a csv file
+pmb.df.to_csv('df.csv',index=False)
 
 for step in tqdm(range(N_samples)):
         
