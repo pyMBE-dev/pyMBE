@@ -34,7 +34,8 @@ filename = '../reference_data/alac-10mM-torres2022.dat'
 filename_espresso = 'analyzed_observables.csv'
 
 protein_name = '1f6s'
-# pmb.df = pd.read_csv ('df.csv')
+pmb.df = pd.read_csv ('df.csv', header=[0,1], index_col=0)
+
 
 protein_filename = os.path.join (parentdir,'sample_scripts/coarse_grain_model_of_1f6s.vtf' )
 topology_dict=pmb.read_protein_vtf_in_df (filename=protein_filename)
@@ -43,6 +44,7 @@ pmb.define_protein(name=protein_name,topology_dict=topology_dict,model='2beadAA'
 pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets/Nozaki1967.txt'))
 protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 pH_range = np.linspace(2, 7, num=31)
+
 Z_HH = pmb.calculate_HH (sequence = protein_sequence, pH_list =pH_range, )
 
 Z_HH_Ca = []
@@ -66,11 +68,6 @@ with open (filename,'r') as file:
         pH_list.append(pH)
         znet.append (float(line_split[1]))
         sigma.append(float(line_split[2]))
-
-
-# fortran_df = pd.read_csv(filename_fortran)
-# cols = fortran_df.columns.to_list ()
-
 
 full_data = pd.read_csv(filename_espresso)
 columns = full_data.columns.to_list()

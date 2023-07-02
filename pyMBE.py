@@ -1021,8 +1021,6 @@ class pymbe_library():
 
         protein_seq_list = []     
     
-        #NOTE re.match es lo mismo que usar re.split
-
         valid_keys = ['1beadAA','2beadAA']
 
         if model not in valid_keys:

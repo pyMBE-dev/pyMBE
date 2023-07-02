@@ -17,6 +17,7 @@ sys.path.insert(0, parentdir)
 import pyMBE
 pmb = pyMBE.pymbe_library()
 
+#Import function from handy_functions script 
 from handy_scripts.handy_functions import calculate_net_charge_in_molecule
 from handy_scripts.handy_functions import setup_electrostatic_interactions_in_espresso
 from handy_scripts.handy_functions import minimize_espresso_system_energy
@@ -37,18 +38,16 @@ parser.add_argument('-pH', type=float, required= True,  help='Expected pH value'
 args = parser.parse_args ()
 
 #System Parameters 
-pH_value = args.pH 
-print (pH_value)
-
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
+SEED = 77 
+pH_value = args.pH 
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
 c_protein =  2e-4 * pmb.units.mol / pmb.units.L 
 Box_V =  1. / (pmb.N_A*c_protein)
 Box_L = Box_V**(1./3.) 
-
-SEED = 77 
 solvent_permitivity = 78.3
+epsilon = 1*pmb.units('reduced_energy')
 
 #Simulation Parameters
 t_max = 1e3 #  in LJ units of time
@@ -57,11 +56,9 @@ stride_traj = 100 # in LJ units of time
 dt = 0.01
 N_samples = int (t_max / stride_obs)
 integ_steps = int (stride_obs/dt)
-
 probability_reaction = 0.5 
 
-epsilon = 1*pmb.units('reduced_energy')
-
+#Switch for Electrostatics and WCA interactions 
 WCA = True
 Electrostatics = True
 
@@ -95,10 +92,10 @@ for residue in clean_sequence:
 pmb.define_particles_parameter_from_dict (param_dict = epsilon_dict,param_name ='epsilon')
 pmb.define_particles_parameter_from_dict (param_dict = diameter_dict,param_name ='diameter')
 
-#Metal Ion calcium definition
+#Defines the metal ion present in the protein 
 pmb.define_particle(name = 'Ca', q=+2, diameter=0.355*pmb.units.nm, epsilon=epsilon)
 
-# Solution 
+# Here we define the solution particles in the pmb.df 
 cation_name = 'Na'
 anion_name = 'Cl'
 
@@ -114,17 +111,19 @@ pmb.create_protein_in_espresso(name=protein_name,
                                espresso_system=espresso_system,
                                positions=topology_dict)
 
-#Here we activate the motion of the protein
+#Here we activate the motion of the protein 
 # pmb.activate_motion_of_rigid_object(espresso_system=espresso_system,name=protein_name)
 
-# If we want to center the first protein created
+# Here we put the protein on the center of the simulation box
 protein_id = pmb.df.loc[pmb.df['name']==protein_name].molecule_id.values[0]
 pmb.center_molecule_in_simulation_box (molecule_id=protein_id,espresso_system=espresso_system)
 
+# Creates counterions and added salt 
 pmb.create_counterions_in_espresso (pmb_object_name='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
 
 c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
+#Here we calculated the ionisible groups 
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
 acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
 list_ionisible_groups = basic_groups + acidic_groups
@@ -134,6 +133,7 @@ print('The box length of the system is', Box_L.to('reduced_length'), Box_L.to('n
 print('The ionisable groups in the protein are ', list_ionisible_groups)
 print ('The total amount of ionizable groups are:',total_ionisible_groups)
 
+#Setup of the reactions in espresso 
 RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso (counter_ion=cation_name, constant_pH= pH_value, SEED = SEED )
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
@@ -153,7 +153,6 @@ if (WCA):
     print ('Setup of LJ interactions.. ')
 
     pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
-
     minimize_espresso_system_energy (espresso_system=espresso_system)
 
     if (Electrostatics):
@@ -161,7 +160,6 @@ if (WCA):
         setup_electrostatic_interactions_in_espresso(units=pmb.units,espresso_system=espresso_system,kT=pmb.kT)
 
 #Save the initial state 
-
 n_frame = 0
 pmb.write_output_vtf_file(espresso_system=espresso_system,filename=f"frames/trajectory{n_frame}.vtf")
 
@@ -176,7 +174,9 @@ Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
 #Save `pmb.df` to a csv file
-pmb.df.to_csv('df.csv',index=False)
+pmb.df.to_csv('df.csv',index = False)
+
+#Here we start the main loop over the Nsamples 
 
 for step in tqdm(range(N_samples)):
         
@@ -203,6 +203,7 @@ for step in tqdm(range(N_samples)):
             n_frame +=1
             pmb.write_output_vtf_file(espresso_system=espresso_system,filename=f"frames/trajectory{n_frame}.vtf")
 
+#We save the calculated observables into a new df 
 observables_df['time'] = time_step 
 observables_df['Znet'] = net_charge_list
 
