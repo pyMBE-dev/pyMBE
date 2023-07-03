@@ -174,7 +174,7 @@ Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
 #Save `pmb.df` to a csv file
-pmb.df.to_csv('df.csv',index = False)
+pmb.df.to_csv('df.csv',index = True)
 
 #Here we start the main loop over the Nsamples 
 

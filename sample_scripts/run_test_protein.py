@@ -20,6 +20,7 @@ if not os.path.exists('./observables_results'):
     os.system('mkdir observables_results')
 
 os.system('mv pH*.csv observables_results')
+
 os.system('python3 ../handy_scripts/data_analysis.py observables_results/')
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -29,27 +30,38 @@ sys.path.insert(0, parentdir)
 import pyMBE
 pmb = pyMBE.pymbe_library()
 
+
+# Here you can adjust the width of the panda columns displayed when running the code 
+pmb.pd.options.display.max_colwidth = 10
+
+#This line allows you to see the complete amount of rows in the dataframe
+# pmb.pd.set_option('display.max_rows', None)
+
 filename = '../reference_data/alac-10mM-torres2022.dat'
 
 filename_espresso = 'analyzed_observables.csv'
 
+#Load the pmb.df 
 protein_name = '1f6s'
-pmb.df = pd.read_csv ('df.csv', header=[0,1], index_col=0)
-
-
-protein_filename = os.path.join (parentdir,'sample_scripts/coarse_grain_model_of_1f6s.vtf' )
-topology_dict=pmb.read_protein_vtf_in_df (filename=protein_filename)
-pmb.define_protein(name=protein_name,topology_dict=topology_dict,model='2beadAA')
-
-pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets/Nozaki1967.txt'))
+pmb.df = pd.read_csv ('df.csv', header=[0],index_col=[0])
 protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
+
+print ("The protein sequence is:", protein_sequence)
+
+titratables_AA_df = pmb.df[['name','pka','acidity']].drop_duplicates().dropna()
+
+pka_set = {}
+for index in titratables_AA_df.name.keys():
+    name = titratables_AA_df.name[index]
+    pka_value = titratables_AA_df.pka[index]
+    acidity = titratables_AA_df.acidity[index]   
+    pka_set[name] = {'pka_value':pka_value,'acidity':acidity}
+
 pH_range = np.linspace(2, 7, num=31)
+Z_HH = pmb.calculate_HH (sequence = protein_sequence, pH_list = pH_range, pka_set=pka_set )
 
-Z_HH = pmb.calculate_HH (sequence = protein_sequence, pH_list =pH_range, )
-
+# Here we have to add +2 for the Calcium in the protein charge by HH
 Z_HH_Ca = []
-# Here we have to add +2 for the Calcium in the protein 
-
 for value in Z_HH:
     new_value= value +2 
     Z_HH_Ca.append (new_value)
@@ -57,9 +69,6 @@ for value in Z_HH:
 pH_list = []
 znet = []
 sigma = []
-
-pH_ideal = []
-zideal = []
 
 with open (filename,'r') as file:
     for line in file: 
@@ -116,21 +125,6 @@ ax1.errorbar (
     color = 'blue',
     label = 'ESPResSo')
 print (full_data['pH'], full_data['Znet'])
-
-
-# ax1.plot(
-#     pH_list,
-#     znet,
-#     linewidth = 0,
-#     marker = 'o',
-#     markersize = 10,
-#     # markerfacecolor = 'none',
-#     alpha = 0.8, #changes the line opacity
-#     color = 'red',
-#     label = 'MC Sim Arg'
-    
-#     )
-
 
 
 ax1.set_title ('Net charge vs pH. $c_{salt}$ = 0.01 M',fontsize ='40',pad = 30)
