@@ -12,6 +12,7 @@ import os
 import sys
 import inspect
 
+#Run the main script for each pH value
 for pH_value in np.arange(2.0, 7.5, 0.5):
     print (f'Currently running {pH_value}')
     os.system(f'../pypresso 1F6S_globular_protein.py -pH {pH_value}')
@@ -20,16 +21,15 @@ if not os.path.exists('./observables_results'):
     os.system('mkdir observables_results')
 
 os.system('mv pH*.csv observables_results')
-
 os.system('python3 ../handy_scripts/data_analysis.py observables_results/')
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir) 
 
+# Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
-
 
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
@@ -37,9 +37,7 @@ pmb.pd.options.display.max_colwidth = 10
 #This line allows you to see the complete amount of rows in the dataframe
 # pmb.pd.set_option('display.max_rows', None)
 
-filename = '../reference_data/alac-10mM-torres2022.dat'
 
-filename_espresso = 'analyzed_observables.csv'
 
 #Load the pmb.df 
 protein_name = '1f6s'
@@ -50,6 +48,7 @@ print ("The protein sequence is:", protein_sequence)
 
 titratables_AA_df = pmb.df[['name','pka','acidity']].drop_duplicates().dropna()
 
+# Get the pka_set
 pka_set = {}
 for index in titratables_AA_df.name.keys():
     name = titratables_AA_df.name[index]
@@ -57,6 +56,7 @@ for index in titratables_AA_df.name.keys():
     acidity = titratables_AA_df.acidity[index]   
     pka_set[name] = {'pka_value':pka_value,'acidity':acidity}
 
+# Calculate Henderson-Hasselbach titration curve 
 pH_range = np.linspace(2, 7, num=31)
 Z_HH = pmb.calculate_HH (sequence = protein_sequence, pH_list = pH_range, pka_set=pka_set )
 
@@ -66,27 +66,36 @@ for value in Z_HH:
     new_value= value +2 
     Z_HH_Ca.append (new_value)
 
-pH_list = []
-znet = []
-sigma = []
+# Read the reference data from Torres2022 
 
-with open (filename,'r') as file:
+ref_data_torres = '../reference_data/alac-10mM-torres2022.dat'
+pH_list = []
+z_ref = []
+sigma_ref = []
+
+with open (ref_data_torres,'r') as file:
     for line in file: 
         line_split = line.split ()
         pH = float (line_split[0])
         pH_list.append(pH)
-        znet.append (float(line_split[1]))
-        sigma.append(float(line_split[2]))
+        z_ref.append (float(line_split[1]))
+        sigma_ref.append(float(line_split[2]))
 
-full_data = pd.read_csv(filename_espresso)
+# Read the results from espresso simulation using pyMBE 
+espresso_data = 'analyzed_observables.csv'
+full_data = pd.read_csv(espresso_data)
 columns = full_data.columns.to_list()
 full_data.sort_values(by=['pH'],inplace=True)
+
+#NOTE ADD NUMERICAL COMPARISON BETWEEN REF-DATA AND ESPRESSO-RESULTS
+
+
+#Plot results  
 
 fig = plt.figure(figsize = (20,20))
 ax1 = fig.add_subplot (111)
 
-ax1.hlines(y=0,xmin=2,xmax=7,lw = 3, colors='grey',linestyles='dashed')
-
+# Plots the HH equation
 ax1.plot(
     pH_range,
     Z_HH_Ca,
@@ -99,10 +108,11 @@ ax1.plot(
     label = 'Ideal' 
     )
 
+# Plot the ref data from Torres2022
 ax1.errorbar (
     pH_list,
-    znet,
-    yerr=sigma,
+    z_ref,
+    yerr=sigma_ref,
     linewidth = 2,
     elinewidth = 3,
     marker = 'o',
@@ -111,6 +121,8 @@ ax1.errorbar (
     alpha = 0.8, #changes the line opacity
     color = 'red',
     label = 'Simulations Data Arg ')
+
+#Plots the resuls from espresso
 
 ax1.errorbar (
     full_data['pH'],
@@ -124,12 +136,15 @@ ax1.errorbar (
     alpha = 0.8, #changes the line opacity
     color = 'blue',
     label = 'ESPResSo')
-print (full_data['pH'], full_data['Znet'])
 
+# print (full_data['pH'], full_data['Znet'])
 
+# Add axes information 
 ax1.set_title ('Net charge vs pH. $c_{salt}$ = 0.01 M',fontsize ='40',pad = 30)
 ax1.set_xlabel('$\it{pH}$',size = 45)
 ax1.set_ylabel('$\it{Z}$', size = 45)
+
+ax1.hlines(y=0,xmin=2,xmax=7,lw = 3, colors='grey',linestyles='dashed')
 
 ax1.invert_yaxis ()
 ax1.set_xlim ([2.0,7.0])
@@ -137,8 +152,6 @@ ax1.set_ylim ([-10.0,20.0])
 
 y = np.linspace(-10,20,7)
 minor_ticks = np.linspace(-10,20,31)
-
-# pH_list = fortran_df ['pH'].tolist()
 
 ax1.set_xticks(pH_list, minor=True)
 ax1.set_yticks (y,minor=True)
@@ -163,11 +176,6 @@ ax1.spines['right'].set_lw(3)
 ax1.spines['bottom'].set_lw(3)
 
 ax1.legend(frameon =False)
-
-# 
-# ax1.set_xscale('log')
-# ax1.set_yscale('log')
-
 
 plt.legend(prop={'size': 35})
 pdf_name = 'analyzed_observables.pdf'
