@@ -13,14 +13,14 @@ import sys
 import inspect
 
 #Run the main script for each pH value
-for pH_value in np.arange(2.0, 7.5, 0.5):
-    print (f'Currently running {pH_value}')
-    os.system(f'../pypresso 1F6S_globular_protein.py -pH {pH_value}')
+# for pH_value in np.arange(2.0, 7.5, 0.5):
+#     print (f'Currently running {pH_value}')
+#     os.system(f'../pypresso 1F6S_globular_protein.py -pH {pH_value}')
 
-if not os.path.exists('./observables_results'):
-    os.system('mkdir observables_results')
+# if not os.path.exists('./observables_results'):
+#     os.system('mkdir observables_results')
 
-os.system('mv pH*.csv observables_results')
+# os.system('mv pH*.csv observables_results')
 os.system('python3 ../handy_scripts/data_analysis.py observables_results/')
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -36,7 +36,6 @@ pmb.pd.options.display.max_colwidth = 10
 
 #This line allows you to see the complete amount of rows in the dataframe
 # pmb.pd.set_option('display.max_rows', None)
-
 
 
 #Load the pmb.df 
@@ -85,10 +84,23 @@ with open (ref_data_torres,'r') as file:
 espresso_data = 'analyzed_observables.csv'
 full_data = pd.read_csv(espresso_data)
 columns = full_data.columns.to_list()
-full_data.sort_values(by=['pH'],inplace=True)
+full_data.sort_values('pH',ascending=True, inplace=True)
+
+espresso_znet = full_data['Znet'].to_list ()
 
 #NOTE ADD NUMERICAL COMPARISON BETWEEN REF-DATA AND ESPRESSO-RESULTS
 
+numerical_comparison = pd.DataFrame()
+numerical_comparison['pH'] = pH_list 
+numerical_comparison['ref_torres'] = z_ref
+numerical_comparison['espresso'] = espresso_znet
+
+numerical_comparison['error %'] = abs(( (numerical_comparison['espresso']) -  (numerical_comparison['ref_torres'])) /  (numerical_comparison['ref_torres'])) *100 
+
+#Save `numerical_comparison` to a csv file 
+numerical_comparison.to_csv('numerical_comparison.csv',index = True)
+
+print (numerical_comparison)
 
 #Plot results  
 
