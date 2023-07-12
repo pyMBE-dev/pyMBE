@@ -1577,7 +1577,7 @@ class pymbe_library():
                             atom_id  = line_split [1]
                             atom_name = line_split [3]
                             atom_resname = line_split [5]
-                            chain_id = line_split [7]
+                            chain_id = line_split [9]
 
                             particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id]
          
