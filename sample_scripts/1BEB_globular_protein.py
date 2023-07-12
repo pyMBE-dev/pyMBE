@@ -17,7 +17,6 @@ sys.path.insert(0, parentdir)
 import pyMBE
 pmb = pyMBE.pymbe_library()
 
-#Import function from handy_functions script 
 from handy_scripts.handy_functions import calculate_net_charge_in_molecule
 from handy_scripts.handy_functions import setup_electrostatic_interactions_in_espresso
 from handy_scripts.handy_functions import minimize_espresso_system_energy
@@ -34,31 +33,34 @@ if not os.path.exists('./frames'):
     os.makedirs('./frames')
 
 parser = argparse.ArgumentParser(description='Script to run globular protein simulation in espressomd')
-parser.add_argument('-pH', type=float, required= True,  help='Expected pH value')
+parser.add_argument('-pH', type=float,help='Expected pH value')
 args = parser.parse_args ()
 
 #System Parameters 
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
-SEED = 77 
+
 pH_value = args.pH 
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
 c_protein =  2e-4 * pmb.units.mol / pmb.units.L 
 Box_V =  1. / (pmb.N_A*c_protein)
 Box_L = Box_V**(1./3.) 
+SEED = 77 
 solvent_permitivity = 78.3
-epsilon = 1*pmb.units('reduced_energy')
 
 #Simulation Parameters
 t_max = 1e3 #  in LJ units of time
-stride_obs = 10 #  in LJ units of time
+stride_obs = 100 #  in LJ units of time
 stride_traj = 100 # in LJ units of time
-dt = 0.01
+dt = 0.001
 N_samples = int (t_max / stride_obs)
 integ_steps = int (stride_obs/dt)
+
 probability_reaction = 0.5 
 
-#Switch for Electrostatics and WCA interactions 
+bead_size = 0.355*pmb.units.nm
+epsilon = 1*pmb.units('reduced_energy')
+
 WCA = True
 Electrostatics = True
 
@@ -66,11 +68,12 @@ espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude]
 espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
 #Directory of the protein model 
-protein_name = '1f6s'
-protein_filename = os.path.join (parentdir,'sample_scripts/coarse_grain_model_of_1f6s.vtf' )
+protein_name = '1beb'
+protein_filename = os.path.join (parentdir,'sample_scripts/coarse_grain_model_of_1beb.vtf' )
 
 #Reads the VTF file of the protein model
 topology_dict = pmb.read_protein_vtf_in_df (filename=protein_filename)
+
 #Defines the protein in the pmb.df
 pmb.define_protein (name=protein_name, topology_dict=topology_dict, model = '2beadAA')
 
@@ -92,15 +95,11 @@ for residue in clean_sequence:
 pmb.define_particles_parameter_from_dict (param_dict = epsilon_dict,param_name ='epsilon')
 pmb.define_particles_parameter_from_dict (param_dict = diameter_dict,param_name ='diameter')
 
-#Defines the metal ion present in the protein 
-pmb.define_particle(name = 'Ca', q=+2, diameter=0.355*pmb.units.nm, epsilon=epsilon)
-
-# Here we define the solution particles in the pmb.df 
+# Solution 
 cation_name = 'Na'
 anion_name = 'Cl'
-
-pmb.define_particle(name = cation_name, q = 1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
-pmb.define_particle(name = anion_name,  q =-1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
+pmb.define_particle(name=cation_name,  q=1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
+pmb.define_particle(name=anion_name,  q=-1, diameter=0.2*pmb.units.nm,  epsilon=epsilon)
 
 # Here we upload the pka set from the reference_parameters folder 
 pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets/Nozaki1967.txt'))
@@ -111,10 +110,10 @@ pmb.create_protein_in_espresso(name=protein_name,
                                espresso_system=espresso_system,
                                positions=topology_dict)
 
-#Here we activate the motion of the protein 
+#Here we activate the motion of the protein
 # pmb.activate_motion_of_rigid_object(espresso_system=espresso_system,name=protein_name)
 
-# Here we put the protein on the center of the simulation box
+# If we want to center the first protein created
 protein_id = pmb.df.loc[pmb.df['name']==protein_name].molecule_id.values[0]
 pmb.center_molecule_in_simulation_box (molecule_id=protein_id,espresso_system=espresso_system)
 
@@ -147,7 +146,6 @@ RE.set_non_interacting_type (type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
 # Setup the potential energy
-
 if (WCA):
 
     print ('Setup of LJ interactions.. ')
@@ -158,8 +156,8 @@ if (WCA):
     if (Electrostatics):
 
         setup_electrostatic_interactions_in_espresso(units=pmb.units,espresso_system=espresso_system,kT=pmb.kT)
-
 #Save the initial state 
+
 n_frame = 0
 pmb.write_output_vtf_file(espresso_system=espresso_system,filename=f"frames/trajectory{n_frame}.vtf")
 
@@ -174,9 +172,9 @@ Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
 #Save `pmb.df` to a csv file
-pmb.df.to_csv('df.csv',index = True)
+pmb.df.to_csv('df.csv')
 
-#Here we start the main loop over the Nsamples 
+#Here we start the main loop over the N_samples 
 
 for step in tqdm(range(N_samples)):
         
@@ -214,3 +212,35 @@ observables_df.to_csv(f'pH-{pH_value}_observables.csv',index=False)
 
 # print(pmb.df)
 print (observables_df)
+
+
+from espressomd import visualization
+
+espresso_system.time_step=1e-3
+espresso_system.thermostat.set_langevin(kT=1, gamma=1.0, seed=24)
+espresso_system.cell_system.tune_skin(min_skin=0.01, max_skin =4.0, tol=0.1, int_steps=1000)
+visualizer = espressomd.visualization.openGLLive(espresso_system, bond_type_radius=[0.3], background_color=[1, 1, 1],particle_type_colors=[[1.02,0.51,0], # Brown
+                [1,1,1],  # Grey
+                [2.55,0,0], # Red
+                [0,0,2.05],  # Blue
+                [0,0,2.05],  # Blue
+                [2.55,0,0], # Red
+                [2.05,1.02,0]])     
+visualizer.run(1)
+
+# filename = 'protein.png'
+
+# visualizer = visualization.openGLLive(
+#     espresso_system, bond_type_radius=[0.3], particle_coloring='type', draw_axis=False, background_color=[1, 1, 1],
+# particle_type_colors=[[1.02,0.51,0], # Brown
+#                 [1,1,1],  # Grey
+#                 [2.55,0,0], # Red
+#                 [0,0,2.05],  # Blue
+#                 [0,0,2.05],  # Blue
+#                 [2.55,0,0], # Red
+#                 [2.05,1.02,0]]) # Orange
+# visualizer.screenshot(filename)
+
+# from PIL import Image
+# img = Image.open(filename)
+# img.show()
