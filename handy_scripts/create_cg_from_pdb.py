@@ -93,7 +93,7 @@ def change_aminoacids_name_to_one_letter_name (pdb_df):
 
     pdb_df ['resname_one_letter'] = pdb_df ['residue_name']
     
-    pdb_df = pdb_df.replace({'resname_one_letter': amino3to1})
+    pdb_df = pdb_df.replace({'resname_one_letter': amino3to1},inplace=True)
 
     return pdb_df
 
@@ -140,7 +140,7 @@ def create_alpha_carbons_and_terminus_beads (pdb_df):
         alpha_carbons_and_terminus (dict): dictionary that contains: atom_numbers, position, resname,resname_one_letter,radius,chain
         
     """
-    
+
     residue_number_list = pdb_df.residue_number.to_list()
     min_residue_number = min (residue_number_list)
 
