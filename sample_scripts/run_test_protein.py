@@ -12,15 +12,21 @@ import os
 import sys
 import inspect
 
+parser = argparse.ArgumentParser(description='Script to run all the pH of the globular protein')
+parser.add_argument('-pdb', type=float, required= True,  help='Expected PDB code of the protein')
+args = parser.parse_args ()
+
+pdb_code = args.pdb
+
 #Run the main script for each pH value
-# for pH_value in np.arange(2.0, 7.5, 0.5):
-#     print (f'Currently running {pH_value}')
-#     os.system(f'../pypresso 1F6S_globular_protein.py -pH {pH_value}')
+for pH_value in np.arange(2.0, 7.5, 0.5):
+    print (f'Currently running {pH_value}')
+    os.system(f'../pypresso {pdb_code}_globular_protein.py -pH {pH_value}')
 
-# if not os.path.exists('./observables_results'):
-#     os.system('mkdir observables_results')
+if not os.path.exists('./observables_results'):
+    os.system('mkdir observables_results')
 
-# os.system('mv pH*.csv observables_results')
+os.system('mv pH*.csv observables_results')
 os.system('python3 ../handy_scripts/data_analysis.py observables_results/')
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -67,7 +73,7 @@ for value in Z_HH:
 
 # Read the reference data from Torres2022 
 
-ref_data_torres = '../reference_data/alac-10mM-torres2022.dat'
+ref_data_torres = f'../reference_data/{pdb_code}-10mM-torres2022.dat'
 pH_list = []
 z_ref = []
 sigma_ref = []
@@ -88,8 +94,6 @@ full_data.sort_values('pH',ascending=True, inplace=True)
 
 espresso_znet = full_data['Znet'].to_list ()
 
-#NOTE ADD NUMERICAL COMPARISON BETWEEN REF-DATA AND ESPRESSO-RESULTS
-
 numerical_comparison = pd.DataFrame()
 numerical_comparison['pH'] = pH_list 
 numerical_comparison['ref_torres'] = z_ref
@@ -98,7 +102,7 @@ numerical_comparison['espresso'] = espresso_znet
 numerical_comparison['error %'] = abs(( (numerical_comparison['espresso']) -  (numerical_comparison['ref_torres'])) /  (numerical_comparison['ref_torres'])) *100 
 
 #Save `numerical_comparison` to a csv file 
-numerical_comparison.to_csv('numerical_comparison.csv',index = True)
+numerical_comparison.to_csv(f'{pdb_code}-numerical_comparison.csv',index = True)
 
 print (numerical_comparison)
 
@@ -117,7 +121,7 @@ ax1.plot(
     # markerfacecolor = 'none',
     #alpha = 0.8,
     color = 'black',
-    label = 'Ideal' 
+    label = 'HH' 
     )
 
 # Plot the ref data from Torres2022
@@ -132,7 +136,7 @@ ax1.errorbar (
     markerfacecolor = 'none',
     alpha = 0.8, #changes the line opacity
     color = 'red',
-    label = 'Simulations Data Arg ')
+    label = 'Torres et al.,2022')
 
 #Plots the resuls from espresso
 
@@ -190,7 +194,7 @@ ax1.spines['bottom'].set_lw(3)
 ax1.legend(frameon =False)
 
 plt.legend(prop={'size': 35})
-pdf_name = 'analyzed_observables.pdf'
+pdf_name = f'{pdb_code}-analyzed_observables.pdf'
 plt.savefig(pdf_name)
 plt.show()
 
