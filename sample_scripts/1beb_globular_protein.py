@@ -52,13 +52,12 @@ solvent_permitivity = 78.3
 t_max = 1e3 #  in LJ units of time
 stride_obs = 100 #  in LJ units of time
 stride_traj = 100 # in LJ units of time
-dt = 0.001
+dt = 0.01
 N_samples = int (t_max / stride_obs)
 integ_steps = int (stride_obs/dt)
-
 probability_reaction = 0.5 
 
-bead_size = 0.355*pmb.units.nm
+
 epsilon = 1*pmb.units('reduced_energy')
 
 WCA = True
@@ -212,35 +211,3 @@ observables_df.to_csv(f'pH-{pH_value}_observables.csv',index=False)
 
 # print(pmb.df)
 print (observables_df)
-
-
-from espressomd import visualization
-
-espresso_system.time_step=1e-3
-espresso_system.thermostat.set_langevin(kT=1, gamma=1.0, seed=24)
-espresso_system.cell_system.tune_skin(min_skin=0.01, max_skin =4.0, tol=0.1, int_steps=1000)
-visualizer = espressomd.visualization.openGLLive(espresso_system, bond_type_radius=[0.3], background_color=[1, 1, 1],particle_type_colors=[[1.02,0.51,0], # Brown
-                [1,1,1],  # Grey
-                [2.55,0,0], # Red
-                [0,0,2.05],  # Blue
-                [0,0,2.05],  # Blue
-                [2.55,0,0], # Red
-                [2.05,1.02,0]])     
-visualizer.run(1)
-
-# filename = 'protein.png'
-
-# visualizer = visualization.openGLLive(
-#     espresso_system, bond_type_radius=[0.3], particle_coloring='type', draw_axis=False, background_color=[1, 1, 1],
-# particle_type_colors=[[1.02,0.51,0], # Brown
-#                 [1,1,1],  # Grey
-#                 [2.55,0,0], # Red
-#                 [0,0,2.05],  # Blue
-#                 [0,0,2.05],  # Blue
-#                 [2.55,0,0], # Red
-#                 [2.05,1.02,0]]) # Orange
-# visualizer.screenshot(filename)
-
-# from PIL import Image
-# img = Image.open(filename)
-# img.show()

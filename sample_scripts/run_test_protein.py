@@ -13,15 +13,15 @@ import sys
 import inspect
 
 parser = argparse.ArgumentParser(description='Script to run all the pH of the globular protein')
-parser.add_argument('-pdb', type=float, required= True,  help='Expected PDB code of the protein')
+parser.add_argument('-pdb', type=str, required= True,  help='Expected PDB code of the protein')
 args = parser.parse_args ()
 
-pdb_code = args.pdb
+protein_name = args.pdb
 
 #Run the main script for each pH value
 for pH_value in np.arange(2.0, 7.5, 0.5):
     print (f'Currently running {pH_value}')
-    os.system(f'../pypresso {pdb_code}_globular_protein.py -pH {pH_value}')
+    os.system(f'../pypresso globular_protein.py -pdb {protein_name} -pH {pH_value}')
 
 if not os.path.exists('./observables_results'):
     os.system('mkdir observables_results')
@@ -45,7 +45,6 @@ pmb.pd.options.display.max_colwidth = 10
 
 
 #Load the pmb.df 
-protein_name = '1f6s'
 pmb.df = pd.read_csv ('df.csv', header=[0],index_col=[0])
 protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
@@ -66,16 +65,15 @@ pH_range = np.linspace(2, 7, num=31)
 Z_HH = pmb.calculate_HH (sequence = protein_sequence, pH_list = pH_range, pka_set=pka_set )
 
 # Here we have to add +2 for the Calcium in the protein charge by HH
-Z_HH_Ca = []
-for value in Z_HH:
-    new_value= value +2 
-    Z_HH_Ca.append (new_value)
+if protein_name == '1f6s':
+    for index in range (len (Z_HH)):
+        Z_HH[index] = Z_HH[index] +2 
 
 # Read the reference data from Torres2022 
 
-ref_data_torres = f'../reference_data/{pdb_code}-10mM-torres2022.dat'
+ref_data_torres = f'../reference_data/{protein_name}-10mM-torres.dat'
 pH_list = []
-z_ref = []
+znet_ref = []
 sigma_ref = []
 
 with open (ref_data_torres,'r') as file:
@@ -83,7 +81,7 @@ with open (ref_data_torres,'r') as file:
         line_split = line.split ()
         pH = float (line_split[0])
         pH_list.append(pH)
-        z_ref.append (float(line_split[1]))
+        znet_ref.append (float(line_split[1]))
         sigma_ref.append(float(line_split[2]))
 
 # Read the results from espresso simulation using pyMBE 
@@ -92,17 +90,17 @@ full_data = pd.read_csv(espresso_data)
 columns = full_data.columns.to_list()
 full_data.sort_values('pH',ascending=True, inplace=True)
 
-espresso_znet = full_data['Znet'].to_list ()
+znet_espresso = full_data['Znet'].to_list ()
 
 numerical_comparison = pd.DataFrame()
 numerical_comparison['pH'] = pH_list 
-numerical_comparison['ref_torres'] = z_ref
-numerical_comparison['espresso'] = espresso_znet
+numerical_comparison['ref_torres'] = znet_ref
+numerical_comparison['espresso'] = znet_espresso
 
 numerical_comparison['error %'] = abs(( (numerical_comparison['espresso']) -  (numerical_comparison['ref_torres'])) /  (numerical_comparison['ref_torres'])) *100 
 
 #Save `numerical_comparison` to a csv file 
-numerical_comparison.to_csv(f'{pdb_code}-numerical_comparison.csv',index = True)
+numerical_comparison.to_csv(f'{protein_name}-numerical_comparison.csv',index = True)
 
 print (numerical_comparison)
 
@@ -114,7 +112,7 @@ ax1 = fig.add_subplot (111)
 # Plots the HH equation
 ax1.plot(
     pH_range,
-    Z_HH_Ca,
+    Z_HH,
     linewidth = 3,
     #marker = 'o',
     #markersize = 10,
@@ -127,7 +125,7 @@ ax1.plot(
 # Plot the ref data from Torres2022
 ax1.errorbar (
     pH_list,
-    z_ref,
+    znet_ref,
     yerr=sigma_ref,
     linewidth = 2,
     elinewidth = 3,
@@ -136,7 +134,7 @@ ax1.errorbar (
     markerfacecolor = 'none',
     alpha = 0.8, #changes the line opacity
     color = 'red',
-    label = 'Torres et al.,2022')
+    label = 'Ref Torres et al.')
 
 #Plots the resuls from espresso
 
@@ -194,7 +192,7 @@ ax1.spines['bottom'].set_lw(3)
 ax1.legend(frameon =False)
 
 plt.legend(prop={'size': 35})
-pdf_name = f'{pdb_code}-analyzed_observables.pdf'
+pdf_name = f'{protein_name}-analyzed_observables.pdf'
 plt.savefig(pdf_name)
 plt.show()
 
