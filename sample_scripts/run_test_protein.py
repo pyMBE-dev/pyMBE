@@ -151,8 +151,6 @@ ax1.errorbar (
     color = 'blue',
     label = 'ESPResSo')
 
-# print (full_data['pH'], full_data['Znet'])
-
 # Add axes information 
 ax1.set_title ('Net charge vs pH. $c_{salt}$ = 0.01 M',fontsize ='40',pad = 30)
 ax1.set_xlabel('$\it{pH}$',size = 45)
