@@ -2,7 +2,7 @@
 NOTE: Many of this functions rely on a depracted version of the sugar library and need to be fixed
 """
 
-def setup_electrostatic_interactions_in_espresso(units, espresso_system, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
+def setup_electrostatic_interactions_in_espresso(units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
     """
     Setups electrostatic interactions in espressomd. 
     Inputs:
@@ -14,7 +14,7 @@ def setup_electrostatic_interactions_in_espresso(units, espresso_system, c_salt=
     accuracy: desired accuracy for electrostatics, by default 1e-3
     """
     import espressomd.electrostatics
-
+    import numpy as np
     #Initial checks
 
     valid_methods_list=['p3m', 'DH']
@@ -28,21 +28,24 @@ def setup_electrostatic_interactions_in_espresso(units, espresso_system, c_salt=
         raise ValueError('Please provide the added salt concentration c_salt to settup the Debye-Huckel potential')
         
 
-    BJERRUM_LENGTH = self.e.to('reduced_charge')**2 / (4 * self.units.pi * self.units.eps0 * solvent_permittivity * self.kT.to('reduced_energy'))
+    e = 1.60217662e-19 *units.C
+    N_A=6.02214076e23    / units.mol
+
+    BJERRUM_LENGTH = e.to('reduced_charge')**2 / (4 * units.pi * units.eps0 * solvent_permittivity * kT.to('reduced_energy'))
 
     print('\n Bjerrum length ', BJERRUM_LENGTH.to('nm'), '=', BJERRUM_LENGTH.to('reduced_length'))
 
-    COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * self.kT.to('reduced_energy') 
+    COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * kT.to('reduced_energy') 
     
     if c_salt is not None:
 
         if c_salt.check('[substance] [length]**-3'):
 
-            KAPPA=1./self.np.sqrt(8*self.units.pi*BJERRUM_LENGTH*self.N_A*c_salt)
+            KAPPA=1./np.sqrt(8*units.pi*BJERRUM_LENGTH*N_A*c_salt)
 
         elif c_salt.check('[length]**-3'):
             
-            KAPPA=1./self.np.sqrt(8*self.units.pi*BJERRUM_LENGTH*c_salt)
+            KAPPA=1./np.sqrt(8*units.pi*BJERRUM_LENGTH*c_salt)
 
         else:
 
@@ -123,25 +126,17 @@ def minimize_espresso_system_energy(espresso_system, skin=1, gamma=1, Nsteps=100
 
     return
 
-def setup_langevin_dynamics_in_espresso(self,espresso_system, time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
+def setup_langevin_dynamics_in_espresso(espresso_system, kT, SEED,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
     """
     Sets up Langevin Dynamics in espressomd.
     espresso_system: instance of espressmd system class
     time_step: time s
 
     """        
-
-    # MOVE to some handy_functions file
-    kT=self.TEMPERATURE*self.units.k
-
-    if self.SEED is None:
-
-        # Take the random seed from the system time
-        self.create_random_seed()
         
     espresso_system.time_step=time_step
     espresso_system.integrator.set_vv()
-    espresso_system.thermostat.set_langevin(kT=kT.to('reduced_energy').magnitude, gamma=gamma, seed=self.SEED)
+    espresso_system.thermostat.set_langevin(kT=kT.to('reduced_energy').magnitude, gamma=gamma, seed= SEED)
 
     # Optimize the value of skin
 
@@ -269,63 +264,6 @@ def write_progress(self, step, total_steps):
     print("{0:.2g}% done, elapsed time {1:.2g}s; estimated completion in {2:.2g}s".format(perc_sim,elapsed_time.to(time_unit_elapsed_time),remaining_time.to(time_unit_remaining_time)))
 
     return
-def get_net_charge_from_espresso(self, espresso_system, sugar_object):
-    """ 
-    Calculates the net charge of all the objects in espresso compatibles with sugar_object
-
-    Inputs:
-    sugar_object:(class) particle, residue or molecule/peptide object
-    espresso_system: (class)espresso class object with all system variables.
-
-    Returns:
-    Z_list: (list) list with the net charge of all the objects in espresso compatibles with sugar_object
-    """
-    
-    ids_lists_in_object=self.get_ids_from_sugar(sugar_object=sugar_object)
-    Z_list=[]
-    
-    for id_list in ids_lists_in_object:
-        z_one_object=0
-        for id in id_list:
-            z_one_object+=espresso_system.part.by_id(id).q
-        Z_list.append(z_one_object)
-
-    return Z_list
-
-    
-def get_charge_in_residues(self, espresso_system, molecule):
-    """
-    Returns a list with the charge in each residue of molecule stored in  dictionaries
-    Inputs:
-    sugar_object:(class) particle, residue or molecule/peptide object
-    espresso_system: (class) espresso class object with all system variables.
-    Returns:
-    charge_in_residues: (list) list with the charge in each residue of molecule stored in dictionaries
-    """
-    
-
-    charge_in_residues=[]
-
-    for molecule in self.id_map['molecule'][molecule.name]:
-        molecule_list=[]
-        for residue_dict in molecule:
-            charge_dict={}
-            for key in residue_dict.keys():
-                charge_key=[]                      
-                for id in residue_dict[key]:                         
-                    charge_key.append(espresso_system.part.by_id(id).q)
-                
-                if 'side-' in key:
-                    new_key=key.replace('side-', '')
-                elif 'central-' in key:
-                    new_key=key.replace('central-', '')
-                else:
-                    new_key=key
-                charge_dict[new_key]=charge_key
-            molecule_list.append(charge_dict)
-        charge_in_residues.append(molecule_list)
-    
-    return charge_in_residues
 
 def visualize_espresso_system(espresso_system):
     """
@@ -370,3 +308,37 @@ def do_snapshot_espresso_system(espresso_system, filename):
     return
 
 
+def calculate_net_charge_in_molecule (espresso_system, pmb_df, name):
+
+    '''
+    Calculates the net charge of a type `name` molecule. It returns a dictionary that contains the net charge and net charge by residues of the molecule.
+
+    Args:
+        espresso_system: system information 
+        pmb_df (pandas df): data frame with the protein information
+        name (str): name of the molecule to calculate de net charge
+
+    Return:
+        calculated_charge (dict): a dictionary that has as keys net_charge and net_charge_residues
+    '''
+    #sanity check: chequear que el name corresponde a una molecule/protein/peptide 
+
+    charge_in_residues = {}
+
+    molecule_id = pmb_df.loc [pmb_df['name']==name].molecule_id.values[0]
+    particle_id_list = pmb_df.loc[pmb_df['molecule_id']==molecule_id].particle_id.dropna().to_list()  
+    
+    for pid in particle_id_list:    
+
+        label =  pmb_df.loc[pmb_df['particle_id']==pid].name.values[0]
+
+        if label in charge_in_residues.keys():
+            charge_in_residues[label]+=espresso_system.part.by_id(pid).q
+        else:
+            charge_in_residues[label]=espresso_system.part.by_id(pid).q
+
+    net_charge = sum(charge_in_residues.values())
+
+    calculated_charge = {'net_charge':net_charge, 'net_charge_residues':charge_in_residues}
+
+    return calculated_charge
