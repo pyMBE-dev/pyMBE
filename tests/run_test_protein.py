@@ -12,22 +12,24 @@ import os
 import sys
 import inspect
 
-parser = argparse.ArgumentParser(description='Script to run all the pH of the globular protein')
-parser.add_argument('-pdb', type=str, required= True,  help='Expected PDB code of the protein')
+parser = argparse.ArgumentParser(description='Script to reproduce the numerical data for globular proteins from Torres')
+parser.add_argument('--run_command', type=str, required= True,  help='Run command for globular_protein.py')
+parser.add_argument('--pdb_code', type=str, required= True,  help='PDB code of the protein')
 args = parser.parse_args ()
 
-protein_name = args.pdb
+pdb=args.pdb_code
 
 #Run the main script for each pH value
 for pH_value in np.arange(2.0, 7.5, 0.5):
-    print (f'Currently running {pH_value}')
-    os.system(f'../pypresso globular_protein.py -pdb {protein_name} -pH {pH_value}')
+    print (f'{args.run_command} --pH {pH_value}')
+    os.system(f'{args.run_command} --pH {pH_value}')
+    
 
 if not os.path.exists('./observables_results'):
     os.system('mkdir observables_results')
 
 os.system('mv pH*.csv observables_results')
-os.system('python3 ../handy_scripts/data_analysis.py observables_results/')
+os.system('python3 handy_scripts/data_analysis.py observables_results/')
 
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
@@ -40,15 +42,9 @@ pmb = pyMBE.pymbe_library()
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
 
-#This line allows you to see the complete amount of rows in the dataframe
-# pmb.pd.set_option('display.max_rows', None)
-
-
 #Load the pmb.df 
 pmb.df = pd.read_csv ('df.csv', header=[0],index_col=[0])
-protein_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
-
-print ("The protein sequence is:", protein_sequence)
+protein_sequence = pmb.df.loc[pmb.df['name']== pdb].sequence.values[0]
 
 titratables_AA_df = pmb.df[['name','pka','acidity']].drop_duplicates().dropna()
 
@@ -65,13 +61,13 @@ pH_range = np.linspace(2, 7, num=31)
 Z_HH = pmb.calculate_HH (sequence = protein_sequence, pH_list = pH_range, pka_set=pka_set )
 
 # Here we have to add +2 for the Calcium in the protein charge by HH
-if protein_name == '1f6s':
+if pdb == '1f6s':
     for index in range (len (Z_HH)):
         Z_HH[index] = Z_HH[index] +2 
 
 # Read the reference data from Torres2022 
 
-ref_data_torres = f'../reference_data/{protein_name}-10mM-torres.dat'
+ref_data_torres = f'reference_data/{pdb}-10mM-torres.dat'
 pH_list = []
 znet_ref = []
 sigma_ref = []
@@ -100,9 +96,7 @@ numerical_comparison['espresso'] = znet_espresso
 numerical_comparison['error %'] = abs(( (numerical_comparison['espresso']) -  (numerical_comparison['ref_torres'])) /  (numerical_comparison['ref_torres'])) *100 
 
 #Save `numerical_comparison` to a csv file 
-numerical_comparison.to_csv(f'{protein_name}-numerical_comparison.csv',index = True)
-
-print (numerical_comparison)
+numerical_comparison.to_csv(f'{pdb}-numerical_comparison.csv',index = True)
 
 #Plot results  
 
@@ -114,10 +108,6 @@ ax1.plot(
     pH_range,
     Z_HH,
     linewidth = 3,
-    #marker = 'o',
-    #markersize = 10,
-    # markerfacecolor = 'none',
-    #alpha = 0.8,
     color = 'black',
     label = 'HH' 
     )
@@ -169,18 +159,12 @@ ax1.set_xticks(pH_list, minor=True)
 ax1.set_yticks (y,minor=True)
 ax1.set_yticks (minor_ticks,minor=True)
 
-# ax1.set_xticks(5)
-
 ax1.tick_params(axis='x',which='major',length=30,direction='in',width=3,colors='black',pad=15,labelsize=40)
 ax1.tick_params(axis='x',which='minor',length=15,direction='in',width=3)
 
 ax1.tick_params(axis='y',which='major',length=30,direction='in',width=3,colors='black',pad=10,labelsize=40) 
 ax1.tick_params(axis='y',which='minor',length=15,direction='in',width=3,colors='black')
 
-# # ax2.tick_params(axis='y',which='major',length=20,direction='in',width=3,colors='black',pad=10,labelsize=30)
-# # ax2.tick_params(axis='y',which='minor',length=10,direction='in',width=3)
-
-# ax1.yaxis.label.set_color('black')
 ax1.spines['left'].set_color('black')
 ax1.spines['left'].set_lw(3)
 ax1.spines['top'].set_lw(3)
@@ -190,7 +174,7 @@ ax1.spines['bottom'].set_lw(3)
 ax1.legend(frameon =False)
 
 plt.legend(prop={'size': 35})
-pdf_name = f'{protein_name}-analyzed_observables.pdf'
+pdf_name = f'{pdb}-analyzed_observables.pdf'
 plt.savefig(pdf_name)
 plt.show()
 
