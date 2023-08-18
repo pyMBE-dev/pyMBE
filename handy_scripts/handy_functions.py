@@ -216,24 +216,26 @@ def block_analyze(input_data, n_blocks=16):
 
     return av_data, err_data, tau_data, block_size
 
-def write_progress(self, step, total_steps):
+def write_progress(step, total_steps, initial_simulation_time, units):
     """
         Writes the progress of the loop and estimates the time for its completion
         
-        Inputs:
-        step: (int) actual step of the loop
-        total_steps: (int) total number of loop steps
+        Args:
+            step(int): current step in the production loop
+            total_steps(int): total number of steps in the production loop
+            initial_simulation_time(float): computer time when the simulation started, in seconds
+            units(obj): UnitRegistry object from the pint library
 
-        Assumptions:
-        It assumes that the simulation starts with step = 0
+        Note:
+            It assumes that the simulation starts with step = 0
     """
+    import time 
     
-    # MOVE to some handy_functions file
-    time_act=self.time.time()*self.units.s
+    time_act=time.time()*units.s
     perc_sim=100 *(step+1) / (total_steps)
-    time_per_step= (time_act - self.initial_simulation_time)/(step+1)
+    time_per_step= (time_act - initial_simulation_time)/(step+1)
     remaining_time=(total_steps - step +1)*time_per_step
-    elapsed_time=time_act-self.initial_simulation_time
+    elapsed_time=time_act-initial_simulation_time
 
     def find_right_time_units(time):
         """
