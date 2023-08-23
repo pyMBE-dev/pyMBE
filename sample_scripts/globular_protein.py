@@ -18,9 +18,9 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 #Import function from handy_functions script 
-from handy_scripts.handy_functions import calculate_net_charge_in_molecule
 from handy_scripts.handy_functions import setup_electrostatic_interactions_in_espresso
 from handy_scripts.handy_functions import minimize_espresso_system_energy
+from handy_scripts.handy_functions import block_analyze
 from handy_scripts.handy_functions import setup_langevin_dynamics_in_espresso
 
 # Here you can adjust the width of the panda columns displayed when running the code 
@@ -136,7 +136,7 @@ pmb.center_molecule_in_simulation_box (molecule_id=protein_id,
                                     espresso_system=espresso_system)
 
 # Creates counterions and added salt 
-pmb.create_counterions_in_espresso (pmb_object_name='particle',
+pmb.create_counterions_in_espresso (object_name=protein_name,
                                     cation_name=cation_name,
                                     anion_name=anion_name,
                                     espresso_system=espresso_system)
@@ -203,8 +203,7 @@ net_charge_amino_save = {}
 Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
-#Save `pmb.df` to a csv file
-pmb.df.to_csv('df.csv',index = True)
+
 
 #Here we start the main loop over the Nsamples 
 
@@ -215,12 +214,10 @@ for step in tqdm(range(N_samples)):
         else:
             RE.reaction( reaction_steps = total_ionisible_groups)
 
-        calculated_net_charge = calculate_net_charge_in_molecule (espresso_system=espresso_system,
-                                                                pmb_df = pmb.df, 
-                                                                name = protein_name)
-
-        net_charge = calculated_net_charge['net_charge']
-        net_charge_residues = calculated_net_charge ['net_charge_residues']
+        charge_dict=pmb.calculate_net_charge_in_molecules(espresso_system=espresso_system, 
+                                                                object_name=protein_name)
+        net_charge = charge_dict['mean']
+        net_charge_residues = charge_dict ['residues']
 
         time_step.append (str(espresso_system.time))
         net_charge_list.append (net_charge)

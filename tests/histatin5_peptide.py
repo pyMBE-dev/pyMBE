@@ -30,6 +30,12 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir) 
 
+# Load some functions from the handy_scripts library for convinience
+from handy_scripts.handy_functions import setup_electrostatic_interactions_in_espresso
+from handy_scripts.handy_functions import minimize_espresso_system_energy
+from handy_scripts.handy_functions import setup_langevin_dynamics_in_espresso
+from handy_scripts.handy_functions import block_analyze
+
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
@@ -116,7 +122,7 @@ with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
     vtf.writevcf(espresso_system, coordinates) 
 
 # Create counterions for the peptide chains
-pmb.create_counterions_in_espresso (pmb_object_name='particle',cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
+pmb.create_counterions_in_espresso (object_name=peptide_name,cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
 c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
 #List of ionisible groups 
@@ -142,75 +148,34 @@ non_interacting_type = max(type_map.values())+1
 RE.set_non_interacting_type (type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
-# Setup the potential energy
+#Setup the potential energy
 pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
+minimize_espresso_system_energy (espresso_system=espresso_system)
+setup_electrostatic_interactions_in_espresso(units=pmb.units,
+                                            espresso_system=espresso_system,
+                                            kT=pmb.kT)
+minimize_espresso_system_energy (espresso_system=espresso_system)
 
-print('\nMinimazing system energy\n')
-espresso_system.cell_system.skin = 0.4
-espresso_system.time_step = dt 
-print('steepest descent')
-espresso_system.integrator.set_steepest_descent(f_max=0, gamma=0.1, max_displacement=0.1)
-espresso_system.integrator.run(1000)
-print('velocity verlet')
-espresso_system.integrator.set_vv()  # to switch back to velocity Verlet
-espresso_system.integrator.run(1000)
-espresso_system.thermostat.turn_off()
-print('\nMinimization finished \n')
 
-#Electrostatic energy setup 
-print ('Electrostatics setup')
-bjerrum_length = pmb.e.to('reduced_charge')**2 / (4 *pmb.units.pi*pmb.units.eps0* solvent_permitivity * pmb.kT.to('reduced_energy'))
-coulomb_prefactor = bjerrum_length.to('reduced_length') * pmb.kT.to('reduced_energy')
-coulomb = espressomd.electrostatics.P3M ( prefactor = coulomb_prefactor.magnitude, accuracy=1e-3)
+setup_langevin_dynamics_in_espresso (espresso_system=espresso_system, 
+                                    kT = pmb.kT, 
+                                    SEED = SEED,
+                                    time_step=dt,
+                                    tune_skin=False)
 
-print('\nBjerrum length ', bjerrum_length.to('nm'), '=', bjerrum_length.to('reduced_length'))
-
-espresso_system.time_step = dt
-espresso_system.actors.add(coulomb)
-
-# save the optimal parameters and add them by hand
-p3m_params = coulomb.get_params()
-espresso_system.actors.remove(coulomb)
-
-coulomb = espressomd.electrostatics.P3M (
-                            prefactor = coulomb_prefactor.magnitude,
-                            accuracy = 1e-3,
-                            mesh = p3m_params['mesh'],
-                            alpha = p3m_params['alpha'] ,
-                            cao = p3m_params['cao'],
-                            r_cut = p3m_params['r_cut'],
-                            tune = False,
-                                )
-
-espresso_system.actors.add(coulomb)
-
-print("\nElectrostatics successfully added to the system \n")
+espresso_system.cell_system.skin=0.4
 
 #Save the initial state 
 with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
     vtf.writevcf(espresso_system, coordinates) 
 
-print (f'Optimizing skin\n')
-espresso_system.time_step = dt 
-espresso_system.integrator.set_vv()
-espresso_system.thermostat.set_langevin(kT=pmb.kT.to('reduced_energy').magnitude, gamma=0.1, seed=SEED)
-
-espresso_system.cell_system.tune_skin ( min_skin = 10, 
-                                        max_skin = espresso_system.box_l[0]/2., tol=1e-3, 
-                                        int_steps=1000, adjust_max_skin=True)
-
-print('Optimized skin value: ', espresso_system.cell_system.skin, '\n')
-
-
 Rg_pH=[]
 Z_pH=[]
 N_frame=0
 
-particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
+particle_id_list = pmb.get_particle_id_map(object_name=peptide_name)["all"]
 first_peptide_id = min(particle_id_list)
-
-print (particle_id_list,'chain_length',len(particle_id_list))
 
 #Save thepyMBE dataframe in a CSV file
 pmb.df.to_csv('df.csv')
@@ -234,11 +199,10 @@ for index in tqdm(range(len(pH_range))):
             RE.reaction(steps=total_ionisible_groups)
 
         if ( step > steps_eq):        
-            z_one_object = 0
-            for pid in particle_id_list:
-                z_one_object +=espresso_system.part.by_id(pid).q
-
-            Z_sim.append(np.mean((z_one_object)))
+            # Get peptide net charge
+            charge_dict=pmb.calculate_net_charge_in_molecules(espresso_system=espresso_system, 
+                                                                object_name=peptide_name)      
+            Z_sim.append(charge_dict["mean"])
             
             Rg = espresso_system.analysis.calc_rg(chain_start=first_peptide_id, number_of_chains=N_peptide_chains, chain_length=len(particle_id_list))
             Rg_value = pmb.units.Quantity(Rg[0], 'reduced_length')
@@ -246,7 +210,6 @@ for index in tqdm(range(len(pH_range))):
             Rg_sim.append(Rg_nm)
 
         if (step % N_samples_print == 0) :
-
             N_frame+=1
             with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
                 vtf.writevsf(espresso_system, coordinates)
@@ -257,52 +220,6 @@ for index in tqdm(range(len(pH_range))):
     print("pH = {:6.4g} done".format(pH_value))
 
 # Estimate the statistical error and the autocorrelation time of the data
-
-def block_analyze (input_data,n_blocks=16):
-    
-    data = np.asarray(input_data)
-    block = 0
-    # this number of blocks is recommended by Janke as a reasonable compromise
-    # between the conflicting requirements on block size and number of blocks
-    block_size = int(data.shape[1] / n_blocks)
-    print(f"block_size: {block_size}")
-    # initialize the array of per-block averages
-    block_average = np.zeros((n_blocks, data.shape[0]))
-    # calculate averages per each block
-    for block in range(n_blocks):
-        block_average[block] = np.average(data[:, block * block_size: (block + 1) * block_size], axis=1)
-    # calculate the average and average of the square
-    av_data = np.average(data, axis=1)
-    av2_data = np.average(data * data, axis=1)
-    # calculate the variance of the block averages
-    block_var = np.var(block_average, axis=0)
-    # calculate standard error of the mean
-    err_data = np.sqrt(block_var / (n_blocks - 1))
-    # estimate autocorrelation time using the formula given by Janke
-    # this assumes that the errors have been correctly estimated
-    tau_data = np.zeros(av_data.shape)
-
-    for val in range(av_data.shape[0]):
-        if av_data[val] == 0:
-            # unphysical value marks a failure to compute tau
-            tau_data[val] = -1.0
-        else:
-            tau_data[val] = 0.5 * block_size * n_blocks / (n_blocks - 1) * block_var[val] \
-                / (av2_data[val] - av_data[val] * av_data[val])
-
-    # check if the blocks contain enough data for reliable error estimates
-    print("uncorrelated samples per block:\nblock_size/tau = ", block_size/tau_data)
-    threshold = 10.  # block size should be much greater than the correlation time
-    if np.any(block_size / tau_data < threshold):
-        print("\nWarning: some blocks may contain less than ", threshold, "uncorrelated samples."
-        "\nYour error estimated may be unreliable."
-        "\nPlease, check them using a more sophisticated method or run a longer simulation.")
-        print("? block_size/tau > threshold ? :", block_size/tau_data > threshold)
-    else:
-        print("\nAll blocks seem to contain more than ", threshold, "uncorrelated samples.\
-        Error estimates should be OK.")
-
-    return av_data, err_data, tau_data, block_size
 
 print("Net charge analysis")
 av_charge, err_charge, tau_charge, block_size = block_analyze(input_data=pmb.np.array(Z_pH))
