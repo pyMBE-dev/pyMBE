@@ -205,7 +205,7 @@ def block_analyze(input_data, n_blocks=16):
     print("uncorrelated samples per block:\nblock_size/tau = ",
         block_size/tau_data)
     threshold = 10.  # block size should be much greater than the correlation time
-    if self.np.any(block_size / tau_data < threshold):
+    if np.any(block_size / tau_data < threshold):
         print("\nWarning: some blocks may contain less than ", threshold, "uncorrelated samples."
         "\nYour error estimated may be unreliable."
         "\nPlease, check them using a more sophisticated method or run a longer simulation.")
@@ -308,39 +308,3 @@ def do_snapshot_espresso_system(espresso_system, filename):
     visualizer.screenshot(filename)
 
     return
-
-
-def calculate_net_charge_in_molecule (espresso_system, pmb_df, name):
-
-    '''
-    Calculates the net charge of a type `name` molecule. It returns a dictionary that contains the net charge and net charge by residues of the molecule.
-
-    Args:
-        espresso_system: system information 
-        pmb_df (pandas df): data frame with the protein information
-        name (str): name of the molecule to calculate de net charge
-
-    Return:
-        calculated_charge (dict): a dictionary that has as keys net_charge and net_charge_residues
-    '''
-    #sanity check: chequear que el name corresponde a una molecule/protein/peptide 
-
-    charge_in_residues = {}
-
-    molecule_id = pmb_df.loc [pmb_df['name']==name].molecule_id.values[0]
-    particle_id_list = pmb_df.loc[pmb_df['molecule_id']==molecule_id].particle_id.dropna().to_list()  
-    
-    for pid in particle_id_list:    
-
-        label =  pmb_df.loc[pmb_df['particle_id']==pid].name.values[0]
-
-        if label in charge_in_residues.keys():
-            charge_in_residues[label]+=espresso_system.part.by_id(pid).q
-        else:
-            charge_in_residues[label]=espresso_system.part.by_id(pid).q
-
-    net_charge = sum(charge_in_residues.values())
-
-    calculated_charge = {'net_charge':net_charge, 'net_charge_residues':charge_in_residues}
-
-    return calculated_charge

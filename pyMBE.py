@@ -248,6 +248,49 @@ class pymbe_library():
             Z_HH.append(Z)
         return Z_HH
 
+    def calculate_net_charge_in_molecules(self,espresso_system, object_name):
+        '''
+        Calculates the net charge per molecule of molecules  with `name` = object_name. 
+        Returns the net charge per molecule and a maps with the net charge per residue and molecule.
+
+        Args:
+            espresso_system: system information 
+            object_name (str): name of the molecule to calculate de net charge
+
+        Returns:
+            {"mean": mean_net_charge, "molecules": {mol_id: net_charge_of_mol_id, }, "residues": {res_id: net_charge_of_res_id, }}
+
+        Note:
+            - The net charge of the molecule is averaged over all molecules of type `name` 
+            - The net charge of each particle type is averaged over all particle of the same type in all molecules of type `name`
+        '''        
+        valid_pmb_types = ["molecule", "protein"]
+        pmb_type=self.df.loc[self.df['name']==object_name].pmb_type.values[0]
+        if pmb_type not in valid_pmb_types:
+            raise ValueError("The pyMBE object with name {object_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
+        charge_in_residues = {}
+        id_map = self.get_particle_id_map(object_name=object_name)
+
+        def create_charge_map(espresso_system,id_map,label):
+            charge_map={}
+            for super_id in id_map[label].keys():
+                net_charge=0
+                for pid in id_map[label][super_id]:
+                    net_charge+=espresso_system.part.by_id(pid).q
+                charge_map[super_id]=net_charge
+            return charge_map
+
+        net_charge_molecules=create_charge_map(label="molecule_map",
+                                                espresso_system=espresso_system,
+                                                id_map=id_map)
+        net_charge_residues=create_charge_map(label="residue_map",
+                                                espresso_system=espresso_system,
+                                                id_map=id_map)
+        
+        mean_charge=self.np.mean(self.np.array(list(net_charge_molecules.values())))
+        
+        return {"mean": mean_charge, "molecules": net_charge_molecules, "residues": net_charge_residues}
+
     def center_molecule_in_simulation_box (self, molecule_id, espresso_system):
         """
         Centers the pmb object matching `molecule_id` in the center of the simulation box in `espresso_md`.
@@ -396,12 +439,12 @@ class pymbe_library():
         print('\n Added salt concentration of ', c_salt_calculated.to('mol/L'), 'given by ', N_cation, ' cations and ', N_anion, ' anions')
         return c_salt_calculated
 
-    def create_counterions_in_espresso(self, pmb_object_name, cation_name, anion_name, espresso_system):
+    def create_counterions_in_espresso(self, object_name, cation_name, anion_name, espresso_system):
         """
         Creates particles of `cation_name` and `anion_name` in `espresso_system` to counter the net charge of `pmb_object`.
         
         Args:
-            pmb_object_name(`str`): `name` of a pymbe object.
+            object_name(`str`): `name` of a pymbe object.
             espresso_system(`obj`): Instance of a system object from the espressomd library.
             cation_name(`str`): `name` of a particle with a positive charge.
             anion_name(`str`): `name` of a particle with a negative charge.
@@ -411,7 +454,7 @@ class pymbe_library():
         """
         cation_charge = self.df.loc[self.df['name']==cation_name].state_one.charge.iloc[0]
         anion_charge = self.df.loc[self.df['name']==anion_name].state_one.charge.iloc[0]
-        object_ids = self.df.loc [self.df['pmb_type']== pmb_object_name].particle_id.dropna().tolist()
+        object_ids = self.get_particle_id_map(object_name=object_name)["all"]
         counterion_number={}
         object_charge={}
         for name in ['positive', 'negative']:
@@ -837,16 +880,11 @@ class pymbe_library():
         Returns:
             residue_list (`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.             
         """
-
         residue_list = []
-
         for residue_name in sequence:
-
             if model == '1beadAA':
-
                 central_bead = residue_name
                 side_chains = []
-
             elif model == '2beadAA':
                 if residue_name in ['c','n', 'G']: 
                     central_bead = residue_name
@@ -854,15 +892,11 @@ class pymbe_library():
                 else:
                     central_bead = 'CA'              
                     side_chains = [residue_name]
-
             if residue_name not in residue_list:   
-
                 self.define_residue(name = 'AA-'+residue_name, 
                                     central_bead = central_bead,
-                                    side_chains = side_chains)
-                
+                                    side_chains = side_chains)              
             residue_list.append('AA-'+residue_name)
-
         return residue_list
 
 
@@ -1275,6 +1309,47 @@ class pymbe_library():
         state_two = self.pd.Series (df_state_two.charge.values,index=df_state_two.es_type.values)
         charge_map  = self.pd.concat([state_one,state_two],axis=0).to_dict()
         return charge_map
+
+    def get_particle_id_map(self, object_name):
+        '''
+        Gets all the ids associated with the object with name `object_name` in `pmb.df`
+
+        Args:
+            object_name(`str`): name of the object
+        
+        Returns:
+            id_map(`dict`): dict of the structure {"all": [all_ids_with_object_name], "residue_map": {res_id: [particle_ids_in_res_id]}, "molecule_map": {mol_id: [particle_ids_in_mol_id]}, }
+        '''
+        object_type = self.df.loc[self.df['name']== object_name].pmb_type.values[0]
+        valid_types = ["particle", "molecule", "residue", "protein"]
+        if object_type not in valid_types:
+            raise ValueError(f"{object_name} is of pmb_type {object_type}, which is not supported by this function. Supported types are {valid_types}")
+        id_list = []
+        mol_map = {}
+        res_map = {}
+        def do_res_map(res_ids):
+            for res_id in res_ids:
+                res_list=self.df.loc[self.df['residue_id']== res_id].particle_id.dropna().tolist()
+                res_map[res_id]=res_list
+            return res_map
+        if object_type in ['molecule', 'protein']:
+            mol_ids = self.df.loc[self.df['name']== object_name].molecule_id.dropna().tolist()
+            for mol_id in mol_ids:
+                res_ids = set(self.df.loc[self.df['molecule_id']== mol_id].residue_id.dropna().tolist())
+                res_map=do_res_map(res_ids=res_ids)    
+                mol_list=self.df.loc[self.df['molecule_id']== mol_id].particle_id.dropna().tolist()
+                id_list+=mol_list
+                mol_map[mol_id]=mol_list
+        elif object_type == 'residue':     
+            res_ids = self.df.loc[self.df['name']== object_name].residue_id.dropna().tolist()
+            res_map=do_res_map(res_ids=res_ids)
+            id_list=[]
+            for res_id_list in res_map.values():
+                id_list+=res_id_list
+        elif object_type == 'particle':
+            id_list = self.df.loc[self.df['name']== object_name].particle_id.dropna().tolist()
+        return {"all": id_list, "molecule_map": mol_map, "residue_map": res_map}
+
 
     def get_pka_set(self):
         '''
