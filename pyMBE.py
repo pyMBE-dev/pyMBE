@@ -1231,11 +1231,12 @@ class pymbe_library():
         if not radius < max_dist:
             raise ValueError(f'The min_dist ({radius} must be lower than the max_dist ({max_dist}))')
         coord_list = []
-        for _ in range(n_samples):
-            rand = self.np.random.random() 
-            rad = radius + rand*(max_dist-radius)
-            coord = self.generate_trialvectors(center=center, radius=rad,n_samples=1)[0]
-            coord_list.append (coord)
+        counter = 0
+        while counter<n_samples:
+            coord = self.generate_trialvectors(center=center, radius=max_dist,n_samples=1)[0]
+            if self.np.linalg.norm(coord-self.np.asarray(center))>=radius:
+                coord_list.append (coord)
+                counter += 1
         return coord_list
 
     def generate_trial_perpendicular_vector(self, vector, center, radius):
