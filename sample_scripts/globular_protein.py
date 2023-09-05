@@ -203,7 +203,8 @@ net_charge_amino_save = {}
 Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
-
+#Save the pyMBE dataframe in a CSV file
+pmb.df.to_csv('df.csv')
 
 #Here we start the main loop over the Nsamples 
 

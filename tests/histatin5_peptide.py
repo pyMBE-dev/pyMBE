@@ -99,7 +99,7 @@ generic_harmonic_constant=0.41 * pmb.units.N / pmb.units.m
 generic_bond = interactions.HarmonicBond(k=generic_harmonic_constant.to('reduced_energy / reduced_length**2').magnitude,
                                  r_0=generic_bond_lenght.to('reduced_length').magnitude)
 
-pmb.define_default_bond (bond_object=generic_bond)
+pmb.define_default_bond(bond_object=generic_bond, bond_type="harmonic")
 
 # Define the peptide in the pyMBE data frame 
 
@@ -196,7 +196,7 @@ for index in tqdm(range(len(pH_range))):
         if np.random.random() > probability_reaction:
             espresso_system.integrator.run(steps=MD_steps_per_sample)
         else:
-            RE.reaction(steps=total_ionisible_groups)
+            RE.reaction(reaction_steps=total_ionisible_groups)
 
         if ( step > steps_eq):        
             # Get peptide net charge

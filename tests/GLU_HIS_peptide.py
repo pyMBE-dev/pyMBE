@@ -47,8 +47,8 @@ if not os.path.exists('./frames'):
 # Simulation parameters
 
 pH_range = np.linspace(2, 12, num=21)
-Samples_per_pH = 100
-MD_steps_per_sample =100
+Samples_per_pH = 1000
+MD_steps_per_sample = 1000
 steps_eq =int(Samples_per_pH/3)
 N_samples_print = 10 # Write the trajectory every 100 samples
 probability_reaction = 0.5 
@@ -65,13 +65,6 @@ model ='2beadAA'  # Model with 2 beads per each aminoacid
 pep_concentration = 1e-4 *pmb.units.mol/pmb.units.L
 residue_positions = [0,3,5,len(sequence)-1] # Residue positions to calculate its average charge
 
-# Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-pmb.load_interaction_parameters (filename='reference_parameters/interaction_parameters/Lunkad2021.txt') 
-pmb.load_pka_set (filename='reference_parameters/pka_sets/CRC1991.txt')
-
-# Create a molecule entry on the pyMBE dataframe 
-pmb.define_peptide (name=sequence, sequence=sequence, model=model)
-
 # Salt parameters
 cation_name = 'Na'
 anion_name = 'Cl'
@@ -79,6 +72,13 @@ c_salt=1e-2 * pmb.units.mol/ pmb.units.L
 
 pmb.define_particle( name=cation_name,  q=1, diameter=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 pmb.define_particle( name=anion_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+
+# Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
+pmb.load_interaction_parameters (filename='reference_parameters/interaction_parameters/Lunkad2021.txt') 
+pmb.load_pka_set (filename='reference_parameters/pka_sets/CRC1991.txt')
+
+# Create a molecule entry on the pyMBE dataframe 
+pmb.define_peptide (name=sequence, sequence=sequence, model=model)
 
 # System parameters
 volume = L**3
