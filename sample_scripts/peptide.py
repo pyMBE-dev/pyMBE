@@ -83,7 +83,7 @@ generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2'
 generic_bond = interactions.HarmonicBond(k=generic_harmonic_constant.to('reduced_energy / reduced_length**2').magnitude,
                                  r_0=generic_bond_lenght.to('reduced_length').magnitude)
 
-pmb.define_default_bond( bond_object = generic_bond)
+pmb.define_default_bond(bond_object = generic_bond, bond_type="harmonic")
 
 # Defines the peptine in the pyMBE data frame
 peptide_name = 'generic_peptide'

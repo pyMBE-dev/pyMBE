@@ -14,6 +14,7 @@ class pymbe_library():
     import numpy as np
     import pandas as pd 
     import json
+    from scipy import optimize
     units = pint.UnitRegistry()
     N_A=6.02214076e23    / units.mol
     Kb=1.38064852e-23    * units.J / units.K
@@ -248,6 +249,37 @@ class pymbe_library():
             Z_HH.append(Z)
         return Z_HH
 
+    def calculate_initial_bond_length(self, bond_object, bond_type, epsilon, sigma, cutoff):
+        """
+        Calculates the initial bond length that is used when setting up molecules,
+        based on the minimum of the sum of bonded and short-range (LJ) interactions.
+        
+        Args:
+            bond_object (`cls`): instance of a bond object from espressomd library
+            bond_type (`str`): label identifying the used bonded potential
+            epsilon (`float`): LJ epsilon of the interaction between the particles
+            sigma (`float`): LJ sigma of the interaction between the particles
+            cutoff (`float`): cutoff-radius of the LJ interaction 
+        """    
+        def truncated_lj_potential(x, epsilon, sigma, cutoff):
+            if x>cutoff:
+                return 0.0
+            else:
+                return 4*epsilon*((sigma/x)**12-(sigma/x)**6) - 4*epsilon*((sigma/cutoff)**12-(sigma/cutoff)**6)
+        epsilon_red=epsilon.to('reduced_energy').magnitude
+        sigma_red=sigma.to('reduced_length').magnitude
+        cutoff_red=cutoff.to('reduced_length').magnitude
+        if bond_type == "harmonic":
+               r_0 = bond_object.params.get('r_0')
+               k = bond_object.params.get('k')
+               l0 = self.optimize.minimize(lambda x: 0.5*k*(x-r_0)**2 + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red), x0=r_0).x
+        elif bond_type == "FENE":
+               r_0 = bond_object.params.get('r_0')
+               k = bond_object.params.get('k')
+               d_r_max = bond_object.params.get('d_r_max')
+               l0 = self.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*self.np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red), x0=1.0).x
+        return l0
+
     def calculate_net_charge_in_molecules(self,espresso_system, object_name):
         '''
         Calculates the net charge per molecule of molecules  with `name` = object_name. 
@@ -270,7 +302,6 @@ class pymbe_library():
             raise ValueError("The pyMBE object with name {object_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
         charge_in_residues = {}
         id_map = self.get_particle_id_map(object_name=object_name)
-
         def create_charge_map(espresso_system,id_map,label):
             charge_map={}
             for super_id in id_map[label].keys():
@@ -279,16 +310,13 @@ class pymbe_library():
                     net_charge+=espresso_system.part.by_id(pid).q
                 charge_map[super_id]=net_charge
             return charge_map
-
         net_charge_molecules=create_charge_map(label="molecule_map",
                                                 espresso_system=espresso_system,
                                                 id_map=id_map)
         net_charge_residues=create_charge_map(label="residue_map",
                                                 espresso_system=espresso_system,
-                                                id_map=id_map)
-        
+                                                id_map=id_map)       
         mean_charge=self.np.mean(self.np.array(list(net_charge_molecules.values())))
-        
         return {"mean": mean_charge, "molecules": net_charge_molecules, "residues": net_charge_residues}
 
     def center_molecule_in_simulation_box (self, molecule_id, espresso_system):
@@ -486,7 +514,7 @@ class pymbe_library():
         return counterion_number
 
 
-    def create_molecule_in_espresso(self, name, number_of_molecules,espresso_system, first_residue_position=None, use_default_bond=False):
+    def create_molecule_in_espresso(self, name, number_of_molecules, espresso_system, first_residue_position=None, use_default_bond=False):
         """
         Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
@@ -524,8 +552,9 @@ class pymbe_library():
                 if first_residue:
                     residue_position = first_residue_position
                     backbone_vector = self.generate_trialvectors(center=[0,0,0], 
-                                                                radius=1, 
-                                                                n_samples=1)[0]
+                                                                 radius=1, 
+                                                                 n_samples=1,
+                                                                 on_surface=True)[0]
                     residues_info = self.create_residue_in_espresso(name=residue,
                                                                     number_of_residues=1, 
                                                                     espresso_system=espresso_system, 
@@ -549,7 +578,11 @@ class pymbe_library():
                                             particle_name2=new_central_bead_name, 
                                             hard_check=True, 
                                             use_default_bond=use_default_bond)                
-                    residue_position = residue_position+backbone_vector*bond.params.get('r_0')  
+                    l0 = self.get_bond_length(particle_name1=previous_central_bead_name, 
+                                              particle_name2=new_central_bead_name, 
+                                              hard_check=True, 
+                                              use_default_bond=use_default_bond)                
+                    residue_position = residue_position+backbone_vector*l0
                     residues_info = self.create_residue_in_espresso(name=residue, 
                                                                     number_of_residues=1, 
                                                                     espresso_system=espresso_system, 
@@ -764,15 +797,22 @@ class pymbe_library():
                 if pmb_type == 'particle':
                     bond = self.search_bond(particle_name1=central_bead_name, 
                                             particle_name2=side_chain_element, 
-                            hard_check=True, use_default_bond=use_default_bond)
+                                            hard_check=True, 
+                                            use_default_bond=use_default_bond)
+                    l0 = self.get_bond_length(particle_name1=central_bead_name, 
+                                              particle_name2=side_chain_element, 
+                                              hard_check=True, 
+                                              use_default_bond=use_default_bond)
                     if backbone_vector is None:
                         bead_position=self.generate_trialvectors(center=central_bead_position, 
-                                                              radius=bond.params.get('r_0'), 
-                                                            n_samples=1)[0]
+                                                                 radius=l0, 
+                                                                 n_samples=1,
+                                                                 on_surface=True)[0]
                     else:
                         bead_position=self.generate_trial_perpendicular_vector(vector=backbone_vector,
                                                                             center=central_bead_position, 
-                                                                            radius=bond.params.get('r_0'))
+                                                                            radius=l0)
+                        
                     side_bead_id = self.create_particle_in_espresso(name=side_chain_element, 
                                                                     espresso_system=espresso_system,
                                                                     position=[bead_position], 
@@ -793,14 +833,19 @@ class pymbe_library():
                                             particle_name2=central_bead_side_chain, 
                                             hard_check=True, 
                                             use_default_bond=use_default_bond)
+                    l0 = self.get_bond_length(particle_name1=central_bead_name, 
+                                              particle_name2=side_chain_element, 
+                                              hard_check=True, 
+                                              use_default_bond=use_default_bond)
                     if backbone_vector is None:
                         residue_position=self.generate_trialvectors(center=central_bead_position, 
-                                                                radius=bond.params.get('r_0'), 
-                                                                n_samples=1)[0]
+                                                                    radius=l0, 
+                                                                    n_samples=1,
+                                                                    on_surface=True)[0]
                     else:
                         residue_position=self.generate_trial_perpendicular_vector(vector=backbone_vector,
                                                                                 center=central_bead_position, 
-                                                                                radius=bond.params.get('r_0'))
+                                                                                radius=l0)
                     lateral_residue_info = self.create_residue_in_espresso(name=side_chain_element, espresso_system=espresso_system,
                         number_of_residues=1, central_bead_position=[residue_position],use_default_bond=use_default_bond)
                     lateral_residue_dict=list(lateral_residue_info.values())[0]
@@ -898,22 +943,42 @@ class pymbe_library():
                                     side_chains = side_chains)              
             residue_list.append('AA-'+residue_name)
         return residue_list
-
-
-    def define_bond(self, bond_object, particle_name1, particle_name2):
+ 
+    def define_bond(self, bond_object, bond_type, particle_name1, particle_name2):
         """
         Defines a pmb object of type `bond` in `pymbe.df`
         
         Args:
             bond_object (`cls`): instance of a bond object from espressomd library
+            bond_type (`str`): label identifying the used bonded potential
             particle_name1 (`str`): `name` of the first `particle` to be bonded.
-            particle_name2 (`str`): `name` of the second `particle` to be bonded..
+            particle_name2 (`str`): `name` of the second `particle` to be bonded.
+        
+        Note:
+            - Currently, only harmonic and FENE bonds are supported.
         """    
+        
+        valid_bond_types=["harmonic", "FENE"]
+        if bond_type not in valid_bond_types:
+                       raise ValueError(f"Bond type {bond_type} currently not implemented in pyMBE, valid types are {valid_bond_types}")
+
+        lj_parameters=self.get_lj_parameters(particle_name1=particle_name1, 
+                                        particle_name2=particle_name2, 
+                                        combining_rule='Lorentz-Berthelot')
+
+        cutoff = 2**(1.0/6.0) * lj_parameters["sigma"]
+        l0 = self.calculate_initial_bond_length(bond_object=bond_object, 
+                                                bond_type=bond_type, 
+                                                epsilon=lj_parameters["epsilon"],
+                                                sigma=lj_parameters["sigma"],
+                                                cutoff=cutoff)
+
         index = len(self.df)
         for label in [particle_name1+'-'+particle_name2,particle_name2+'-'+particle_name1]:
             self.check_if_name_is_defined_in_df(name=label, pmb_type_to_be_defined="bond")
         self.df.at [index,'name']= particle_name1+'-'+particle_name2
         self.df.at [index,'bond_object'] = bond_object
+        self.df.at [index,'l0'] = l0
         self.add_value_to_df(index=index,
                                 key=('pmb_type',''),
                                 new_value='bond')
@@ -922,13 +987,36 @@ class pymbe_library():
                                 new_value=self.json.dumps(bond_object.get_params()))
         return
 
-    def define_default_bond(self, bond_object):
+    def define_default_bond(self, bond_object, bond_type, epsilon=None, sigma=None, cutoff=None):
         """
         Asigns `bond` in `pmb.df` as the default bond.
+        The LJ parameters can be optionally provided to calculate the initial bond length
 
         Args:
             bond (`obj`): instance of a bond object from the espressomd library.
+            bond_type (`str`): label identifying the used bonded potential
+            sigma (`float`, optional): LJ sigma of the interaction between the particles
+            epsilon (`float`, optional): LJ epsilon for the interaction between the particles
+            cutoff (`float`, optional): cutoff-radius of the LJ interaction
+
+        Note:
+            - Currently, only harmonic and FENE bonds are supported. 
         """
+        valid_bond_types=["harmonic", "FENE"]
+        if bond_type not in valid_bond_types:
+            raise ValueError(f"Bond type {bond_type} currently not implemented in pyMBE, valid types are {valid_bond_types}")
+        if epsilon is None:
+            epsilon=1*self.units('reduced_energy')
+        if sigma is None:
+            sigma=1*self.units('reduced_length')
+        if cutoff is None:
+            cutoff=2**(1.0/6.0)*self.units('reduced_length')
+        l0 = self.calculate_initial_bond_length(bond_object=bond_object, 
+                                                bond_type=bond_type, 
+                                                epsilon=epsilon,
+                                                sigma=sigma,
+                                                cutoff=cutoff)
+
         if self.check_if_name_is_defined_in_df(name='default',pmb_type_to_be_defined='bond'):
             return
         if len(self.df.index) != 0:
@@ -937,6 +1025,7 @@ class pymbe_library():
             index = 0
         self.df.at [index,'name'] = 'default'
         self.df.at [index,'bond_object'] = bond_object
+        self.df.at [index,'l0'] = l0
         self.add_value_to_df(index=index,
                             key=('pmb_type',''),
                             new_value='bond')
@@ -1253,19 +1342,21 @@ class pymbe_library():
         np_vec=self.np.array(vector)
         if np_vec[1] == 0 and np_vec[2] == 0 and np_vec[0] == 1:
             raise ValueError('zero vector')
-        perp_vec = self.np.cross(np_vec, self.generate_trialvectors(center=center, radius=radius, n_samples=1)[0])
+        perp_vec = self.np.cross(np_vec, self.generate_trialvectors(center=center, radius=radius, n_samples=1, on_surface=True)[0])
         norm_perp_vec = perp_vec/self.np.linalg.norm(perp_vec)
         return center+norm_perp_vec*radius  
     
-    def generate_trialvectors (self,center, radius, n_samples, seed=None):
+    def generate_trialvectors(self,center, radius, n_samples, seed=None, on_surface=False):
         """
-        Uniformly samples points from a hypersphere.
+        Uniformly samples points from a hypersphere. If on_surface is set to True, the points are
+        uniformly sampled from the surface of the hypersphere.
         
         Args:
             center(`lst`): Array with the coordinates of the center of the spheres.
             radius(`float`): Radius of the sphere.
             n_samples(`int`): Number of sample points to generate inside the sphere.
             seed (`int`, optional): Seed for the random number generator
+            on_surface (`bool`, optional): If set to True, points will be uniformly sampled on the surface of the hypersphere.
 
         Returns:
             samples(`list`): Coordinates of the sample points inside the hypersphere.
@@ -1282,13 +1373,47 @@ class pymbe_library():
         # make the samples lie on the surface of the unit hypersphere
         normalize_radii = self.np.linalg.norm(samples, axis=1)[:, self.np.newaxis]
         samples /= normalize_radii
-        # make the samples lie inside the hypersphere with the correct density
-        uniform_points = rng.uniform(size=n_samples)[:, self.np.newaxis]
-        new_radii = self.np.power(uniform_points, 1/d)
-        samples *= new_radii
+
+        if not on_surface:
+            # make the samples lie inside the hypersphere with the correct density
+            uniform_points = rng.uniform(size=n_samples)[:, self.np.newaxis]
+            new_radii = self.np.power(uniform_points, 1/d)
+            samples *= new_radii
+
         # scale the points to have the correct radius and center
         samples = samples * radius + center
         return samples 
+
+    def get_bond_length(self, particle_name1, particle_name2, hard_check=False, use_default_bond=False) :
+        """
+        Searches for bonds between the particle types given by `particle_name1` and `particle_name2` in `pymbe.df` and returns the initial bond length.
+        If `use_default_bond` is activated and a "default" bond is defined, returns the length of that default bond instead.
+        If no bond is found, it prints a message and it does not return anything. If `hard_check` is activated, the code stops if no bond is found.
+
+        Args:
+            particle_name1 (str): label of the type of the first particle type of the bonded particles.
+            particle_name2 (str): label of the type of the second particle type of the bonded particles.
+            hard_check (bool, optional): If it is activated, the code stops if no bond is found. Defaults to False. 
+            use_default_bond (bool, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
+
+        Returns:
+            l0 (`float`): bond length
+        
+        Note:
+            - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
+            - If `hard_check`=`True` stops the code when no bond is found.
+        """
+        bond_key = self.find_bond_key(particle_name1=particle_name1, 
+                                    particle_name2=particle_name2, 
+                                    use_default_bond=use_default_bond)
+        if bond_key:
+            return self.df[self.df['name']==bond_key].l0.values[0]
+        else:
+            print("Bond not defined between particles ", particle_name1, " and ", particle_name2)    
+            if hard_check:
+                exit()
+            else:
+                return
 
     def get_charge_map (self):
         '''
@@ -1310,6 +1435,34 @@ class pymbe_library():
         state_two = self.pd.Series (df_state_two.charge.values,index=df_state_two.es_type.values)
         charge_map  = self.pd.concat([state_one,state_two],axis=0).to_dict()
         return charge_map
+
+    def get_lj_parameters(self, particle_name1, particle_name2, combining_rule='Lorentz-Berthelot'):
+        """
+        Returns the Lennard-Jones parameters for the interaction between the particle types given by 
+        `particle_name1` and `particle_name2` in `pymbe.df`, calculated according to the provided combining rule.
+
+        Args:
+            particle_name1 (str): label of the type of the first particle type
+            particle_name2 (str): label of the type of the second particle type
+            combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
+
+        Returns:
+            {"epsilon": LJ epsilon, "sigma": LJ sigma}
+
+        Note:
+            Currently, the only `combining_rule` supported is Lorentz-Berthelot.
+        """
+        supported_combining_rules=["Lorentz-Berthelot"]
+
+        if combining_rule not in supported_combining_rules:
+            raise ValueError(f"Combining_rule {combining_rule} currently not implemented in pyMBE, valid keys are {supported_combining_rules}")
+
+        eps1 = self.df.loc[self.df["name"]==particle_name1].epsilon.iloc[0]
+        sigma1 = self.df.loc[self.df["name"]==particle_name1].diameter.iloc[0]
+        eps2 = self.df.loc[self.df["name"]==particle_name2].epsilon.iloc[0]
+        sigma2 = self.df.loc[self.df["name"]==particle_name2].diameter.iloc[0]
+        
+        return {"epsilon": self.np.sqrt(eps1*eps2), "sigma": (sigma1+sigma2)/2.0}
 
     def get_particle_id_map(self, object_name):
         '''
@@ -1461,9 +1614,14 @@ class pymbe_library():
                         k = self.create_variable_with_units(variable_dict=param_dict.pop('k'))
                         r_0 = self.create_variable_with_units(variable_dict=param_dict.pop('r_0'))
                         bond = interactions.HarmonicBond(k=k.to('reduced_energy / reduced_length**2').magnitude, r_0=r_0.to('reduced_length').magnitude)
+                    elif bond_type == 'FENE':
+                        k = self.create_variable_with_units(variable_dict=param_dict.pop('k'))
+                        r_0 = self.create_variable_with_units(variable_dict=param_dict.pop('r_0'))
+                        d_r_max = self.create_variable_with_units(variable_dict=param_dict.pop('d_r_max'))
+                        bond = interactions.FeneBond(k=k.to('reduced_energy / reduced_length**2').magnitude, r_0=r_0.to('reduced_length').magnitude, d_r_max=d_r_max.to('reduced_length').magnitude)
                     else:
-                        raise ValueError("current implementation of pyMBE only supports harmonic bonds")
-                    self.define_bond(bond_object=bond, particle_name1=name1, particle_name2=name2)
+                        raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
+                    self.define_bond(bond_object=bond, bond_type=bond_type, particle_name1=name1, particle_name2=name2)
                 else:
                     raise ValueError(object_type+' is not a known pmb object type')
                 if verbose:
@@ -1699,11 +1857,11 @@ class pymbe_library():
         return topology_dict
 
 
-    def search_bond (self, particle_name1, particle_name2, hard_check=False, use_default_bond=False) :
+    def search_bond(self, particle_name1, particle_name2, hard_check=False, use_default_bond=False) :
         """
         Searches for bonds between the particle types given by `particle_name1` and `particle_name2` in `pymbe.df` and returns it.
         If `use_default_bond` is activated and a "default" bond is defined, returns that default bond instead.
-        If no bond is found, it prints a message and it does not return nothing. If `hard_check` is activated, the code stops if no bond is found.
+        If no bond is found, it prints a message and it does not return anything. If `hard_check` is activated, the code stops if no bond is found.
 
         Args:
             particle_name1 (str): label of the type of the first particle type of the bonded particles.
@@ -1729,6 +1887,9 @@ class pymbe_library():
                 exit()
             else:
                 return
+
+    
+
 
     def set_particle_acidity(self, name, acidity='inert', default_charge=0, pka=None):
         """
