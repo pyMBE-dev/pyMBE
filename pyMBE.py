@@ -1775,6 +1775,24 @@ class pymbe_library():
                     clean_sequence.append(residue_ok)
         return clean_sequence
     
+    def read_pmb_df (self,filename):
+        """
+        Reads a pyMBE's Dataframe stored in `filename` and stores the information into pyMBE.
+
+        Args:
+            filename(str): path to file.
+
+        Note:
+            This function only accepts files with CSV format. 
+        """
+        if filename[-3:] != "csv":
+            raise ValueError("Only files with CSV format are supported")
+        df = self.pd.read_csv (filename,header=[0, 1], index_col=0)
+        columns_names = self.setup_df()
+        df.columns = columns_names
+        self.df=df
+        return df
+    
     def read_protein_vtf_in_df (self,filename,unit_length=None):
         """
         Loads a coarse-grained protein model in a vtf file `filename` into the `pmb.df` and it labels it with `name`.
@@ -2014,10 +2032,13 @@ class pymbe_library():
 
     def setup_df (self):
         """
-        Sets up the pyMBE's dataframe `pymbe.df`
+        Sets up the pyMBE's dataframe `pymbe.df`.
+
+        Returns:
+            columns_names(`obj`): pandas multiindex object with the column names of the pyMBE's dataframe
         """
 
-        columns_name = self.pd.MultiIndex.from_tuples ([
+        columns_names = self.pd.MultiIndex.from_tuples ([
                         ('name',''),
                         ('pmb_type',''),
                         ('particle_id',''), 
@@ -2043,9 +2064,9 @@ class pymbe_library():
                         ('parameters_of_the_potential','')
                         ])
 
-        self.df = self.pd.DataFrame (columns = columns_name)
+        self.df = self.pd.DataFrame (columns = columns_names)
       
-        return 
+        return columns_names
 
 
     def setup_lj_interactions_in_espresso (self, espresso_system, cutoff=None, shift='auto', combining_rule='Lorentz-Berthelot'):
