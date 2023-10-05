@@ -7,6 +7,7 @@ pyMBE provides tools to facilitate building up molecules with complex architectu
 - [ESPResSo](https://espressomd.org/wordpress/) v4.2.1 
 - [Pint](https://pint.readthedocs.io/en/stable/) v0.20.01 
 - [Pandas](https://pandas.pydata.org/) v1.5.3
+- [Pint-Pandas](https://pypi.org/project/Pint-Pandas/) v0.5
 - [Numpy](https://numpy.org/)
 - [pdoc](https://pdoc.dev/) (for building the docs)
 

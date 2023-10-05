@@ -24,6 +24,7 @@ pmb = pyMBE.pymbe_library()
 from handy_scripts.handy_functions import setup_electrostatic_interactions_in_espresso
 from handy_scripts.handy_functions import minimize_espresso_system_energy
 from handy_scripts.handy_functions import setup_langevin_dynamics_in_espresso
+from handy_scripts.handy_functions import block_analyze
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 if not os.path.exists('./frames'):
