@@ -25,10 +25,11 @@ from espressomd import interactions
 from espressomd.io.writer import vtf
 from espressomd import electrostatics 
 
-# For loading pyMBE from parent folder
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.insert(0, parentdir) 
+# Find path to pyMBE
+current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+path_end_index=current_dir.find("pyMBE")
+pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
+sys.path.insert(0, pyMBE_path)
 
 # Load some functions from the handy_scripts library for convinience
 from handy_scripts.handy_functions import setup_electrostatic_interactions_in_espresso
@@ -80,7 +81,7 @@ basic_aminoacids  = ['R','n','K','H']
 N_aminoacids = len (pmb.protein_sequence_parser(sequence=sequence))
 
 # Load pKa set
-pmb.load_pka_set (filename='reference_parameters/pka_sets/Nozaki1967.txt')
+pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/Nozaki1967.txt')
 
 already_defined_AA=[]
 for aminoacid_key in pmb.protein_sequence_parser(sequence=sequence):
@@ -229,10 +230,11 @@ av_rg, err_rg, tau_rg, block_size = block_analyze(input_data=Rg_pH)
     
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 
-Z_HH = pmb.calculate_HH(sequence=sequence, pH_list=pH_range)
+Z_HH = pmb.calculate_HH(object_name=peptide_name, 
+                        pH_list=pH_range)
 
 # Load the reference data 
-reference_file_Path = str(parentdir)+"/reference_data/histatin5_SoftMatter.txt"
+reference_file_Path = pyMBE_path+"/reference_data/histatin5_SoftMatter.txt"
 reference_data = np.loadtxt(reference_file_Path, delimiter=",")
 
 Z_ref=reference_data[:,1]         

@@ -25,10 +25,11 @@ from espressomd import interactions
 from espressomd.io.writer import vtf
 from espressomd import electrostatics 
 
-# For loading pyMBE from parent folder
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.insert(0, parentdir) 
+# Find path to pyMBE
+current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+path_end_index=current_dir.find("pyMBE")
+pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
+sys.path.insert(0, pyMBE_path)
 
 # Create an instance of pyMBE library
 import pyMBE
@@ -76,8 +77,8 @@ pmb.define_particle( name=anion_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilo
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-pmb.load_interaction_parameters (filename='reference_parameters/interaction_parameters/Lunkad2021.txt') 
-pmb.load_pka_set (filename='reference_parameters/pka_sets/CRC1991.txt')
+pmb.load_interaction_parameters (filename=pyMBE_path+'/reference_parameters/interaction_parameters/Lunkad2021.txt') 
+pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/CRC1991.txt')
 
 # Define the peptide on the pyMBE dataframe 
 pmb.define_peptide( name=sequence, sequence=sequence, model=model)
@@ -208,10 +209,11 @@ print("Rg analysis")
 av_rg, err_rg, tau_rg, block_size = block_analyze(input_data=Rg_pH)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-Z_HH = pmb.calculate_HH(sequence=sequence, pH_list=pH_range)
+Z_HH = pmb.calculate_HH(object_name=sequence,
+                         pH_list=pH_range)
 
 # Load the reference data 
-reference_file_Path = str(parentdir)+"/reference_data/Lys-AspMSDE.csv"
+reference_file_Path = pyMBE_path+"/reference_data/Lys-AspMSDE.csv"
 reference_data = pd.read_csv(reference_file_Path)
 
 Z_ref = N_aminoacids*-1*reference_data['aaa']+N_aminoacids*reference_data['aab']         

@@ -11,10 +11,13 @@ from espressomd.io.writer import vtf
 from espressomd import interactions
 from espressomd import electrostatics
 
-# For loading pyMBE from parent folder
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.insert(0, parentdir) 
+
+# Find path to pyMBE
+current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+path_end_index=current_dir.find("pyMBE")
+pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
+sys.path.insert(0, pyMBE_path)
+
 
 # Create an instance of pyMBE library
 import pyMBE
@@ -50,8 +53,8 @@ pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 N_peptide_chains = 4
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-pmb.load_interaction_parameters (filename='reference_parameters/interaction_parameters/Lunkad2021.txt') 
-pmb.load_pka_set (filename='reference_parameters/pka_sets/Hass2015.txt')
+pmb.load_interaction_parameters (filename=pyMBE_path+'/reference_parameters/interaction_parameters/Lunkad2021.txt') 
+pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/Hass2015.txt')
 
 # Use a generic parametrization for the aminoacids not parametrized
 
@@ -204,7 +207,8 @@ print("Net charge analysis")
 av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(input_data=Z_pH)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-Z_HH = pmb.calculate_HH(sequence= sequence, pH_list=pH_range)
+Z_HH = pmb.calculate_HH(object_name=sequence, 
+                        pH_list=pH_range)
 
 fig, ax = plt.subplots(figsize=(10, 7))
 plt.errorbar(pH_range, av_net_charge, yerr=err_net_charge, fmt = '-o', capsize=3, label='Simulation')

@@ -9,9 +9,11 @@ from espressomd import interactions
 from espressomd.io.writer import vtf
 from espressomd import electrostatics 
 
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.insert(0, parentdir) 
+# Find path to pyMBE
+current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+path_end_index=current_dir.find("pyMBE")
+pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
+sys.path.insert(0, pyMBE_path)
 
 # Create an instance of pyMBE library
 import pyMBE
@@ -65,7 +67,6 @@ stride_traj = 100 # in LJ units of time
 dt = 0.01
 N_samples = int (t_max / stride_obs)
 integ_steps = int (stride_obs/dt)
-probability_reaction = 0.5 
 
 #Switch for Electrostatics and WCA interactions 
 WCA = True
@@ -75,7 +76,7 @@ espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude]
 espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
 #Directory of the protein model 
-protein_filename = os.path.join (parentdir,args.path_to_cg)
+protein_filename = pyMBE_path+"/"+args.path_to_cg
 
 #Reads the VTF file of the protein model
 topology_dict = pmb.read_protein_vtf_in_df (filename=protein_filename)
@@ -117,7 +118,7 @@ pmb.define_particle(name = cation_name, q = 1, diameter=0.2*pmb.units.nm, epsilo
 pmb.define_particle(name = anion_name,  q =-1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
 
 # Here we upload the pka set from the reference_parameters folder 
-pmb.load_pka_set (filename=os.path.join(parentdir,'reference_parameters/pka_sets/Nozaki1967.txt'))
+pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/Nozaki1967.txt')
 
 #We create the protein in espresso 
 pmb.create_protein_in_espresso(name=protein_name,
@@ -210,10 +211,8 @@ pmb.df.to_csv('df.csv')
 
 for step in tqdm(range(N_samples)):
         
-        if pmb.np.random.random() > probability_reaction:
-            espresso_system.integrator.run (steps = integ_steps)
-        else:
-            RE.reaction( reaction_steps = total_ionisible_groups)
+        espresso_system.integrator.run (steps = integ_steps)
+        RE.reaction( reaction_steps = total_ionisible_groups)
 
         charge_dict=pmb.calculate_net_charge_in_molecules(espresso_system=espresso_system, 
                                                                 object_name=protein_name)
@@ -238,7 +237,6 @@ for step in tqdm(range(N_samples)):
 observables_df['time'] = time_step 
 observables_df['Znet'] = net_charge_list
 
-for amino in net_charge_amino_save.keys():
-    observables_df[amino] = net_charge_amino_save[amino]
+observables_df=pmb.pd.concat([observables_df,pmb.pd.DataFrame(net_charge_amino_save)], axis=1)
 
 observables_df.to_csv(f'pH-{pH_value}_observables.csv',index=False)
