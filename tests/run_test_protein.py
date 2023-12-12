@@ -12,6 +12,16 @@ import os
 import sys
 import inspect
 
+# Find path to pyMBE
+current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+path_end_index=current_dir.find("pyMBE")
+pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
+sys.path.insert(0, pyMBE_path)
+
+# Create an instance of pyMBE library
+import pyMBE
+pmb = pyMBE.pymbe_library()
+
 parser = argparse.ArgumentParser(description='Script to reproduce the numerical data for globular proteins from Torres')
 parser.add_argument('--run_command', type=str, required= True,  help='Run command for globular_protein.py')
 parser.add_argument('--pdb_code', type=str, required= True,  help='PDB code of the protein')
@@ -25,27 +35,18 @@ for pH_value in np.arange(2.0, 7.5, 0.5):
     os.system(f'{args.run_command} --pH {pH_value}')
     
 
-if not os.path.exists('./observables_results'):
-    os.system('mkdir observables_results')
+if not os.path.exists(f'{pyMBE_path}/tests/observables_results'):
+    os.system(f'mkdir {pyMBE_path}/tests/observables_results')
 
-os.system('mv pH*.csv observables_results')
-os.system('python3 handy_scripts/data_analysis.py observables_results/')
-
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.insert(0, parentdir) 
-
-# Create an instance of pyMBE library
-import pyMBE
-pmb = pyMBE.pymbe_library()
+os.system(f'mv pH*.csv {pyMBE_path}/tests/observables_results')
+os.system(f'python3 {pyMBE_path}/handy_scripts/data_analysis.py {pyMBE_path}/tests/observables_results/')
 
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
 
 #Load the pmb.df 
-pmb.df = pd.read_csv ('df.csv', header=[0],index_col=[0])
+pmb.df = pmb.read_pmb_df(filename='df.csv')
 protein_sequence = pmb.df.loc[pmb.df['name']== pdb].sequence.values[0]
-
 titratables_AA_df = pmb.df[['name','pka','acidity']].drop_duplicates().dropna()
 
 # Get the pka_set
@@ -58,7 +59,9 @@ for index in titratables_AA_df.name.keys():
 
 # Calculate Henderson-Hasselbach titration curve 
 pH_range = np.linspace(2, 7, num=31)
-Z_HH = pmb.calculate_HH (sequence = protein_sequence, pH_list = pH_range, pka_set=pka_set )
+Z_HH = pmb.calculate_HH (object_name=pdb,
+                        pH_list = pH_range, 
+                        pka_set=pka_set )
 
 # Here we have to add +2 for the Calcium in the protein charge by HH
 if pdb == '1f6s':
@@ -67,7 +70,7 @@ if pdb == '1f6s':
 
 # Read the reference data from Torres2022 
 
-ref_data_torres = f'reference_data/{pdb}-10mM-torres.dat'
+ref_data_torres = f'{pyMBE_path}/reference_data/{pdb}-10mM-torres.dat'
 pH_list = []
 znet_ref = []
 sigma_ref = []
@@ -86,7 +89,7 @@ full_data = pd.read_csv(espresso_data)
 columns = full_data.columns.to_list()
 full_data.sort_values('pH',ascending=True, inplace=True)
 
-znet_espresso = full_data['Znet'].to_list ()
+znet_espresso = full_data['Znet'].to_list()
 
 numerical_comparison = pd.DataFrame()
 numerical_comparison['pH'] = pH_list 
@@ -96,7 +99,7 @@ numerical_comparison['espresso'] = znet_espresso
 numerical_comparison['error %'] = abs(( (numerical_comparison['espresso']) -  (numerical_comparison['ref_torres'])) /  (numerical_comparison['ref_torres'])) *100 
 
 #Save `numerical_comparison` to a csv file 
-numerical_comparison.to_csv(f'{pdb}-numerical_comparison.csv',index = True)
+numerical_comparison.to_csv(f'{pyMBE_path}/tests/observables_results/{pdb}-numerical_comparison.csv',index = True)
 
 #Plot results  
 
@@ -174,7 +177,7 @@ ax1.spines['bottom'].set_lw(3)
 ax1.legend(frameon =False)
 
 plt.legend(prop={'size': 35})
-pdf_name = f'{pdb}-analyzed_observables.pdf'
+pdf_name = f'{pyMBE_path}/tests/observables_results/{pdb}-analyzed_observables.pdf'
 plt.savefig(pdf_name)
 plt.show()
 

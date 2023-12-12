@@ -5,7 +5,7 @@
 .PHONY: tests
 .PHONY: docs
 
-ESPResSo_build_path=~/espresso4.2/build
+ESPResSo_build_path=~/software/espresso_v4.2/build/
 
 docs:
 	pdoc ./pyMBE.py -o ./docs --docformat google 

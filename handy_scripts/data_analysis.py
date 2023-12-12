@@ -92,7 +92,7 @@ def get_dt(data):
     for i in range(1,imax):
         dt = time[i] - time[i-1]
         if(np.abs((dt_init - dt)/dt) > 0.01 ):
-            warn_lines.append("Row {} dt = {} = {} - {} not equal to dt_init = {}")
+            warn_lines.append(f"Row {i} dt = {dt} = {time[i]} - {time[i-1]} not equal to dt_init = {dt_init}")
     if(len(warn_lines) > 20):
         print("\n")
         for line in warn_lines:
