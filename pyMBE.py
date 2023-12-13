@@ -939,7 +939,7 @@ class pymbe_library():
                                             hard_check=True, 
                                             use_default_bond=use_default_bond)
                     l0 = self.get_bond_length(particle_name1=central_bead_name, 
-                                              particle_name2=side_chain_element, 
+                                              particle_name2=central_bead_side_chain, 
                                               hard_check=True, 
                                               use_default_bond=use_default_bond)
                     if backbone_vector is None:
@@ -1591,7 +1591,7 @@ class pymbe_library():
         else:
             print("Bond not defined between particles ", particle_name1, " and ", particle_name2)    
             if hard_check:
-                exit()
+                raise KeyboardInterrupt
             else:
                 return
 
