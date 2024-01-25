@@ -24,7 +24,7 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 - `tests/`: folder with several test scripts to check that new developments do not break pyMBE.
 - `tutorials/`: folder with the available tutorials on pyMBE.
 - `AUTHORS.md`: list of authors and contributors of pyMBE.
-- `CONTRIBUTIING`: rules on how to contribute to pyMBE.
+- `CONTRIBUTING`: rules on how to contribute to pyMBE.
 - `LICENSE.md`: license of pyMBE.
 - `pyMBE.py`: source code of pyMBE
 
