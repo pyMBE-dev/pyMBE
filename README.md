@@ -15,11 +15,18 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 
 ## Contents
 
-- `pyMBE.py` : source code of pyMBE
-- `samples` : folder with various sample scripts showcasing how to use pyMBE to setup different systems.
-- `pyMBE_tutorial.ipynb` : Tutorial of pyMBE
-- `tests/`: folder with several test scripts to check that new developments do not break pyMBE
-- `handy_scripts/`: folder with various handy scripts and libraries
+- `docs/`: folder with the API documentation of pyMBE.
+- `figs/`: folder with various images used in the tutorials of pyMBE.
+- `handy_scripts/`: folder with various handy scripts and libraries.
+- `reference_data/`: folder with various reference data set used to validate pyMBE.
+- `reference_parameters/`: folder with various sets of parameters from previous works.
+- `sample_scripts`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
+- `tests/`: folder with several test scripts to check that new developments do not break pyMBE.
+- `tutorials/`: folder with the available tutorials on pyMBE.
+- `AUTHORS.md`: list of authors and contributors of pyMBE.
+- `CONTRIBUTIING`: rules on how to contribute to pyMBE.
+- `LICENSE.md`: license of pyMBE.
+- `pyMBE.py`: source code of pyMBE
 
 ## Usage
 
