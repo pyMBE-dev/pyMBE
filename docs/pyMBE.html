@@ -256,7 +256,7 @@ pyMBE    </h1>
 
                         <div class="pdoc-code codehilite"><pre><span></span><span id="L-1"><a href="#L-1"><span class="linenos">   1</span></a><span class="k">class</span> <span class="nc">pymbe_library</span><span class="p">():</span>
 </span><span id="L-2"><a href="#L-2"><span class="linenos">   2</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-3"><a href="#L-3"><span class="linenos">   3</span></a><span class="sd">    The library for the Molecular Brewer for ESPResSo (pyMBE)</span>
+</span><span id="L-3"><a href="#L-3"><span class="linenos">   3</span></a><span class="sd">    The library for the Molecular Builder for ESPResSo (pyMBE)</span>
 </span><span id="L-4"><a href="#L-4"><span class="linenos">   4</span></a>
 </span><span id="L-5"><a href="#L-5"><span class="linenos">   5</span></a><span class="sd">    Attributes:</span>
 </span><span id="L-6"><a href="#L-6"><span class="linenos">   6</span></a><span class="sd">        N_A(`obj`): Avogadro number using the `pmb.units` UnitRegistry.</span>
@@ -470,7 +470,7 @@ pyMBE    </h1>
 </span><span id="L-214"><a href="#L-214"><span class="linenos"> 214</span></a>
 </span><span id="L-215"><a href="#L-215"><span class="linenos"> 215</span></a>    <span class="k">def</span> <span class="nf">calculate_HH</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">object_name</span><span class="p">,</span> <span class="n">pH_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pka_set</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 </span><span id="L-216"><a href="#L-216"><span class="linenos"> 216</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-217"><a href="#L-217"><span class="linenos"> 217</span></a><span class="sd">        Calculates the charge per molecule according to the ideal Henderson-Hasselbach titration curve </span>
+</span><span id="L-217"><a href="#L-217"><span class="linenos"> 217</span></a><span class="sd">        Calculates the charge per molecule according to the ideal Henderson-Hasselbalch titration curve </span>
 </span><span id="L-218"><a href="#L-218"><span class="linenos"> 218</span></a><span class="sd">        for molecules with the name `object_name`.</span>
 </span><span id="L-219"><a href="#L-219"><span class="linenos"> 219</span></a>
 </span><span id="L-220"><a href="#L-220"><span class="linenos"> 220</span></a><span class="sd">        Args:</span>
@@ -479,7 +479,7 @@ pyMBE    </h1>
 </span><span id="L-223"><a href="#L-223"><span class="linenos"> 223</span></a><span class="sd">            pka_set(`dict`): {&quot;name&quot; : {&quot;pka_value&quot;: pka, &quot;acidity&quot;: acidity}}</span>
 </span><span id="L-224"><a href="#L-224"><span class="linenos"> 224</span></a>
 </span><span id="L-225"><a href="#L-225"><span class="linenos"> 225</span></a><span class="sd">        Returns:</span>
-</span><span id="L-226"><a href="#L-226"><span class="linenos"> 226</span></a><span class="sd">            Z_HH (`lst`): Henderson-Hasselbach prediction of the charge of `sequence` in `pH_list`</span>
+</span><span id="L-226"><a href="#L-226"><span class="linenos"> 226</span></a><span class="sd">            Z_HH (`lst`): Henderson-Hasselbalch prediction of the charge of `sequence` in `pH_list`</span>
 </span><span id="L-227"><a href="#L-227"><span class="linenos"> 227</span></a>
 </span><span id="L-228"><a href="#L-228"><span class="linenos"> 228</span></a><span class="sd">        Note:</span>
 </span><span id="L-229"><a href="#L-229"><span class="linenos"> 229</span></a><span class="sd">            - If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated</span>
@@ -519,7 +519,7 @@ pyMBE    </h1>
 </span><span id="L-263"><a href="#L-263"><span class="linenos"> 263</span></a>
 </span><span id="L-264"><a href="#L-264"><span class="linenos"> 264</span></a>    <span class="k">def</span> <span class="nf">calculate_HH_Donnan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">espresso_system</span><span class="p">,</span> <span class="n">object_names</span><span class="p">,</span> <span class="n">c_salt</span><span class="p">,</span> <span class="n">pH_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pka_set</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 </span><span id="L-265"><a href="#L-265"><span class="linenos"> 265</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="L-266"><a href="#L-266"><span class="linenos"> 266</span></a><span class="sd">        Calculates the charge on the different molecules according to the Henderson-Hasselbach equation coupled to the Donnan partitioning.</span>
+</span><span id="L-266"><a href="#L-266"><span class="linenos"> 266</span></a><span class="sd">        Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.</span>
 </span><span id="L-267"><a href="#L-267"><span class="linenos"> 267</span></a>
 </span><span id="L-268"><a href="#L-268"><span class="linenos"> 268</span></a><span class="sd">        Args:</span>
 </span><span id="L-269"><a href="#L-269"><span class="linenos"> 269</span></a><span class="sd">            object_names (&#39;lst&#39;): List of the object names of all (potentially) charged molecules in the system.</span>
@@ -2132,7 +2132,7 @@ pyMBE    </h1>
 </span><span id="L-1876"><a href="#L-1876"><span class="linenos">1876</span></a><span class="sd">            - Accepted formats for `sequence` are:</span>
 </span><span id="L-1877"><a href="#L-1877"><span class="linenos">1877</span></a><span class="sd">                - `lst` with one letter or three letter code of each aminoacid in each element</span>
 </span><span id="L-1878"><a href="#L-1878"><span class="linenos">1878</span></a><span class="sd">                - `str` with the sequence using the one letter code</span>
-</span><span id="L-1879"><a href="#L-1879"><span class="linenos">1879</span></a><span class="sd">                - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphon &quot;-&quot;</span>
+</span><span id="L-1879"><a href="#L-1879"><span class="linenos">1879</span></a><span class="sd">                - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphen &quot;-&quot;</span>
 </span><span id="L-1880"><a href="#L-1880"><span class="linenos">1880</span></a><span class="sd">        </span>
 </span><span id="L-1881"><a href="#L-1881"><span class="linenos">1881</span></a><span class="sd">        &#39;&#39;&#39;</span>
 </span><span id="L-1882"><a href="#L-1882"><span class="linenos">1882</span></a>        <span class="c1"># Aminoacid key</span>
@@ -2958,7 +2958,7 @@ pyMBE    </h1>
     <a class="headerlink" href="#pymbe_library"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="pymbe_library-2"><a href="#pymbe_library-2"><span class="linenos">   2</span></a><span class="k">class</span> <span class="nc">pymbe_library</span><span class="p">():</span>
 </span><span id="pymbe_library-3"><a href="#pymbe_library-3"><span class="linenos">   3</span></a><span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="pymbe_library-4"><a href="#pymbe_library-4"><span class="linenos">   4</span></a><span class="sd">    The library for the Molecular Brewer for ESPResSo (pyMBE)</span>
+</span><span id="pymbe_library-4"><a href="#pymbe_library-4"><span class="linenos">   4</span></a><span class="sd">    The library for the Molecular Builder for ESPResSo (pyMBE)</span>
 </span><span id="pymbe_library-5"><a href="#pymbe_library-5"><span class="linenos">   5</span></a>
 </span><span id="pymbe_library-6"><a href="#pymbe_library-6"><span class="linenos">   6</span></a><span class="sd">    Attributes:</span>
 </span><span id="pymbe_library-7"><a href="#pymbe_library-7"><span class="linenos">   7</span></a><span class="sd">        N_A(`obj`): Avogadro number using the `pmb.units` UnitRegistry.</span>
@@ -3172,7 +3172,7 @@ pyMBE    </h1>
 </span><span id="pymbe_library-215"><a href="#pymbe_library-215"><span class="linenos"> 215</span></a>
 </span><span id="pymbe_library-216"><a href="#pymbe_library-216"><span class="linenos"> 216</span></a>    <span class="k">def</span> <span class="nf">calculate_HH</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">object_name</span><span class="p">,</span> <span class="n">pH_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pka_set</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 </span><span id="pymbe_library-217"><a href="#pymbe_library-217"><span class="linenos"> 217</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="pymbe_library-218"><a href="#pymbe_library-218"><span class="linenos"> 218</span></a><span class="sd">        Calculates the charge per molecule according to the ideal Henderson-Hasselbach titration curve </span>
+</span><span id="pymbe_library-218"><a href="#pymbe_library-218"><span class="linenos"> 218</span></a><span class="sd">        Calculates the charge per molecule according to the ideal Henderson-Hasselbalch titration curve </span>
 </span><span id="pymbe_library-219"><a href="#pymbe_library-219"><span class="linenos"> 219</span></a><span class="sd">        for molecules with the name `object_name`.</span>
 </span><span id="pymbe_library-220"><a href="#pymbe_library-220"><span class="linenos"> 220</span></a>
 </span><span id="pymbe_library-221"><a href="#pymbe_library-221"><span class="linenos"> 221</span></a><span class="sd">        Args:</span>
@@ -3181,7 +3181,7 @@ pyMBE    </h1>
 </span><span id="pymbe_library-224"><a href="#pymbe_library-224"><span class="linenos"> 224</span></a><span class="sd">            pka_set(`dict`): {&quot;name&quot; : {&quot;pka_value&quot;: pka, &quot;acidity&quot;: acidity}}</span>
 </span><span id="pymbe_library-225"><a href="#pymbe_library-225"><span class="linenos"> 225</span></a>
 </span><span id="pymbe_library-226"><a href="#pymbe_library-226"><span class="linenos"> 226</span></a><span class="sd">        Returns:</span>
-</span><span id="pymbe_library-227"><a href="#pymbe_library-227"><span class="linenos"> 227</span></a><span class="sd">            Z_HH (`lst`): Henderson-Hasselbach prediction of the charge of `sequence` in `pH_list`</span>
+</span><span id="pymbe_library-227"><a href="#pymbe_library-227"><span class="linenos"> 227</span></a><span class="sd">            Z_HH (`lst`): Henderson-Hasselbalch prediction of the charge of `sequence` in `pH_list`</span>
 </span><span id="pymbe_library-228"><a href="#pymbe_library-228"><span class="linenos"> 228</span></a>
 </span><span id="pymbe_library-229"><a href="#pymbe_library-229"><span class="linenos"> 229</span></a><span class="sd">        Note:</span>
 </span><span id="pymbe_library-230"><a href="#pymbe_library-230"><span class="linenos"> 230</span></a><span class="sd">            - If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated</span>
@@ -3221,7 +3221,7 @@ pyMBE    </h1>
 </span><span id="pymbe_library-264"><a href="#pymbe_library-264"><span class="linenos"> 264</span></a>
 </span><span id="pymbe_library-265"><a href="#pymbe_library-265"><span class="linenos"> 265</span></a>    <span class="k">def</span> <span class="nf">calculate_HH_Donnan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">espresso_system</span><span class="p">,</span> <span class="n">object_names</span><span class="p">,</span> <span class="n">c_salt</span><span class="p">,</span> <span class="n">pH_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pka_set</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 </span><span id="pymbe_library-266"><a href="#pymbe_library-266"><span class="linenos"> 266</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="pymbe_library-267"><a href="#pymbe_library-267"><span class="linenos"> 267</span></a><span class="sd">        Calculates the charge on the different molecules according to the Henderson-Hasselbach equation coupled to the Donnan partitioning.</span>
+</span><span id="pymbe_library-267"><a href="#pymbe_library-267"><span class="linenos"> 267</span></a><span class="sd">        Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.</span>
 </span><span id="pymbe_library-268"><a href="#pymbe_library-268"><span class="linenos"> 268</span></a>
 </span><span id="pymbe_library-269"><a href="#pymbe_library-269"><span class="linenos"> 269</span></a><span class="sd">        Args:</span>
 </span><span id="pymbe_library-270"><a href="#pymbe_library-270"><span class="linenos"> 270</span></a><span class="sd">            object_names (&#39;lst&#39;): List of the object names of all (potentially) charged molecules in the system.</span>
@@ -4834,7 +4834,7 @@ pyMBE    </h1>
 </span><span id="pymbe_library-1877"><a href="#pymbe_library-1877"><span class="linenos">1877</span></a><span class="sd">            - Accepted formats for `sequence` are:</span>
 </span><span id="pymbe_library-1878"><a href="#pymbe_library-1878"><span class="linenos">1878</span></a><span class="sd">                - `lst` with one letter or three letter code of each aminoacid in each element</span>
 </span><span id="pymbe_library-1879"><a href="#pymbe_library-1879"><span class="linenos">1879</span></a><span class="sd">                - `str` with the sequence using the one letter code</span>
-</span><span id="pymbe_library-1880"><a href="#pymbe_library-1880"><span class="linenos">1880</span></a><span class="sd">                - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphon &quot;-&quot;</span>
+</span><span id="pymbe_library-1880"><a href="#pymbe_library-1880"><span class="linenos">1880</span></a><span class="sd">                - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphen &quot;-&quot;</span>
 </span><span id="pymbe_library-1881"><a href="#pymbe_library-1881"><span class="linenos">1881</span></a><span class="sd">        </span>
 </span><span id="pymbe_library-1882"><a href="#pymbe_library-1882"><span class="linenos">1882</span></a><span class="sd">        &#39;&#39;&#39;</span>
 </span><span id="pymbe_library-1883"><a href="#pymbe_library-1883"><span class="linenos">1883</span></a>        <span class="c1"># Aminoacid key</span>
@@ -5646,7 +5646,7 @@ pyMBE    </h1>
 </span></pre></div>
 
 
-            <div class="docstring"><p>The library for the Molecular Brewer for ESPResSo (pyMBE)</p>
+            <div class="docstring"><p>The library for the Molecular Builder for ESPResSo (pyMBE)</p>
 
 <h6 id="attributes">Attributes:</h6>
 
@@ -6072,7 +6072,7 @@ and sets up  the <code>pmb.df</code> for bookkeeping.</p>
     <a class="headerlink" href="#pymbe_library.calculate_HH"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="pymbe_library.calculate_HH-216"><a href="#pymbe_library.calculate_HH-216"><span class="linenos">216</span></a>    <span class="k">def</span> <span class="nf">calculate_HH</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">object_name</span><span class="p">,</span> <span class="n">pH_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pka_set</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 </span><span id="pymbe_library.calculate_HH-217"><a href="#pymbe_library.calculate_HH-217"><span class="linenos">217</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="pymbe_library.calculate_HH-218"><a href="#pymbe_library.calculate_HH-218"><span class="linenos">218</span></a><span class="sd">        Calculates the charge per molecule according to the ideal Henderson-Hasselbach titration curve </span>
+</span><span id="pymbe_library.calculate_HH-218"><a href="#pymbe_library.calculate_HH-218"><span class="linenos">218</span></a><span class="sd">        Calculates the charge per molecule according to the ideal Henderson-Hasselbalch titration curve </span>
 </span><span id="pymbe_library.calculate_HH-219"><a href="#pymbe_library.calculate_HH-219"><span class="linenos">219</span></a><span class="sd">        for molecules with the name `object_name`.</span>
 </span><span id="pymbe_library.calculate_HH-220"><a href="#pymbe_library.calculate_HH-220"><span class="linenos">220</span></a>
 </span><span id="pymbe_library.calculate_HH-221"><a href="#pymbe_library.calculate_HH-221"><span class="linenos">221</span></a><span class="sd">        Args:</span>
@@ -6081,7 +6081,7 @@ and sets up  the <code>pmb.df</code> for bookkeeping.</p>
 </span><span id="pymbe_library.calculate_HH-224"><a href="#pymbe_library.calculate_HH-224"><span class="linenos">224</span></a><span class="sd">            pka_set(`dict`): {&quot;name&quot; : {&quot;pka_value&quot;: pka, &quot;acidity&quot;: acidity}}</span>
 </span><span id="pymbe_library.calculate_HH-225"><a href="#pymbe_library.calculate_HH-225"><span class="linenos">225</span></a>
 </span><span id="pymbe_library.calculate_HH-226"><a href="#pymbe_library.calculate_HH-226"><span class="linenos">226</span></a><span class="sd">        Returns:</span>
-</span><span id="pymbe_library.calculate_HH-227"><a href="#pymbe_library.calculate_HH-227"><span class="linenos">227</span></a><span class="sd">            Z_HH (`lst`): Henderson-Hasselbach prediction of the charge of `sequence` in `pH_list`</span>
+</span><span id="pymbe_library.calculate_HH-227"><a href="#pymbe_library.calculate_HH-227"><span class="linenos">227</span></a><span class="sd">            Z_HH (`lst`): Henderson-Hasselbalch prediction of the charge of `sequence` in `pH_list`</span>
 </span><span id="pymbe_library.calculate_HH-228"><a href="#pymbe_library.calculate_HH-228"><span class="linenos">228</span></a>
 </span><span id="pymbe_library.calculate_HH-229"><a href="#pymbe_library.calculate_HH-229"><span class="linenos">229</span></a><span class="sd">        Note:</span>
 </span><span id="pymbe_library.calculate_HH-230"><a href="#pymbe_library.calculate_HH-230"><span class="linenos">230</span></a><span class="sd">            - If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated</span>
@@ -6121,7 +6121,7 @@ and sets up  the <code>pmb.df</code> for bookkeeping.</p>
 </span></pre></div>
 
 
-            <div class="docstring"><p>Calculates the charge per molecule according to the ideal Henderson-Hasselbach titration curve 
+            <div class="docstring"><p>Calculates the charge per molecule according to the ideal Henderson-Hasselbalch titration curve 
 for molecules with the name <code>object_name</code>.</p>
 
 <h6 id="arguments">Arguments:</h6>
@@ -6135,7 +6135,7 @@ for molecules with the name <code>object_name</code>.</p>
 <h6 id="returns">Returns:</h6>
 
 <blockquote>
-  <p>Z_HH (<code>lst</code>): Henderson-Hasselbach prediction of the charge of <code>sequence</code> in <code>pH_list</code></p>
+  <p>Z_HH (<code>lst</code>): Henderson-Hasselbalch prediction of the charge of <code>sequence</code> in <code>pH_list</code></p>
 </blockquote>
 
 <h6 id="note">Note:</h6>
@@ -6164,7 +6164,7 @@ for molecules with the name <code>object_name</code>.</p>
     <a class="headerlink" href="#pymbe_library.calculate_HH_Donnan"></a>
             <div class="pdoc-code codehilite"><pre><span></span><span id="pymbe_library.calculate_HH_Donnan-265"><a href="#pymbe_library.calculate_HH_Donnan-265"><span class="linenos">265</span></a>    <span class="k">def</span> <span class="nf">calculate_HH_Donnan</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">espresso_system</span><span class="p">,</span> <span class="n">object_names</span><span class="p">,</span> <span class="n">c_salt</span><span class="p">,</span> <span class="n">pH_list</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">pka_set</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 </span><span id="pymbe_library.calculate_HH_Donnan-266"><a href="#pymbe_library.calculate_HH_Donnan-266"><span class="linenos">266</span></a><span class="w">        </span><span class="sd">&quot;&quot;&quot;</span>
-</span><span id="pymbe_library.calculate_HH_Donnan-267"><a href="#pymbe_library.calculate_HH_Donnan-267"><span class="linenos">267</span></a><span class="sd">        Calculates the charge on the different molecules according to the Henderson-Hasselbach equation coupled to the Donnan partitioning.</span>
+</span><span id="pymbe_library.calculate_HH_Donnan-267"><a href="#pymbe_library.calculate_HH_Donnan-267"><span class="linenos">267</span></a><span class="sd">        Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.</span>
 </span><span id="pymbe_library.calculate_HH_Donnan-268"><a href="#pymbe_library.calculate_HH_Donnan-268"><span class="linenos">268</span></a>
 </span><span id="pymbe_library.calculate_HH_Donnan-269"><a href="#pymbe_library.calculate_HH_Donnan-269"><span class="linenos">269</span></a><span class="sd">        Args:</span>
 </span><span id="pymbe_library.calculate_HH_Donnan-270"><a href="#pymbe_library.calculate_HH_Donnan-270"><span class="linenos">270</span></a><span class="sd">            object_names (&#39;lst&#39;): List of the object names of all (potentially) charged molecules in the system.</span>
@@ -6252,7 +6252,7 @@ for molecules with the name <code>object_name</code>.</p>
 </span></pre></div>
 
 
-            <div class="docstring"><p>Calculates the charge on the different molecules according to the Henderson-Hasselbach equation coupled to the Donnan partitioning.</p>
+            <div class="docstring"><p>Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.</p>
 
 <h6 id="arguments">Arguments:</h6>
 
@@ -9225,7 +9225,7 @@ If no bond is found, it prints a message and it does not return anything. If <co
 </span><span id="pymbe_library.protein_sequence_parser-1877"><a href="#pymbe_library.protein_sequence_parser-1877"><span class="linenos">1877</span></a><span class="sd">            - Accepted formats for `sequence` are:</span>
 </span><span id="pymbe_library.protein_sequence_parser-1878"><a href="#pymbe_library.protein_sequence_parser-1878"><span class="linenos">1878</span></a><span class="sd">                - `lst` with one letter or three letter code of each aminoacid in each element</span>
 </span><span id="pymbe_library.protein_sequence_parser-1879"><a href="#pymbe_library.protein_sequence_parser-1879"><span class="linenos">1879</span></a><span class="sd">                - `str` with the sequence using the one letter code</span>
-</span><span id="pymbe_library.protein_sequence_parser-1880"><a href="#pymbe_library.protein_sequence_parser-1880"><span class="linenos">1880</span></a><span class="sd">                - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphon &quot;-&quot;</span>
+</span><span id="pymbe_library.protein_sequence_parser-1880"><a href="#pymbe_library.protein_sequence_parser-1880"><span class="linenos">1880</span></a><span class="sd">                - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphen &quot;-&quot;</span>
 </span><span id="pymbe_library.protein_sequence_parser-1881"><a href="#pymbe_library.protein_sequence_parser-1881"><span class="linenos">1881</span></a><span class="sd">        </span>
 </span><span id="pymbe_library.protein_sequence_parser-1882"><a href="#pymbe_library.protein_sequence_parser-1882"><span class="linenos">1882</span></a><span class="sd">        &#39;&#39;&#39;</span>
 </span><span id="pymbe_library.protein_sequence_parser-1883"><a href="#pymbe_library.protein_sequence_parser-1883"><span class="linenos">1883</span></a>        <span class="c1"># Aminoacid key</span>
@@ -9324,7 +9324,7 @@ If no bond is found, it prints a message and it does not return anything. If <co
   <ul>
   <li><code>lst</code> with one letter or three letter code of each aminoacid in each element</li>
   <li><code>str</code> with the sequence using the one letter code</li>
-  <li><code>str</code> with the squence using the three letter code, each aminoacid must be separated by a hyphon "-"</li>
+  <li><code>str</code> with the squence using the three letter code, each aminoacid must be separated by a hyphen "-"</li>
   </ul></li>
   </ul>
 </blockquote>
