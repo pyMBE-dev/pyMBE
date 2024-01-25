@@ -1,6 +1,6 @@
 class pymbe_library():
     """
-    The library for the Molecular Brewer for ESPResSo (pyMBE)
+    The library for the Molecular Builder for ESPResSo (pyMBE)
 
     Attributes:
         N_A(`obj`): Avogadro number using the `pmb.units` UnitRegistry.
@@ -60,9 +60,9 @@ class pymbe_library():
             espresso_system(`obj`): Instance of a system object from the espressomd library.
 
         Note:
-            - It requires that espressomd has the following feautures activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
+            - It requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
         '''
-        print ('activate_motion_of_rigid_object requires that espressomd has the following feautures activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
+        print ('activate_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
         if pmb_type != 'protein':
             raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
@@ -214,7 +214,7 @@ class pymbe_library():
 
     def calculate_HH(self, object_name, pH_list=None, pka_set=None):
         """
-        Calculates the charge per molecule according to the ideal Henderson-Hasselbach titration curve 
+        Calculates the charge per molecule according to the ideal Henderson-Hasselbalch titration curve 
         for molecules with the name `object_name`.
 
         Args:
@@ -223,7 +223,7 @@ class pymbe_library():
             pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}
 
         Returns:
-            Z_HH (`lst`): Henderson-Hasselbach prediction of the charge of `sequence` in `pH_list`
+            Z_HH (`lst`): Henderson-Hasselbalch prediction of the charge of `sequence` in `pH_list`
 
         Note:
             - If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated
@@ -263,7 +263,7 @@ class pymbe_library():
 
     def calculate_HH_Donnan(self, espresso_system, object_names, c_salt, pH_list=None, pka_set=None):
         """
-        Calculates the charge on the different molecules according to the Henderson-Hasselbach equation coupled to the Donnan partitioning.
+        Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.
 
         Args:
             object_names ('lst'): List of the object names of all (potentially) charged molecules in the system.
@@ -1174,7 +1174,7 @@ class pymbe_library():
 
     def define_particle(self, name, q=0, diameter=None, acidity='inert', epsilon=None, pka=None):
         """
-        Defines a pyMBE object of type `particle` in  `pymbe.df`
+        Defines a pyMBE object of type `particle` in `pymbe.df`
 
         Args:
             name (`str`): Unique label that identifies the `particle`.  
@@ -1416,7 +1416,7 @@ class pymbe_library():
 
     def filter_df(self, pmb_type):
         """
-        Filters `pmb.df` and returns a sub-set of it containing only rows with pmb_object_type=`pmb_type` and non-Nan columns.
+        Filters `pmb.df` and returns a sub-set of it containing only rows with pmb_object_type=`pmb_type` and non-NaN columns.
         
         Args:
             pmb_type(`str`): pmb_object_type to filter in `pmb.df`.
@@ -1484,7 +1484,7 @@ class pymbe_library():
     def generate_coordinates_outside_sphere(self, center, radius, max_dist, n_samples):
 
         """
-        Generates coordinates outside a sphere centered.
+        Generates coordinates outside a sphere centered at `center`.
 
         Args:
             center(`lst`): Coordinates of the center of the sphere.
@@ -1876,7 +1876,7 @@ class pymbe_library():
             - Accepted formats for `sequence` are:
                 - `lst` with one letter or three letter code of each aminoacid in each element
                 - `str` with the sequence using the one letter code
-                - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphon "-"
+                - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphen "-"
         
         '''
         # Aminoacid key
