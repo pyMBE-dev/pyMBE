@@ -18,6 +18,7 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 - `docs/`: folder with the API documentation of pyMBE.
 - `figs/`: folder with various images used in the tutorials of pyMBE.
 - `handy_scripts/`: folder with various handy scripts and libraries.
+- `logo/`: folder with the logo of pyMBE.
 - `reference_data/`: folder with various reference data set used to validate pyMBE.
 - `reference_parameters/`: folder with various sets of parameters from previous works.
 - `sample_scripts`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
