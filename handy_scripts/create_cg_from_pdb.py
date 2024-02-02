@@ -351,7 +351,7 @@ def merge_alpha_carbon_and_sidechain (alpha_carbons_and_terminals,residues_bead)
         coarse_grain_df (cls): pandas df with the information of the coarse grain beads. 
     """
 
-    if args.model == "2bead":
+    if args.model == "2beadAA":
 
         atom_numbers = pd.concat([alpha_carbons_and_terminals['atom_numbers'],residues_bead ['atom_numbers_r']], axis=0 , ignore_index = True).astype('int')
 
@@ -367,20 +367,20 @@ def merge_alpha_carbon_and_sidechain (alpha_carbons_and_terminals,residues_bead)
 
         resid = pd.concat ([alpha_carbons_and_terminals ['resid'], residues_bead ['resid_r']], axis = 0, ignore_index = True)
 
-    elif args.model == "1bead":
+    elif args.model == "1beadAA":
 
-        atom_numbers = pd.concat([alpha_carbons_and_terminals['atom_numbers']], axis=0 , ignore_index = True).astype('int')
+        atom_numbers = pd.concat([residues_bead['atom_numbers_r']], axis=0 , ignore_index = True).astype('int')
 
-        x_coord = pd.concat( [alpha_carbons_and_terminals ['x_coord']], axis = 0, ignore_index = True)
-        y_coord = pd.concat( [alpha_carbons_and_terminals ['y_coord']], axis = 0, ignore_index = True)
-        z_coord = pd.concat( [alpha_carbons_and_terminals ['z_coord']], axis = 0, ignore_index = True)
+        x_coord = pd.concat( [residues_bead ['x_coord_r']], axis = 0, ignore_index = True)
+        y_coord = pd.concat( [residues_bead ['y_coord_r']], axis = 0, ignore_index = True)
+        z_coord = pd.concat( [residues_bead ['z_coord_r']], axis = 0, ignore_index = True)
 
-        resname = pd.concat([alpha_carbons_and_terminals ['resname']], axis = 0, ignore_index = True)
-        resname_one_letter = pd.concat([alpha_carbons_and_terminals ['resname_one_letter']], axis = 0, ignore_index = True)
+        resname = pd.concat([residues_bead ['resname_r']], axis = 0, ignore_index = True)
+        resname_one_letter = pd.concat([residues_bead ['resname_one_letter_r']], axis = 0, ignore_index = True)
 
-        radius = pd.concat ([alpha_carbons_and_terminals['radius']], axis = 0, ignore_index = True)
-        chain =  pd.concat ([alpha_carbons_and_terminals['chain']], axis = 0, ignore_index = True)
-        resid = pd.concat ([alpha_carbons_and_terminals ['resid']], axis = 0, ignore_index = True)
+        radius = pd.concat ([residues_bead['radius_r']], axis = 0, ignore_index = True)
+        chain =  pd.concat ([residues_bead['chain_r']], axis = 0, ignore_index = True)
+        resid = pd.concat ([residues_bead ['resid_r']], axis = 0, ignore_index = True)
 
 
     coarse_grain_df = pd.DataFrame()
@@ -500,7 +500,7 @@ if __name__ == '__main__':
         Using  a local pdb file and keeping only chain id A
         `python3 create_coarse_grain_from_pdb.py  --filename tests/1f6s.pdb --chain_id A`
         Downloading a pdb file from RCSB and doing a one bead model (one bead per aminoacid)
-        `python3 create_coarse_grain_from_pdb.py  --download_pdb 1f6r --model 1bead`
+        `python3 create_coarse_grain_from_pdb.py  --download_pdb 1f6r --model 1beadAA`
     """
 
     # Define argparse arguments to the script and parse them
@@ -514,7 +514,7 @@ if __name__ == '__main__':
     parser.set_defaults(verbose=True)
     args = parser.parse_args()
 
-    valid_keys_models=["1bead","2bead"]
+    valid_keys_models=["1beadAA","2beadAA"]
 
     # Check the arguments given
 
