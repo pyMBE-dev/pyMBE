@@ -24,9 +24,9 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 # Load some functions from the handy_scripts library for convinience
-from handy_scripts.handy_functions import setup_electrostatic_interactions_in_espresso
+from handy_scripts.handy_functions import setup_electrostatic_interactions
 from handy_scripts.handy_functions import minimize_espresso_system_energy
-from handy_scripts.handy_functions import setup_langevin_dynamics_in_espresso
+from handy_scripts.handy_functions import setup_langevin_dynamics
 from handy_scripts.handy_functions import block_analyze
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
@@ -113,10 +113,10 @@ espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
-pmb.create_pmb_object_in_espresso (name=peptide_name, number_of_objects= N_peptide_chains,espresso_system=espresso_system, use_default_bond=True)
-pmb.create_counterions_in_espresso (object_name=peptide_name,cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) # Create counterions for the peptide chains
+pmb.create_pmb_object(name=peptide_name, number_of_objects= N_peptide_chains,espresso_system=espresso_system, use_default_bond=True)
+pmb.create_counterions(object_name=peptide_name,cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) # Create counterions for the peptide chains
 
-c_salt_calculated = pmb.create_added_salt_in_espresso(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
 with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
@@ -132,7 +132,7 @@ print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
 print('The ionisable groups in your peptide are ', list_ionisible_groups)
 
-RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso(counter_ion=cation_name, constant_pH=2, SEED=SEED)
+RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=2, SEED=SEED)
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
@@ -146,15 +146,15 @@ RE.set_non_interacting_type (type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
 #Setup the potential energy
-pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
+pmb.setup_lj_interactions (espresso_system=espresso_system)
 minimize_espresso_system_energy (espresso_system=espresso_system)
-setup_electrostatic_interactions_in_espresso(units=pmb.units,
+setup_electrostatic_interactions(units=pmb.units,
                                             espresso_system=espresso_system,
                                             kT=pmb.kT)
 minimize_espresso_system_energy (espresso_system=espresso_system)
 
 
-setup_langevin_dynamics_in_espresso (espresso_system=espresso_system, 
+setup_langevin_dynamics(espresso_system=espresso_system, 
                                     kT = pmb.kT, 
                                     SEED = SEED,
                                     time_step=dt,
@@ -188,8 +188,8 @@ for index in tqdm(range(len(pH_range))):
 
         if ( step > steps_eq):
             # Get peptide net charge
-            charge_dict=pmb.calculate_net_charge_in_molecules(espresso_system=espresso_system, 
-                                                                object_name=peptide_name)      
+            charge_dict=pmb.calculate_net_charge (  espresso_system=espresso_system, 
+                                                    molecule_name=peptide_name)      
             Z_sim.append(charge_dict["mean"])
 
         if (step % N_samples_print == 0) :

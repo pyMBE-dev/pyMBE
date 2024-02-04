@@ -382,7 +382,7 @@ class pymbe_library():
                l0 = self.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*self.np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red), x0=1.0).x
         return l0
 
-    def calculate_net_charge_in_molecules(self, espresso_system, object_name):
+    def calculate_net_charge (self, espresso_system, molecule_name):
         '''
         Calculates the net charge per molecule of molecules with `name` = object_name. 
         Returns the net charge per molecule and a maps with the net charge per residue and molecule.
@@ -399,11 +399,11 @@ class pymbe_library():
             - The net charge of each particle type is averaged over all particle of the same type in all molecules of type `name`
         '''        
         valid_pmb_types = ["molecule", "protein"]
-        pmb_type=self.df.loc[self.df['name']==object_name].pmb_type.values[0]
+        pmb_type=self.df.loc[self.df['name']==molecule_name].pmb_type.values[0]
         if pmb_type not in valid_pmb_types:
             raise ValueError("The pyMBE object with name {object_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
         charge_in_residues = {}
-        id_map = self.get_particle_id_map(object_name=object_name)
+        id_map = self.get_particle_id_map(object_name=molecule_name)
         def create_charge_map(espresso_system,id_map,label):
             charge_map={}
             for super_id in id_map[label].keys():
@@ -533,7 +533,7 @@ class pymbe_library():
                 self.df = self.pd.concat ([self.df,df_by_name_repeated], ignore_index=True)        
         return
 
-    def create_added_salt_in_espresso(self, espresso_system, cation_name, anion_name, c_salt):    
+    def create_added_salt (self, espresso_system, cation_name, anion_name, c_salt):    
         """
         Creates a `c_salt` concentration of `cation_name` and `anion_name` ions into the `espresso_system`.
 
@@ -564,12 +564,12 @@ class pymbe_library():
             raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
         N_cation = N_ions*abs(anion_name_charge)
         N_anion = N_ions*abs(cation_name_charge)
-        self.create_particle_in_espresso(espresso_system=espresso_system, name=cation_name, number_of_particles=N_cation)
-        self.create_particle_in_espresso(espresso_system=espresso_system, name=anion_name, number_of_particles=N_anion)
+        self.create_particle(espresso_system=espresso_system, name=cation_name, number_of_particles=N_cation)
+        self.create_particle(espresso_system=espresso_system, name=anion_name, number_of_particles=N_anion)
         print('\n Added salt concentration of ', c_salt_calculated.to('mol/L'), 'given by ', N_cation, ' cations and ', N_anion, ' anions')
         return c_salt_calculated
 
-    def create_counterions_in_espresso(self, object_name, cation_name, anion_name, espresso_system):
+    def create_counterions(self, object_name, cation_name, anion_name, espresso_system):
         """
         Creates particles of `cation_name` and `anion_name` in `espresso_system` to counter the net charge of `pmb_object`.
         
@@ -603,11 +603,11 @@ class pymbe_library():
         else:
             raise ValueError('The number of negative charges in the pmb_object must be divisible by the  charge of the cation')
         if counterion_number[cation_name] > 0: 
-            self.create_particle_in_espresso(espresso_system=espresso_system, name=cation_name, number_of_particles=counterion_number[cation_name])
+            self.create_particle(espresso_system=espresso_system, name=cation_name, number_of_particles=counterion_number[cation_name])
         else:
             counterion_number[cation_name]=0
         if counterion_number[anion_name] > 0:
-            self.create_particle_in_espresso(espresso_system=espresso_system, name=anion_name, number_of_particles=counterion_number[anion_name])
+            self.create_particle(espresso_system=espresso_system, name=anion_name, number_of_particles=counterion_number[anion_name])
         else:
             counterion_number[anion_name] = 0
         print('The following counter-ions have been created: ')
@@ -615,7 +615,7 @@ class pymbe_library():
             print(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
 
-    def create_molecule_in_espresso(self, name, number_of_molecules, espresso_system, first_residue_position=None, use_default_bond=False):
+    def create_molecule(self, name, number_of_molecules, espresso_system, first_residue_position=None, use_default_bond=False):
         """
         Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
@@ -656,7 +656,7 @@ class pymbe_library():
                                                                  radius=1, 
                                                                  n_samples=1,
                                                                  on_surface=True)[0]
-                    residues_info = self.create_residue_in_espresso(name=residue,
+                    residues_info = self.create_residue(name=residue,
                                                                     number_of_residues=1, 
                                                                     espresso_system=espresso_system, 
                                                                     central_bead_position=first_residue_position,  
@@ -684,7 +684,7 @@ class pymbe_library():
                                               hard_check=True, 
                                               use_default_bond=use_default_bond)                
                     residue_position = residue_position+backbone_vector*l0
-                    residues_info = self.create_residue_in_espresso(name=residue, 
+                    residues_info = self.create_residue(name=residue, 
                                                                     number_of_residues=1, 
                                                                     espresso_system=espresso_system, 
                                                                     central_bead_position=[residue_position],
@@ -708,7 +708,7 @@ class pymbe_library():
             first_residue = True
         return molecule_info
     
-    def create_particle_in_espresso(self, name, espresso_system, number_of_particles, position=None, fix=False):
+    def create_particle(self, name, espresso_system, number_of_particles, position=None, fix=False):
         """
         Creates `number_of_particles` particles of type `name` into `espresso_system` and bookkeeps them into `pymbe.df`.
         
@@ -755,7 +755,7 @@ class pymbe_library():
             self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, warning=False)                  
         return created_pid_list
 
-    def create_pmb_object_in_espresso(self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
+    def create_pmb_object (self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
         """
         Creates all `particle`s associated to `pmb object` into  `espresso` a number of times equal to `number_of_objects`.
         
@@ -774,14 +774,14 @@ class pymbe_library():
         if pmb_type not in allowed_objects:
             raise ValueError('Object type not supported, supported types are ', allowed_objects)
         if pmb_type == 'particle':
-            self.create_particle_in_espresso(name=name, number_of_particles=number_of_objects, espresso_system=espresso_system, position=position)
+            self.create_particle(name=name, number_of_particles=number_of_objects, espresso_system=espresso_system, position=position)
         elif pmb_type == 'residue':
-            self.create_residue_in_espresso(name=name,number_of_residues=number_of_objects, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
+            self.create_residue(name=name,number_of_residues=number_of_objects, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
         elif pmb_type == 'molecule':
-            self.create_molecule_in_espresso(name=name,number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, first_residue_position=position)
+            self.create_molecule(name=name,number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, first_residue_position=position)
         return
 
-    def create_protein_in_espresso(self, name, number_of_proteins, espresso_system, positions):
+    def create_protein(self, name, number_of_proteins, espresso_system, topology_dict):
         """
         Creates `number_of_proteins` molecules of type `name` into `espresso_system` at the coordinates in `positions`
 
@@ -815,14 +815,14 @@ class pymbe_library():
                                                                         n_samples=1, 
                                                                         center=[box_half]*3)[0]
    
-            for residue in positions.keys():
+            for residue in topology_dict.keys():
 
                 residue_name = self.re.split(r'\d+', residue)[0]
                 residue_number = self.re.split(r'(\d+)', residue)[1]
-                residue_position = positions[residue]['initial_pos']
+                residue_position = topology_dict[residue]['initial_pos']
                 position = residue_position + protein_center
 
-                particle_id = self.create_particle_in_espresso(name=residue_name,
+                particle_id = self.create_particle(name=residue_name,
                                                             espresso_system=espresso_system,
                                                             number_of_particles=1,
                                                             position=[position], 
@@ -840,7 +840,7 @@ class pymbe_library():
 
         return
 
-    def create_residue_in_espresso(self, name, espresso_system, number_of_residues, central_bead_position=None,use_default_bond=False, backbone_vector=None):
+    def create_residue(self, name, espresso_system, number_of_residues, central_bead_position=None,use_default_bond=False, backbone_vector=None):
         """
         Creates `number_of_residues` residues of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
@@ -881,7 +881,7 @@ class pymbe_library():
             if self.df.loc[self.df['name']==name].central_bead.values[0] is self.np.NaN:
                 raise ValueError("central_bead must contain a particle name")        
             central_bead_name = self.df.loc[self.df['name']==name].central_bead.values[0]            
-            central_bead_id = self.create_particle_in_espresso(name=central_bead_name,
+            central_bead_id = self.create_particle(name=central_bead_name,
                                                                 espresso_system=espresso_system,
                                                                 position=central_bead_position,
                                                                 number_of_particles = 1)[0]
@@ -918,7 +918,7 @@ class pymbe_library():
                                                                             center=central_bead_position, 
                                                                             radius=l0)
                         
-                    side_bead_id = self.create_particle_in_espresso(name=side_chain_element, 
+                    side_bead_id = self.create_particle(name=side_chain_element, 
                                                                     espresso_system=espresso_system,
                                                                     position=[bead_position], 
                                                                     number_of_particles=1)[0]
@@ -951,7 +951,7 @@ class pymbe_library():
                         residue_position=self.generate_trial_perpendicular_vector(vector=backbone_vector,
                                                                                 center=central_bead_position, 
                                                                                 radius=l0)
-                    lateral_residue_info = self.create_residue_in_espresso(name=side_chain_element, espresso_system=espresso_system,
+                    lateral_residue_info = self.create_residue(name=side_chain_element, espresso_system=espresso_system,
                         number_of_residues=1, central_bead_position=[residue_position],use_default_bond=use_default_bond)
                     lateral_residue_dict=list(lateral_residue_info.values())[0]
                     central_bead_side_chain_id=lateral_residue_dict['central_bead_id']
@@ -2149,7 +2149,7 @@ class pymbe_library():
         self.print_reduced_units()
         return
 
-    def setup_constantpH_reactions_in_espresso(self, counter_ion, constant_pH, SEED, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_cpH (self, counter_ion, constant_pH, SEED, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up the Acid/Base reactions for acidic/basic `particles` defined in `pmb.df` to be sampled in the constant pH ensemble. 
 
@@ -2201,7 +2201,7 @@ class pymbe_library():
             sucessfull_reactions_labels.append(name)
         return RE, sucessfull_reactions_labels
 
-    def setup_grxmc_reactions_in_espresso(self, pH_res, c_salt_res, proton_name, hydroxide_name, sodium_name, chloride_name, SEED, excess_chemical_potential_monovalent_pair=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, sodium_name, chloride_name, SEED, excess_chemical_potential_monovalent_pair=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2410,12 +2410,12 @@ class pymbe_library():
             sucessful_reactions_labels.append(name)
         return RE, sucessful_reactions_labels, ionic_strength_res
 
-    def setup_grxmc_unified_reactions_in_espresso(self, pH_res, c_salt_res, cation_name, anion_name, SEED, excess_chemical_potential_monovalent_pair=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, SEED, excess_chemical_potential_monovalent_pair=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
         This implementation uses the formulation of the grand-reaction method by Curk et al. [1], which relies on "unified" ion types X+ = {H+, Na+} and X- = {OH-, Cl-}. 
-        A function that implements the original version of the grand-reaction method by Landsgesell et al. [2] is also available under the name 'setup_grxmc_reactions_in_espresso'.
+        A function that implements the original version of the grand-reaction method by Landsgesell et al. [2] is also available under the name 'setup_grxmc_reactions'.
 
         [1] Curk, T., Yuan, J., & Luijten, E. (2022). Accelerated simulation method for charge regulation effects. The Journal of Chemical Physics, 156(4).
         [2] Landsgesell, J., Hebbeker, P., Rud, O., Lunkad, R., Košovan, P., & Holm, C. (2020). Grand-reaction method for simulations of ionization equilibria coupled to ion partitioning. Macromolecules, 53(8), 3007-3020.
@@ -2562,7 +2562,7 @@ class pymbe_library():
       
         return columns_names
 
-    def setup_lj_interactions_in_espresso(self, espresso_system, cutoff=None, shift='auto', combining_rule='Lorentz-Berthelot'):
+    def setup_lj_interactions (self, espresso_system, cutoff=None, shift='auto', combining_rule='Lorentz-Berthelot'):
         """
         Sets up the Lennard-Jones (LJ) potential between all pairs of particle types with values for `diameter` and `epsilon` stored in `pymbe.df`.
         Stores the parameters loaded into ESPResSo for each type pair in `pymbe.df`.

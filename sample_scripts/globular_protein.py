@@ -20,10 +20,10 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 #Import function from handy_functions script 
-from handy_scripts.handy_functions import setup_electrostatic_interactions_in_espresso
+from handy_scripts.handy_functions import setup_electrostatic_interactions
 from handy_scripts.handy_functions import minimize_espresso_system_energy
 from handy_scripts.handy_functions import block_analyze
-from handy_scripts.handy_functions import setup_langevin_dynamics_in_espresso
+from handy_scripts.handy_functions import setup_langevin_dynamics
 
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
@@ -121,10 +121,10 @@ pmb.define_particle(name = anion_name,  q =-1, diameter=0.2*pmb.units.nm, epsilo
 pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/Nozaki1967.txt')
 
 #We create the protein in espresso 
-pmb.create_protein_in_espresso(name=protein_name,
+pmb.create_protein(name=protein_name,
                                number_of_proteins=1,
                                espresso_system=espresso_system,
-                               positions=topology_dict)
+                               topology_dict=topology_dict)
 
 #Here we activate the motion of the protein 
 if args.move_protein:
@@ -137,12 +137,12 @@ pmb.center_molecule_in_simulation_box (molecule_id=protein_id,
                                     espresso_system=espresso_system)
 
 # Creates counterions and added salt 
-pmb.create_counterions_in_espresso (object_name=protein_name,
-                                    cation_name=cation_name,
-                                    anion_name=anion_name,
-                                    espresso_system=espresso_system)
+pmb.create_counterions (object_name=protein_name,
+                        cation_name=cation_name,
+                        anion_name=anion_name,
+                        espresso_system=espresso_system)
 
-c_salt_calculated = pmb.create_added_salt_in_espresso (espresso_system=espresso_system,
+c_salt_calculated = pmb.create_added_salt (espresso_system=espresso_system,
                                                     cation_name=cation_name,
                                                     anion_name=anion_name,
                                                     c_salt=c_salt)
@@ -158,9 +158,9 @@ print('The ionisable groups in the protein are ', list_ionisible_groups)
 print ('The total amount of ionizable groups are:',total_ionisible_groups)
 
 #Setup of the reactions in espresso 
-RE, sucessfull_reactions_labels = pmb.setup_constantpH_reactions_in_espresso (counter_ion=cation_name, 
-                                                                            constant_pH= pH_value, 
-                                                                            SEED = SEED )
+RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, 
+                                                constant_pH= pH_value, 
+                                                SEED = SEED )
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 type_map = pmb.get_type_map()
@@ -178,21 +178,21 @@ if (WCA):
 
     print ('Setup of LJ interactions.. ')
 
-    pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
+    pmb.setup_lj_interactions (espresso_system=espresso_system)
     minimize_espresso_system_energy (espresso_system=espresso_system)
 
     if (Electrostatics):
 
-        setup_electrostatic_interactions_in_espresso(units=pmb.units,
-                                                    espresso_system=espresso_system,
-                                                    kT=pmb.kT)
+        setup_electrostatic_interactions (units=pmb.units,
+                                        espresso_system=espresso_system,
+                                        kT=pmb.kT)
 
 #Save the initial state 
 n_frame = 0
 pmb.write_output_vtf_file(espresso_system=espresso_system,
                         filename=f"frames/trajectory{n_frame}.vtf")
 
-setup_langevin_dynamics_in_espresso (espresso_system=espresso_system, 
+setup_langevin_dynamics (espresso_system=espresso_system, 
                                     kT = pmb.kT, 
                                     SEED = SEED)
 
@@ -214,8 +214,8 @@ for step in tqdm(range(N_samples)):
         espresso_system.integrator.run (steps = integ_steps)
         RE.reaction( reaction_steps = total_ionisible_groups)
 
-        charge_dict=pmb.calculate_net_charge_in_molecules(espresso_system=espresso_system, 
-                                                                object_name=protein_name)
+        charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
+                                                molecule_name=protein_name)
         net_charge = charge_dict['mean']
         net_charge_residues = charge_dict ['residues']
 
