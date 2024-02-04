@@ -36,9 +36,9 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 # Load some functions from the handy_scripts library for convinience
-from handy_scripts.handy_functions import setup_electrostatic_interactions_in_espresso
+from handy_scripts.handy_functions import setup_electrostatic_interactions
 from handy_scripts.handy_functions import minimize_espresso_system_energy
-from handy_scripts.handy_functions import setup_langevin_dynamics_in_espresso
+from handy_scripts.handy_functions import setup_langevin_dynamics
 from handy_scripts.handy_functions import block_analyze
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
@@ -94,11 +94,11 @@ espresso_system = espressomd.System(box_l=[L.to('reduced_length').magnitude]*3)
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
-pmb.create_pmb_object_in_espresso (name=sequence, number_of_objects= N_peptide_chains,espresso_system=espresso_system, use_default_bond=True)
+pmb.create_pmb_object (name=sequence, number_of_objects= N_peptide_chains,espresso_system=espresso_system, use_default_bond=True)
 
 # Create counterions for the peptide chains
-pmb.create_counterions_in_espresso(object_name=sequence,cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) 
-c_salt_calculated=pmb.create_added_salt_in_espresso(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
+pmb.create_counterions(object_name=sequence,cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) 
+c_salt_calculated=pmb.create_added_salt(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
 #List of ionisible groups 
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
@@ -111,7 +111,7 @@ print('The peptide concentration in your system is ', calculated_peptide_concent
 print('The ionisable groups in your peptide are ', list_ionisible_groups)
 
 # Setup the acid-base reactions of the peptide using the constant pH ensemble
-RE, sucessfull_reactions_labels=pmb.setup_constantpH_reactions_in_espresso(counter_ion=cation_name, constant_pH=2, SEED = SEED)
+RE, sucessfull_reactions_labels=pmb.setup_cpH (counter_ion=cation_name, constant_pH=2, SEED = SEED)
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 # Setup espresso to track the each type defined in type_map
@@ -125,15 +125,15 @@ RE.set_non_interacting_type (type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
 #Setup the potential energy
-pmb.setup_lj_interactions_in_espresso (espresso_system=espresso_system)
+pmb.setup_lj_interactions (espresso_system=espresso_system)
 minimize_espresso_system_energy (espresso_system=espresso_system)
-setup_electrostatic_interactions_in_espresso(units=pmb.units,
+setup_electrostatic_interactions(units=pmb.units,
                                             espresso_system=espresso_system,
                                             kT=pmb.kT)
 minimize_espresso_system_energy (espresso_system=espresso_system)
 
 
-setup_langevin_dynamics_in_espresso (espresso_system=espresso_system, 
+setup_langevin_dynamics (espresso_system=espresso_system, 
                                     kT = pmb.kT, 
                                     SEED = SEED,
                                     time_step=dt,
@@ -175,8 +175,8 @@ for index in tqdm(range(len(pH_range))):
 
         if ( step > steps_eq):
             # Get peptide net charge        
-            charge_dict=pmb.calculate_net_charge_in_molecules(espresso_system=espresso_system, 
-                                                                object_name=sequence)      
+            charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
+                                                                molecule_name=sequence)      
             Z_sim.append(charge_dict["mean"])
             # Get peptide radius of gyration
             Rg = espresso_system.analysis.calc_rg(chain_start=first_peptide_id, number_of_chains=N_peptide_chains, chain_length=len(particle_id_list))

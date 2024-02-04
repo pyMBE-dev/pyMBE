@@ -2,7 +2,7 @@
 NOTE: Many of this functions rely on a depracted version of the sugar library and need to be fixed
 """
 
-def setup_electrostatic_interactions_in_espresso(units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
+def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
     """
     Setups electrostatic interactions in espressomd. 
     Inputs:
@@ -126,7 +126,7 @@ def minimize_espresso_system_energy(espresso_system, skin=1, gamma=1, Nsteps=100
 
     return
 
-def setup_langevin_dynamics_in_espresso(espresso_system, kT, SEED,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
+def setup_langevin_dynamics(espresso_system, kT, SEED,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
     """
     Sets up Langevin Dynamics in espressomd.
     espresso_system: instance of espressmd system class

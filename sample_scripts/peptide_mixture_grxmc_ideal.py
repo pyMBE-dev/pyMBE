@@ -134,12 +134,12 @@ espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
-pmb.create_pmb_object_in_espresso(name=peptide1, number_of_objects= N_peptide1_chains,espresso_system=espresso_system, use_default_bond=True)
-pmb.create_pmb_object_in_espresso(name=peptide2, number_of_objects= N_peptide2_chains,espresso_system=espresso_system, use_default_bond=True)
-pmb.create_counterions_in_espresso(object_name=peptide1,cation_name=proton_name,anion_name=hydroxide_name,espresso_system=espresso_system) # Create counterions for the peptide chains
-pmb.create_counterions_in_espresso(object_name=peptide2,cation_name=proton_name,anion_name=hydroxide_name,espresso_system=espresso_system) # Create counterions for the peptide chains
+pmb.create_pmb_object(name=peptide1, number_of_objects= N_peptide1_chains,espresso_system=espresso_system, use_default_bond=True)
+pmb.create_pmb_object(name=peptide2, number_of_objects= N_peptide2_chains,espresso_system=espresso_system, use_default_bond=True)
+pmb.create_counterions(object_name=peptide1,cation_name=proton_name,anion_name=hydroxide_name,espresso_system=espresso_system) # Create counterions for the peptide chains
+pmb.create_counterions(object_name=peptide2,cation_name=proton_name,anion_name=hydroxide_name,espresso_system=espresso_system) # Create counterions for the peptide chains
 
-c_salt_calculated = pmb.create_added_salt_in_espresso(espresso_system=espresso_system,cation_name=sodium_name,anion_name=chloride_name,c_salt=c_salt)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,cation_name=sodium_name,anion_name=chloride_name,c_salt=c_salt)
 
 with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
@@ -153,7 +153,7 @@ total_ionisible_groups = len (list_ionisible_groups)
 
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 
-RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions_in_espresso(pH_res=2, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, sodium_name=sodium_name, chloride_name=chloride_name, SEED=SEED)
+RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, sodium_name=sodium_name, chloride_name=chloride_name, SEED=SEED)
 print('The acid-base reaction has been sucessfully setup for ', sucessful_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
@@ -211,7 +211,7 @@ for index in tqdm(range(len(pH_range))):
     Z_sim=[]
     num_plus=[]
 
-    RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions_in_espresso(pH_res=pH_value, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, sodium_name=sodium_name, chloride_name=chloride_name, SEED=SEED)
+    RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions (pH_res=pH_value, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, sodium_name=sodium_name, chloride_name=chloride_name, SEED=SEED)
 
     # Inner loop for sampling each pH value
 
