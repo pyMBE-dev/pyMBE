@@ -1,6 +1,3 @@
-"""
-NOTE: Many of this functions rely on a depracted version of the sugar library and need to be fixed
-"""
 
 def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
     """
