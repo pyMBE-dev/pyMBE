@@ -1,20 +1,20 @@
-# Plots the charge of a molecule with a given sequence using either a custom or reference set of pKa values
-# Developed by:
-# Dr. Pablo M. Blanco (Charles University) 
+# Plots the charge of a peptide with a given sequence using either a custom or reference set of pKa values
 
+import os
 import sys
+import inspect
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Load the sugar library
-sugar_path='.'
-sys.path.insert(0, sugar_path) 
+# Find path to pyMBE
+current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+path_end_index=current_dir.find("pyMBE")
+pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
+sys.path.insert(0, pyMBE_path)
 
-import sugar
-
-# Create an instance of sugar
-
-sg=sugar.sugar_library()
+# Create an instance of pyMBE library
+import pyMBE
+pmb = pyMBE.pymbe_library()
 
 # Input parameters
 
@@ -23,6 +23,7 @@ pH_values = np.linspace(2, 12, num=21)
 load_pka_set_from_file=False   # If set to false, uses custom_pka_set
 path_to_pka_set_file='reference_parameters/pka_sets/Nozaki1967.txt' 
 
+
 custom_pka_set={"D" : {"pka_value": 4.0, "acidity": "acidic"},
                 "E" : {"pka_value": 4.4, "acidity": "acidic"},
                 "H" : {"pka_value": 6.8, "acidity": "basic"},
@@ -30,15 +31,21 @@ custom_pka_set={"D" : {"pka_value": 4.0, "acidity": "acidic"},
                 "n" : {"pka_value": 8.0, "acidity": "basic"},
                 "c" : {"pka_value": 3.6, "acidity": "acidic"}}
 
+pmb.define_peptide(name="example_pep",
+                   sequence=sequence,
+                   model="1beadAA")
+
 if load_pka_set_from_file:
-    pka_set=sg.load_pka_set(filename=path_to_pka_set_file)
-    print('pka_set stored in sugar: ', sg.pka_set)
+    pka_set=pmb.load_pka_set(filename=path_to_pka_set_file)
+    print('pka_set stored in pyMBE: ', sg.pka_set)
 else:
     pka_set=custom_pka_set
 
-# pka_set is an optional argument, if it is not provided sugar will use the one stored in sg.pka_set
+# pka_set is an optional argument, if it is not provided sugar will use the one stored in pmb.pka_set
 
-Z_HH = sg.calculate_HH(sequence=sequence, pH=pH_values, pka_set=pka_set)
+Z_HH = pmb.calculate_HH(object_name="example_pep", 
+                        pH_list=pH_values, 
+                        pka_set=pka_set)
 
 # Plot
 

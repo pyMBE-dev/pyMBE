@@ -11,6 +11,8 @@ pyMBE provides tools to facilitate building up molecules with complex architectu
 - [Numpy](https://numpy.org/)
 - [pdoc](https://pdoc.dev/) (for building the docs)
 
+## Branches
+
 A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the historical name of pyMBE, Sugar)  can be found in the branch `sugar_espresso4.1.4`. Note that further development of pyMBE will only be carried out for ESPResSo v4.2.1 and its forthcoming releases, and no further support for that branch is planned.
 
 ## Contents
@@ -21,9 +23,10 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 - `logo/`: folder with the logo of pyMBE.
 - `reference_data/`: folder with various reference data set used to validate pyMBE.
 - `reference_parameters/`: folder with various sets of parameters from previous works.
-- `sample_scripts`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
+- `sample_scripts/`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
 - `tests/`: folder with several test scripts to check that new developments do not break pyMBE.
 - `tutorials/`: folder with the available tutorials on pyMBE.
+- `visualization/`: folder with helper scripts to aid the visualization of vtf trajectories from constant pH and Grand reaction simulations with [VMD](https://www.ks.uiuc.edu/Research/vmd/).
 - `AUTHORS.md`: list of authors and contributors of pyMBE.
 - `CONTRIBUTING`: rules on how to contribute to pyMBE.
 - `LICENSE.md`: license of pyMBE.

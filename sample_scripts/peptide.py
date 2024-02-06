@@ -207,7 +207,7 @@ print("Net charge analysis")
 av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(input_data=Z_pH)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-Z_HH = pmb.calculate_HH(object_name=sequence, 
+Z_HH = pmb.calculate_HH(object_name=peptide_name, 
                         pH_list=pH_range)
 
 fig, ax = plt.subplots(figsize=(10, 7))

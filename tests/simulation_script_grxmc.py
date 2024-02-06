@@ -1,0 +1,211 @@
+#######################################################
+# Loading modules 
+#######################################################
+
+# Load python modules
+import sys
+import os 
+import inspect
+import espressomd
+import numpy as np
+from tqdm import tqdm
+from espressomd import interactions
+from espressomd import electrostatics
+from scipy import interpolate
+import argparse
+import pickle
+
+# Load pyMBE
+currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+parentdir = os.path.dirname(currentdir)
+sys.path.insert(0, parentdir) 
+import pyMBE
+pmb = pyMBE.pymbe_library()
+
+# Load some functions from the handy_scripts library for convinience
+from handy_scripts.handy_functions import setup_electrostatic_interactions
+from handy_scripts.handy_functions import minimize_espresso_system_energy
+from handy_scripts.handy_functions import setup_langevin_dynamics
+
+
+#######################################################
+# Setting parameters for the simulation
+#######################################################
+
+##### Read command-line arguments using argparse
+parser = argparse.ArgumentParser()
+parser.add_argument("--c_salt_res", type=float, help="Concentration of NaCl in the reservoir in mol/l.")
+parser.add_argument("--c_mon_sys", type=float, help="Concentration of acid monomers in the system in mol/l.")
+parser.add_argument("--pH_res", type=float, help="pH-value in the reservoir.")
+parser.add_argument("--pKa_value", type=float, help="pKa-value of the polyacid monomers.")
+args = parser.parse_args()
+
+# Units and general parameters
+pmb.set_reduced_units(unit_length=0.355*pmb.units.nm)
+solvent_permittivity = 78.9
+
+# Integration parameters
+DT = 0.01
+LANGEVIN_SEED = 42
+REACTION_SEED = 42
+
+# Parameters of the polyacid model
+Chain_length = 50
+N_chains = 16
+polyacid_name = 'polyacid'
+
+# Add the polyacid to the pmb instance
+pmb.define_particle(name='A', acidity='acidic', diameter=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'), pka=args.pKa_value)
+pmb.define_residue(name='rA', central_bead="A", side_chains=[])
+pmb.define_molecule(name=polyacid_name, residue_list=['rA']*Chain_length)
+
+fene_spring_constant = 30 * pmb.units('reduced_energy / reduced_length**2')
+fene_r_max = 1.5 * pmb.units('reduced_length')
+fene_bond = interactions.FeneBond(k=fene_spring_constant.to('reduced_energy / reduced_length**2').magnitude,
+                                 d_r_max=fene_r_max.to('reduced_length').magnitude)
+pmb.define_bond(bond_object = fene_bond, particle_name1='A', particle_name2='A', bond_type="FENE")
+
+
+# Parameters of the small ions
+proton_name = 'Hplus'
+hydroxide_name = 'OHminus'
+sodium_name = 'Na'
+chloride_name = 'Cl'
+
+pmb.define_particle(name=proton_name, q=1, diameter=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=hydroxide_name,  q=-1, diameter=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=sodium_name, q=1, diameter=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=chloride_name,  q=-1, diameter=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+
+# System parameters (some are read from the command line)
+c_mon_sys = args.c_mon_sys * pmb.units.mol/ pmb.units.L
+c_salt_res = args.c_salt_res * pmb.units.mol/ pmb.units.L
+pH_res = args.pH_res 
+pka_set = {'A': {"pka_value": args.pKa_value, "acidity": "acidic"}}
+volume = N_chains * Chain_length/(pmb.N_A*c_mon_sys)
+L = volume ** (1./3.)
+print("Box length:", L.to('reduced_length').magnitude)
+
+
+#######################################################
+# Setting up the espresso system
+#######################################################
+
+# Create an instance of an espresso system
+espresso_system = espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
+print("Created espresso object")
+
+# Add all bonds to espresso system
+pmb.add_bonds_to_espresso(espresso_system=espresso_system)
+print("Added bonds")
+
+# Create molecules and ions in the espresso system
+pmb.create_pmb_object(name=polyacid_name, number_of_objects=N_chains, espresso_system=espresso_system)
+pmb.create_counterions(object_name=polyacid_name, cation_name=proton_name, anion_name=hydroxide_name, espresso_system=espresso_system)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system, cation_name=sodium_name, anion_name=chloride_name, c_salt=c_salt_res)
+print("Created molecules")
+
+# Set up the reactions
+ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt("../../../../../../../reference_data/excess_chemical_potential.dat", unpack=True)
+excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
+excess_chemical_potential_monovalent_pair = lambda x: excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude) * pmb.units('reduced_energy')
+print("Setting up reactions...")
+RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, c_salt_res=c_salt_res, proton_name=proton_name, hydroxide_name=hydroxide_name, sodium_name=sodium_name, chloride_name=chloride_name, SEED=REACTION_SEED, excess_chemical_potential_monovalent_pair=excess_chemical_potential_monovalent_pair, pka_set=pka_set)
+print('The acid-base reaction has been sucessfully set up for ', sucessful_reactions_labels)
+
+# Setup espresso to track the ionization of the acid groups
+type_map = pmb.get_type_map()
+types = list(type_map.values())
+espresso_system.setup_type_map(type_list = types)
+
+# Setup the non-interacting type for speeding up the sampling of the reactions
+non_interacting_type = max(type_map.values())+1
+RE.set_non_interacting_type (type=non_interacting_type)
+
+#Set up the interactions
+pmb.setup_lj_interactions(espresso_system=espresso_system)
+
+# Calculate HH
+print("Calculating HH.")
+pH_range = np.linspace(1.0, 13.0, num=500)
+Z_HH = pmb.calculate_HH(object_name=polyacid_name, pH_list=pH_range)
+alpha_HH = np.abs(np.asarray(Z_HH)) / Chain_length
+print("Done")
+
+# Calculate HH+Donnan
+print("Calculating HH+Donnan.")
+HH_Donnan_charge_dict = pmb.calculate_HH_Donnan(espresso_system=espresso_system, object_names=[polyacid_name], c_salt=c_salt_res, pH_list=pH_range)
+Z_HH_Donnan = HH_Donnan_charge_dict["charges_dict"]
+alpha_HH_Donnan = np.abs(np.asarray(Z_HH_Donnan[polyacid_name])) / Chain_length
+print("Done")
+
+# Minimzation
+minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max_displacement=0.01, skin=0.4)
+setup_langevin_dynamics(espresso_system=espresso_system, 
+                                    kT = pmb.kT, 
+                                    SEED = LANGEVIN_SEED,
+                                    time_step=DT,
+                                    tune_skin=False)
+
+print("Running warmup without electrostatics")
+for i in tqdm(range(1000)):
+    espresso_system.integrator.run(steps=1000)
+    RE.reaction(reaction_steps=1000)
+
+setup_electrostatic_interactions(units=pmb.units,
+                                            espresso_system=espresso_system,
+                                            kT=pmb.kT,
+                                            solvent_permittivity=solvent_permittivity)
+espresso_system.thermostat.turn_off()
+minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max_displacement=0.01, skin=0.4)
+setup_langevin_dynamics(espresso_system=espresso_system, 
+                                    kT = pmb.kT, 
+                                    SEED = LANGEVIN_SEED,
+                                    time_step=DT,
+                                    tune_skin=False)
+
+
+print("Running warmup with electrostatics")
+for i in tqdm(range(1000)):
+    espresso_system.integrator.run(steps=1000)
+    RE.reaction(reaction_steps=1000)
+
+print("Started production run.")
+
+alphas = []
+radius_of_gyration = []
+partition_coefficient = []
+particle_id_list = pmb.get_particle_id_map(object_name=polyacid_name)["all"]
+first_monomer_id = min(particle_id_list)
+
+
+for i in tqdm(range(10000)):
+    espresso_system.integrator.run(steps=1000)
+    RE.reaction(reaction_steps=100)
+
+    if i % 10 == 0:
+        # Measure observables
+
+        # Degree of ionization
+        charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, molecule_name=polyacid_name)      
+        alphas.append(np.abs(charge_dict["mean"])/Chain_length)
+
+        # Partition coefficient
+        partition_coefficient.append(((espresso_system.number_of_particles(type_map["Na"])+espresso_system.number_of_particles(type_map["Hplus"]))/(pmb.N_A * L**3)).to('mol/L')/ionic_strength_res)
+
+        # Radius of gyration
+        Rg = espresso_system.analysis.calc_rg(chain_start=first_monomer_id, number_of_chains=N_chains, chain_length=Chain_length)
+        radius_of_gyration.append(Rg[0])
+
+
+ 
+data = {
+        "alphas": alphas,
+        "partition_coefficient": partition_coefficient,
+        "radius_of_gyration": radius_of_gyration,
+        "pH_range": pH_range,
+        "alpha_HH": alpha_HH,
+        "alpha_HH_Donnan": alpha_HH_Donnan,
+        }
+
+pickle.dump(data, open(os.path.abspath('.') + '/data.pkl', "wb"))

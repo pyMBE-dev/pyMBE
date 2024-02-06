@@ -241,24 +241,41 @@ class pymbe_library():
             Z=0
             index = self.df.loc[self.df['name'] == object_name].index[0].item() 
             sequence = self.df.at [index,('sequence','')]       
-            if not isinstance(sequence,list):
-                # If the df has been read by file, the sequence needs to be parsed.
-                sequence = sequence.replace(' ', '')
-                sequence = sequence.replace("'", '')
-                sequence=sequence.split(",")[1:-1]
-            for name in sequence:
-                if name in pka_set.keys():
-                    if pka_set[name]['acidity'] == 'acidic':
-                        psi=-1
-                    elif pka_set[name]['acidity']== 'basic':
-                        psi=+1
+            if self.np.any(self.pd.isnull(sequence)):
+                residue_list = self.df.at [index,('residue_list','')]
+                for residue in residue_list:
+                    index_residue = self.df.loc[self.df['name'] == residue].index[0].item() 
+                    central_bead = self.df.at [index_residue, ('central_bead', '')]
+                    if central_bead in pka_set.keys():
+                        if pka_set[central_bead]['acidity'] == 'acidic':
+                            psi=-1
+                        elif pka_set[central_bead]['acidity']== 'basic':
+                            psi=+1
+                        else:
+                            psi=0
+                        Z+=psi/(1+10**(psi*(pH_value-pka_set[central_bead]['pka_value'])))                      
                     else:
-                        psi=0
-                    Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))                      
-                else:
-                    state_one_type = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
-                    Z+=charge_map[state_one_type]
-            Z_HH.append(Z)
+                        state_one_type = self.df.loc[self.df['name']==central_bead].state_one.es_type.values[0]
+                        Z+=charge_map[state_one_type]
+                Z_HH.append(Z)
+            else:
+                # Molecule has a sequence
+                if not isinstance(sequence, list):
+                    # If the df has been read by file, the sequence needs to be parsed.
+                    sequence = self.parse_sequence_from_file(sequence=sequence)
+                for name in sequence:
+                    if name in pka_set.keys():
+                        if pka_set[name]['acidity'] == 'acidic':
+                            psi=-1
+                        elif pka_set[name]['acidity']== 'basic':
+                            psi=+1
+                        else:
+                            psi=0
+                        Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))                      
+                    else:
+                        state_one_type = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
+                        Z+=charge_map[state_one_type]
+                Z_HH.append(Z)
         return Z_HH
 
     def calculate_HH_Donnan(self, espresso_system, object_names, c_salt, pH_list=None, pka_set=None):
@@ -1834,6 +1851,21 @@ class pymbe_library():
                 self.define_particle(name=pka_key,acidity=acidity, pka=pka_value)
         return
 
+    def parse_sequence_from_file(self,sequence):
+        """
+        Parses the given sequence such that it can be used in pyMBE. This function has to be used if the df was read from a file.
+
+        Args:
+            sequence(`str`): sequence to be parsed
+
+        Returns:
+            sequence(`lst`): parsed sequence
+        """
+        sequence = sequence.replace(' ', '')
+        sequence = sequence.replace("'", '')
+        sequence = sequence.split(",")[1:-1]
+        return sequence
+
     def print_reduced_units(self):
         """
         Prints the  current set of reduced units defined in pyMBE.units.
@@ -1870,7 +1902,7 @@ class pymbe_library():
             sequence(`str` or `lst`): Sequence of the amino acid. 
 
         Returns:
-            clean_sequence(`list`): `sequence` using the one letter code.
+            clean_sequence(`lst`): `sequence` using the one letter code.
         
         Note:
             - Accepted formats for `sequence` are:
