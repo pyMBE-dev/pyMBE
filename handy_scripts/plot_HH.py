@@ -20,8 +20,8 @@ pmb = pyMBE.pymbe_library()
 
 sequence="nDEHKc"
 pH_values = np.linspace(2, 12, num=21)
-load_pka_set_from_file=False   # If set to false, uses custom_pka_set
-path_to_pka_set_file='reference_parameters/pka_sets/Nozaki1967.txt' 
+load_pka_set_from_file=True   # If set to false, uses custom_pka_set
+path_to_pka_set_file=pyMBE_path+'/reference_parameters/pka_sets/Nozaki1967.txt' 
 
 
 custom_pka_set={"D" : {"pka_value": 4.0, "acidity": "acidic"},
@@ -37,7 +37,7 @@ pmb.define_peptide(name="example_pep",
 
 if load_pka_set_from_file:
     pka_set=pmb.load_pka_set(filename=path_to_pka_set_file)
-    print('pka_set stored in pyMBE: ', sg.pka_set)
+    print('pka_set stored in pyMBE: ', pmb.get_pka_set())
 else:
     pka_set=custom_pka_set
 

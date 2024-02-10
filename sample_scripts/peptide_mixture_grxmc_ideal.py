@@ -25,6 +25,10 @@ pmb = pyMBE.pymbe_library()
 if not os.path.exists('./frames'):
     os.makedirs('./frames')
 
+#Import functions from handy_functions script 
+from handy_scripts.handy_functions import minimize_espresso_system_energy
+from handy_scripts.handy_functions import block_analyze
+
 # Simulation parameters
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 pH_range = np.linspace(2, 12, num=20)
@@ -47,7 +51,6 @@ sequence2 = 'nGEEHHc'
 pep2_concentration = 1e-2 *pmb.units.mol/pmb.units.L
 N_peptide2_chains = 10
 
-
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 pmb.load_interaction_parameters (filename=pyMBE_path+'/reference_parameters/interaction_parameters/Lunkad2021.txt') 
 pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/Hass2015.txt')
@@ -59,7 +62,7 @@ not_parametrized_basic_aminoacids = ['R','n']
 
 already_defined_AA=[]
 
-for aminoacid_key in sequence1:
+for aminoacid_key in sequence1+sequence2:
     if aminoacid_key in already_defined_AA:
         continue
     if aminoacid_key in not_parametrized_acidic_aminoacids:
@@ -76,25 +79,6 @@ for aminoacid_key in sequence1:
                            diameter=0.35*pmb.units.nm, 
                            epsilon=1*pmb.units('reduced_energy'))
     already_defined_AA.append(aminoacid_key)
-
-for aminoacid_key in sequence2:
-    if aminoacid_key in already_defined_AA:
-        continue
-    if aminoacid_key in not_parametrized_acidic_aminoacids:
-        pmb.define_particle(name=aminoacid_key,
-                           acidity='acidic',
-                           diameter=0.35*pmb.units.nm, 
-                           epsilon=1*pmb.units('reduced_energy'))
-    elif aminoacid_key in not_parametrized_basic_aminoacids:
-        pmb.define_particle(name=aminoacid_key, acidity='basic',diameter=0.35*pmb.units.nm,epsilon=1*pmb.units('reduced_energy'))
-        
-    elif aminoacid_key in not_parametrized_neutral_aminoacids:
-        pmb.define_particle(name=aminoacid_key,
-                           q=0,
-                           diameter=0.35*pmb.units.nm, 
-                           epsilon=1*pmb.units('reduced_energy'))
-    already_defined_AA.append(aminoacid_key)
-
 
 generic_bond_lenght=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
@@ -168,16 +152,7 @@ RE.set_non_interacting_type (type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
 # Minimize the system energy to avoid huge starting force due to random inicialization of the system
-print('\nMinimazing system energy\n')
-espresso_system.cell_system.skin = 0.4
-espresso_system.time_step = dt 
-print('steepest descent')
-espresso_system.integrator.set_steepest_descent(f_max=0, gamma=0.1, max_displacement=0.1)
-espresso_system.integrator.run(1000)
-print('velocity verlet')
-espresso_system.integrator.set_vv()  # to switch back to velocity Verlet
-espresso_system.integrator.run(1000)
-print('\nMinimization finished \n')
+minimize_espresso_system_energy (espresso_system=espresso_system)
 
 espresso_system.time_step = dt
 
@@ -187,8 +162,6 @@ with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
     vtf.writevcf(espresso_system, coordinates)
 
 # Setup espresso to do langevin dynamics
-print (f'Optimizing skin\n')
-
 espresso_system.time_step= dt 
 espresso_system.integrator.set_vv()
 espresso_system.thermostat.set_langevin(kT=pmb.kT.to('reduced_energy').magnitude, gamma=0.1, seed=SEED)
@@ -229,7 +202,7 @@ for index in tqdm(range(len(pH_range))):
                 z_one_object +=espresso_system.part.by_id(pid).q
 
             Z_sim.append(np.mean((z_one_object)))
-            num_plus.append(espresso_system.number_of_particles(type_map["Na"])+espresso_system.number_of_particles(type_map["Hplus"]))
+            num_plus.append(espresso_system.number_of_particles(type=type_map["Na"])+espresso_system.number_of_particles(type=type_map["Hplus"]))
             
         if (step % N_samples_print == 0) :
             N_frame+=1
@@ -244,60 +217,12 @@ for index in tqdm(range(len(pH_range))):
    
 # Estimate the statistical error and the autocorrelation time of the data
 
-def block_analyze (input_data,n_blocks=16):
-
-    data = np.asarray(input_data)
-    block = 0
-    # this number of blocks is recommended by Janke as a reasonable compromise
-    # between the conflicting requirements on block size and number of blocks
-    block_size = int(data.shape[1] / n_blocks)
-    print(f"block_size: {block_size}")
-    # initialize the array of per-block averages
-    block_average = np.zeros((n_blocks, data.shape[0]))
-    # calculate averages per each block
-    for block in range(n_blocks):
-        block_average[block] = np.average(data[:, block * block_size: (block + 1) * block_size], axis=1)
-    # calculate the average and average of the square
-    av_data = np.average(data, axis=1)
-    av2_data = np.average(data * data, axis=1)
-    # calculate the variance of the block averages
-    block_var = np.var(block_average, axis=0)
-    # calculate standard error of the mean
-    err_data = np.sqrt(block_var / (n_blocks - 1))
-    # estimate autocorrelation time using the formula given by Janke
-    # this assumes that the errors have been correctly estimated
-    tau_data = np.zeros(av_data.shape)
-
-    for val in range(av_data.shape[0]):
-        if av_data[val] == 0:
-            # unphysical value marks a failure to compute tau
-            tau_data[val] = -1.0
-        else:
-            tau_data[val] = 0.5 * block_size * n_blocks / (n_blocks - 1) * block_var[val] \
-                / (av2_data[val] - av_data[val] * av_data[val])
-
-    # check if the blocks contain enough data for reliable error estimates
-    print("uncorrelated samples per block:\nblock_size/tau = ", block_size/tau_data)
-    threshold = 10.  # block size should be much greater than the correlation time
-    if np.any(block_size / tau_data < threshold):
-        print("\nWarning: some blocks may contain less than ", threshold, "uncorrelated samples."
-        "\nYour error estimated may be unreliable."
-        "\nPlease, check them using a more sophisticated method or run a longer simulation.")
-        print("? block_size/tau > threshold ? :", block_size/tau_data > threshold)
-    else:
-        print("\nAll blocks seem to contain more than ", threshold, "uncorrelated samples.\
-        Error estimates should be OK.")
-    return av_data, err_data,tau_data,block_size
-
 print("Net charge analysis")
 av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(input_data=Z_pH)
 av_xi_plus, err_xi_plus, tau_xi_plus, block_size_xi_plus = block_analyze(input_data=xi_plus)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 pH_range_HH = np.linspace(2, 12, num=100)
-Z_HH1 = pmb.calculate_HH(object_name=peptide1, pH_list=pH_range_HH)
-Z_HH2 = pmb.calculate_HH(object_name=peptide2, pH_list=pH_range_HH)
-
 HH_charge_dict = pmb.calculate_HH_Donnan(espresso_system=espresso_system, object_names=[peptide1, peptide2], c_salt=c_salt, pH_list=pH_range_HH)
 Z_HH_Donnan = HH_charge_dict["charges_dict"]
 pH_sys = HH_charge_dict["pH_system_list"]
@@ -305,10 +230,7 @@ xi = HH_charge_dict["partition_coefficients"]
 
 fig, ax = plt.subplots(figsize=(10, 7))
 plt.errorbar(pH_range, np.asarray(av_net_charge)/N_peptide1_chains, yerr=err_net_charge/N_peptide1_chains, fmt = 'o', capsize=3, label='Simulation')
-plt.errorbar(np.asarray(pH_range)-np.log10(np.asarray(av_xi_plus)), np.asarray(av_net_charge)/N_peptide1_chains, yerr=err_net_charge/N_peptide1_chains, fmt = 'x', capsize=3, label='Simulation (corrected)')
-ax.plot(pH_range_HH, np.asarray(Z_HH1)+np.asarray(Z_HH2), "-k", label='Henderson-Hasselbalch')
 ax.plot(pH_range_HH, np.asarray(Z_HH_Donnan[peptide1])+np.asarray(Z_HH_Donnan[peptide2]), "--r", label='HH+Donnan')
-ax.plot(pH_sys, np.asarray(Z_HH_Donnan[peptide1])+np.asarray(Z_HH_Donnan[peptide2]), "-.y", label='HH+Donnan (corrected)')
 plt.legend()
 plt.xlabel('pH')
 plt.ylabel('Charge of the peptide 1 + peptide 2 / e')

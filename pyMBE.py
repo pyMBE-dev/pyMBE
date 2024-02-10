@@ -218,7 +218,7 @@ class pymbe_library():
         for molecules with the name `object_name`.
 
         Args:
-            object_name (str): name of the molecule to calculate the ideal charge for
+            object_name (`str`): name of the molecule to calculate the ideal charge for
             pH_list(`lst`): pH-values to calculate. 
             pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}
 
@@ -226,6 +226,7 @@ class pymbe_library():
             Z_HH (`lst`): Henderson-Hasselbalch prediction of the charge of `sequence` in `pH_list`
 
         Note:
+            - This function supports objects with pmb types: "molecule", "peptide" and "protein".
             - If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated
             - If no `pka_set` is given, the pKa values are taken from `pmb.df`
             - This function should only be used for single-phase systems. For two-phase systems `calculate_HH_Donnan` has to be used.
@@ -240,23 +241,21 @@ class pymbe_library():
         for pH_value in pH_list:    
             Z=0
             index = self.df.loc[self.df['name'] == object_name].index[0].item() 
-            sequence = self.df.at [index,('sequence','')]       
+            residue_list = self.df.at [index,('residue_list','')]
+            sequence = self.df.at [index,('sequence','')]
             if self.np.any(self.pd.isnull(sequence)):
-                residue_list = self.df.at [index,('residue_list','')]
+                # Molecule has no sequence
                 for residue in residue_list:
-                    index_residue = self.df.loc[self.df['name'] == residue].index[0].item() 
-                    central_bead = self.df.at [index_residue, ('central_bead', '')]
-                    if central_bead in pka_set.keys():
-                        if pka_set[central_bead]['acidity'] == 'acidic':
-                            psi=-1
-                        elif pka_set[central_bead]['acidity']== 'basic':
-                            psi=+1
-                        else:
-                            psi=0
-                        Z+=psi/(1+10**(psi*(pH_value-pka_set[central_bead]['pka_value'])))                      
-                    else:
-                        state_one_type = self.df.loc[self.df['name']==central_bead].state_one.es_type.values[0]
-                        Z+=charge_map[state_one_type]
+                    list_of_particles_in_residue = self.search_particles_in_residue(residue)
+                    for particle in list_of_particles_in_residue:
+                        if particle in pka_set.keys():
+                            if pka_set[particle]['acidity'] == 'acidic':
+                                psi=-1
+                            elif pka_set[particle]['acidity']== 'basic':
+                                psi=+1
+                            else:
+                                psi=0
+                            Z+=psi/(1+10**(psi*(pH_value-pka_set[particle]['pka_value'])))                      
                 Z_HH.append(Z)
             else:
                 # Molecule has a sequence
@@ -271,11 +270,12 @@ class pymbe_library():
                             psi=+1
                         else:
                             psi=0
-                        Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))                      
+                        Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))
                     else:
                         state_one_type = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
                         Z+=charge_map[state_one_type]
                 Z_HH.append(Z)
+
         return Z_HH
 
     def calculate_HH_Donnan(self, espresso_system, object_names, c_salt, pH_list=None, pka_set=None):
@@ -484,7 +484,7 @@ class pymbe_library():
         """
         if name in self.df['name'].unique():
             current_object_type = self.df[self.df['name']==name].pmb_type.values[0]
-            if  current_object_type != pmb_type_to_be_defined:
+            if current_object_type != pmb_type_to_be_defined:
                 raise ValueError ((f"The name {name} is already defined in the df with a pmb_type = {current_object_type}, pymMBE does not support objects with the same name but different pmb_types"))    
             return True            
         else:
@@ -2112,6 +2112,38 @@ class pymbe_library():
                 exit()
             else:
                 return
+
+    def search_particles_in_residue(self, residue_name):
+        '''
+        Searches for all particles in a given residue of name `residue_name`.
+
+        Args:
+            residue_name (`str`): name of the residue to be searched
+
+        Returns:
+            list_of_particles_in_residue (`lst`): list of the names of all particles in the residue
+
+        Note:
+            - The function returns a name per particle in residue, i.e. if there are multiple particles with the same type `list_of_particles_in_residue` will have repeated items.
+ 
+        '''
+        index_residue = self.df.loc[self.df['name'] == residue_name].index[0].item() 
+        central_bead = self.df.at [index_residue, ('central_bead', '')]
+        list_of_side_chains = self.df.at [index_residue, ('side_chains', '')]
+
+        list_of_particles_in_residue = []
+        list_of_particles_in_residue.append(central_bead)
+
+        for side_chain in list_of_side_chains: 
+            object_type = self.df[self.df['name']==side_chain].pmb_type.values[0]
+
+            if object_type == "residue":
+                list_of_particles_in_side_chain_residue = self.search_particles_in_residue(side_chain)
+                list_of_particles_in_residue += list_of_particles_in_side_chain_residue
+            elif object_type == "particle":
+                list_of_particles_in_residue.append(side_chain)
+
+        return list_of_particles_in_residue
 
     def set_particle_acidity(self, name, acidity='inert', default_charge=0, pka=None):
         """
