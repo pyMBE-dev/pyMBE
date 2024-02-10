@@ -19,10 +19,9 @@ sys.path.insert(0, pyMBE_path)
 import pyMBE
 pmb = pyMBE.pymbe_library()
 
-#Import function from handy_functions script 
+#Import functions from handy_functions script 
 from handy_scripts.handy_functions import setup_electrostatic_interactions
 from handy_scripts.handy_functions import minimize_espresso_system_energy
-from handy_scripts.handy_functions import block_analyze
 from handy_scripts.handy_functions import setup_langevin_dynamics
 
 # Here you can adjust the width of the panda columns displayed when running the code 
