@@ -1441,7 +1441,8 @@ class pymbe_library():
         Returns:
             pmb_type_df(`obj`): filtered `pmb.df`.
         """
-        pmb_type_df = self.df.loc[self.df['pmb_type']== pmb_type]
+
+        pmb_type_df = self.df.loc[ self.df['pmb_type']== pmb_type]
         pmb_type_df = pmb_type_df.dropna( axis=1, thresh=1)
         return pmb_type_df
 
@@ -1995,10 +1996,15 @@ class pymbe_library():
         """
         if filename[-3:] != "csv":
             raise ValueError("Only files with CSV format are supported")
-        df = self.pd.read_csv (filename,header=[0, 1], index_col=0)
+
+        dtypes = self.pd.read_csv(filename, nrows=2).iloc[1].to_dict()
+
+        df = self.pd.read_csv (filename, header=[0, 1],index_col=None, dtype=dtypes, skiprows=[2])
+
         columns_names = self.setup_df()
         df.columns = columns_names
         self.df=df
+
         return df
     
     def read_protein_vtf_in_df (self,filename,unit_length=None):
@@ -2619,7 +2625,8 @@ class pymbe_library():
                         ('state_two','charge'),
                         ('sequence',''),
                         ('bond_object',''),
-                        ('parameters_of_the_potential','')
+                        ('parameters_of_the_potential',''),
+                        ('l0','')
                         ])
 
         self.df = self.pd.DataFrame (columns = columns_names)
@@ -2729,6 +2736,18 @@ class pymbe_library():
                         new_value=diameter)
             
         return 
+
+
+    def write_pmb_df (self, df, filename):
+
+        df.loc[-1] = self.df.dtypes
+
+        df.index = df.index + 1
+        df.sort_index(inplace=True)
+        df.to_csv(filename,index=False)
+
+        return
+
 
     def write_output_vtf_file(self, espresso_system, filename):
         '''
