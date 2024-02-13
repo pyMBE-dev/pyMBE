@@ -1994,6 +1994,10 @@ class pymbe_library():
         Note:
             This function only accepts files with CSV format. 
         """
+
+        from ast import literal_eval
+
+
         if filename[-3:] != "csv":
             raise ValueError("Only files with CSV format are supported")
 
@@ -2003,6 +2007,12 @@ class pymbe_library():
 
         columns_names = self.setup_df()
         df.columns = columns_names
+
+        columns_to_change = ['sequence', 'residue_list','side_chains']
+        
+        for column_name in columns_to_change:
+            df[column_name] = df[column_name].apply(lambda x: literal_eval(x) if self.pd.notnull(x) else x)
+
         self.df=df
 
         return df
