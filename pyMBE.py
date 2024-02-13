@@ -2001,15 +2001,13 @@ class pymbe_library():
         if filename[-3:] != "csv":
             raise ValueError("Only files with CSV format are supported")
 
-        dtypes = self.pd.read_csv(filename, nrows=2).iloc[1].to_dict()
-
-        df = self.pd.read_csv (filename, header=[0, 1],index_col=None, dtype=dtypes, skiprows=[2])
+        df = self.pd.read_csv (filename, header=[0, 1],index_col=None)
 
         columns_names = self.setup_df()
         df.columns = columns_names
 
         columns_to_change = ['sequence', 'residue_list','side_chains']
-        
+
         for column_name in columns_to_change:
             df[column_name] = df[column_name].apply(lambda x: literal_eval(x) if self.pd.notnull(x) else x)
 
@@ -2750,10 +2748,6 @@ class pymbe_library():
 
     def write_pmb_df (self, df, filename):
 
-        df.loc[-1] = self.df.dtypes
-
-        df.index = df.index + 1
-        df.sort_index(inplace=True)
         df.to_csv(filename,index=False)
 
         return
