@@ -1995,9 +1995,6 @@ class pymbe_library():
             This function only accepts files with CSV format. 
         """
 
-        from ast import literal_eval
-
-
         if filename[-3:] != "csv":
             raise ValueError("Only files with CSV format are supported")
 
@@ -2006,15 +2003,53 @@ class pymbe_library():
         columns_names = self.setup_df()
         df.columns = columns_names
 
-        columns_to_change = ['sequence', 'residue_list','side_chains']
+        self.df= self.convert_columns(df)
 
-        for column_name in columns_to_change:
+        return df
+
+    def convert_columns (self, df):
+
+        from ast import literal_eval
+
+        columns_with_units = ['diameter', 'epsilon']
+
+        columns_with_list_dict = ['sequence', 'residue_list','side_chains', 'parameters_of_the_potential']
+
+        column_with_special_dict = ['bond_object']
+
+        for column_name in columns_with_list_dict:
             df[column_name] = df[column_name].apply(lambda x: literal_eval(x) if self.pd.notnull(x) else x)
 
-        self.df=df
+        for column_name in columns_with_units:
+
+            df[column_name] = df[column_name].apply(lambda x: self.convert_variable_with_units(x) if self.pd.notnull(x) else x)
+
+        for column_name in column_with_special_dict:
+
+            df[column_name] = df[column_name].apply(lambda x: literal_eval(self.parse_harmonic_bond(x)) if self.pd.notnull(x) else x)
 
         return df
     
+    def parse_harmonic_bond(self, variable):
+
+        # WIP
+
+        match = self.re.search(r"HarmonicBond\((.*)\)", variable)
+
+        bond_params = match.group(1)
+
+        return bond_params
+
+    def convert_variable_with_units(self, variable):
+        
+        numeric_value = float(self.re.split('\s+', variable)[0])
+        unit = self.re.split('\s+', variable)[1]
+
+        variable_with_units=numeric_value*self.units(unit)
+
+        return variable_with_units
+    
+
     def read_protein_vtf_in_df (self,filename,unit_length=None):
         """
         Loads a coarse-grained protein model in a vtf file `filename` into the `pmb.df` and it labels it with `name`.
@@ -2751,7 +2786,6 @@ class pymbe_library():
         df.to_csv(filename,index=False)
 
         return
-
 
     def write_output_vtf_file(self, espresso_system, filename):
         '''
