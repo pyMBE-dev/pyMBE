@@ -37,7 +37,7 @@ MD_steps_per_sample = 0
 steps_eq = int(Samples_per_pH)
 N_samples_print = 1000  # Write the trajectory every 100 samples
 probability_reaction =1
-SEED = 100
+SEED = 42
 dt = 0.001
 solvent_permitivity = 78.3
 
