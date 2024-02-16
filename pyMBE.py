@@ -2053,7 +2053,7 @@ class pymbe_library():
         return variable_with_units
     
 
-    def read_protein_vtf_in_df (self,filename,unit_length=None):
+    def read_cg_protein_model (self,filename,unit_length=None):
         """
         Loads a coarse-grained protein model in a vtf file `filename` into the `pmb.df` and it labels it with `name`.
 
@@ -2069,6 +2069,9 @@ class pymbe_library():
         """
 
         print (f'Loading protein coarse grain model file: {filename}')
+
+        if filename[-3:] != "vtf":
+            raise ValueError("Only files with CSV format are supported")
 
         coord_list = []
         particles_dict = {}
