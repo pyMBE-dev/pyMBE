@@ -48,8 +48,8 @@ if not os.path.exists('./frames'):
 # Simulation parameters
 
 pH_range = np.linspace(2, 12, num=21)
-Samples_per_pH = 1000
-MD_steps_per_sample = 1000
+Samples_per_pH = 100
+MD_steps_per_sample = 100
 steps_eq =int(Samples_per_pH/3)
 N_samples_print = 10 # Write the trajectory every 100 samples
 probability_reaction = 0.5 
@@ -154,7 +154,21 @@ particle_id_list = pmb.get_particle_id_map(object_name=sequence)["all"]
 first_peptide_id = min(particle_id_list)
 
 #Save the pyMBE dataframe in a CSV file
-pmb.df.to_csv('df.csv')
+# pmb.df.to_csv('df.csv')
+
+pmb.pd.options.display.max_colwidth = 10
+pmb.pd.set_option('display.max_rows', None)
+
+print (pmb.df.head(50))
+
+
+pmb.write_pmb_df(df=pmb.df, filename='df-new.csv')
+
+bond = pmb.df.loc[8,'bond_object'].values[0]
+
+print (bond, type(bond))
+
+exit ()
 
 for index in tqdm(range(len(pH_range))):
     # Sample list inicialization

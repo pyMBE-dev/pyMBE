@@ -2026,19 +2026,22 @@ class pymbe_library():
 
         for column_name in column_with_special_dict:
 
-            df[column_name] = df[column_name].apply(lambda x: literal_eval(self.parse_harmonic_bond(x)) if self.pd.notnull(x) else x)
+            df[column_name] = df[column_name].apply(lambda x: (self.str_to_harmonic_bond(x)) if self.pd.notnull(x) else x)
 
         return df
     
-    def parse_harmonic_bond(self, variable):
-
-        # WIP
+    def str_to_harmonic_bond(self, variable):
+        
+        from ast import literal_eval
+        from espressomd.interactions import HarmonicBond
 
         match = self.re.search(r"HarmonicBond\((.*)\)", variable)
 
-        bond_params = match.group(1)
+        params = literal_eval(match.group(1))
 
-        return bond_params
+        bond_object = HarmonicBond(r_cut =params['r_cut'], k = params['k'], r_0=params['r_0'])
+
+        return bond_object
 
     def convert_variable_with_units(self, variable):
         
