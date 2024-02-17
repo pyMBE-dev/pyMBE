@@ -996,17 +996,26 @@ class pymbe_library():
             residues_info[residue_id]['side_chain_ids']=side_chain_beads_ids
         return  residues_info
 
-    def create_variable_with_units(self, variable_dict):
+    def create_variable_with_units(self, variable):
         """
-        Returns a pint object with the value and units defined in `variable_dict`.
+        Returns a pint object with the value and units defined in `variable`.
 
         Args:
-            variable_dict(`dict`): {'value': value, 'units': units}
+            variable(`dict` ir `str`): {'value': value, 'units': units}
         Returns:
             variable_with_units(`obj`): variable with units using the pyMBE UnitRegistry.
         """        
-        value=variable_dict.pop('value')
-        units=variable_dict.pop('units')
+
+        if type(variable) is dict: 
+            
+            value=variable.pop('value')
+            units=variable.pop('units')
+
+        elif type(variable) is str:
+            
+            value = float(self.re.split('\s+', variable)[0])
+            units = self.re.split('\s+', variable)[1]
+
         variable_with_units=value*self.units(units)
 
         return variable_with_units
@@ -2005,53 +2014,73 @@ class pymbe_library():
 
         self.df= self.convert_columns(df)
 
-        return df
+        return self.df
 
-    def convert_columns (self, df):
+    def convert_columns_to_original_format (self, df):
+        """
+        Converts the columns of the Dataframe to the original format in pyMBE.
+        
+        Args:
+            df(`DataFrame`):
+        
+        """
 
         from ast import literal_eval
 
         columns_with_units = ['diameter', 'epsilon']
 
-        columns_with_list_dict = ['sequence', 'residue_list','side_chains', 'parameters_of_the_potential']
+        columns_with_list_or_dict = ['sequence', 'residue_list','side_chains', 'parameters_of_the_potential']
 
         column_with_special_dict = ['bond_object']
 
-        for column_name in columns_with_list_dict:
+        for column_name in columns_with_list_or_dict:
             df[column_name] = df[column_name].apply(lambda x: literal_eval(x) if self.pd.notnull(x) else x)
 
         for column_name in columns_with_units:
 
-            df[column_name] = df[column_name].apply(lambda x: self.convert_variable_with_units(x) if self.pd.notnull(x) else x)
+            df[column_name] = df[column_name].apply(lambda x: self.create_variable_with_units(x) if self.pd.notnull(x) else x)
 
         for column_name in column_with_special_dict:
 
-            df[column_name] = df[column_name].apply(lambda x: (self.str_to_harmonic_bond(x)) if self.pd.notnull(x) else x)
+            df[column_name] = df[column_name].apply(lambda x: (self.convert_str_to_bond_object(x)) if self.pd.notnull(x) else x)
 
         return df
     
-    def str_to_harmonic_bond(self, variable):
+    def convert_str_to_bond_object (self, bond_str):
+        
+        """
+        Convert a row read as a `str` to the corresponding bond object. There are two supported bonds: HarmonicBond and  FeneBond
+
+        Args:
+            bond_str (`str`): string with the information of a bond object
+
+        Returns:
+            bond_object(`obj`): 
+        """
         
         from ast import literal_eval
         from espressomd.interactions import HarmonicBond
+        from espressomd.interactions import FeneBond
 
-        match = self.re.search(r"HarmonicBond\((.*)\)", variable)
+        supported_bonds = ['HarmonicBond', 'FeneBond']
 
-        params = literal_eval(match.group(1))
+        for bond in supported_bonds:
 
-        bond_object = HarmonicBond(r_cut =params['r_cut'], k = params['k'], r_0=params['r_0'])
+            variable = self.re.subn(f'{bond}', '', bond_str)
 
-        return bond_object
+            if variable[1] == 1: 
+            
+                params = literal_eval(variable[0])
 
-    def convert_variable_with_units(self, variable):
-        
-        numeric_value = float(self.re.split('\s+', variable)[0])
-        unit = self.re.split('\s+', variable)[1]
+                if bond == 'HarmonicBond':
 
-        variable_with_units=numeric_value*self.units(unit)
+                    bond_object = HarmonicBond(r_cut =params['r_cut'], k = params['k'], r_0=params['r_0'])
 
-        return variable_with_units
-    
+                elif bond == 'FeneBond':
+
+                    bond_object = FeneBond(k = params['k'], d_r_max =params['d_r_max'], r_0=params['r_0'])
+
+        return bond_object    
 
     def read_cg_protein_model (self,filename,unit_length=None):
         """
@@ -2812,3 +2841,4 @@ class pymbe_library():
             for particle in espresso_system.part:
                 coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
         return 
+    
