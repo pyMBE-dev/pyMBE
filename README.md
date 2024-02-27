@@ -22,7 +22,7 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 - `handy_scripts/`: folder with various handy scripts and libraries.
 - `logo/`: folder with the logo of pyMBE.
 - `parameters/`: folder with various sets of parameters from previous works.
-- `sample_scripts/`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
+- `samples/`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
 - `tests/`: folder with several test scripts and data to check that new developments do not break pyMBE.
 - `tutorials/`: folder with the available tutorials on pyMBE.
 - `visualization/`: folder with helper scripts to aid the visualization of vtf trajectories from constant pH and Grand reaction simulations with [VMD](https://www.ks.uiuc.edu/Research/vmd/).6
