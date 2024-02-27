@@ -81,7 +81,7 @@ basic_aminoacids  = ['R','n','K','H']
 N_aminoacids = len (pmb.protein_sequence_parser(sequence=sequence))
 
 # Load pKa set
-pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/Nozaki1967.txt')
+pmb.load_pka_set (filename=pyMBE_path+'/parameters/pka_sets/Nozaki1967.txt')
 
 already_defined_AA=[]
 for aminoacid_key in pmb.protein_sequence_parser(sequence=sequence):

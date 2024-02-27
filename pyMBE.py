@@ -2101,9 +2101,13 @@ class pymbe_library():
             - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
             - If `hard_check`=`True` stops the code when no bond is found.
         """
+        
         bond_key = self.find_bond_key(particle_name1=particle_name1, 
                                     particle_name2=particle_name2, 
                                     use_default_bond=use_default_bond)
+        if use_default_bond:
+            if not self.check_if_name_is_defined_in_df(name="default",pmb_type_to_be_defined='bond'):
+                raise ValueError(f"use_default_bond is set to {use_default_bond} but no default bond has been defined. Please define a default bond with pmb.define_default_bond")
         if bond_key:
             return self.df[self.df['name']==bond_key].bond_object.values[0]
         else:

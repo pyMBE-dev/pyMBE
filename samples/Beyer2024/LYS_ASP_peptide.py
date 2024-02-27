@@ -77,8 +77,8 @@ pmb.define_particle( name=anion_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilo
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-pmb.load_interaction_parameters (filename=pyMBE_path+'/reference_parameters/interaction_parameters/Lunkad2021.txt') 
-pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/CRC1991.txt')
+pmb.load_interaction_parameters (filename=pyMBE_path+'/parameters/interaction_parameters/Lunkad2021.txt') 
+pmb.load_pka_set (filename=pyMBE_path+'/parameters/pka_sets/CRC1991.txt')
 
 # Define the peptide on the pyMBE dataframe 
 pmb.define_peptide( name=sequence, sequence=sequence, model=model)
