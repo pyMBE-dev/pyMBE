@@ -1734,6 +1734,20 @@ class pymbe_library():
         
         return radius_map
 
+    def get_resource(self, path):
+        '''
+        Locate a file resource of the pyMBE package.
+
+        Args:
+            path(`str`): Relative path to the resource
+
+        Returns:
+            path(`int`): Absolute path to the resource
+
+        '''
+        import os
+        return os.path.join(os.path.dirname(__file__), path)
+
     def get_type_map(self):
         """
         Gets all different espresso types assigned to particles  in `pmb.df`.
@@ -2750,16 +2764,4 @@ class pymbe_library():
                 coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
         return 
 
-    def get_resource(self, path):
-        '''
-        Locate a file resource of the pyMBE package.
 
-        Args:
-            path(`str`): Relative path to the resource
-
-        Returns:
-            path(`int`): Absolute path to the resource
-
-        '''
-        import os
-        return os.path.join(os.path.dirname(__file__), path)
