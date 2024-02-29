@@ -24,6 +24,7 @@
 {"object_type":"bond", "name1": "R", "name2": "K", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "K", "name2": "F", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "H", "name2": "S", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
+{"object_type":"bond", "name1": "H", "name2": "F", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "H", "name2": "R", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "R", "name2": "G", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "Y", "name2": "G", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}

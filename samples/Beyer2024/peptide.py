@@ -107,8 +107,7 @@ pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 # Create your molecules into the espresso system
 pmb.create_pmb_object(name=sequence, 
                     number_of_objects= N_peptide_chains,
-                    espresso_system=espresso_system,
-                    use_default_bond=True)
+                    espresso_system=espresso_system)
 
 # Create counterions for the peptide chains
 pmb.create_counterions(object_name=sequence,
@@ -133,8 +132,7 @@ if args.verbose:
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 type_map =pmb.get_type_map()
-types = list (type_map.values())
-espresso_system.setup_type_map( type_list = types)
+espresso_system.setup_type_map(type_list = list(type_map.values()))
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
@@ -145,8 +143,8 @@ print('The non interacting type is set to ', non_interacting_type)
 pmb.setup_lj_interactions (espresso_system=espresso_system)
 minimize_espresso_system_energy (espresso_system=espresso_system)
 setup_electrostatic_interactions(units=pmb.units,
-                                            espresso_system=espresso_system,
-                                            kT=pmb.kT)
+                                        espresso_system=espresso_system,
+                                        kT=pmb.kT)
 minimize_espresso_system_energy (espresso_system=espresso_system)
 
 
@@ -160,15 +158,17 @@ espresso_system.cell_system.skin=0.4
 
 # Main loop 
   
-Z_sim=[]
-for step in range(Nsamples):
+Z_samples=[]
+for sample in (pbar := tqdm(range(Nsamples))):
     
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
     RE.reaction( reaction_steps = len(sequence))
 
-    charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
+    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
                                             molecule_name=sequence)      
-    Z_sim.append(charge_dict["mean"])
+    Z_samples.append(charge_dict["mean"])
+    pbar.set_description(f"Sample = {sample}/{Nsamples}")
+
 if args.verbose:
     print("*** DONE ***")
    
