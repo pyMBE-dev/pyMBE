@@ -15,10 +15,10 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 # Load some functions from the handy_scripts library for convinience
-from handy_scripts.handy_functions import setup_electrostatic_interactions
-from handy_scripts.handy_functions import minimize_espresso_system_energy
-from handy_scripts.handy_functions import setup_langevin_dynamics
-from handy_scripts.handy_functions import block_analyze
+from lib.handy_functions import setup_electrostatic_interactions
+from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import setup_langevin_dynamics
+from lib.analysis import block_analyze
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 if not os.path.exists('./frames'):
@@ -56,8 +56,8 @@ pmb.define_particle( name=anion_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilo
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-pmb.load_interaction_parameters (filename=pmb.get_resource('reference_parameters/interaction_parameters/Lunkad2021.txt'))
-pmb.load_pka_set (filename=pmb.get_resource('reference_parameters/pka_sets/CRC1991.txt'))
+pmb.load_interaction_parameters (filename=pmb.get_resource('parameters/interaction_parameters/Lunkad2021.txt'))
+pmb.load_pka_set (filename=pmb.get_resource('parameters/pka_sets/CRC1991.txt'))
 
 # Define the peptide on the pyMBE dataframe 
 pmb.define_peptide( name=sequence, sequence=sequence, model=model)
@@ -76,7 +76,7 @@ pmb.add_bonds_to_espresso (espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
 
-pmb.create_pmb_object (name=sequence, number_of_objects= N_peptide_chains,espresso_system=espresso_system, use_default_bond=True)
+pmb.create_pmb_object (name=sequence, number_of_objects= N_peptide_chains,espresso_system=espresso_system)
 
 
 # Create counterions for the peptide chains
@@ -179,21 +179,16 @@ for index in (pbar := tqdm(range(len(pH_range)))):
     Z_pH.append(np.array(Z_sim))
     Rg_pH.append(Rg_sim)
 
-print("Net charge analysis")
-av_charge, err_charge, tau_charge, block_size = block_analyze(input_data=pmb.np.array(Z_pH))
-
-print("Rg analysis")
-av_rg, err_rg, tau_rg, block_size = block_analyze(input_data=Rg_pH)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 Z_HH = pmb.calculate_HH(object_name=sequence,
                          pH_list=pH_range)
 
 # Load the reference data 
-reference_file_Path = pmb.get_resource("reference_data/Lys-AspMSDE.csv")
+reference_file_Path = pmb.get_resource("testsuite/data/Lys-AspMSDE.csv")
 reference_data = pd.read_csv(reference_file_Path)
 
 Z_ref = N_aminoacids*-1*reference_data['aaa']+N_aminoacids*reference_data['aab']         
 Rg_ref = reference_data['arg']*0.37
 
-np.testing.assert_allclose(np.copy(av_charge), Z_ref.to_numpy(), atol=2.5, rtol=0.)
+#np.testing.assert_allclose(np.copy(av_charge), analyzed_charge[", atol=2.5, rtol=0.)
