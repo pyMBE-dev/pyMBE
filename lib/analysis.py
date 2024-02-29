@@ -391,3 +391,29 @@ def find_index_with_value_in_df(df,column_name, value, tol=0.01):
     index = np.where(abs(df[column_name]-value)/value < tol)
     return index[0]
 
+def built_output_name(input_dict):
+    """
+    Builts the output name for a given set of input parameters.
+
+    Args:
+        input_dict (`dict`): dictionary with all terminal inputs.
+
+    Returns:
+        output_name (`str`): name used for the output files
+
+    Note:
+        The standard formatting rule is parametername1-parametervalue1_parametername2-parametervalue2
+    
+    Authors:
+        - Pablo M. Blanco, Norwegian University of Science and Technology (NTNU) 
+    """
+    output_name=""
+    for label in input_dict:
+        if type(input_dict[label]) in [str,bool]:
+            formatted_variable=f"{input_dict[label]:}"
+        else:
+            formatted_variable=f"{input_dict[label]:.3g}"
+        output_name+=f"{label}-{formatted_variable}_"
+    return output_name[:-1]
+
+

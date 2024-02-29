@@ -2753,3 +2753,17 @@ class pymbe_library():
             for particle in espresso_system.part:
                 coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
         return 
+
+    def get_resource(self, path):
+        '''
+        Locate a file resource of the pyMBE package.
+
+        Args:
+            path(`str`): Relative path to the resource
+
+        Returns:
+            path(`int`): Absolute path to the resource
+
+        '''
+        import os
+        return os.path.join(os.path.dirname(__file__), path)
