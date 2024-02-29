@@ -3,5 +3,6 @@ pandas>=1.5.3
 pint>=0.20.01
 pint-pandas==0.5
 biopandas==0.5.1.dev0
+scipy
 matplotlib
 tqdm
