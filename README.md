@@ -68,6 +68,27 @@ $ source pymbe/bin/activate
 $ deactivate
 ```
 
+To use pyMBE in JupyterLab, register the virtual environment in a new kernel:
+
+```sh
+source pymbe/bin/activate
+python3 -m pip install ipykernel "jupyterlab>=4.0.8" "PyOpenGL>=3.1.5"
+python3 -m ipykernel install --user --name=pyMBE
+deactivate
+```
+
+Please be aware the pyMBE kernel will be registered outside the environment,
+typically in your home folder. You can later inspect the list of registered
+kernels and delete unwanted ones with the following commands:
+
+```sh
+jupyter kernelspec list
+jupyter kernelspec uninstall pymbe
+```
+
+The JupyterLab main menu will now show a new Python kernel called "pyMBE"
+that uses the virtual environment.
+
 ### Use pyMBE in your simulation scripts
 
 ```sh
@@ -78,17 +99,14 @@ deactivate
 
 ### Run the tutorial of pyMBE
 
-You can run the interactive tutorial of pyMBE with the command
+You can run the interactive tutorial of pyMBE with the command:
 
 ```sh
-${ESPResSo_build_path}/ipypresso notebook pyMBE_tutorial.ipynb
+jupyter lab tutorials/pyMBE_tutorial.ipynb
 ```
 
-or alternatively you can run the command
-
-```sh
-make tutorial
-```
+Be sure to use the pyMBE kernel instead of the default Python3 kernel.
+The currently active kernel is usually displayed in the top right corner of the notebook.
 
 ### Run the testsuite
 

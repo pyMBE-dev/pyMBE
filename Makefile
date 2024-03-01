@@ -19,9 +19,6 @@ visual:
 	python3 handy_scripts/vmd-traj.py
 	vmd -e visualization.tcl
 
-tutorial:
-	jupyter lab sugar_tutorial.ipynb
-
 tests_peptide:
 	python3 tests/LYS_ASP_peptide.py
 	python3 tests/GLU_HIS_peptide.py
