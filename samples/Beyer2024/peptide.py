@@ -205,7 +205,7 @@ if not os.path.exists(data_path):
 time_series=pd.DataFrame(time_series)
 filename=analysis.built_output_name(input_dict=inputs)
 
-time_series.to_csv(f"{data_path}/{filename}_time_series.csv")
+time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
 
 if args.verbose:
     print("*** DONE ***")
