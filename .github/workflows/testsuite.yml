@@ -26,7 +26,6 @@ jobs:
           module load ESPResSo/4.2.1-foss-2023a
           export OLD_PYTHONPATH="${PYTHONPATH}"
           export PYTHONPATH="$(realpath .)${PYTHONPATH:+:$PYTHONPATH}"
-          sed -i "s/\${ESPResSo_build_path}\///" Makefile
           make testsuite
           export PYTHONPATH="${OLD_PYTHONPATH}"
         shell: bash

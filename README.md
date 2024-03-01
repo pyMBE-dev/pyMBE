@@ -35,30 +35,45 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 
 ## Usage
 
-### Use pyMBE in your simulation scripts 
+### Set up the pyMBE environment
 
-To use pyMBE in your simulations, first clone this repository into your source folder
-
-```sh
-git clone git@gitlab.com:blancoapa/pyMBE.git
-```
-
-then you can load pyMBE into your script with the command
-
-```py
-from pyMBE import pyMBE
-```
-
-Please, be aware that pyMBE is intended to be a supporting tool to setup simulations with ESPResSo. Thus, for most of its functionalities ESPResSo must be also loaded to your script
-
-```py
-import espressomd
-```
-
-and your simulations should be runned using ESPResSo
+To use pyMBE in your simulations, first clone this repository locally:
 
 ```sh
-${ESPResSo_build_path}/pypresso your_simulation_script.py
+git clone git@github.com:pm-blanco/pyMBE.git
+```
+
+Please, be aware that pyMBE is intended to be a supporting tool to setup simulations with ESPResSo.
+Thus, for most of its functionalities ESPResSo must also be available.
+
+Create a virtual environment to install Python dependencies and configure
+the path to the ESPResSo build folder:
+
+```sh
+python3 -m venv pymbe
+source pymbe/bin/activate
+python3 maintainer/configure_venv.py /home/user/Documents/espresso/build # adapt this
+python3 -m pip install -r requirements.txt
+deactivate
+```
+
+Now you can use pyMBE and ESPResSo by activating the virtual environment:
+
+```sh
+$ source pymbe/bin/activate
+(pymbe) $ python3 -c "import espressomd.version; print(espressomd.version.friendly())"
+4.2
+(pymbe) $ python3 -c "import pyMBE; print(pyMBE.__file__)"
+/home/user/Documents/pyMBE/pyMBE.py
+$ deactivate
+```
+
+### Use pyMBE in your simulation scripts
+
+```sh
+source pymbe/bin/activate
+python3 sample_scripts/peptide.py
+deactivate
 ```
 
 ### Run the tutorial of pyMBE
@@ -75,14 +90,14 @@ or alternatively you can run the command
 make tutorial
 ```
 
-provided that you have modified the `$ESPResSo_build_path` variable in `Makefile` to match the path where you have built ESPResSo.
-
 ### Run the testsuite
 
 To make sure your code is valid, please run the testsuite before submitting your contribution:
 
 ```sh
-PYTHONPATH=$(realpath .) make testsuite
+source pymbe/bin/activate
+make testsuite
+deactivate
 ```
 
 When contributing new features, consider adding a unit test in the `testsuite/`
