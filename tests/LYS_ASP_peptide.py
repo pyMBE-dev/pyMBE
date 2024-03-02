@@ -25,12 +25,6 @@ from espressomd import interactions
 from espressomd.io.writer import vtf
 from espressomd import electrostatics 
 
-# Find path to pyMBE
-current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-path_end_index=current_dir.find("pyMBE")
-pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
-sys.path.insert(0, pyMBE_path)
-
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
@@ -76,9 +70,10 @@ pmb.define_particle( name=cation_name,  q=1, diameter=0.35*pmb.units.nm, epsilon
 pmb.define_particle( name=anion_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-
-pmb.load_interaction_parameters (filename=pyMBE_path+'/reference_parameters/interaction_parameters/Lunkad2021.txt') 
-pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/CRC1991.txt')
+path_to_interactions=pmb.get_resource("reference_parameters/interaction_parameters/Lunkad2021.txt")
+path_to_pka=pmb.get_resource("reference_parameters/pka_sets/CRC1991.txt")
+pmb.load_interaction_parameters (filename=path_to_interactions) 
+pmb.load_pka_set (path_to_pka)
 
 # Define the peptide on the pyMBE dataframe 
 pmb.define_peptide( name=sequence, sequence=sequence, model=model)
@@ -213,8 +208,9 @@ Z_HH = pmb.calculate_HH(object_name=sequence,
                          pH_list=pH_range)
 
 # Load the reference data 
-reference_file_Path = pyMBE_path+"/reference_data/Lys-AspMSDE.csv"
-reference_data = pd.read_csv(reference_file_Path)
+path_to_ref=pmb.get_resource("reference_data")
+reference_data = pd.read_csv(f"{path_to_ref}/Lys-AspMSDE.csv")
+
 
 Z_ref = N_aminoacids*-1*reference_data['aaa']+N_aminoacids*reference_data['aab']         
 Rg_ref = reference_data['arg']*0.37

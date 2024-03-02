@@ -9,12 +9,6 @@ from espressomd import interactions
 from espressomd.io.writer import vtf
 from espressomd import electrostatics 
 
-# Find path to pyMBE
-current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-path_end_index=current_dir.find("pyMBE")
-pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
-sys.path.insert(0, pyMBE_path)
-
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
@@ -74,11 +68,9 @@ Electrostatics = True
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
 espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
-#Directory of the protein model 
-protein_filename = pyMBE_path+"/"+args.path_to_cg
-
 #Reads the VTF file of the protein model
-topology_dict = pmb.read_protein_vtf_in_df (filename=protein_filename)
+path_to_cg=pmb.get_resource(args.path_to_cg)
+topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
 #Defines the protein in the pmb.df
 pmb.define_protein (name=protein_name, topology_dict=topology_dict, model = '2beadAA')
 
@@ -116,8 +108,9 @@ anion_name = 'Cl'
 pmb.define_particle(name = cation_name, q = 1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
 pmb.define_particle(name = anion_name,  q =-1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
 
-# Here we upload the pka set from the reference_parameters folder 
-pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/Nozaki1967.txt')
+# Here we upload the pka set from the reference_parameters folder
+path_to_pka=pmb.get_resource('reference_parameters/pka_sets/Nozaki1967.txt') 
+pmb.load_pka_set (filename=path_to_pka)
 
 #We create the protein in espresso 
 pmb.create_protein(name=protein_name,

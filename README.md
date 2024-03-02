@@ -57,6 +57,8 @@ python3 -m pip install -r requirements.txt
 deactivate
 ```
 
+We highlight that the path `/home/user/Documents/espresso/build` is just an example of a possible absolute path to the ESPResSo build folder. The user should change this path to match the local path were ESPResSo was installed.
+
 Now you can use pyMBE and ESPResSo by activating the virtual environment:
 
 ```sh
@@ -102,7 +104,9 @@ deactivate
 You can run the interactive tutorial of pyMBE with the command:
 
 ```sh
+source pymbe/bin/activate
 jupyter lab tutorials/pyMBE_tutorial.ipynb
+deactivate
 ```
 
 Be sure to use the pyMBE kernel instead of the default Python3 kernel.
