@@ -1,5 +1,6 @@
 # Parameters from Blanco et al. Soft Matter, 17(3), 655-669, 2021.
 {"object_type":"particle", "name": "D", "acidity": "acidic", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "E", "acidity": "acidic", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
 {"object_type":"particle", "name": "n", "acidity": "basic", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
 {"object_type":"particle", "name": "S", "q":0, "acidity": "inert", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
 {"object_type":"particle", "name": "H", "acidity": "basic", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
@@ -15,7 +16,10 @@
 {"object_type":"bond", "name1": "S", "name2": "H", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "H", "name2": "A", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "A", "name2": "K", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
+{"object_type":"bond", "name1": "E", "name2": "H", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
+{"object_type":"bond", "name1": "E", "name2": "K", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "K", "name2": "R", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
+{"object_type":"bond", "name1": "K", "name2": "H", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "R", "name2": "H", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "H", "name2": "H", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "H", "name2": "G", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}

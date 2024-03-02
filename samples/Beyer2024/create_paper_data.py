@@ -50,7 +50,7 @@ if fig_label in labels_fig6:
     elif fig_label == "6b":
         sequence="E"*5+"H"*5
     elif fig_label == "6c":
-        sequence="nDSHAKRHHGYKRKFHHSHRGYc"
+        sequence="nDSHAKRHHGYKRKFHEKHHSHRGYc"
     else:
         raise RuntimeError()
     pH_range = np.linspace(2, 12, num=21)
@@ -58,7 +58,7 @@ if fig_label in labels_fig6:
     for pH in pH_range:
         run_command=f"python3 {script_path} --sequence {sequence} --pH {pH} --mode {mode}"
         print(run_command)
-        #os.system(run_command)
+        os.system(run_command)
 
 # Read all files in the subdir
 data_files=[]
@@ -124,6 +124,10 @@ if plot:
         pka_path=pmb.get_resource("parameters/pka_sets/CRC1991.txt")
     elif fig_label == "6c":
         pka_path=pmb.get_resource("parameters/pka_sets/Nozaki1967.txt")
+        # FIXME: this is only necessary due to an undesired feature in calculate_HH
+        # that forces to have all particles defined in pyMBE
+        par_path=pmb.get_resource("parameters/peptides/Blanco2020.txt")
+        pmb.load_interaction_parameters(par_path)
     else:
         raise RuntimeError()
     pmb.load_pka_set (filename=pka_path)
@@ -171,6 +175,7 @@ if plot:
     # Plot data produced by pyMBE
     
     data=data.astype({'pH': 'float'}).sort_values(by="pH")
+    data=data[data.sequence == f"{sequence}"]
     plt.errorbar(data["pH"], 
                    data["mean","charge"], 
                    yerr=data["err_mean","charge"], 

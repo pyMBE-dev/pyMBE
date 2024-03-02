@@ -52,12 +52,12 @@ if mode not in valid_modes:
 
 # Simulation parameters
 if mode == "short-run":
-    Nsamples = 100
-    MD_steps_per_sample = 100
+    Nsamples = 1000
+    MD_steps_per_sample = 1000
 
 if mode == "long-run":
     Nsamples = 5000
-    MD_steps_per_sample = 1000
+    MD_steps_per_sample = 5000
 
 SEED = 100
 dt = 0.01
@@ -65,9 +65,8 @@ solvent_permitivity = 78.3
 pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 
 # Sanity check
-
 Lunkad_test_sequences=["E"*5+"H"*5,"K"*5+"D"*5]
-Blanco_test_sequence=["nDSHAKRHHGYKRKFHHSHRGYc"]
+Blanco_test_sequence=["nDSHAKRHHGYKRKFHEKHHSHRGYc"]
 
 valid_sequences=Lunkad_test_sequences+Blanco_test_sequence
 
@@ -75,7 +74,7 @@ if sequence not in valid_sequences:
     raise ValueError(f"ERROR: the only valid peptide sequence for this test script are {valid_sequences}")
 
 if sequence in Lunkad_test_sequences:
-    pmb.load_interaction_parameters (filename='parameters/interaction_parameters/Lunkad2021.txt') 
+    pmb.load_interaction_parameters (filename='parameters/peptides/Lunkad2021.txt') 
     pmb.load_pka_set (filename='parameters/pka_sets/CRC1991.txt')
     model = '2beadAA'  # Model with 2 beads per each aminoacid
     N_peptide_chains = 4
@@ -85,7 +84,7 @@ if sequence in Lunkad_test_sequences:
     chain_length=len(sequence)*2
 
 elif sequence in Blanco_test_sequence:
-    pmb.load_interaction_parameters (pmb.get_resource(path='parameters/interaction_parameters/Blanco2020.txt')) 
+    pmb.load_interaction_parameters (pmb.get_resource(path='parameters/peptides/Blanco2020.txt')) 
     pmb.load_pka_set (pmb.get_resource(path='parameters/pka_sets/Nozaki1967.txt'))
     model = '1beadAA'
     N_peptide_chains = 1
