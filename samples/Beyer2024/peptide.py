@@ -180,6 +180,7 @@ for label in labels_obs:
     time_series[label]=[]
 
 for sample in (pbar := tqdm(range(Nsamples))):
+    pbar.set_description(f"Sample = {sample}")
     # Run LD
     espresso_system.integrator.run(steps=MD_steps_per_sample)
     # Run MC        

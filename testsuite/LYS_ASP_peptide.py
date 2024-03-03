@@ -56,7 +56,7 @@ pmb.define_particle( name=anion_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilo
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-pmb.load_interaction_parameters (filename=pmb.get_resource('parameters/interaction_parameters/Lunkad2021.txt'))
+pmb.load_interaction_parameters (filename=pmb.get_resource('parameters/peptides/Lunkad2021.txt'))
 pmb.load_pka_set (filename=pmb.get_resource('parameters/pka_sets/CRC1991.txt'))
 
 # Define the peptide on the pyMBE dataframe 
@@ -185,10 +185,9 @@ Z_HH = pmb.calculate_HH(object_name=sequence,
                          pH_list=pH_range)
 
 # Load the reference data 
-reference_file_Path = pmb.get_resource("testsuite/data/Lys-AspMSDE.csv")
+reference_file_Path = pmb.get_resource("testsuite/data/src/Lys-AspMSDE.csv")
 reference_data = pd.read_csv(reference_file_Path)
 
 Z_ref = N_aminoacids*-1*reference_data['aaa']+N_aminoacids*reference_data['aab']         
-Rg_ref = reference_data['arg']*0.37
 
-#np.testing.assert_allclose(np.copy(av_charge), analyzed_charge[", atol=2.5, rtol=0.)
+#np.testing.assert_allclose(np.copy(av_charge), Z_ref.to_numpy(), atol=2.5, rtol=0.)
