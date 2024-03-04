@@ -52,12 +52,30 @@ the path to the ESPResSo build folder:
 ```sh
 python3 -m venv pymbe
 source pymbe/bin/activate
-python3 maintainer/configure_venv.py /home/user/Documents/espresso/build # adapt this
+python3 maintainer/configure_venv.py --espresso_path=~/espresso/build # adapt path
 python3 -m pip install -r requirements.txt
 deactivate
 ```
 
-We highlight that the path `/home/user/Documents/espresso/build` is just an example of a possible absolute path to the ESPResSo build folder. The user should change this path to match the local path were ESPResSo was installed.
+We highlight that the path `~/espresso/build` is just an example of a possible
+path to the ESPResSo build folder. The user should change this path to match
+the local path were ESPResSo was installed.
+
+Cluster users who rely on module files to load dependencies should opt for the
+following alternative:
+
+```sh
+module load ESPResSo/4.2.1-foss-2022a # adapt module name
+python3 -m venv --system-site-packages pymbe
+source pymbe/bin/activate
+python3 maintainer/configure_venv.py
+python3 -m pip install -r requirements.txt
+deactivate
+module purge
+```
+
+We highlight that the module files need to be loaded before every activation
+of the virtual environment.
 
 Now you can use pyMBE and ESPResSo by activating the virtual environment:
 
