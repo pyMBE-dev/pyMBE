@@ -40,7 +40,6 @@ if mode not in valid_modes:
     raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
 ## Peptide plots (Fig. 6)
-
 labels_fig6=["6a", "6b", "6c"]
 
 if fig_label in labels_fig6:
@@ -54,40 +53,19 @@ if fig_label in labels_fig6:
     else:
         raise RuntimeError()
     pH_range = np.linspace(2, 12, num=21)
-
     for pH in pH_range:
         run_command=f"python3 {script_path} --sequence {sequence} --pH {pH} --mode {mode}"
         print(run_command)
         os.system(run_command)
 
-# Read all files in the subdir
-data_files=[]
+# Analyze all time series
 time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series")
+data=analysis.analyze_time_series(path_to_datafolder=time_series_folder_path)
 
-data=pd.DataFrame()
-
-with os.scandir(time_series_folder_path) as subdirectory:
-    # Gather all data
-    for subitem in subdirectory:
-        if subitem.is_file():
-            if 'time_series' in subitem.name:
-                # Get parameters from the file name
-                data_dict=analysis.get_params_from_dir_name(subitem.name.replace('_time_series.csv', ''))
-                file_data=pd.DataFrame(data_dict, index=[0])
-                # Get the observables for binning analysis
-                time_series_data=analysis.read_csv_file(path=f"{time_series_folder_path}/{subitem.name}")
-                analyzed_data=analysis.block_analyze(full_data=time_series_data)
-                data_dict.update(analyzed_data.to_dict())
-                data = analysis.add_data_to_df(df=data,
-                                               data_dict=data_dict,
-                                               index=[len(data)])
-                for param in data_dict.keys():
-                    analyzed_data[param]=data_dict[param]
-
+# Store mean values and other statistics
 data_path=pmb.get_resource("samples/Beyer2024/")+"data"
 if not os.path.exists(data_path):
     os.makedirs(data_path)
-
 data.to_csv(f"{data_path}/fig{fig_label}.csv")
 
 # Plot the data

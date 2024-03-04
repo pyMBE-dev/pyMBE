@@ -24,6 +24,39 @@ def add_data_to_df(df, data_dict, index):
                          index=index)])
     return updated_df
 
+def analyze_time_series(path_to_datafolder):
+    """
+    Analyzes all time series stored in `path_to_datafolder` using the block binning method.
+
+    Args:
+        path_to_datafolder(`str`): path to the folder with the files with the time series
+
+    Returns:
+        (`obj`): pandas dataframe with
+
+    """
+    data=pd.DataFrame()
+    with os.scandir(path_to_datafolder) as subdirectory:
+        # Gather all data
+        for subitem in subdirectory:
+            if subitem.is_file():
+                if 'time_series' in subitem.name:
+                    # Get parameters from the file name
+                    data_dict=get_params_from_dir_name(subitem.name.replace('_time_series.csv', ''))
+                    # Get the observables for binning analysis
+                    time_series_data=read_csv_file(path=f"{path_to_datafolder}/{subitem.name}")
+                    analyzed_data=block_analyze(full_data=time_series_data)
+                    value_list=[]
+                    index_list=[]
+                    for key in data_dict.keys():
+                        value_list.append(data_dict[key])
+                        index_list.append((key,))
+                    analyzed_data = pd.concat([pd.Series(value_list, index=index_list), analyzed_data])
+                    data = add_data_to_df(df=data,
+                                        data_dict=analyzed_data.to_dict(),
+                                        index=[len(data)])   
+    return data
+
 def do_binning_analysis(list_time_series_df, frac_data_to_discard=0.3):
     """
     Does a binning analysis of all Pandas DataFrame objects in `list_time_series_df`.
@@ -76,9 +109,6 @@ def merge_time_series_dfs(list_time_series_df,frac_data_to_discard=0,rescale_tim
             # Make a continous time evolution
             binning_df["time"]+=index*binning_df.shape[0]*dt
         list_time_series_df[index]=binning_df
-
-
-    
 
     # Join all the dataframes for binning analysis
     gathered_binning_df=pd.concat(list_time_series_df)
@@ -154,8 +184,6 @@ def split_dataframe(df,n_blocks):
 
 
     # Blocks of size 2 (s2) =  df.shape[0]//n_blocks
-
-    n_blocks_s2= n_blocks - n_blocks_s1
     block_size_s2=df.shape[0]//n_blocks
     blocks+=split_dataframe_in_equal_blocks(df=df,
                                            start_row=n_blocks_s1*block_size_s1,
@@ -173,29 +201,22 @@ def get_time_series_from_average_df(pd_series, label):
     
     Returns:
         (`obj`): PandasDataFrame with the time series and their statistical error
-
-    Authors:
-        - Pablo M. Blanco, Norwegian University of Science and Technology
     """
     import numpy as np
     dist_dict={}
     expected_labels=["mean", "errmean", "nsamples"]
-
     for data_str in pd_series[label]:
         clean_data_str=data_str.strip("{").strip("}")
         for data_set in clean_data_str.split("]"):
             data_list=data_set.split(":")
             if len(data_list) == 1:
-                continue
-            
+                continue            
             # Parse data and label
             data=list(data_list[1][2:].split(","))
             data=np.array([float(x) for x in data])
-            
             clean_label=data_list[0].strip("'").strip(",").strip()
             label_sts=clean_label.split("_")[-1]
-            label_qty=clean_label[:-len(label_sts)-1].strip("'")
-            
+            label_qty=clean_label[:-len(label_sts)-1].strip("'")            
             if label_sts not in expected_labels:
                 raise ValueError(f"Error while parsing the df, found label for stats {label_sts}")
 
@@ -203,10 +224,7 @@ def get_time_series_from_average_df(pd_series, label):
                 dist_dict[label_qty][label_sts]=data
             else:
                 dist_dict[label_qty]={}
-                dist_dict[label_qty][label_sts]=data
-            
-
-    
+                dist_dict[label_qty][label_sts]=data 
     return pd.DataFrame.from_dict(dist_dict)
 
 
@@ -224,13 +242,6 @@ def block_analyze(full_data, n_blocks=16, time_col = "time", equil=0.1,  columns
 
     Returns:
         `result`: pandas dataframe with the mean (mean), statistical error (err_mean), number of effective samples (n_eff) and correlation time (tau_int) of each observable.
-
-    Note:
-        This function should not be modified without consulting first its authors.
-
-    Authors:
-        - Peter Kosovan, Charles University
-        - Pablo M. Blanco, Norwegian University of Science and Technology
     """
 
     dt = get_dt(full_data) # check that the data was stored with the same time interval dt
@@ -255,8 +266,6 @@ def block_analyze(full_data, n_blocks=16, time_col = "time", equil=0.1,  columns
         print(f"n_blocks b = {n_blocks},  block_size k = {block_size}")
 
     # calculate the mean per each block
-
-    series_data = pd.Series(data.iat[0, 0], index=data.columns)
     blocks = split_dataframe(df=data,
                              n_blocks=n_blocks)
 
@@ -271,9 +280,10 @@ def block_analyze(full_data, n_blocks=16, time_col = "time", equil=0.1,  columns
     err_mean = np.sqrt(var_blocks/n_blocks) # standard error of the mean by eq.(37) of Janke
     tau_int = dt*block_size * var_blocks / var_all /2.# eq.(38) of Janke
     n_eff = n_samples / (2*tau_int/dt) # effective number of samples in the whole simulation using eq.(28) of Janke
+
     # concatenate the observables and atribute a key for each (unique index)
-    result = pd.concat( [ mean, err_mean, n_eff, tau_int], keys= [ "mean", "err_mean", "n_eff", "tau_int" ])
-    result = pd.concat( [ pd.Series({"n_blocks":n_blocks,"block_size":block_size}), result] )
+    result = pd.concat( [ mean, err_mean, n_eff, tau_int], keys= [ "mean", "err_mean", "n_eff", "tau_int" ], join="inner")
+    result = pd.concat( [ pd.Series([n_blocks,block_size], index=[('n_blocks',),('block_size',)]), result])
     return result
 
 def get_dt(data):
@@ -373,7 +383,6 @@ def create_histogram_df_from_distribution_list(distribution_list, start, end, nb
         cnt+=5000
     return  pd.DataFrame.from_dict(dict_hist)
 
-
 def find_index_with_value_in_df(df,column_name, value, tol=0.01):
     """
     Finds the index in the pandas DataFrame `df` with a column `column_name` and a row `value`.
@@ -386,7 +395,6 @@ def find_index_with_value_in_df(df,column_name, value, tol=0.01):
 
     Returns:
         index (int): Index found.
-
     """
     index = np.where(abs(df[column_name]-value)/value < tol)
     return index[0]
@@ -403,9 +411,6 @@ def built_output_name(input_dict):
 
     Note:
         The standard formatting rule is parametername1-parametervalue1_parametername2-parametervalue2
-    
-    Authors:
-        - Pablo M. Blanco, Norwegian University of Science and Technology (NTNU) 
     """
     output_name=""
     for label in input_dict:

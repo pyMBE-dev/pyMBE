@@ -19,6 +19,7 @@ from lib import handy_functions as hf
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library()
 
+valid_modes=["short-run","long-run", "test"]
 parser = argparse.ArgumentParser(description='Script to run the peptide test cases for pyMBE')
 parser.add_argument('--sequence', 
                     type=str, 
@@ -35,7 +36,7 @@ parser.add_argument('--verbose',
 parser.add_argument('--mode', 
                     type=str, 
                     default= "short-run",  
-                    help='sets for how long the simulation runs, valid modes are "short-run" and "long-run"')
+                    help='sets for how long the simulation runs, valid modes are {valid_modes}')
 args = parser.parse_args()
 
 # Inputs
@@ -46,7 +47,6 @@ inputs={"pH": args.pH,
 
 mode=args.mode
 
-valid_modes=["short-run","long-run"]
 if mode not in valid_modes:
     raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
@@ -55,9 +55,12 @@ if mode == "short-run":
     Nsamples = 1000
     MD_steps_per_sample = 1000
 
-if mode == "long-run":
+elif mode == "long-run":
     Nsamples = 5000
     MD_steps_per_sample = 5000
+elif mode == "test":
+    Nsamples = 500
+    MD_steps_per_sample = 700
 
 SEED = 100
 dt = 0.01
