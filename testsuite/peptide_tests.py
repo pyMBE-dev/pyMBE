@@ -23,8 +23,9 @@ def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol,mode="test"):
     # Get data folder
     time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series")
     # clean up data folder
-    if len(os.listdir(time_series_folder_path)):
-        os.system(f"rm {time_series_folder_path}/*")
+    if os.path.exists(time_series_folder_path):
+        if len(os.listdir(time_series_folder_path)):
+            os.system(f"rm {time_series_folder_path}/*")
     print(f"Running tests for {sequence}")
     for pH in (pbar := tqdm(test_pH_values)):
         pbar.set_description(f"pH = {pH}")
