@@ -10,6 +10,7 @@ import argparse
 pmb = pyMBE.pymbe_library()
 
 valid_fig_labels=["6a", "6b", "6c"]
+valid_modes=["short-run","long-run", "test"]
 
 parser = argparse.ArgumentParser(description='Script to create the data from Beyer2024')
 parser.add_argument('--fig_label', 
@@ -19,7 +20,7 @@ parser.add_argument('--fig_label',
 parser.add_argument('--mode', 
                     type=str, 
                     default= "long-run",  
-                    help='Sets for how long the simulation runs, valid modes are "short-run" and "long-run"')
+                    help='Sets for how long the simulation runs, valid modes are {valid_modes}')
 parser.add_argument('--plot', 
                     type=bool, 
                     default= False,  
@@ -35,7 +36,7 @@ plot=args.plot
 if fig_label not in valid_fig_labels:
     raise ValueError(f"The figure label {fig_label} is not supported. Supported figure labels are {valid_fig_labels}")
 
-valid_modes=["short-run","long-run"]
+
 if mode not in valid_modes:
     raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
@@ -140,21 +141,30 @@ if plot:
     
     # Plot Ref data
     ref_data=ref_data.sort_values(by="pH",ascending=True)
+    
+    if fig_label in ["6a","6b"]:
+        style={"linestyle":"none", 
+                "marker":"s", 
+                "label":"Lunkad  et al.", 
+                "ms":15,
+                "color":"C0"}
+    else:
+        style={"linestyle":"none", 
+                "marker":"^", 
+                "label":"Blanco  et al.", 
+                "ms":15,
+                "color":"green",  
+                "markeredgewidth":1.5}
+    
     plt.errorbar(ref_data["pH"], 
                    ref_data["charge"], 
                    ref_data["charge_error"], 
-                   linestyle="none", 
-                   marker="s", 
-                   label="Lunkad  et al.", 
-                   ms=15,
-                   color="C0")
-    
-    # Style for Blanco linestyle="none", marker="^", label="Blanco et al.", color="green",  markeredgewidth=1.5
+                    **style)
+
     # Plot data produced by pyMBE
-    
-    data=data.astype({'pH': 'float'}).sort_values(by="pH")
-    data=data[data.sequence == f"{sequence}"]
-    plt.errorbar(data["pH"], 
+    data=data.astype({("pH","value"): 'float'}).sort_values(by=("pH","value"))
+    data=data[data.sequence.value == f"{sequence}"]
+    plt.errorbar(data["pH"]["value"], 
                    data["mean","charge"], 
                    yerr=data["err_mean","charge"], 
                    linestyle="none", 
