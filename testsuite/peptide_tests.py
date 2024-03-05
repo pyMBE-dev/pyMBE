@@ -41,13 +41,15 @@ def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol,mode="test"):
         # Check charge
         test_charge=np.sort(data["mean","charge"].to_numpy())
         ref_charge=np.sort(ref_data["mean","charge"].to_numpy())       
-        # Check that the charge and radius of gyration are consistent
         np.testing.assert_allclose(test_charge, 
                                     ref_charge, 
                                     rtol=rtol, 
                                     atol=atol)
-        np.testing.assert_allclose(data["mean","rg"].to_numpy(), 
-                                    ref_data["mean","rg"].to_numpy(), 
+        # Check rg
+        test_rg=np.sort(data["mean","rg"].to_numpy())
+        ref_rg=np.sort(ref_data["mean","rg"].to_numpy())       
+        np.testing.assert_allclose(test_rg, 
+                                    ref_rg, 
                                     rtol=rtol, 
                                     atol=atol)                               
         print(f"Test for {sequence} succesful")
