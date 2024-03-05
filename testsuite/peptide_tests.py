@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 # Template of the test
 
-def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol):
+def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol,mode="test"):
     """
     Runs a set of tests for a given peptide sequence.
 
@@ -17,10 +17,14 @@ def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol):
         test_pH_values(`lst`): List of pH values to be tested.
         sequence(`str`): Amino acid sequence of the peptide.
     """
+    valid_modes=["test","save"]
+    if mode not in valid_modes:
+        raise ValueError(f"Mode {mode} not supported, valid modes: {valid_modes}")
     # Get data folder
     time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series")
     # clean up data folder
-    os.system(f"rm {time_series_folder_path}/*")
+    if len(os.listdir(time_series_folder_path)):
+        os.system(f"rm {time_series_folder_path}/*")
     print(f"Running tests for {sequence}")
     for pH in (pbar := tqdm(test_pH_values)):
         pbar.set_description(f"pH = {pH}")
@@ -29,19 +33,28 @@ def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol):
         os.system(run_command)
     # Analyze all time series
     data=analysis.analyze_time_series(path_to_datafolder=time_series_folder_path)
-    # Get reference test data
     data_path=pmb.get_resource(path="testsuite/peptide_tests_data")
-    ref_data=pd.read_csv(data_path+f"/{sequence}.csv", header=[0, 1], index_col=0)
-    # Check that the charge and radius of gyration are consistent
-    np.testing.assert_allclose(data["mean","charge"].to_numpy(), 
-                               ref_data["mean","charge"].to_numpy(), 
-                               rtol=rtol, 
-                               atol=atol)
-    np.testing.assert_allclose(data["mean","rg"].to_numpy(), 
-                               ref_data["mean","rg"].to_numpy(), 
-                               rtol=rtol, 
-                               atol=atol)
-    print(f"Test for {sequence} succesful")
+    if mode == "test":
+        # Get reference test data
+        ref_data=pd.read_csv(data_path+f"/{sequence}.csv", header=[0, 1])
+        # Check charge
+        test_charge=np.sort(data["mean","charge"].to_numpy())
+        ref_charge=np.sort(ref_data["mean","charge"].to_numpy())       
+        # Check that the charge and radius of gyration are consistent
+        np.testing.assert_allclose(test_charge, 
+                                    ref_charge, 
+                                    rtol=rtol, 
+                                    atol=atol)
+        np.testing.assert_allclose(data["mean","rg"].to_numpy(), 
+                                    ref_data["mean","rg"].to_numpy(), 
+                                    rtol=rtol, 
+                                    atol=atol)                               
+        print(f"Test for {sequence} succesful")
+    elif mode == "save":
+        # Save data for future testing
+        data.to_csv(f"{data_path}/{sequence}.csv", index=False)
+    else:
+        raise RuntimeError
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library()

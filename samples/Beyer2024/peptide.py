@@ -50,17 +50,7 @@ mode=args.mode
 if mode not in valid_modes:
     raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
-# Simulation parameters
-if mode == "short-run":
-    Nsamples = 1000
-    MD_steps_per_sample = 1000
 
-elif mode == "long-run":
-    Nsamples = 5000
-    MD_steps_per_sample = 5000
-elif mode == "test":
-    Nsamples = 500
-    MD_steps_per_sample = 700
 
 SEED = 100
 dt = 0.01
@@ -95,6 +85,22 @@ elif sequence in Blanco_test_sequence:
     diameter_Na=0.2*pmb.units.nm
     diameter_Cl=0.36*pmb.units.nm
     chain_length=len(sequence)
+
+# Simulation parameters
+if mode == "short-run":
+    Nsamples = 1000
+    MD_steps_per_sample = 1000
+elif mode == "long-run":
+    Nsamples = 5000
+    MD_steps_per_sample = 5000
+elif mode == "test":
+    Nsamples = 500
+    MD_steps_per_sample = 700
+    c_salt = 5e-3 * pmb.units.mol/ pmb.units.L
+    N_peptide_chains = 1
+else:
+    raise RuntimeError()
+
 
 pmb.define_peptide (name=sequence, sequence=sequence, model=model)
 

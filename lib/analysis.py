@@ -50,7 +50,7 @@ def analyze_time_series(path_to_datafolder):
                     index_list=[]
                     for key in data_dict.keys():
                         value_list.append(data_dict[key])
-                        index_list.append((key,))
+                        index_list.append((key,"value"))
                     analyzed_data = pd.concat([pd.Series(value_list, index=index_list), analyzed_data])
                     data = add_data_to_df(df=data,
                                         data_dict=analyzed_data.to_dict(),
