@@ -51,33 +51,6 @@ class pymbe_library():
         self.setup_df()
         return
     
-    def activate_motion_of_rigid_object(self, name, espresso_system):
-        '''
-        Activates the motion of the rigid object `name` in the `espresso_system`.
-
-        Args:
-            name(`str`): Label of the object.
-            espresso_system(`obj`): Instance of a system object from the espressomd library.
-
-        Note:
-            - It requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
-        '''
-        print ('activate_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
-        pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
-        if pmb_type != 'protein':
-            raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
-        molecule_ids_list = self.df.loc[self.df['name']==name].molecule_id.to_list()
-        for molecule_id in molecule_ids_list:    
-            particle_ids_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
-            center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
-            rigid_object_center = espresso_system.part.add(pos=center_of_mass,
-                                                           rotation=[True,True,True], 
-                                                           type=self.propose_unused_type())
-            for particle_id in particle_ids_list:
-                pid = espresso_system.part.by_id(particle_id)
-                pid.vs_auto_relate_to(rigid_object_center.id)
-        return
-
     def add_bond_in_df(self, particle_id1, particle_id2, use_default_bond=False):
         """
         Adds a bond entry on the `pymbe.df` storing the particle_ids of the two bonded particles.
@@ -1508,6 +1481,34 @@ class pymbe_library():
             self_consistent_run=0
 
         return cH_res, cOH_res, cNa_res, cCl_res
+
+    def enable_motion_of_rigid_object(self, name, espresso_system):
+        '''
+        Activates the motion of the rigid object `name` in the `espresso_system`.
+
+        Args:
+            name(`str`): Label of the object.
+            espresso_system(`obj`): Instance of a system object from the espressomd library.
+
+        Note:
+            - It requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
+        '''
+        print ('activate_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
+        pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
+        if pmb_type != 'protein':
+            raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
+        molecule_ids_list = self.df.loc[self.df['name']==name].molecule_id.to_list()
+        for molecule_id in molecule_ids_list:    
+            particle_ids_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+            center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
+            rigid_object_center = espresso_system.part.add(pos=center_of_mass,
+                                                           rotation=[True,True,True], 
+                                                           type=self.propose_unused_type())
+            for particle_id in particle_ids_list:
+                pid = espresso_system.part.by_id(particle_id)
+                pid.vs_auto_relate_to(rigid_object_center.id)
+        return
+
 
     def filter_df(self, pmb_type):
         """

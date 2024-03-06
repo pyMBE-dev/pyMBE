@@ -78,7 +78,7 @@ espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 protein_filename = pyMBE_path+"/"+args.path_to_cg
 
 #Reads the VTF file of the protein model
-topology_dict = pmb.read_protein_vtf_in_df (filename=protein_filename)
+topology_dict = pmb.read_cg_protein_model (filename=protein_filename)
 #Defines the protein in the pmb.df
 pmb.define_protein (name=protein_name, topology_dict=topology_dict, model = '2beadAA')
 
@@ -127,7 +127,7 @@ pmb.create_protein(name=protein_name,
 
 #Here we activate the motion of the protein 
 if args.move_protein:
-    pmb.activate_motion_of_rigid_object(espresso_system=espresso_system,
+    pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
                                         name=protein_name)
 
 # Here we put the protein on the center of the simulation box
