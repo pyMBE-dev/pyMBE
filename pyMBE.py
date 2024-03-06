@@ -516,6 +516,75 @@ class pymbe_library():
             self.add_value_to_df(key=(column_key,''),index=index,new_value=self.np.nan, warning=False)
         return
 
+    def convert_columns_to_original_format (self, df):
+        """
+        Converts the columns of the Dataframe to the original format in pyMBE.
+        
+        Args:
+            df(`DataFrame`): dataframe with pyMBE information as a string  
+        
+        """
+
+        from ast import literal_eval
+
+        columns_with_units = ['diameter', 'epsilon']
+
+        columns_with_list_or_dict = ['sequence', 'residue_list','side_chains', 'parameters_of_the_potential']
+
+        column_with_special_dict = ['bond_object']
+
+        for column_name in columns_with_list_or_dict:
+            df[column_name] = df[column_name].apply(lambda x: literal_eval(x) if self.pd.notnull(x) else x)
+
+        for column_name in columns_with_units:
+
+            df[column_name] = df[column_name].apply(lambda x: self.create_variable_with_units(x) if self.pd.notnull(x) else x)
+
+        for column_name in column_with_special_dict:
+
+            df[column_name] = df[column_name].apply(lambda x: (self.convert_str_to_bond_object(x)) if self.pd.notnull(x) else x)
+
+        return df
+    
+    def convert_str_to_bond_object (self, bond_str):
+        
+        """
+        Convert a row read as a `str` to the corresponding bond object. There are two supported bonds: HarmonicBond and  FeneBond
+
+        Args:
+            bond_str (`strt`): string with the information of a bond object
+
+        Returns:
+            bond_object(`obj`): EsPRESSo bond object 
+        """
+        
+        from ast import literal_eval
+        from espressomd.interactions import HarmonicBond
+        from espressomd.interactions import FeneBond
+
+        supported_bonds = ['HarmonicBond', 'FeneBond']
+
+        for bond in supported_bonds:
+
+            variable = self.re.subn(f'{bond}', '', bond_str)
+
+            if variable[1] == 1: 
+            
+                params = literal_eval(variable[0])
+
+                if bond == 'HarmonicBond':
+
+                    bond_object = HarmonicBond(r_cut =params['r_cut'], k = params['k'], r_0=params['r_0'])
+
+                elif bond == 'FeneBond':
+
+                    bond_object = FeneBond(k = params['k'], d_r_max =params['d_r_max'], r_0=params['r_0'])
+
+        return bond_object   
+
+
+
+
     def copy_df_entry(self, name, column_name, number_of_copies):
         '''
         Creates 'number_of_copies' of a given 'name' in `pymbe.df`.
@@ -2012,75 +2081,9 @@ class pymbe_library():
         columns_names = self.setup_df()
         df.columns = columns_names
 
-        self.df= self.convert_columns(df)
+        self.df= self.convert_columns_to_original_format(df)
 
-        return self.df
-
-    def convert_columns_to_original_format (self, df):
-        """
-        Converts the columns of the Dataframe to the original format in pyMBE.
-        
-        Args:
-            df(`DataFrame`):
-        
-        """
-
-        from ast import literal_eval
-
-        columns_with_units = ['diameter', 'epsilon']
-
-        columns_with_list_or_dict = ['sequence', 'residue_list','side_chains', 'parameters_of_the_potential']
-
-        column_with_special_dict = ['bond_object']
-
-        for column_name in columns_with_list_or_dict:
-            df[column_name] = df[column_name].apply(lambda x: literal_eval(x) if self.pd.notnull(x) else x)
-
-        for column_name in columns_with_units:
-
-            df[column_name] = df[column_name].apply(lambda x: self.create_variable_with_units(x) if self.pd.notnull(x) else x)
-
-        for column_name in column_with_special_dict:
-
-            df[column_name] = df[column_name].apply(lambda x: (self.convert_str_to_bond_object(x)) if self.pd.notnull(x) else x)
-
-        return df
-    
-    def convert_str_to_bond_object (self, bond_str):
-        
-        """
-        Convert a row read as a `str` to the corresponding bond object. There are two supported bonds: HarmonicBond and  FeneBond
-
-        Args:
-            bond_str (`str`): string with the information of a bond object
-
-        Returns:
-            bond_object(`obj`): 
-        """
-        
-        from ast import literal_eval
-        from espressomd.interactions import HarmonicBond
-        from espressomd.interactions import FeneBond
-
-        supported_bonds = ['HarmonicBond', 'FeneBond']
-
-        for bond in supported_bonds:
-
-            variable = self.re.subn(f'{bond}', '', bond_str)
-
-            if variable[1] == 1: 
-            
-                params = literal_eval(variable[0])
-
-                if bond == 'HarmonicBond':
-
-                    bond_object = HarmonicBond(r_cut =params['r_cut'], k = params['k'], r_0=params['r_0'])
-
-                elif bond == 'FeneBond':
-
-                    bond_object = FeneBond(k = params['k'], d_r_max =params['d_r_max'], r_0=params['r_0'])
-
-        return bond_object    
+        return self.df 
 
     def read_cg_protein_model (self,filename,unit_length=None):
         """
