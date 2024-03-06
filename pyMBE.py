@@ -1043,7 +1043,7 @@ class pymbe_library():
         Returns a pint object with the value and units defined in `variable`.
 
         Args:
-            variable(`dict` ir `str`): {'value': value, 'units': units}
+            variable(`dict` or `str`): {'value': value, 'units': units}
         Returns:
             variable_with_units(`obj`): variable with units using the pyMBE UnitRegistry.
         """        
