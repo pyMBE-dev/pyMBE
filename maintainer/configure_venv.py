@@ -26,4 +26,4 @@ if not os.environ.get("VIRTUAL_ENV"):
 
 if not espressomd_found:
     make_pth("espresso", os.path.join(args.espresso_path, "src", "python"))
-make_pth("pymbe", os.path.dirname(os.path.dirname(__file__)))
+make_pth("pymbe", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
