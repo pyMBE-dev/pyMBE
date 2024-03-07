@@ -9,7 +9,7 @@ docs:
 	pdoc ./pyMBE.py -o ./docs --docformat google 
 
 testsuite:
-	${ESPResSo_build_path}/pypresso testsuite/peptide_tests.py
+	python3 testsuite/peptide_tests.py
 
 sample:
 	python3 sample_scripts/peptide_simulation_example.py
