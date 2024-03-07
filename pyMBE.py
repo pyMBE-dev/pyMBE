@@ -2855,12 +2855,3 @@ class pymbe_library():
             for particle in espresso_system.part:
                 coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
         return 
-<<<<<<< HEAD
-<<<<<<< HEAD
-    
-=======
-
-
->>>>>>> main
-=======
->>>>>>> 01aff9d397de1e65a9eb86fabe8e4ce3776c2b00
