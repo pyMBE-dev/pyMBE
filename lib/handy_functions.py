@@ -1,5 +1,5 @@
 
-def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3):
+def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3,verbose=True):
     """
     Sets up electrostatic interactions in espressomd. 
     Inputs:
@@ -9,6 +9,7 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
     method: method prefered for computing the electrostatic interactions. Currently only P3M (label = p3m) and Debye-Huckel (label = DH) are implemented
     tune_p3m: If true (default), tunes the p3m parameters to improve efficiency
     accuracy: desired accuracy for electrostatics, by default 1e-3
+    verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
     """
     import espressomd.electrostatics
     import numpy as np
@@ -29,8 +30,8 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
     N_A=6.02214076e23    / units.mol
 
     BJERRUM_LENGTH = e.to('reduced_charge')**2 / (4 * units.pi * units.eps0 * solvent_permittivity * kT.to('reduced_energy'))
-
-    print('\n Bjerrum length ', BJERRUM_LENGTH.to('nm'), '=', BJERRUM_LENGTH.to('reduced_length'))
+    if verbose:
+        print('\n Bjerrum length ', BJERRUM_LENGTH.to('nm'), '=', BJERRUM_LENGTH.to('reduced_length'))
 
     COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * kT.to('reduced_energy') 
     
@@ -48,13 +49,16 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
 
             raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
 
-
-        print('Debye kappa ', KAPPA.to('nm'), '=', KAPPA.to('reduced_length'), )
+        if verbose:
+            print('Debye kappa ', KAPPA.to('nm'), '=', KAPPA.to('reduced_length'), )
     print()
 
     if method == 'p3m':
 
-        coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.magnitude, accuracy=accuracy)
+        coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.magnitude, 
+                                                accuracy=accuracy,
+                                                verbose=verbose,
+                                                tune=tune_p3m)
 
         if tune_p3m:
             espresso_system.time_step=0.01
@@ -82,7 +86,8 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
 
     
     espresso_system.actors.add(coulomb)
-    print("\n Electrostatics successfully added to the system \n")
+    if verbose:
+        print("\n Electrostatics successfully added to the system \n")
 
     return
 
@@ -97,12 +102,10 @@ def minimize_espresso_system_energy(espresso_system, skin=1, gamma=1, Nsteps=100
     Nsteps: total number of steps of the minimization (Default=10000)
     time_step: Time step used for the energy minimization (Default=1e-2)
     max_displacement: maximum particle displacement allowed (Default=0.1 reduced length)
+    verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
     """
-
     if verbose:
-
         print("\n*** Minimazing system energy... ***\n")
-    
     espresso_system.cell_system.skin = skin
     espresso_system.time_step=time_step
     if verbose:
@@ -114,13 +117,11 @@ def minimize_espresso_system_energy(espresso_system, skin=1, gamma=1, Nsteps=100
     espresso_system.integrator.set_vv()  # to switch back to velocity Verlet
     espresso_system.integrator.run(int(Nsteps/2))
     espresso_system.thermostat.turn_off()
-    
     # Reset the time of the system to 0
     if reset:
         espresso_system.time = 0.
     if verbose:
         print("\n Minimization finished \n")
-
     return
 
 def setup_langevin_dynamics(espresso_system, kT, SEED,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):

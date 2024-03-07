@@ -21,17 +21,14 @@ parser.add_argument('--mode',
                     type=str, 
                     default= "long-run",  
                     help='Sets for how long the simulation runs, valid modes are {valid_modes}')
-parser.add_argument('--plot', 
-                    type=bool, 
-                    default= False,  
-                    help='Switch to activate/deactivate to plot the data"')
+parser.add_argument('--restart', action='store_true', help="Switch to plot the data")
 args = parser.parse_args()
 
 # Inputs
 fig_label=args.fig_label
 mode=args.mode
 plot=args.plot
-
+print(f"plot {args.plot}")
 # Sanity checks
 if fig_label not in valid_fig_labels:
     raise ValueError(f"The figure label {fig_label} is not supported. Supported figure labels are {valid_fig_labels}")

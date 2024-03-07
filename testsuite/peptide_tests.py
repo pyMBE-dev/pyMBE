@@ -29,7 +29,7 @@ def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol,mode="test"):
     print(f"Running tests for {sequence}")
     for pH in (pbar := tqdm(test_pH_values)):
         pbar.set_description(f"pH = {pH}")
-        run_command=f"python3 {script_path} --sequence {sequence} --pH {pH} --mode test"
+        run_command=f"python3 {script_path} --sequence {sequence} --pH {pH} --mode test --no_verbose"
         print(run_command)
         os.system(run_command)
     # Analyze all time series

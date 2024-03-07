@@ -29,14 +29,11 @@ parser.add_argument('--pH',
                     type=float, 
                     required= True,  
                     help='pH of the solution')
-parser.add_argument('--verbose', 
-                    type=bool, 
-                    default= False,  
-                    help='switch to activate prints')
 parser.add_argument('--mode', 
                     type=str, 
                     default= "short-run",  
                     help='sets for how long the simulation runs, valid modes are {valid_modes}')
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose")
 args = parser.parse_args()
 
 # Inputs
@@ -44,13 +41,11 @@ sequence=args.sequence
 pH=args.pH
 inputs={"pH": args.pH,
         "sequence": args.sequence}
-
 mode=args.mode
+verbose=args.no_verbose
 
 if mode not in valid_modes:
     raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
-
-
 
 SEED = 100
 dt = 0.01
@@ -138,18 +133,20 @@ pmb.create_pmb_object(name=sequence,
 pmb.create_counterions(object_name=sequence,
                     cation_name=cation_name,
                     anion_name=anion_name,
-                    espresso_system=espresso_system) 
+                    espresso_system=espresso_system,
+                    verbose=verbose) 
 
 c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                      cation_name=cation_name,
                      anion_name=anion_name,
-                     c_salt=c_salt)
+                     c_salt=c_salt,
+                    verbose=verbose)
 
 RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, 
                                                 constant_pH=pH, 
                                                 SEED=SEED)
 
-if args.verbose:
+if verbose:
 
     print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
     print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
@@ -161,22 +158,27 @@ espresso_system.setup_type_map(type_list = list(type_map.values()))
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
 RE.set_non_interacting_type (type=non_interacting_type)
-print('The non interacting type is set to ', non_interacting_type)
+if verbose:
+    print('The non interacting type is set to ', non_interacting_type)
 
 #Setup the potential energy
-pmb.setup_lj_interactions (espresso_system=espresso_system)
-hf.minimize_espresso_system_energy (espresso_system=espresso_system)
+pmb.setup_lj_interactions (espresso_system=espresso_system,
+                            warnings=verbose)
+hf.minimize_espresso_system_energy (espresso_system=espresso_system,
+                                    verbose=verbose)
 hf.setup_electrostatic_interactions(units=pmb.units,
-                                        espresso_system=espresso_system,
-                                        kT=pmb.kT)
-hf.minimize_espresso_system_energy (espresso_system=espresso_system)
+                                    espresso_system=espresso_system,
+                                    kT=pmb.kT,
+                                    verbose=verbose)
+hf.minimize_espresso_system_energy (espresso_system=espresso_system,
+                                    verbose=verbose)
 
 
 hf.setup_langevin_dynamics(espresso_system=espresso_system, 
-                                    kT = pmb.kT, 
-                                    SEED = SEED,
-                                    time_step=dt,
-                                    tune_skin=False)
+                            kT = pmb.kT, 
+                            SEED = SEED,
+                            time_step=dt,
+                            tune_skin=False)
 
 espresso_system.cell_system.skin=0.4
 
@@ -188,8 +190,7 @@ time_series={}
 for label in labels_obs:
     time_series[label]=[]
 
-for sample in (pbar := tqdm(range(Nsamples))):
-    pbar.set_description(f"Sample = {sample}")
+for sample in (pbar := tqdm(range(Nsamples),miniters=100)):
     # Run LD
     espresso_system.integrator.run(steps=MD_steps_per_sample)
     # Run MC        
@@ -216,6 +217,6 @@ filename=analysis.built_output_name(input_dict=inputs)
 
 time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
 
-if args.verbose:
+if verbose:
     print("*** DONE ***")
    
