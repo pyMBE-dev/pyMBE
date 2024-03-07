@@ -70,7 +70,9 @@ espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
 #Reads the VTF file of the protein model
 
-topology_dict = pmb.read_cg_protein_model (filename=protein_filename)
+path_to_cg=pmb.get_resource(args.path_to_cg)
+
+topology_dict = pmb.read_cg_protein_model (filename=path_to_cg)
 
 path_to_cg=pmb.get_resource(args.path_to_cg)
 
