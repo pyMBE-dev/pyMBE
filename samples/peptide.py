@@ -11,14 +11,6 @@ from espressomd.io.writer import vtf
 from espressomd import interactions
 from espressomd import electrostatics
 
-
-# Find path to pyMBE
-current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-path_end_index=current_dir.find("pyMBE")
-pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
-sys.path.insert(0, pyMBE_path)
-
-
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
@@ -53,8 +45,11 @@ pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 N_peptide_chains = 4
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-pmb.load_interaction_parameters (filename=pyMBE_path+'/reference_parameters/interaction_parameters/Lunkad2021.txt') 
-pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/Hass2015.txt')
+
+path_to_interactions=pmb.get_resource("reference_parameters/interaction_parameters/Lunkad2021.txt")
+path_to_pka=pmb.get_resource("reference_parameters/pka_sets/Hass2015.txt")
+pmb.load_interaction_parameters (filename=path_to_interactions) 
+pmb.load_pka_set (path_to_pka)
 
 # Use a generic parametrization for the aminoacids not parametrized
 
