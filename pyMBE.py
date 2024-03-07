@@ -504,8 +504,6 @@ class pymbe_library():
 
         columns_with_list_or_dict = ['sequence', 'residue_list','side_chains', 'parameters_of_the_potential']
 
-        column_with_special_dict = ['bond_object']
-
         for column_name in columns_with_list_or_dict:
             df[column_name] = df[column_name].apply(lambda x: literal_eval(x) if self.pd.notnull(x) else x)
 
@@ -513,9 +511,7 @@ class pymbe_library():
 
             df[column_name] = df[column_name].apply(lambda x: self.create_variable_with_units(x) if self.pd.notnull(x) else x)
 
-        for column_name in column_with_special_dict:
-
-            df[column_name] = df[column_name].apply(lambda x: (self.convert_str_to_bond_object(x)) if self.pd.notnull(x) else x)
+        df['bond_object'] = df['bond_object'].apply(lambda x: (self.convert_str_to_bond_object(x)) if self.pd.notnull(x) else x)
 
         return df
     
