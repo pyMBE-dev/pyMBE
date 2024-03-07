@@ -12,12 +12,6 @@ import os
 import sys
 import inspect
 
-# Find path to pyMBE
-current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-path_end_index=current_dir.find("pyMBE")
-pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
-sys.path.insert(0, pyMBE_path)
-
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
@@ -98,8 +92,10 @@ numerical_comparison['espresso'] = znet_espresso
 
 numerical_comparison['error %'] = abs(( (numerical_comparison['espresso']) -  (numerical_comparison['ref_torres'])) /  (numerical_comparison['ref_torres'])) *100 
 
-#Save `numerical_comparison` to a csv file 
-numerical_comparison.to_csv(f'{pyMBE_path}/tests/observables_results/{pdb}-numerical_comparison.csv',index = True)
+#Save `numerical_comparison` to a csv file
+
+path_to_tests=pmb.get_resource("tests") 
+numerical_comparison.to_csv(f'{path_to_tests}/{pdb}-numerical_comparison.csv',index = True)
 
 #Plot results  
 
@@ -177,7 +173,7 @@ ax1.spines['bottom'].set_lw(3)
 ax1.legend(frameon =False)
 
 plt.legend(prop={'size': 35})
-pdf_name = f'{pyMBE_path}/tests/observables_results/{pdb}-analyzed_observables.pdf'
+pdf_name = f'{path_to_tests}/observables_results/{pdb}-analyzed_observables.pdf'
 plt.savefig(pdf_name)
 plt.show()
 

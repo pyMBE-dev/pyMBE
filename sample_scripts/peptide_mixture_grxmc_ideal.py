@@ -11,12 +11,6 @@ from espressomd.io.writer import vtf
 from espressomd import interactions
 from espressomd import electrostatics
 
-# Find path to pyMBE
-current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-path_end_index=current_dir.find("pyMBE")
-pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
-sys.path.insert(0, pyMBE_path)
-
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
@@ -37,7 +31,7 @@ MD_steps_per_sample = 0
 steps_eq = int(Samples_per_pH)
 N_samples_print = 1000  # Write the trajectory every 100 samples
 probability_reaction =1
-SEED = 100
+SEED = 42
 dt = 0.001
 solvent_permitivity = 78.3
 
@@ -52,8 +46,10 @@ pep2_concentration = 1e-2 *pmb.units.mol/pmb.units.L
 N_peptide2_chains = 10
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-pmb.load_interaction_parameters (filename=pyMBE_path+'/reference_parameters/interaction_parameters/Lunkad2021.txt') 
-pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/Hass2015.txt')
+path_to_interactions=pmb.get_resource("reference_parameters/interaction_parameters/Lunkad2021.txt")
+path_to_pka=pmb.get_resource("reference_parameters/pka_sets/Hass2015.txt")
+pmb.load_interaction_parameters (filename=path_to_interactions) 
+pmb.load_pka_set (path_to_pka)
 
 # Use a generic parametrization for the aminoacids not parametrized
 not_parametrized_neutral_aminoacids = ['A','N','Q','G','I','L','M','F','P','O','S','U','T','W','V','J']
@@ -137,7 +133,7 @@ total_ionisible_groups = len (list_ionisible_groups)
 
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 
-RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, sodium_name=sodium_name, chloride_name=chloride_name, SEED=SEED)
+RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, SEED=SEED)
 print('The acid-base reaction has been sucessfully setup for ', sucessful_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
@@ -184,7 +180,7 @@ for index in tqdm(range(len(pH_range))):
     Z_sim=[]
     num_plus=[]
 
-    RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions (pH_res=pH_value, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, sodium_name=sodium_name, chloride_name=chloride_name, SEED=SEED)
+    RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions (pH_res=pH_value, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, SEED=SEED)
 
     # Inner loop for sampling each pH value
 

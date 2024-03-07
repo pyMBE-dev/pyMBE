@@ -1405,7 +1405,7 @@ class pymbe_library():
 
         return
 
-    def determine_reservoir_concentrations(self, pH_res, c_salt_res, excess_chemical_potential_monovalent_pair, max_number_sc_runs=200):
+    def determine_reservoir_concentrations(self, pH_res, c_salt_res, activity_coefficient_monovalent_pair, max_number_sc_runs=200):
         """
         Determines the concentrations of the various species in the reservoir for given values of the pH and salt concentration.
         To do this, a system of nonlinear equations involving the pH, the ionic product of water, the activity coefficient of an
@@ -1416,7 +1416,7 @@ class pymbe_library():
         Args:
             pH_res ('float'): pH-value in the reservoir.
             c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
-            excess_chemical_potential_monovalent_pair ('callable', optional): A function that calculates the excess chemical potential of an ion pair as a function of the ionic strength.
+            activity_coefficient_monovalent_pair ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
 
         Returns:
             cH_res ('float'): Concentration of H+ ions.
@@ -1448,7 +1448,7 @@ class pymbe_library():
                 if(self_consistent_run<max_number_sc_runs):
                     self_consistent_run+=1
                     ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-                    cOH_res = KW / (cH_res * self.np.exp(excess_chemical_potential_monovalent_pair(ionic_strength_res)/self.kT))
+                    cOH_res = KW / (cH_res * activity_coefficient_monovalent_pair(ionic_strength_res))
                     if (cOH_res>=cH_res):
                         #adjust the concentration of sodium if there is excess OH- in the reservoir:
                         cNa_res = c_salt_res + (cOH_res-cH_res)
@@ -1464,7 +1464,7 @@ class pymbe_library():
 
         cH_res, cOH_res, cNa_res, cCl_res = determine_reservoir_concentrations_selfconsistently(cH_res, c_salt_res)
         ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-        determined_pH = -self.np.log10(cH_res.to('mol/L').magnitude * self.np.exp(excess_chemical_potential_monovalent_pair(ionic_strength_res)/(2 * self.kT)))
+        determined_pH = -self.np.log10(cH_res.to('mol/L').magnitude * self.np.sqrt(activity_coefficient_monovalent_pair(ionic_strength_res)))
 
         while abs(determined_pH-pH_res)>1e-6:
             if (determined_pH>pH_res):
@@ -1473,7 +1473,7 @@ class pymbe_library():
                 cH_res /= 1.003
             cH_res, cOH_res, cNa_res, cCl_res = determine_reservoir_concentrations_selfconsistently(cH_res, c_salt_res)
             ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-            determined_pH = -self.np.log10(cH_res.to('mol/L').magnitude * self.np.exp(excess_chemical_potential_monovalent_pair(ionic_strength_res)/(2 * self.kT)))
+            determined_pH = -self.np.log10(cH_res.to('mol/L').magnitude * self.np.sqrt(activity_coefficient_monovalent_pair(ionic_strength_res)))
             self_consistent_run=0
 
         return cH_res, cOH_res, cNa_res, cCl_res
@@ -1809,6 +1809,20 @@ class pymbe_library():
         radius_map  = self.pd.concat([state_one,state_two],axis=0).to_dict()
         
         return radius_map
+
+    def get_resource(self, path):
+        '''
+        Locate a file resource of the pyMBE package.
+
+        Args:
+            path(`str`): Relative path to the resource
+
+        Returns:
+            path(`int`): Absolute path to the resource
+
+        '''
+        import os
+        return os.path.join(os.path.dirname(__file__), path)
 
     def get_type_map(self):
         """
@@ -2349,7 +2363,7 @@ class pymbe_library():
             sucessfull_reactions_labels.append(name)
         return RE, sucessfull_reactions_labels
 
-    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, sodium_name, chloride_name, SEED, excess_chemical_potential_monovalent_pair=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, SEED, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2362,10 +2376,10 @@ class pymbe_library():
             c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             proton_name ('str'): Name of the proton (H+) particle.
             hydroxide_name ('str'): Name of the hydroxide (OH-) particle.
-            sodium_name ('str'): Name of the sodium (Na+) particle.
-            chloride_name ('str'): Name of the chloride (Cl-) particle.
+            salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
+            salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
             SEED ('int'): Seed for the random number generator.
-            excess_chemical_potential_monovalent_pair ('callable', optional): A function that calculates the excess chemical potential of an ion pair as a function of the ionic strength.
+            activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`float`, optional): For distances shorter than this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
@@ -2386,9 +2400,9 @@ class pymbe_library():
         else:
             exclusion_radius_per_type = {}
         
-        #If no function for the excess chemical potential is provided, the ideal case is assumed.
-        if excess_chemical_potential_monovalent_pair is None:
-            excess_chemical_potential_monovalent_pair = lambda x: 0.0 * self.kT
+        #If no function for the activity coefficient is provided, the ideal case is assumed.
+        if activity_coefficient is None:
+            activity_coefficient = lambda x: 1.0
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
@@ -2397,31 +2411,31 @@ class pymbe_library():
                                                     )
 
         # Determine the concentrations of the various species in the reservoir and the equilibrium constants
-        cH_res, cOH_res, cNa_res, cCl_res = self.determine_reservoir_concentrations(pH_res, c_salt_res, excess_chemical_potential_monovalent_pair)
+        cH_res, cOH_res, cNa_res, cCl_res = self.determine_reservoir_concentrations(pH_res, c_salt_res, activity_coefficient)
         ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-        activity_coefficient = self.np.exp(excess_chemical_potential_monovalent_pair(ionic_strength_res)/self.kT)
-        K_W = cH_res.to('1/(N_A * reduced_length**3)') * cOH_res.to('1/(N_A * reduced_length**3)') * activity_coefficient
-        K_NACL = cNa_res.to('1/(N_A * reduced_length**3)') * cCl_res.to('1/(N_A * reduced_length**3)') * activity_coefficient
-        K_HCL = cH_res.to('1/(N_A * reduced_length**3)') * cCl_res.to('1/(N_A * reduced_length**3)') * activity_coefficient
+        determined_activity_coefficient = activity_coefficient(ionic_strength_res)
+        K_W = cH_res.to('1/(N_A * reduced_length**3)') * cOH_res.to('1/(N_A * reduced_length**3)') * determined_activity_coefficient
+        K_NACL = cNa_res.to('1/(N_A * reduced_length**3)') * cCl_res.to('1/(N_A * reduced_length**3)') * determined_activity_coefficient
+        K_HCL = cH_res.to('1/(N_A * reduced_length**3)') * cCl_res.to('1/(N_A * reduced_length**3)') * determined_activity_coefficient
 
         proton_es_type = self.df.loc[self.df['name']==proton_name].state_one.es_type.values[0]
         hydroxide_es_type = self.df.loc[self.df['name']==hydroxide_name].state_one.es_type.values[0]     
-        sodium_es_type = self.df.loc[self.df['name']==sodium_name].state_one.es_type.values[0]
-        chloride_es_type = self.df.loc[self.df['name']==chloride_name].state_one.es_type.values[0]     
+        salt_cation_es_type = self.df.loc[self.df['name']==salt_cation_name].state_one.es_type.values[0]
+        salt_anion_es_type = self.df.loc[self.df['name']==salt_anion_name].state_one.es_type.values[0]     
 
         proton_charge = self.df.loc[self.df['name']==proton_name].state_one.charge.values[0]
         hydroxide_charge = self.df.loc[self.df['name']==hydroxide_name].state_one.charge.values[0]     
-        sodium_charge = self.df.loc[self.df['name']==sodium_name].state_one.charge.values[0]
-        chloride_charge = self.df.loc[self.df['name']==chloride_name].state_one.charge.values[0]     
+        salt_cation_charge = self.df.loc[self.df['name']==salt_cation_name].state_one.charge.values[0]
+        salt_anion_charge = self.df.loc[self.df['name']==salt_anion_name].state_one.charge.values[0]     
 
         if proton_charge <= 0:
             raise ValueError('ERROR proton charge must be positive, charge ', proton_charge)
-        if sodium_charge <= 0:
-            raise ValueError('ERROR sodium charge must be positive, charge ', sodium_charge)
+        if salt_cation_charge <= 0:
+            raise ValueError('ERROR salt cation charge must be positive, charge ', salt_cation_charge)
         if hydroxide_charge >= 0:
             raise ValueError('ERROR hydroxide charge must be negative, charge ', hydroxide_charge)
-        if chloride_charge >= 0:
-            raise ValueError('ERROR chloride charge must be negative, charge ', chloride_charge)
+        if salt_anion_charge >= 0:
+            raise ValueError('ERROR salt anion charge must be negative, charge ', salt_anion_charge)
 
         # Grand-canonical coupling to the reservoir
         # 0 = H+ + OH-
@@ -2442,11 +2456,11 @@ class pymbe_library():
             gamma = K_NACL.magnitude,
             reactant_types = [],
             reactant_coefficients = [],
-            product_types = [ sodium_es_type, chloride_es_type ],
+            product_types = [ salt_cation_es_type, salt_anion_es_type ],
             product_coefficients = [ 1, 1 ],
             default_charges = {
-                sodium_es_type: sodium_charge, 
-                chloride_es_type: chloride_charge, 
+                salt_cation_es_type: salt_cation_charge, 
+                salt_anion_es_type: salt_anion_charge, 
             }
         )
 
@@ -2455,10 +2469,10 @@ class pymbe_library():
             gamma = (K_NACL * K_W / K_HCL).magnitude,
             reactant_types = [],
             reactant_coefficients = [],
-            product_types = [ sodium_es_type, hydroxide_es_type ],
+            product_types = [ salt_cation_es_type, hydroxide_es_type ],
             product_coefficients = [ 1, 1 ],
             default_charges = {
-                sodium_es_type: sodium_charge, 
+                salt_cation_es_type: salt_cation_charge, 
                 hydroxide_es_type: hydroxide_charge, 
             }
         )
@@ -2468,11 +2482,11 @@ class pymbe_library():
             gamma = K_HCL.magnitude,
             reactant_types = [],
             reactant_coefficients = [],
-            product_types = [ proton_es_type, chloride_es_type ],
+            product_types = [ proton_es_type, salt_anion_es_type ],
             product_coefficients = [ 1, 1 ],
             default_charges = {
                 proton_es_type: proton_charge, 
-                chloride_es_type: chloride_charge, 
+                salt_anion_es_type: salt_anion_charge, 
             }
         )
 
@@ -2482,11 +2496,11 @@ class pymbe_library():
             gamma = (K_NACL / K_HCL).magnitude,
             reactant_types = [proton_es_type],
             reactant_coefficients = [ 1 ],
-            product_types = [ sodium_es_type ],
+            product_types = [ salt_cation_es_type ],
             product_coefficients = [ 1 ],
             default_charges = {
                 proton_es_type: proton_charge, 
-                sodium_es_type: sodium_charge, 
+                salt_cation_es_type: salt_cation_charge, 
             }
         )
 
@@ -2495,11 +2509,11 @@ class pymbe_library():
             gamma = (K_HCL / K_W).magnitude,
             reactant_types = [hydroxide_es_type],
             reactant_coefficients = [ 1 ],
-            product_types = [ chloride_es_type ],
+            product_types = [ salt_anion_es_type ],
             product_coefficients = [ 1 ],
             default_charges = {
                 hydroxide_es_type: hydroxide_charge, 
-                chloride_es_type: chloride_charge, 
+                salt_anion_es_type: salt_anion_charge, 
             }
         )
 
@@ -2525,15 +2539,15 @@ class pymbe_library():
                             state_two_type: charge_map[state_two_type],
                             proton_es_type: proton_charge})
 
-            # Reaction in terms of sodium: HA = A + Na+
+            # Reaction in terms of salt cation: HA = A + Na+
             RE.add_reaction(gamma=(Ka * K_NACL / K_HCL).magnitude,
                             reactant_types=[state_one_type],
                             reactant_coefficients=[1],
-                            product_types=[state_two_type, sodium_es_type],
+                            product_types=[state_two_type, salt_cation_es_type],
                             product_coefficients=[1, 1],
                             default_charges={state_one_type: charge_map[state_one_type],
                             state_two_type: charge_map[state_two_type],
-                            sodium_es_type: sodium_charge})
+                            salt_cation_es_type: salt_cation_charge})
 
             # Reaction in terms of hydroxide: OH- + HA = A
             RE.add_reaction(gamma=(Ka / K_W).magnitude,
@@ -2545,20 +2559,20 @@ class pymbe_library():
                             state_two_type: charge_map[state_two_type],
                             hydroxide_es_type: hydroxide_charge})
 
-            # Reaction in terms of chloride: Cl- + HA = A
+            # Reaction in terms of salt anion: Cl- + HA = A
             RE.add_reaction(gamma=(Ka / K_HCL).magnitude,
-                            reactant_types=[state_one_type, chloride_es_type],
+                            reactant_types=[state_one_type, salt_anion_es_type],
                             reactant_coefficients=[1, 1],
                             product_types=[state_two_type],
                             product_coefficients=[1],
                             default_charges={state_one_type: charge_map[state_one_type],
                             state_two_type: charge_map[state_two_type],
-                            chloride_es_type: chloride_charge})
+                            salt_anion_es_type: salt_anion_charge})
 
             sucessful_reactions_labels.append(name)
         return RE, sucessful_reactions_labels, ionic_strength_res
 
-    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, SEED, excess_chemical_potential_monovalent_pair=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, SEED, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2574,7 +2588,7 @@ class pymbe_library():
             cation_name ('str'): Name of the cationic particle.
             anion_name ('str'): Name of the anionic particle.
             SEED ('int'): Seed for the random number generator.
-            excess_chemical_potential_monovalent_pair ('callable', optional): A function that calculates the excess chemical potential of an ion pair as a function of the ionic strength.
+            activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`float`, optional): Below this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius per each espresso_type. Defaults to `False`.
@@ -2595,9 +2609,9 @@ class pymbe_library():
         else:
             exclusion_radius_per_type = {}
         
-        #If no function for the excess chemical potential is provided, the ideal case is assumed.
-        if excess_chemical_potential_monovalent_pair is None:
-            excess_chemical_potential_monovalent_pair = lambda x: 0.0 * self.kT
+        #If no function for the activity coefficient is provided, the ideal case is assumed.
+        if activity_coefficient is None:
+            activity_coefficient = lambda x: 1.0
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
@@ -2606,12 +2620,12 @@ class pymbe_library():
                                                     )
 
         # Determine the concentrations of the various species in the reservoir and the equilibrium constants
-        cH_res, cOH_res, cNa_res, cCl_res = self.determine_reservoir_concentrations(pH_res, c_salt_res, excess_chemical_potential_monovalent_pair)
+        cH_res, cOH_res, cNa_res, cCl_res = self.determine_reservoir_concentrations(pH_res, c_salt_res, activity_coefficient)
         ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-        activity_coefficient = self.np.exp(excess_chemical_potential_monovalent_pair(ionic_strength_res)/self.kT)
+        determined_activity_coefficient = activity_coefficient(ionic_strength_res)
         a_hydrogen = (10 ** (-pH_res) * self.units.mol/self.units.l).to('1/(N_A * reduced_length**3)')
-        a_cation = (cH_res+cNa_res).to('1/(N_A * reduced_length**3)') * self.np.sqrt(activity_coefficient)
-        a_anion = (cH_res+cNa_res).to('1/(N_A * reduced_length**3)') * self.np.sqrt(activity_coefficient)
+        a_cation = (cH_res+cNa_res).to('1/(N_A * reduced_length**3)') * self.np.sqrt(determined_activity_coefficient)
+        a_anion = (cH_res+cNa_res).to('1/(N_A * reduced_length**3)') * self.np.sqrt(determined_activity_coefficient)
         K_XX = a_cation * a_anion
 
         cation_es_type = self.df.loc[self.df['name']==cation_name].state_one.es_type.values[0]
@@ -2841,4 +2855,3 @@ class pymbe_library():
             for particle in espresso_system.part:
                 coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
         return 
-    

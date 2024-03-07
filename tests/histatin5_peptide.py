@@ -25,12 +25,6 @@ from espressomd import interactions
 from espressomd.io.writer import vtf
 from espressomd import electrostatics 
 
-# Find path to pyMBE
-current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-path_end_index=current_dir.find("pyMBE")
-pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
-sys.path.insert(0, pyMBE_path)
-
 # Load some functions from the handy_scripts library for convinience
 from handy_scripts.handy_functions import setup_electrostatic_interactions
 from handy_scripts.handy_functions import minimize_espresso_system_energy
@@ -81,7 +75,9 @@ basic_aminoacids  = ['R','n','K','H']
 N_aminoacids = len (pmb.protein_sequence_parser(sequence=sequence))
 
 # Load pKa set
-pmb.load_pka_set (filename=pyMBE_path+'/reference_parameters/pka_sets/Nozaki1967.txt')
+path_to_pka=pmb.get_resource("reference_parameters/pka_sets/Nozaki1967.txt")
+pmb.load_pka_set (path_to_pka)
+
 
 already_defined_AA=[]
 for aminoacid_key in pmb.protein_sequence_parser(sequence=sequence):
@@ -234,8 +230,8 @@ Z_HH = pmb.calculate_HH(object_name=peptide_name,
                         pH_list=pH_range)
 
 # Load the reference data 
-reference_file_Path = pyMBE_path+"/reference_data/histatin5_SoftMatter.txt"
-reference_data = np.loadtxt(reference_file_Path, delimiter=",")
+path_to_ref=pmb.get_resource("reference_data")
+reference_data = np.loadtxt(f"{path_to_ref}/histatin5_SoftMatter.txt", delimiter=",")
 
 Z_ref=reference_data[:,1]         
 Z_err_ref=reference_data[:,2]

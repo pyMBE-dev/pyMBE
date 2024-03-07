@@ -16,9 +16,6 @@ import argparse
 import pickle
 
 # Load pyMBE
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.insert(0, parentdir) 
 import pyMBE
 pmb = pyMBE.pymbe_library()
 
@@ -106,11 +103,12 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system, catio
 print("Created molecules")
 
 # Set up the reactions
-ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt("../../../../../../../reference_data/excess_chemical_potential.dat", unpack=True)
+path_to_ex_pot=pmb.get_resource("reference_data")
+ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/excess_chemical_potential.dat", unpack=True)
 excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
-excess_chemical_potential_monovalent_pair = lambda x: excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude) * pmb.units('reduced_energy')
+activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
 print("Setting up reactions...")
-RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, c_salt_res=c_salt_res, proton_name=proton_name, hydroxide_name=hydroxide_name, sodium_name=sodium_name, chloride_name=chloride_name, SEED=REACTION_SEED, excess_chemical_potential_monovalent_pair=excess_chemical_potential_monovalent_pair, pka_set=pka_set)
+RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, c_salt_res=c_salt_res, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, SEED=REACTION_SEED, activity_coefficient=activity_coefficient_monovalent_pair, pka_set=pka_set)
 print('The acid-base reaction has been sucessfully set up for ', sucessful_reactions_labels)
 
 # Setup espresso to track the ionization of the acid groups
