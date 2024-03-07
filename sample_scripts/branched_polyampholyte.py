@@ -11,13 +11,6 @@ from espressomd.io.writer import vtf
 from espressomd import interactions
 
 
-# Find path to pyMBE
-current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-path_end_index=current_dir.find("pyMBE")
-pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
-sys.path.insert(0, pyMBE_path)
-
-
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()

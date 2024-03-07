@@ -16,9 +16,6 @@ import argparse
 import pickle
 
 # Load pyMBE
-currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-parentdir = os.path.dirname(currentdir)
-sys.path.insert(0, parentdir) 
 import pyMBE
 pmb = pyMBE.pymbe_library()
 
@@ -106,7 +103,8 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system, catio
 print("Created molecules")
 
 # Set up the reactions
-ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt("../../../../../../../reference_data/excess_chemical_potential.dat", unpack=True)
+path_to_ex_pot=pmb.get_resource("reference_data")
+ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/excess_chemical_potential.dat", unpack=True)
 excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
 activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
 print("Setting up reactions...")

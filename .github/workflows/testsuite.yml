@@ -20,13 +20,15 @@ jobs:
       - name: Install dependencies
         run: |
           module load ESPResSo/4.2.1-foss-2023a
-          python3 -m pip install --user -r requirements.txt
+          python3 -m venv --system-site-packages pymbe
+          source pymbe/bin/activate
+          python3 maintainer/configure_venv.py
+          python3 -m pip install -r requirements.txt
+          deactivate
       - name: Run testsuite
         run: |
           module load ESPResSo/4.2.1-foss-2023a
-          export OLD_PYTHONPATH="${PYTHONPATH}"
-          export PYTHONPATH="$(realpath .)${PYTHONPATH:+:$PYTHONPATH}"
-          sed -i "s/\${ESPResSo_build_path}\///" Makefile
+          source pymbe/bin/activate
           make testsuite
-          export PYTHONPATH="${OLD_PYTHONPATH}"
+          deactivate
         shell: bash
