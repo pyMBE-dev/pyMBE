@@ -9,6 +9,7 @@ pyMBE provides tools to facilitate building up molecules with complex architectu
 - [Pandas](https://pandas.pydata.org/) v1.5.3
 - [Pint-Pandas](https://pypi.org/project/Pint-Pandas/) v0.5
 - [Numpy](https://numpy.org/)
+- [SciPy](https://scipy.org/)
 - [pdoc](https://pdoc.dev/) (for building the docs)
 
 ## Branches
@@ -76,3 +77,16 @@ make tutorial
 
 provided that you have modified the `$ESPResSo_build_path` variable in `Makefile` to match the path where you have built ESPResSo.
 
+### Run the testsuite
+
+To make sure your code is valid, please run the testsuite before submitting your contribution:
+
+```sh
+PYTHONPATH=$(realpath .) make testsuite
+```
+
+When contributing new features, consider adding a unit test in the `testsuite/`
+folder and a corresponding line in the `testsuite` target of the Makefile.
+
+Every contribution is automatically tested in CI using EESSI (https://www.eessi.io)
+and the [EESSI GitHub Action](https://github.com/marketplace/actions/eessi).

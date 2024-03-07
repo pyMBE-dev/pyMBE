@@ -1,0 +1,32 @@
+name: run tests
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup EESSI
+        uses: eessi/github-action-eessi@v3
+        with:
+          eessi_stack_version: "2023.06"
+      - name: Checkout repository
+        uses: actions/checkout@main
+      - name: Install dependencies
+        run: |
+          module load ESPResSo/4.2.1-foss-2023a
+          python3 -m pip install --user -r requirements.txt
+      - name: Run testsuite
+        run: |
+          module load ESPResSo/4.2.1-foss-2023a
+          export OLD_PYTHONPATH="${PYTHONPATH}"
+          export PYTHONPATH="$(realpath .)${PYTHONPATH:+:$PYTHONPATH}"
+          sed -i "s/\${ESPResSo_build_path}\///" Makefile
+          make testsuite
+          export PYTHONPATH="${OLD_PYTHONPATH}"
+        shell: bash
