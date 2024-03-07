@@ -4,12 +4,12 @@ pyMBE provides tools to facilitate building up molecules with complex architectu
 
 ## Dependencies
 
-- [ESPResSo](https://espressomd.org/wordpress/) v4.2.1 
-- [Pint](https://pint.readthedocs.io/en/stable/) v0.20.01 
-- [Pandas](https://pandas.pydata.org/) v1.5.3
-- [Pint-Pandas](https://pypi.org/project/Pint-Pandas/) v0.5
-- [Numpy](https://numpy.org/)
-- [SciPy](https://scipy.org/)
+- [ESPResSo](https://espressomd.org/wordpress/) =4.2.1 
+- [Pint](https://pint.readthedocs.io/en/stable/) >=0.20.01
+- [Pandas](https://pandas.pydata.org/) >=1.5.3
+- [Pint-Pandas](https://pypi.org/project/Pint-Pandas/) >=0.3
+- [Numpy](https://numpy.org/) >=1.23
+- [SciPy](https://scipy.org/) 
 - [pdoc](https://pdoc.dev/) (for building the docs)
 
 ## Branches
@@ -22,10 +22,12 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 - `figs/`: folder with various images used in the tutorials of pyMBE.
 - `handy_scripts/`: folder with various handy scripts and libraries.
 - `logo/`: folder with the logo of pyMBE.
+- `mantainer/`: folder with various scripts used by the mantainers.
 - `reference_data/`: folder with various reference data set used to validate pyMBE.
 - `reference_parameters/`: folder with various sets of parameters from previous works.
 - `sample_scripts/`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
 - `tests/`: folder with several test scripts to check that new developments do not break pyMBE.
+- `testsuite/`: folder with several test scripts and data for continous integration of the library.
 - `tutorials/`: folder with the available tutorials on pyMBE.
 - `visualization/`: folder with helper scripts to aid the visualization of vtf trajectories from constant pH and Grand reaction simulations with [VMD](https://www.ks.uiuc.edu/Research/vmd/).
 - `AUTHORS.md`: list of authors and contributors of pyMBE.
