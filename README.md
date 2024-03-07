@@ -35,7 +35,7 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 
 ## Usage
 
-### Set up the pyMBE environment
+### Set up the pyMBE virtual environment
 
 To use pyMBE in your simulations, first clone this repository locally:
 
@@ -44,22 +44,35 @@ git clone git@github.com:pm-blanco/pyMBE.git
 ```
 
 Please, be aware that pyMBE is intended to be a supporting tool to setup simulations with ESPResSo.
-Thus, for most of its functionalities ESPResSo must also be available.
+Thus, for most of its functionalities ESPResSo must also be available. Following the NEP29 guidelines, we recommend the users of pyMBE to use Python3.10+ when using our module.
 
-Create a virtual environment to install Python dependencies and configure
-the path to the ESPResSo build folder:
+The pyMBE module uses its own Python virtual enviroment to avoid incompatibility issues when loading its requierements from other libraries. 
+The Python module (`venv`)[https://docs.python.org/3/library/venv.html#module-venv] from the Python Standard Library (starting with Python 3.3)  is needed to set up pyMBE. 
+If `venv` is not in the Python distribution of the user, the user will need to first install 'venv' before setting up pyMBE.
+For Ubuntu users, this can be done as follows:
+
+```sh
+sudo apt install python3-venv
+```
+
+To set up pyMBE, the users need to install its virtual environment, install its Python dependencies and configure the path to the ESPResSo build folder as follows:
 
 ```sh
 python3 -m venv pymbe
 source pymbe/bin/activate
-python3 maintainer/configure_venv.py --espresso_path=~/espresso/build # adapt path
+python3 maintainer/configure_venv.py --espresso_path=/home/user/espresso/build # adapt path
 python3 -m pip install -r requirements.txt
 deactivate
 ```
 
-We highlight that the path `~/espresso/build` is just an example of a possible
+We highlight that the path `/home/user/espresso/build` is just an example of a possible
 path to the ESPResSo build folder. The user should change this path to match
-the local path were ESPResSo was installed.
+the local absolute path were ESPResSo was installed. 
+
+The pyMBE virtual enviroment can be deactivated at any moment:
+```sh
+deactivate
+```
 
 Cluster users who rely on module files to load dependencies should opt for the
 following alternative:
@@ -123,7 +136,7 @@ You can run the interactive tutorial of pyMBE with the command:
 
 ```sh
 source pymbe/bin/activate
-jupyter lab tutorials/pyMBE_tutorial.ipynb
+jupyter-lab tutorials/pyMBE_tutorial.ipynb
 deactivate
 ```
 
