@@ -2010,7 +2010,9 @@ class pymbe_library():
         if filename[-3:] != "csv":
             raise ValueError("Only files with CSV format are supported")
         df = self.pd.read_csv (filename,header=[0, 1], index_col=0)
+
         columns_names = self.setup_df()
+        print (columns_names)
         df.columns = columns_names
         self.df=df
         return df
@@ -2633,7 +2635,8 @@ class pymbe_library():
                         ('state_two','charge'),
                         ('sequence',''),
                         ('bond_object',''),
-                        ('parameters_of_the_potential','')
+                        ('parameters_of_the_potential',''),
+                        ('l0','')
                         ])
 
         self.df = self.pd.DataFrame (columns = columns_names)
