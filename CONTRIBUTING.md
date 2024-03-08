@@ -11,6 +11,6 @@ If you want to contribute to the development of the pyMBE library, please contac
 
 ## Rules to contribute to pyMBE
 Any new version of the code must reproduce all the data stored in `testsuite/data`. 
-The scripts provided in `testsuite/` and in `samples/Beyer2024`can be used to quickly set-up  simulations with pyMBE to reproduce such data sets.
+The scripts provided in `testsuite/` and in `samples/Beyer2024` can be used to quickly set-up simulations with pyMBE to reproduce such data sets.
 All new code will be reviewed by at least one member of the pyMBE development team before being merged into the stable version of the library to ensure that a functional version of the code is always available.
 Class methods are sorted in alphabetical order.

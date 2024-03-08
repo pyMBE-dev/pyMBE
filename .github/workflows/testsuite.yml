@@ -29,6 +29,6 @@ jobs:
         run: |
           module load ESPResSo/4.2.1-foss-2023a
           source pymbe/bin/activate
-          make testsuite
+          make tests
           deactivate
         shell: bash

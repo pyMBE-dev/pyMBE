@@ -558,8 +558,8 @@ class pymbe_library():
             espresso_system (`obj`): instance of an espresso system object.
             cation_name(`str`): `name` of a particle with a positive charge.
             anion_name(`str`): `name` of a particle with a negative charge.
-            c_salt (`float`): Salt concentration. 
-            verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
+            c_salt(`float`): Salt concentration.
+            verbose(`bool`): switch to activate/deactivate verbose. Defaults to True.
             
         Returns:
             c_salt_calculated (float): Calculated salt concentration added to `espresso_system`.
@@ -585,7 +585,7 @@ class pymbe_library():
         self.create_particle(espresso_system=espresso_system, name=cation_name, number_of_particles=N_cation)
         self.create_particle(espresso_system=espresso_system, name=anion_name, number_of_particles=N_anion)
         if verbose:
-            print('\n Added salt concentration of ', c_salt_calculated.to('mol/L'), 'given by ', N_cation, ' cations and ', N_anion, ' anions')
+            print(f"\n Added salt concentration of {c_salt_calculated.to('mol/L')} given by {N_cation} cations and {N_anion} anions")
         return c_salt_calculated
 
     def create_counterions(self, object_name, cation_name, anion_name, espresso_system,verbose=True):
@@ -597,7 +597,7 @@ class pymbe_library():
             espresso_system(`obj`): Instance of a system object from the espressomd library.
             cation_name(`str`): `name` of a particle with a positive charge.
             anion_name(`str`): `name` of a particle with a negative charge.
-            verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
+            verbose(`bool`): switch to activate/deactivate verbose. Defaults to True.
 
         Returns: 
             counterion_number (dict): {"name": number}

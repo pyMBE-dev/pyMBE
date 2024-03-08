@@ -31,7 +31,7 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
 
     BJERRUM_LENGTH = e.to('reduced_charge')**2 / (4 * units.pi * units.eps0 * solvent_permittivity * kT.to('reduced_energy'))
     if verbose:
-        print('\n Bjerrum length ', BJERRUM_LENGTH.to('nm'), '=', BJERRUM_LENGTH.to('reduced_length'))
+        print(f"\n Bjerrum length {BJERRUM_LENGTH.to('nm')} = {BJERRUM_LENGTH.to('reduced_length')}")
 
     COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * kT.to('reduced_energy') 
     
@@ -50,7 +50,7 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
             raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
 
         if verbose:
-            print('Debye kappa ', KAPPA.to('nm'), '=', KAPPA.to('reduced_length'), )
+            print(f"Debye kappa {KAPPA.to('nm')} = {KAPPA.to('reduced_length')}")
     print()
 
     if method == 'p3m':
@@ -105,7 +105,7 @@ def minimize_espresso_system_energy(espresso_system, skin=1, gamma=1, Nsteps=100
     verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
     """
     if verbose:
-        print("\n*** Minimazing system energy... ***\n")
+        print("\n*** Minimizing system energy... ***\n")
     espresso_system.cell_system.skin = skin
     espresso_system.time_step=time_step
     if verbose:

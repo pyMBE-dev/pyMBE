@@ -2,13 +2,12 @@
 .PHONY: sample
 .PHONY: visual 
 .PHONY: clean
-.PHONY: testsuite
 .PHONY: docs
 
 docs:
 	pdoc ./pyMBE.py -o ./docs --docformat google 
 
-testsuite:
+tests:
 	python3 testsuite/peptide_tests.py
 
 sample:
