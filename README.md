@@ -20,13 +20,11 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 
 - `docs/`: folder with the API documentation of pyMBE.
 - `figs/`: folder with various images used in the tutorials of pyMBE.
-- `handy_scripts/`: folder with various handy scripts and libraries.
+- `libs/`: folder with various libraries.
 - `logo/`: folder with the logo of pyMBE.
-- `mantainer/`: folder with various scripts used by the mantainers.
-- `reference_data/`: folder with various reference data set used to validate pyMBE.
-- `reference_parameters/`: folder with various sets of parameters from previous works.
-- `sample_scripts/`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
-- `tests/`: folder with several test scripts to check that new developments do not break pyMBE.
+- `maintainer/`: folder with various scripts used by the maintainers.
+- `parameters/`: folder with various sets of parameters from previous works.
+- `samples/`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
 - `testsuite/`: folder with several test scripts and data for continous integration of the library.
 - `tutorials/`: folder with the available tutorials on pyMBE.
 - `visualization/`: folder with helper scripts to aid the visualization of vtf trajectories from constant pH and Grand reaction simulations with [VMD](https://www.ks.uiuc.edu/Research/vmd/).
@@ -34,6 +32,7 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 - `CONTRIBUTING`: rules on how to contribute to pyMBE.
 - `LICENSE.md`: license of pyMBE.
 - `pyMBE.py`: source code of pyMBE
+- `requirements.txt`: list of required libraries to use pyMBE.
 
 ## Usage
 

@@ -550,7 +550,7 @@ class pymbe_library():
                 self.df = self.pd.concat ([self.df,df_by_name_repeated], ignore_index=True)        
         return
 
-    def create_added_salt (self, espresso_system, cation_name, anion_name, c_salt):    
+    def create_added_salt (self, espresso_system, cation_name, anion_name, c_salt, verbose=True):    
         """
         Creates a `c_salt` concentration of `cation_name` and `anion_name` ions into the `espresso_system`.
 
@@ -558,7 +558,8 @@ class pymbe_library():
             espresso_system (`obj`): instance of an espresso system object.
             cation_name(`str`): `name` of a particle with a positive charge.
             anion_name(`str`): `name` of a particle with a negative charge.
-            c_salt (float): Salt concentration. 
+            c_salt(`float`): Salt concentration.
+            verbose(`bool`): switch to activate/deactivate verbose. Defaults to True.
             
         Returns:
             c_salt_calculated (float): Calculated salt concentration added to `espresso_system`.
@@ -583,10 +584,11 @@ class pymbe_library():
         N_anion = N_ions*abs(cation_name_charge)
         self.create_particle(espresso_system=espresso_system, name=cation_name, number_of_particles=N_cation)
         self.create_particle(espresso_system=espresso_system, name=anion_name, number_of_particles=N_anion)
-        print('\n Added salt concentration of ', c_salt_calculated.to('mol/L'), 'given by ', N_cation, ' cations and ', N_anion, ' anions')
+        if verbose:
+            print(f"\n Added salt concentration of {c_salt_calculated.to('mol/L')} given by {N_cation} cations and {N_anion} anions")
         return c_salt_calculated
 
-    def create_counterions(self, object_name, cation_name, anion_name, espresso_system):
+    def create_counterions(self, object_name, cation_name, anion_name, espresso_system,verbose=True):
         """
         Creates particles of `cation_name` and `anion_name` in `espresso_system` to counter the net charge of `pmb_object`.
         
@@ -595,6 +597,7 @@ class pymbe_library():
             espresso_system(`obj`): Instance of a system object from the espressomd library.
             cation_name(`str`): `name` of a particle with a positive charge.
             anion_name(`str`): `name` of a particle with a negative charge.
+            verbose(`bool`): switch to activate/deactivate verbose. Defaults to True.
 
         Returns: 
             counterion_number (dict): {"name": number}
@@ -627,9 +630,10 @@ class pymbe_library():
             self.create_particle(espresso_system=espresso_system, name=anion_name, number_of_particles=counterion_number[anion_name])
         else:
             counterion_number[anion_name] = 0
-        print('The following counter-ions have been created: ')
-        for name in counterion_number.keys():
-            print(f'Ion type: {name} created number: {counterion_number[name]}')
+        if verbose:
+            print('The following counter-ions have been created: ')
+            for name in counterion_number.keys():
+                print(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
 
     def create_molecule(self, name, number_of_molecules, espresso_system, first_residue_position=None, use_default_bond=False):
@@ -2115,9 +2119,13 @@ class pymbe_library():
             - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
             - If `hard_check`=`True` stops the code when no bond is found.
         """
+        
         bond_key = self.find_bond_key(particle_name1=particle_name1, 
                                     particle_name2=particle_name2, 
                                     use_default_bond=use_default_bond)
+        if use_default_bond:
+            if not self.check_if_name_is_defined_in_df(name="default",pmb_type_to_be_defined='bond'):
+                raise ValueError(f"use_default_bond is set to {use_default_bond} but no default bond has been defined. Please define a default bond with pmb.define_default_bond")
         if bond_key:
             return self.df[self.df['name']==bond_key].bond_object.values[0]
         else:
@@ -2640,7 +2648,7 @@ class pymbe_library():
       
         return columns_names
 
-    def setup_lj_interactions (self, espresso_system, cutoff=None, shift='auto', combining_rule='Lorentz-Berthelot'):
+    def setup_lj_interactions (self, espresso_system, cutoff=None, shift='auto', combining_rule='Lorentz-Berthelot', warnings=True):
         """
         Sets up the Lennard-Jones (LJ) potential between all pairs of particle types with values for `diameter` and `epsilon` stored in `pymbe.df`.
         Stores the parameters loaded into ESPResSo for each type pair in `pymbe.df`.
@@ -2652,6 +2660,7 @@ class pymbe_library():
             cutoff(`float`, optional): cut-off length of the LJ potential. Defaults to None.
             shift (`string`, optional): If set to `auto` shifts the potential to be continous at `cutoff`. Defaults to `auto`.
             combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
+            warning (`bool`): switch to activate/deactivate warning messages. Defaults to True.
 
         Note:
             If no `cutoff`  is given, its value is set to 2**(1./6.) in reduced_length units, corresponding to a purely steric potential.
@@ -2720,7 +2729,7 @@ class pymbe_library():
             self.add_value_to_df(index=index,
                                 key=('parameters_of_the_potential',''),
                                 new_value=self.json.dumps(lj_params))                
-        if non_parametrized_labels:
+        if non_parametrized_labels and warnings:
             print(f'WARNING: No LJ interaction has been added in ESPResSo for particles with labels: {non_parametrized_labels}. Please, check your pmb.df to ensure if this is your desired setup.')
         return
 
@@ -2763,5 +2772,3 @@ class pymbe_library():
             for particle in espresso_system.part:
                 coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
         return 
-
-
