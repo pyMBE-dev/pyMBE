@@ -996,17 +996,25 @@ class pymbe_library():
             residues_info[residue_id]['side_chain_ids']=side_chain_beads_ids
         return  residues_info
 
-    def create_variable_with_units(self, variable_dict):
+    def create_variable_with_units(self, variable):
         """
-        Returns a pint object with the value and units defined in `variable_dict`.
+        Returns a pint object with the value and units defined in `variable`.
 
         Args:
-            variable_dict(`dict`): {'value': value, 'units': units}
+            variable(`dict` or `str`): {'value': value, 'units': units}
         Returns:
             variable_with_units(`obj`): variable with units using the pyMBE UnitRegistry.
         """        
-        value=variable_dict.pop('value')
-        units=variable_dict.pop('units')
+       if type(variable) is dict: 
+
+            value=variable.pop('value')
+            units=variable.pop('units')
+
+        elif type(variable) is str:
+
+            value = float(self.re.split('\s+', variable)[0])
+            units = self.re.split('\s+', variable)[1]
+
         variable_with_units=value*self.units(units)
 
         return variable_with_units
@@ -1791,7 +1799,7 @@ class pymbe_library():
                     for not_requiered_key in without_units+with_units:
                         if not_requiered_key in param_dict.keys():
                             if not_requiered_key in with_units:
-                                not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable_dict=param_dict.pop(not_requiered_key))
+                                not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable=param_dict.pop(not_requiered_key))
                             elif not_requiered_key in without_units:
                                 not_requiered_attributes[not_requiered_key]=param_dict.pop(not_requiered_key)
                         else:
@@ -1820,13 +1828,13 @@ class pymbe_library():
                     name2 = param_dict.pop('name2')
                     bond_type = param_dict.pop('bond_type')
                     if bond_type == 'harmonic':
-                        k = self.create_variable_with_units(variable_dict=param_dict.pop('k'))
-                        r_0 = self.create_variable_with_units(variable_dict=param_dict.pop('r_0'))
+                        k = self.create_variable_with_units(variable=param_dict.pop('k'))
+                        r_0 = self.create_variable_with_units(variable=param_dict.pop('r_0'))
                         bond = interactions.HarmonicBond(k=k.to('reduced_energy / reduced_length**2').magnitude, r_0=r_0.to('reduced_length').magnitude)
                     elif bond_type == 'FENE':
-                        k = self.create_variable_with_units(variable_dict=param_dict.pop('k'))
-                        r_0 = self.create_variable_with_units(variable_dict=param_dict.pop('r_0'))
-                        d_r_max = self.create_variable_with_units(variable_dict=param_dict.pop('d_r_max'))
+                        k = self.create_variable_with_units(variable=param_dict.pop('k'))
+                        r_0 = self.create_variable_with_units(variable=param_dict.pop('r_0'))
+                        d_r_max = self.create_variable_with_units(variable=param_dict.pop('d_r_max'))
                         bond = interactions.FeneBond(k=k.to('reduced_energy / reduced_length**2').magnitude, r_0=r_0.to('reduced_length').magnitude, d_r_max=d_r_max.to('reduced_length').magnitude)
                     else:
                         raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
@@ -2012,7 +2020,6 @@ class pymbe_library():
         df = self.pd.read_csv (filename,header=[0, 1], index_col=0)
 
         columns_names = self.setup_df()
-        print (columns_names)
         df.columns = columns_names
         self.df=df
         return df
