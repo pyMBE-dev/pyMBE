@@ -266,7 +266,7 @@ for index in tqdm(range(len(pH_range))):
    
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 pH_range_HH = np.linspace(2, 12, num=100)
-HH_charge_dict = pmb.calculate_HH_Donnan(espresso_system=espresso_system, object_names=[peptide1, peptide2], c_salt=c_salt, pH_list=pH_range_HH)
+HH_charge_dict = pmb.calculate_HH_Donnan(c_macro={peptide1: pep1_concentration, peptide2: pep2_concentration}, c_salt=c_salt, pH_list=pH_range_HH)
 Z_HH_Donnan = HH_charge_dict["charges_dict"]
 pH_sys = HH_charge_dict["pH_system_list"]
 xi = HH_charge_dict["partition_coefficients"]

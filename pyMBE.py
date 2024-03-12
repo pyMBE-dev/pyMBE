@@ -278,12 +278,12 @@ class pymbe_library():
 
         return Z_HH
 
-    def calculate_HH_Donnan(self, espresso_system, object_names, c_salt, pH_list=None, pka_set=None):
+    def calculate_HH_Donnan(self, c_macro, c_salt, pH_list=None, pka_set=None):
         """
         Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.
 
         Args:
-            object_names ('lst'): List of the object names of all (potentially) charged molecules in the system.
+            c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all (potentially) charge macromolecular species in the system. 
             c_salt ('float'): Salt concentration in the reservoir.
             pH_list ('lst'): List of pH-values in the reservoir. 
             pka_set ('dict'): {"name": {"pka_value": pka, "acidity": acidity}}.
@@ -296,7 +296,7 @@ class pymbe_library():
         Note:
             - If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated
             - If no `pka_set` is given, the pKa values are taken from `pmb.df`
-            - If `object_names` does not contain the object names of all (potentially) charged molecules in the system, the calculation will give a wrong result.
+            - If `c_macro` does not contain all (potentially) charged molecules in the system, the calculation will give a wrong result.
         """
         if pH_list is None:
             pH_list=self.np.linspace(2,12,50)    
@@ -307,40 +307,37 @@ class pymbe_library():
         partition_coefficients_list = []
         pH_system_list = []
         Z_HH_Donnan={}
-        concentrations_molecules={}
-        for key in object_names:
+        for key in c_macro:
             Z_HH_Donnan[key] = []
-            # Calculate the concentrations of the different types of molecules
-            concentrations_molecules[key] = (len(self.df.loc[self.df['name'] == key].index) / (self.N_A * self.units.Quantity(espresso_system.volume(), 'reduced_length**3'))).to('mol/liter')
 
-        def calc_charges(object_names, pH):
+        def calc_charges(c_macro, pH):
             """
             Calculates the charges of the different kinds of molecules according to the Henderson-Hasselbalch equation.
 
             Args:
-                object_names ('lst'): List of the object names of all (potentially) charged molecules in the system.
+                c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all (potentially) charge macromolecular species in the system. 
                 pH ('float'): pH-value that is used in the HH equation.
 
             Returns:
                 charge ('dict'): {"molecule_name": charge}
             """
             charge = {}
-            for name in object_names:
+            for name in c_macro:
                 charge[name] = self.calculate_HH(name, [pH], pka_set)[0]
             return charge
 
-        def calc_partition_coefficient(charge, concentrations_molecules):
+        def calc_partition_coefficient(charge, c_macro):
             """
             Calculates the partition coefficients of positive ions according to the ideal Donnan theory.
 
             Args:
                 charge ('dict'): {"molecule_name": charge}
-                concentrations_molecules ('dict'): {"molecule_name": concentration}.
+                c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all (potentially) charge macromolecular species in the system. 
             """
             nonlocal ionic_strength_res
             charge_density = 0.0
             for key in charge:
-                charge_density += charge[key] * concentrations_molecules[key]
+                charge_density += charge[key] * c_macro[key]
             return (-charge_density / (2 * ionic_strength_res) + self.np.sqrt((charge_density / (2 * ionic_strength_res))**2 + 1)).magnitude
 
         for pH_value in pH_list:    
@@ -353,12 +350,12 @@ class pymbe_library():
             #Determine the partition coefficient of positive ions by solving the system of nonlinear, coupled equations
             #consisting of the partition coefficient given by the ideal Donnan theory and the Henderson-Hasselbalch equation.
             #The nonlinear equation is formulated for log(xi) since log-operations are not supported for RootResult objects.
-            equation = lambda logxi: logxi - self.np.log10(calc_partition_coefficient(calc_charges(object_names, pH_value - logxi), concentrations_molecules))
+            equation = lambda logxi: logxi - self.np.log10(calc_partition_coefficient(calc_charges(c_macro, pH_value - logxi), c_macro))
             logxi = self.optimize.root_scalar(equation, bracket=[-1e2, 1e2], method="brentq")
             partition_coefficient = 10**logxi.root
 
-            charges_temp = calc_charges(object_names, pH_value-self.np.log10(partition_coefficient))
-            for key in object_names:
+            charges_temp = calc_charges(c_macro, pH_value-self.np.log10(partition_coefficient))
+            for key in c_macro:
                 Z_HH_Donnan[key].append(charges_temp[key])
 
             pH_system_list.append(pH_value - self.np.log10(partition_coefficient))
