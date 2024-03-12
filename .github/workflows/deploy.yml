@@ -1,0 +1,41 @@
+name: deploy documentation
+
+on:
+  # trigger workflow when the main branch completed the testsuite
+  workflow_run:
+    workflows: [ "run tests" ]
+    branches: [ "main" ]
+    types:
+      - completed
+
+jobs:
+  deploy-documentation:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.repository == 'pm-blanco/pyMBE' }}
+
+    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+    permissions:
+      pages: write      # to deploy to Pages
+      id-token: write   # to verify the deployment originates from an appropriate source
+
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    # Specify runner + deployment step
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download artifact
+        uses: actions/download-artifact@v4
+        with:
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          name: documentation
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
