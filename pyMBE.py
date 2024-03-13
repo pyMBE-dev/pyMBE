@@ -1528,7 +1528,30 @@ class pymbe_library():
                 coord_list.append (coord)
                 counter += 1
         return coord_list
+    def generate_trial_perpendicular_vector(self,vector,center,radius):
+        """
+    Generates an orthogonal vector with the same size as the input vector.
 
+    Args:
+        vector: Input vector for which an orthogonal vector needs to be generated.
+        
+    Returns:
+        perpendicular_vector: Orthogonal vector with the same magnitude as the input vector.
+    """
+        np_vec = self.np.array(vector)
+        if self.np.all(np_vec == 0):
+            raise ValueError('Zero vector')
+
+        # Generate a random vector with the same size as the input vector
+        random_vector = self.generate_trialvectors(center=center, radius=radius, n_samples=1, on_surface=True)[0]
+
+        # Project the random vector onto the input vector and subtract the projection
+        projection = self.np.dot(random_vector, np_vec) / self.np.dot(np_vec, np_vec) * np_vec
+        perpendicular_vector = random_vector - projection
+        # Normalize the perpendicular vector to have the same magnitude as the input vector
+        perpendicular_vector /= self.np.linalg.norm(perpendicular_vector) / self.np.linalg.norm(np_vec)
+        return perpendicular_vector
+    '''
     def generate_trial_perpendicular_vector(self, vector, center, radius):
         """
         Generates a random vector perpendicular to `vector`.
@@ -1545,8 +1568,8 @@ class pymbe_library():
             raise ValueError('zero vector')
         perp_vec = self.np.cross(np_vec, self.generate_trialvectors(center=center, radius=radius, n_samples=1, on_surface=True)[0])
         norm_perp_vec = perp_vec/self.np.linalg.norm(perp_vec)
-        return center+norm_perp_vec*radius  
-    
+        return center+norm_perp_vec*radius
+        '''    
     def generate_trialvectors(self, center, radius, n_samples, seed=None, on_surface=False):
         """
         Uniformly samples points from a hypersphere. If on_surface is set to True, the points are
