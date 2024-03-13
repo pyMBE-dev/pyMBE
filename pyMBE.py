@@ -678,11 +678,11 @@ class pymbe_library():
                                                                  n_samples=1,
                                                                  on_surface=True)[0]
                     residues_info = self.create_residue(name=residue,
-                                                                    number_of_residues=1, 
-                                                                    espresso_system=espresso_system, 
-                                                                    central_bead_position=first_residue_position,  
-                                                                    use_default_bond= use_default_bond, 
-                                                                    backbone_vector=backbone_vector)
+                                                        number_of_residues=1, 
+                                                        espresso_system=espresso_system, 
+                                                        central_bead_position=first_residue_position,  
+                                                        use_default_bond= use_default_bond, 
+                                                        backbone_vector=backbone_vector)
                     residue_id = next(iter(residues_info))
                     for index in self.df[self.df['residue_id']==residue_id].index:
                         self.add_value_to_df(key=('molecule_id',''),
@@ -706,10 +706,11 @@ class pymbe_library():
                                               use_default_bond=use_default_bond)                
                     residue_position = residue_position+backbone_vector*l0
                     residues_info = self.create_residue(name=residue, 
-                                                                    number_of_residues=1, 
-                                                                    espresso_system=espresso_system, 
-                                                                    central_bead_position=[residue_position],
-                                                                    use_default_bond= use_default_bond)
+                                                        number_of_residues=1, 
+                                                        espresso_system=espresso_system, 
+                                                        central_bead_position=[residue_position],
+                                                        use_default_bond= use_default_bond, 
+                                                        backbone_vector=backbone_vector)
                     residue_id = next(iter(residues_info))      
                     for index in self.df[self.df['residue_id']==residue_id].index:
                         if not self.check_if_df_cell_has_a_value(index=index,key=('molecule_id','')):
@@ -929,6 +930,7 @@ class pymbe_library():
                                               particle_name2=side_chain_element, 
                                               hard_check=True, 
                                               use_default_bond=use_default_bond)
+
                     if backbone_vector is None:
                         bead_position=self.generate_trialvectors(center=central_bead_position, 
                                                                  radius=l0, 
@@ -938,7 +940,7 @@ class pymbe_library():
                         bead_position=self.generate_trial_perpendicular_vector(vector=backbone_vector,
                                                                             center=central_bead_position, 
                                                                             radius=l0)
-                        
+                    
                     side_bead_id = self.create_particle(name=side_chain_element, 
                                                                     espresso_system=espresso_system,
                                                                     position=[bead_position], 
@@ -1528,48 +1530,43 @@ class pymbe_library():
                 coord_list.append (coord)
                 counter += 1
         return coord_list
+    
     def generate_trial_perpendicular_vector(self,vector,center,radius):
         """
-    Generates an orthogonal vector with the same size as the input vector.
+        Generates an orthogonal vector to the input `vector`.
 
-    Args:
-        vector: Input vector for which an orthogonal vector needs to be generated.
-        
-    Returns:
-        perpendicular_vector: Orthogonal vector with the same magnitude as the input vector.
-    """
+        Args:
+            vector(`lst`): arbitrary vector.
+            center(`lst`): origin of the orthogonal vector.
+            radius(`float`): magnitude of the orthogonal vector.
+            
+        Returns:
+            perpendicular_vector: Orthogonal vector with the same magnitude as the input vector.
+        """ 
+
+        # FIXME:
+        # We should consider renaming the input arguments for clarity
+        # center --> origin
+        # radius --> magnitude
+
         np_vec = self.np.array(vector)
+                
         if self.np.all(np_vec == 0):
             raise ValueError('Zero vector')
 
         # Generate a random vector with the same size as the input vector
-        random_vector = self.generate_trialvectors(center=center, radius=radius, n_samples=1, on_surface=True)[0]
+        random_vector = self.generate_trialvectors(center=center, 
+                                                   radius=radius, 
+                                                   n_samples=1, 
+                                                   on_surface=True)[0]
 
         # Project the random vector onto the input vector and subtract the projection
         projection = self.np.dot(random_vector, np_vec) / self.np.dot(np_vec, np_vec) * np_vec
         perpendicular_vector = random_vector - projection
         # Normalize the perpendicular vector to have the same magnitude as the input vector
-        perpendicular_vector /= self.np.linalg.norm(perpendicular_vector) / self.np.linalg.norm(np_vec)
-        return perpendicular_vector
-    '''
-    def generate_trial_perpendicular_vector(self, vector, center, radius):
-        """
-        Generates a random vector perpendicular to `vector`.
-        
-        Args:
-            vector(`lst`): Coordinates of the vector.
-            magnitude(`float`): magnitude of the vector perpendicular to `vector`.
-
-        Returns:
-            perpendicular_vector(`np.array`): random vector perpendicular to `vector`.
-        """
-        np_vec=self.np.array(vector)
-        if np_vec[1] == 0 and np_vec[2] == 0 and np_vec[0] == 1:
-            raise ValueError('zero vector')
-        perp_vec = self.np.cross(np_vec, self.generate_trialvectors(center=center, radius=radius, n_samples=1, on_surface=True)[0])
-        norm_perp_vec = perp_vec/self.np.linalg.norm(perp_vec)
-        return center+norm_perp_vec*radius
-        '''    
+        perpendicular_vector /= self.np.linalg.norm(perpendicular_vector) 
+        return center+perpendicular_vector*radius
+   
     def generate_trialvectors(self, center, radius, n_samples, seed=None, on_surface=False):
         """
         Uniformly samples points from a hypersphere. If on_surface is set to True, the points are
@@ -1579,7 +1576,7 @@ class pymbe_library():
             center(`lst`): Array with the coordinates of the center of the spheres.
             radius(`float`): Radius of the sphere.
             n_samples(`int`): Number of sample points to generate inside the sphere.
-            seed (`int`, optional): Seed for the random number generator
+            seed (`int`, optional): Seed for the random number generator.
             on_surface (`bool`, optional): If set to True, points will be uniformly sampled on the surface of the hypersphere.
 
         Returns:
