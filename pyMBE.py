@@ -2180,9 +2180,9 @@ class pymbe_library():
         """
         acidity_valid_keys = ['inert','acidic', 'basic']
         if acidity not in acidity_valid_keys:
-            raise ValueError(self.df[name].name +' provided acidity not supported, valid keys are ', acidity_valid_keys)
+            raise ValueError(f"Acidity {acidity} provided for particle name  {name} is not supproted. Valid keys are: {acidity_valid_keys}")
         if acidity in ['acidic', 'basic'] and pka is None:
-            raise ValueError("pKa must be provided for acidic or basic particles.")   
+            raise ValueError(f"pKa not provided for particle with name {name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
         for index in self.df[self.df['name']==name].index:       
             if pka:
                 self.add_value_to_df(key=('pka',''),index=index,new_value=pka)
