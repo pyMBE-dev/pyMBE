@@ -10,6 +10,7 @@ The following people have contributed to pyMBE:
 - Paola B. Torres (Universidad Tecnologica Nacional, Argentina)
 
 ## Contributors
+- Marius Aarsten (Norwegian University of Science and Tecnology, Norway)
 - Claudio F. Narambuena (Universidad Tecnologica Nacional, Argentina)
 
 ## Early testers of the library
