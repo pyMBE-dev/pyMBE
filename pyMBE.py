@@ -1,4 +1,5 @@
 class pymbe_library():
+
     """
     The library for the Molecular Builder for ESPResSo (pyMBE)
 
@@ -938,8 +939,9 @@ class pymbe_library():
                                                                  on_surface=True)[0]
                     else:
                         bead_position=self.generate_trial_perpendicular_vector(vector=backbone_vector,
-                                                                            center=central_bead_position, 
-                                                                            radius=l0)
+                                                                            origin=central_bead_position, 
+                                                                            magnitude=l0)
+                    
                     side_bead_id = self.create_particle(name=side_chain_element, 
                                                                     espresso_system=espresso_system,
                                                                     position=[bead_position], 
@@ -971,8 +973,8 @@ class pymbe_library():
                                                                     on_surface=True)[0]
                     else:
                         residue_position=self.generate_trial_perpendicular_vector(vector=backbone_vector,
-                                                                                center=central_bead_position, 
-                                                                                radius=l0)
+                                                                                origin=central_bead_position, 
+                                                                                magnitude=l0)
                     lateral_residue_info = self.create_residue(name=side_chain_element, espresso_system=espresso_system,
                         number_of_residues=1, central_bead_position=[residue_position],use_default_bond=use_default_bond)
                     lateral_residue_dict=list(lateral_residue_info.values())[0]
@@ -1492,8 +1494,7 @@ class pymbe_library():
         """
         idx = self.pd.IndexSlice
         for state in ['state_one', 'state_two']:
-            index = self.np.where(self.df[(state, 'es_type')] == es_type)[0]
-            
+            index = self.np.where(self.df[(state, 'es_type')] == es_type)[0]      
             if len(index) > 0:
                 if column_name == 'label':
                     label = self.df.loc[idx[index[0]], idx[(state,column_name)]]
@@ -1530,42 +1531,32 @@ class pymbe_library():
                 counter += 1
         return coord_list
     
-    def generate_trial_perpendicular_vector(self,vector,center,radius):
+    def generate_trial_perpendicular_vector(self,vector,origin,magnitude):
         """
         Generates an orthogonal vector to the input `vector`.
 
         Args:
             vector(`lst`): arbitrary vector.
-            center(`lst`): origin of the orthogonal vector.
-            radius(`float`): magnitude of the orthogonal vector.
+            origin(`lst`): origin of the orthogonal vector.
+            magnitude(`float`): magnitude of the orthogonal vector.
             
         Returns:
-            perpendicular_vector: Orthogonal vector with the same magnitude as the input vector.
+            (`lst`): Orthogonal vector with the same magnitude as the input vector.
         """ 
-
-        # FIXME:
-        # We should consider renaming the input arguments for clarity
-        # center --> origin
-        # radius --> magnitude
-
-        np_vec = self.np.array(vector)
-                
+        np_vec = self.np.array(vector) 
         if self.np.all(np_vec == 0):
             raise ValueError('Zero vector')
-
         # Generate a random vector with the same size as the input vector
-        random_vector = self.generate_trialvectors(center=center, 
-                                                   radius=radius, 
+        random_vector = self.generate_trialvectors(center=[0,0,0], 
+                                                   radius=1, 
                                                    n_samples=1, 
                                                    on_surface=True)[0]
-
         # Project the random vector onto the input vector and subtract the projection
         projection = self.np.dot(random_vector, np_vec) * np_vec
         perpendicular_vector = random_vector - projection
         # Normalize the perpendicular vector to have the same magnitude as the input vector
         perpendicular_vector /= self.np.linalg.norm(perpendicular_vector) 
-        return center+perpendicular_vector*radius
-        
+        return origin+perpendicular_vector*magnitude
    
     def generate_trialvectors(self, center, radius, n_samples, seed=None, on_surface=False):
         """
@@ -1594,7 +1585,6 @@ class pymbe_library():
         # make the samples lie on the surface of the unit hypersphere
         normalize_radii = self.np.linalg.norm(samples, axis=1)[:, self.np.newaxis]
         samples /= normalize_radii
-
         if not on_surface:
             # make the samples lie inside the hypersphere with the correct density
             uniform_points = rng.uniform(size=n_samples)[:, self.np.newaxis]
