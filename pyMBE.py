@@ -940,7 +940,6 @@ class pymbe_library():
                         bead_position=self.generate_trial_perpendicular_vector(vector=backbone_vector,
                                                                             center=central_bead_position, 
                                                                             radius=l0)
-                    
                     side_bead_id = self.create_particle(name=side_chain_element, 
                                                                     espresso_system=espresso_system,
                                                                     position=[bead_position], 
@@ -1561,11 +1560,12 @@ class pymbe_library():
                                                    on_surface=True)[0]
 
         # Project the random vector onto the input vector and subtract the projection
-        projection = self.np.dot(random_vector, np_vec) / self.np.dot(np_vec, np_vec) * np_vec
+        projection = self.np.dot(random_vector, np_vec) * np_vec
         perpendicular_vector = random_vector - projection
         # Normalize the perpendicular vector to have the same magnitude as the input vector
         perpendicular_vector /= self.np.linalg.norm(perpendicular_vector) 
         return center+perpendicular_vector*radius
+        
    
     def generate_trialvectors(self, center, radius, n_samples, seed=None, on_surface=False):
         """
