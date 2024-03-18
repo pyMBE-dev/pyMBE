@@ -1313,7 +1313,7 @@ class pymbe_library():
         Args:
             name (`str`): Unique label that identifies the `protein`.
             model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
-            topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
+            topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
         """
 
         protein_seq_list = []     
@@ -1706,9 +1706,9 @@ class pymbe_library():
             raise ValueError(f"Combining_rule {combining_rule} currently not implemented in pyMBE, valid keys are {supported_combining_rules}")
 
         eps1 = self.df.loc[self.df["name"]==particle_name1].epsilon.iloc[0]
-        sigma1 = self.df.loc[self.df["name"]==particle_name1].diameter.iloc[0]
+        sigma1 = self.df.loc[self.df["name"]==particle_name1].sigma.iloc[0]
         eps2 = self.df.loc[self.df["name"]==particle_name2].epsilon.iloc[0]
-        sigma2 = self.df.loc[self.df["name"]==particle_name2].diameter.iloc[0]
+        sigma2 = self.df.loc[self.df["name"]==particle_name2].sigma.iloc[0]
         
         return {"epsilon": self.np.sqrt(eps1*eps2), "sigma": (sigma1+sigma2)/2.0}
 
@@ -1770,17 +1770,17 @@ class pymbe_library():
     
     def get_radius_map(self):
         '''
-        Gets the diameter of each `espresso type` in `pmb.df`. 
+        Gets the effective radius of each `espresso type` in `pmb.df`. 
         
         Returns:
             radius_map(`dict`): {espresso_type: radius}.
         '''
 
-        df_state_one = self.df[[('diameter',''),('state_one','es_type')]].dropna().drop_duplicates()
-        df_state_two = self.df[[('diameter',''),('state_two','es_type')]].dropna().drop_duplicates()
+        df_state_one = self.df[[('sigma',''),('state_one','es_type')]].dropna().drop_duplicates()
+        df_state_two = self.df[[('sigma',''),('state_two','es_type')]].dropna().drop_duplicates()
 
-        state_one = self.pd.Series(df_state_one.diameter.values/2.0,index=df_state_one.state_one.es_type.values)
-        state_two = self.pd.Series(df_state_two.diameter.values/2.0,index=df_state_two.state_two.es_type.values)
+        state_one = self.pd.Series(df_state_one.sigma.values/2.0,index=df_state_one.state_one.es_type.values)
+        state_two = self.pd.Series(df_state_two.sigma.values/2.0,index=df_state_two.state_two.es_type.values)
         radius_map  = self.pd.concat([state_one,state_two],axis=0).to_dict()
         
         return radius_map
@@ -1830,7 +1830,7 @@ class pymbe_library():
         """
         from espressomd import interactions
         without_units = ['q','es_type','acidity']
-        with_units = ['diameter','epsilon']
+        with_units = ['sigma','epsilon']
         with open(filename) as f:
             for line in f:
                 if line[0] == '#':
@@ -1852,7 +1852,7 @@ class pymbe_library():
                                 not_requiered_attributes[not_requiered_key]=None
                     self.define_particle(name=param_dict.pop('name'),
                                     q=not_requiered_attributes.pop('q'),
-                                    diameter=not_requiered_attributes.pop('diameter'),
+                                    sigma=not_requiered_attributes.pop('sigma'),
                                     acidity=not_requiered_attributes.pop('acidity'),
                                     epsilon=not_requiered_attributes.pop('epsilon'))
                 elif object_type == 'residue':
@@ -2075,7 +2075,7 @@ class pymbe_library():
             unit_length(`obj`): unit of length of the the coordinates in `filename` using the pyMBE UnitRegistry. Defaults to None.
 
         Returns:
-            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
+            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
 
         Note:
             - If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
@@ -2774,23 +2774,23 @@ class pymbe_library():
             print(f'WARNING: The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.')
         return
 
-    def setup_particle_diameter(self, topology_dict):
+    def setup_particle_sigma(self, topology_dict):
         '''
-        Sets up the diameter of the particles in `positions`.
+        Sets up sigma of the particles in `topology_dict`.
 
         Args:
-            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
+            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
         '''
         for residue in topology_dict.keys():
             residue_name = self.re.split(r'\d+', residue)[0]
             residue_number = self.re.split(r'(\d+)', residue)[1]
-            residue_diameter  = topology_dict[residue]['diameter']
-            diameter = residue_diameter*self.units.nm
+            residue_sigma  = topology_dict[residue]['sigma']
+            sigma = residue_sigma*self.units.nm
             index = self.df[(self.df['residue_id']==residue_number) & (self.df['name']==residue_name) ].index.values[0]
 
-            self.add_value_to_df(key= ('diameter',''),
+            self.add_value_to_df(key= ('sigma',''),
                         index=int (index),
-                        new_value=diameter)
+                        new_value=sigma)
             
         return 
 
