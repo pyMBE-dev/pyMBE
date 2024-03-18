@@ -2742,29 +2742,27 @@ class pymbe_library():
         for type_pair in combinations_with_replacement(particles_types_with_LJ_parameters, 2):
             lj_parameters={}
             for key in lj_parameters_keys:
-                lj_parameters[key]=self.np.array()
+                lj_parameters[key]=[]
             # Search the LJ parameters of the type pair
             for ptype in type_pair:
                 for key in lj_parameters_keys:
-                    self.np.append(lj_parameters[key],self.find_value_from_es_type(es_type=ptype, column_name=key))
+                    lj_parameters[key].append(self.find_value_from_es_type(es_type=ptype, column_name=key))
             # If one of the particle has sigma=0, no LJ interations are setuo between that particle type and the others    
-            if not all(lj_parameters["sigma"]):
-                pass
-
+            if not all([ sigma_value.magnitude for sigma_value in lj_parameters["sigma"]]):
+                continue
             # Apply combining rule
             if combining_rule == 'Lorentz-Berthelot':
-                sigma=self.np.mean(lj_parameters["sigma"])
-                cutoff=self.np.mean(lj_parameters["cutoff"])
-                cutoff=self.np.mean(lj_parameters["cutoff"])
-                epsilon=self.np.sqrt(self.np.prod(epsilon_list))
-                
+                sigma=(lj_parameters["sigma"][0]+lj_parameters["sigma"][1])/2
+                cutoff=(lj_parameters["cutoff"][0]+lj_parameters["cutoff"][1])/2
+                offset=(lj_parameters["offset"][0]+lj_parameters["offset"][1])/2
+                epsilon=self.np.sqrt(lj_parameters["epsilon"][0]*lj_parameters["epsilon"][1])
             espresso_system.non_bonded_inter[type_pair[0],type_pair[1]].lennard_jones.set_params(epsilon = epsilon.to('reduced_energy').magnitude, 
                                                                                     sigma = sigma.to('reduced_length').magnitude, 
                                                                                     cutoff = cutoff.to('reduced_length').magnitude,
                                                                                     offset = offset.to("reduced_length").magnitude, 
                                                                                     shift = shift)                                                                                          
             index = len(self.df)
-            self.df.at [index, 'name'] = f'LJ: {label_list[0]}-{label_list[1]}'
+            self.df.at [index, 'name'] = f'LJ: {lj_parameters["label"][0]}-{lj_parameters["label"][1]}'
             lj_params=espresso_system.non_bonded_inter[type_pair[0], type_pair[1]].lennard_jones.get_params()
             self.add_value_to_df(index=index,
                                 key=('pmb_type',''),

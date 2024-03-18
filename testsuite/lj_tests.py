@@ -72,15 +72,15 @@ input_parameters={"name":"B",
                     "offset":2*pmb.units.nm}
 pmb.define_particle(**input_parameters)
 input_parameters={"name":"C", 
-                    "sigma":0*pmb.units.nm, 
-                    "epsilon":pmb.units.Quantity(2,"reduced_energy"), 
-                    "cutoff":2*2**(1./6.)*pmb.units.nm, 
-                    "offset":2*pmb.units.nm}
+                "sigma":0*pmb.units.nm, 
+                "epsilon":pmb.units.Quantity(2,"reduced_energy"), 
+                "cutoff":2*2**(1./6.)*pmb.units.nm, 
+                "offset":2*pmb.units.nm}
 pmb.define_particle(**input_parameters)
 
 # Create a dummy instance of an espresso system
 import espressomd
-espresso_system=espressomd.System(box_l = [10]*3)
+espresso_system=espressomd.System(box_l = [50]*3)
 
 pmb.setup_lj_interactions(espresso_system=espresso_system)
 
