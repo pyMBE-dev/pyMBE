@@ -14,9 +14,9 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 #Import functions from handy_functions script 
-from handy_scripts.handy_functions import setup_electrostatic_interactions
-from handy_scripts.handy_functions import minimize_espresso_system_energy
-from handy_scripts.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import setup_electrostatic_interactions
+from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import setup_langevin_dynamics
 
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
@@ -109,7 +109,7 @@ pmb.define_particle(name = cation_name, q = 1, sigma=0.2*pmb.units.nm, epsilon=e
 pmb.define_particle(name = anion_name,  q =-1, sigma=0.2*pmb.units.nm, epsilon=epsilon)
 
 # Here we upload the pka set from the reference_parameters folder
-path_to_pka=pmb.get_resource('reference_parameters/pka_sets/Nozaki1967.txt') 
+path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.txt') 
 pmb.load_pka_set (filename=path_to_pka)
 
 #We create the protein in espresso 
