@@ -21,15 +21,24 @@ for parameter_key in input_parameters.keys():
                             desired=input_parameters[parameter_key], 
                             verbose=True)
 print("*** Unit test passed ***")
-print(f"*** Unit test: check that `cutoff` and `offset` default to 0***")
+print(f"*** Unit test: check that `offset` defaults to 0***")
 # Clean pmb.df
 pmb.setup_df()
 # Define dummy particle
 pmb.define_particle(name="A")
-for parameter_key in ["offset","cutoff"]:
-    np.testing.assert_equal(actual=pmb.df[parameter_key].values[0], 
-                            desired=pmb.units.Quantity(0,"reduced_length"), 
-                            verbose=True)
+np.testing.assert_equal(actual=pmb.df["offset"].values[0], 
+                        desired=pmb.units.Quantity(0,"reduced_length"), 
+                        verbose=True)
+print("*** Unit test passed ***")
+
+print(f"*** Unit test: check that `cutoff` defaults to `2**(1./6.) reduced_length` ***")
+# Clean pmb.df
+pmb.setup_df()
+# Define dummy particle
+pmb.define_particle(name="A")
+np.testing.assert_equal(actual=pmb.df["cutoff"].values[0], 
+                        desired=pmb.units.Quantity(2**(1./6.),"reduced_length"), 
+                        verbose=True)
 print("*** Unit test passed ***")
 
 print(f"*** Unit test: check that define_particle raises a ValueError if sigma is provided with the wrong dimensionality ***")

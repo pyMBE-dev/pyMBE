@@ -1228,7 +1228,9 @@ class pymbe_library():
         Note:
             - `sigma`, `cutoff` and `offset` must have a dimensitonality of `[length]` and should be defined using pmb.units.
             - `epsilon` must have a dimensitonality of `[energy]` and should be defined using pmb.units.
-            - `cutoff` and `offset` default to 0.
+            - `cutoff` defaults to `2**(1./6.) reduced_length`. 
+            - `offset` defaults to 0.
+            - The default setup corresponds to the Weeks−Chandler−Andersen (WCA) model, corresponding to purely steric interactions.
             - For more information on `sigma`, `epsilon`, `cutoff` and `offset` check `pmb.setup_lj_interactions()`.
         """ 
 
@@ -1242,7 +1244,7 @@ class pymbe_library():
         # If `cutoff` and `offset` are not defined, default them to 0
 
         if cutoff is None:
-            cutoff=self.units.Quantity(0, "reduced_length")
+            cutoff=self.units.Quantity(2**(1./6.), "reduced_length")
         if offset is None:
             offset=self.units.Quantity(0, "reduced_length")
 

@@ -52,7 +52,7 @@ N_chains = 16
 polyacid_name = 'polyacid'
 
 # Add the polyacid to the pmb instance
-pmb.define_particle(name='A', acidity='acidic', diameter=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'), pka=args.pKa_value)
+pmb.define_particle(name='A', acidity='acidic', sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'), pka=args.pKa_value)
 pmb.define_residue(name='rA', central_bead="A", side_chains=[])
 pmb.define_molecule(name=polyacid_name, residue_list=['rA']*Chain_length)
 
@@ -69,10 +69,10 @@ hydroxide_name = 'OHminus'
 sodium_name = 'Na'
 chloride_name = 'Cl'
 
-pmb.define_particle(name=proton_name, q=1, diameter=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=hydroxide_name,  q=-1, diameter=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=sodium_name, q=1, diameter=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=chloride_name,  q=-1, diameter=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=proton_name, q=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=hydroxide_name,  q=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=sodium_name, q=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=chloride_name,  q=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters (some are read from the command line)
 c_mon_sys = args.c_mon_sys * pmb.units.mol/ pmb.units.L
