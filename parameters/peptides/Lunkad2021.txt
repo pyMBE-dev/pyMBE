@@ -1,10 +1,10 @@
 # Parameters from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-{"object_type":"particle", "name": "CA", "q":0, "diameter": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "D", "acidity": "acidic", "diameter": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "E", "acidity": "acidic", "diameter": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "H", "acidity": "basic", "diameter": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "Y", "acidity": "acidic", "diameter": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "K", "acidity": "basic", "diameter": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "CA", "q":0, "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "D", "acidity": "acidic", "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "E", "acidity": "acidic", "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "H", "acidity": "basic", "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "Y", "acidity": "acidic", "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "K", "acidity": "basic", "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
 {"object_type":"bond", "name1": "CA", "name2": "CA", "bond_type": "harmonic", "r_0": {"value":0.382, "units":"nm"}, "k": {"value": 400, "units":"reduced_energy / nm**2"}}
 {"object_type":"bond", "name1": "CA", "name2": "D", "bond_type": "harmonic", "r_0": {"value":0.329, "units":"nm"}, "k": {"value": 400, "units":"reduced_energy / nm**2"}}
 {"object_type":"bond", "name1": "CA", "name2": "E", "bond_type": "harmonic", "r_0": {"value":0.435, "units":"nm"}, "k": {"value": 400, "units":"reduced_energy / nm**2"}}

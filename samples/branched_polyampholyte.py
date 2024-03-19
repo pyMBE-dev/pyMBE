@@ -16,8 +16,8 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 # Load some functions from the handy_scripts library for convinience
-from handy_scripts.handy_functions import setup_langevin_dynamics
-from handy_scripts.handy_functions import block_analyze
+from lib.handy_functions import setup_langevin_dynamics
+from lib.analysis import block_analyze
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 if not os.path.exists('./frames'):
@@ -41,7 +41,7 @@ pmb.define_particle(
     name = "I",
     acidity = "inert",
     q = 0,
-    diameter = 1*pmb.units('reduced_length'),
+    sigma = 1*pmb.units('reduced_length'),
     epsilon = 1*pmb.units('reduced_energy'))
     
 # Acidic particle
@@ -49,7 +49,7 @@ pmb.define_particle(
     name = "A",
     acidity = "acidic",
     pka = 4,
-    diameter = 1*pmb.units('reduced_length'),
+    sigma = 1*pmb.units('reduced_length'),
     epsilon = 1*pmb.units('reduced_energy'))
     
 # Basic particle
@@ -57,7 +57,7 @@ pmb.define_particle(
     name = "B",
     acidity = "basic",
     pka = 9,
-    diameter = 1*pmb.units('reduced_length'),
+    sigma = 1*pmb.units('reduced_length'),
     epsilon = 1*pmb.units('reduced_energy'))
 
 # Define different residues
@@ -92,8 +92,8 @@ cation_name = 'Na'
 anion_name = 'Cl'
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
-pmb.define_particle(name=cation_name, q=1, diameter=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters
 N_polyampholyte_chains = 5
