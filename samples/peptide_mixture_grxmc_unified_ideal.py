@@ -20,8 +20,8 @@ if not os.path.exists('./frames'):
     os.makedirs('./frames')
 
 #Import functions from handy_functions script 
-from handy_scripts.handy_functions import minimize_espresso_system_energy
-from handy_scripts.handy_functions import block_analyze
+from lib.handy_functions import minimize_espresso_system_energy
+from lib.analysis import block_analyze
 
 # Simulation parameters
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
@@ -47,8 +47,8 @@ N_peptide2_chains = 10
 
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-path_to_interactions=pmb.get_resource("reference_parameters/interaction_parameters/Lunkad2021.txt")
-path_to_pka=pmb.get_resource("reference_parameters/pka_sets/Hass2015.txt")
+path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
+path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.txt")
 pmb.load_interaction_parameters (filename=path_to_interactions) 
 pmb.load_pka_set (path_to_pka)
 

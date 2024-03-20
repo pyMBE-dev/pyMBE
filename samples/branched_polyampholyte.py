@@ -16,8 +16,8 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 # Load some functions from the handy_scripts library for convinience
-from handy_scripts.handy_functions import setup_langevin_dynamics
-from handy_scripts.handy_functions import block_analyze
+from lib.handy_functions import setup_langevin_dynamics
+from lib.analysis import block_analyze
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 if not os.path.exists('./frames'):
