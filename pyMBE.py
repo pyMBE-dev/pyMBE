@@ -545,10 +545,10 @@ class pymbe_library():
     def convert_str_to_bond_object (self, bond_str):
         
         """
-        Convert a row read as a `str` to the corresponding bond object. There are two supported bonds: HarmonicBond and  FeneBond
+        Convert a row read as a `str` to the corresponding bond object. There are two supported bonds: HarmonicBond and FeneBond
 
         Args:
-            bond_str (`strt`): string with the information of a bond object
+            bond_str (`str`): string with the information of a bond object
 
         Returns:
             bond_object(`obj`): EsPRESSo bond object 
@@ -2827,9 +2827,15 @@ class pymbe_library():
             
         return 
 
-    def write_pmb_df (self, df, filename):
+    def write_pmb_df (self, filename):
+        '''
+        Writes the pyMBE dataframe into a csv file
+        
+        Args:
+            filename (`str`): Path to the csv file 
+        '''
 
-        df.to_csv(filename)
+        self.df.to_csv(filename)
 
         return
 
