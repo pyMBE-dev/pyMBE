@@ -5,12 +5,6 @@ import os
 import sys
 import inspect
 
-# Find path to pyMBE
-current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-path_end_index=current_dir.find("pyMBE")
-pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
-sys.path.insert(0, pyMBE_path) 
-
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
@@ -88,12 +82,21 @@ c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 pmb.define_particle(name=cation_name, q=1, diameter=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 pmb.define_particle(name=anion_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
+#System parameters
+molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
+volume = n_molecules/(pmb.N_A*molecule_concentration)
+L = volume ** (1./3.) # Side of the simulation box
+espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
+
+#Setup potential energy
+
+pmb.setup_lj_interactions (espresso_system=espresso_system)
 
 #Write the pymbe DF to a csv file 
 
 df_filename = 'df-example_molecule.csv'
 
-pmb.write_pmb_df (df=pmb.df, filename=df_filename)
+pmb.write_pmb_df (filename=df_filename)
 
 # Read the same pyMBE df from a csv a load it in pyMBE
 
@@ -101,23 +104,22 @@ read_df = pmb.read_pmb_df(df_filename)
 
 #Compare both df
 
-
-
 dtype_comparison = pmb.df.dtypes == read_df.dtypes 
 
 print(f"*** Unit test: test that the dtype between the written pmb.df and the file read are equal  ***")
 
-if not dtype_comparison.all():
-    print (dtype_comparison)
-    raise ValueError ('There are two columns that have different dtype.')
-else:
+if dtype_comparison.all():
     print(f"*** Unit test passed ***")
-
+else:
+    different_dtype_columns = pmb.df.columns[~dtype_comparison]
+    for col in different_dtype_columns:
+       raise ValueError (f"The following columns have different dtype: {col}: {pmb.df[col].dtype}")
 
 print(f"*** Unit test: test that the rows between the written pmb.df and the file read are equal  ***")
 
 row_comparison = pmb.df.equals(read_df)
-if not row_comparison:
-    raise ValueError ('There is some inconsistency between the pmb.df and read_df')
-else:
+
+if row_comparison:
     print(f"*** Unit test passed ***")
+else:
+    raise ValueError ('There is some inconsistency between the pmb.df and read_df')
