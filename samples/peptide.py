@@ -161,7 +161,7 @@ N_frame=0
 Z_pH=[] # List of the average global charge at each pH
 
 #Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df(df=pmb.df, filename='df.csv')
+pmb.write_pmb_df(filename='df.csv')
 
 
 # Main loop for performing simulations at different pH-values
