@@ -70,8 +70,8 @@ if sequence in Lunkad_test_sequences:
     pmb.load_pka_set (filename='parameters/pka_sets/CRC1991.txt')
     model = '2beadAA'  # Model with 2 beads per each aminoacid
     N_peptide_chains = 4
-    sigma_Na=0.35*pmb.units.nm
-    sigma_Cl=0.35*pmb.units.nm
+    sigma_cation=0.35*pmb.units.nm
+    sigma_anion=0.35*pmb.units.nm
     c_salt=1e-2 * pmb.units.mol/ pmb.units.L
     chain_length=len(sequence)*2
 
@@ -81,8 +81,8 @@ elif sequence in Blanco_test_sequence:
     model = '1beadAA'
     N_peptide_chains = 1
     c_salt = 5e-3 * pmb.units.mol/ pmb.units.L
-    sigma_Na=0.2*pmb.units.nm
-    sigma_Cl=0.36*pmb.units.nm
+    sigma_cation=0.2*pmb.units.nm
+    sigma_anion=0.36*pmb.units.nm
     chain_length=len(sequence)
 
 # Simulation parameters
@@ -101,7 +101,9 @@ else:
     raise RuntimeError()
 
 
-pmb.define_peptide (name=sequence, sequence=sequence, model=model)
+pmb.define_peptide (name=sequence, 
+                    sequence=sequence, 
+                    model=model)
 
 # Solution parameters
 cation_name = 'Na'
@@ -110,12 +112,12 @@ c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
 pmb.define_particle(name=cation_name,
                     q=1,
-                    sigma=sigma_Na,
+                    sigma=sigma_cation,
                     epsilon=1*pmb.units('reduced_energy'))
 
 pmb.define_particle(name=anion_name,
                     q=-1,
-                    sigma=sigma_Cl,
+                    sigma=sigma_anion,
                     epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters

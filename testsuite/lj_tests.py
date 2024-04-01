@@ -157,7 +157,7 @@ for label in labels:
                                 verbose=True)
 print(f"*** Unit test passed ***")
 
-print(f"*** Unit test: test that setup_lj_interactions does not setup any LJ interactions for particles with sigma = 0 ***")
+print(f"*** Unit test: test that setup_lj_interactions does not set up any LJ interactions for particles with sigma = 0 ***")
 
 lj_labels=pmb.filter_df("LennardJones")["name"].values
 # Check that no interaction between particle C and any other particle has been set up

@@ -464,15 +464,18 @@ class pymbe_library():
         Args:
             `variable`(`pint.Quantity`): Quantity to be checked.
             `expected_dimensionality(`str`): Expected dimension of the variable.
-        """
 
-        try:
-            correct_dimensionality=variable.check(f"[{expected_dimensionality}]")
-        except:
-            raise ValueError(f"The variable {variable} should be a `pint.Quantity` object, instead the variable is {type(variable)}")
-        
+        Returns:
+            `bool`: `True` if the variable if of the expected dimensionality, `False` otherwise.
+
+        Note:
+            - `expected_dimensionality` takes dimensionality following the Pint standards [docs](https://pint.readthedocs.io/en/0.10.1/wrapping.html?highlight=dimensionality#checking-dimensionality).
+            - For example, to check for a variable corresponding to a velocity `expected_dimensionality = "[length]/[time]"`    
+        """
+        correct_dimensionality=variable.check(f"{expected_dimensionality}")      
         if not correct_dimensionality:
             raise ValueError(f"The variable {variable} should have a dimensionality of {expected_dimensionality}, instead the variable has a dimensionality of {variable.dimensionality}")
+        return correct_dimensionality
 
     def check_if_df_cell_has_a_value(self, index,key):
         """
@@ -2706,7 +2709,7 @@ class pymbe_library():
         Args:
             espresso_system(`obj`): Instance of a system object from the espressomd library.
             shift_potential(`bool`, optional): If True, a shift will be automatically computed such that the potential is continuous at the cutoff radius. Otherwise, no shift will be applied. Defaults to True.
-            combining_rule(`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
+            combining_rule(`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential between a pair of particles. Defaults to 'Lorentz-Berthelot'.
             warning(`bool`, optional): switch to activate/deactivate warning messages. Defaults to True.
 
         Note:
@@ -2749,7 +2752,7 @@ class pymbe_library():
             for ptype in type_pair:
                 for key in lj_parameters_keys:
                     lj_parameters[key].append(self.find_value_from_es_type(es_type=ptype, column_name=key))
-            # If one of the particle has sigma=0, no LJ interations are setuo between that particle type and the others    
+            # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
             if not all([ sigma_value.magnitude for sigma_value in lj_parameters["sigma"]]):
                 continue
             # Apply combining rule
