@@ -457,6 +457,26 @@ class pymbe_library():
                 espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
         return 
 
+    def check_dimensionality(self, variable, expected_dimensionality):
+        """
+        Checks if the dimensionality of `variable` matches `expected_dimensionality`.
+
+        Args:
+            `variable`(`pint.Quantity`): Quantity to be checked.
+            `expected_dimensionality(`str`): Expected dimension of the variable.
+
+        Returns:
+            `bool`: `True` if the variable if of the expected dimensionality, `False` otherwise.
+
+        Note:
+            - `expected_dimensionality` takes dimensionality following the Pint standards [docs](https://pint.readthedocs.io/en/0.10.1/wrapping.html?highlight=dimensionality#checking-dimensionality).
+            - For example, to check for a variable corresponding to a velocity `expected_dimensionality = "[length]/[time]"`    
+        """
+        correct_dimensionality=variable.check(f"{expected_dimensionality}")      
+        if not correct_dimensionality:
+            raise ValueError(f"The variable {variable} should have a dimensionality of {expected_dimensionality}, instead the variable has a dimensionality of {variable.dimensionality}")
+        return correct_dimensionality
+
     def check_if_df_cell_has_a_value(self, index,key):
         """
         Checks if a cell in the `pmb.df` at the specified index and column has a value.
@@ -489,6 +509,7 @@ class pymbe_library():
             return True            
         else:
             return False
+
 
     def check_pka_set(self, pka_set):
         """
@@ -1193,31 +1214,62 @@ class pymbe_library():
         self.df.at [index,('residue_list','')] = residue_list
         return
 
-    def define_particle(self, name, q=0, diameter=None, acidity='inert', epsilon=None, pka=None):
+    def define_particle(self, name, q=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None):
         """
-        Defines a pyMBE object of type `particle` in `pymbe.df`
+        Defines the properties of a particle object.
 
         Args:
-            name (`str`): Unique label that identifies the `particle`.  
-            q (`int`, optional): Charge of the `particle`. Defaults to 0.
-            diameter (`obj`, optional): Diameter used to setup Lennard-Jones interactions for the `particle`, should have units of length using the `pmb.units` UnitRegistry. Defaults to None.
-            epsilon (`obj`, optional): Epsilon parameter used to setup Lennard-Jones interactions for the `particle`, should have units of energy using the `pmb.units` UnitRegistry.. Defaults to None
+            name (`str`): Unique label that identifies this particle type.  
+            q (`int`, optional): Permanent charge of this particle type. Defaults to 0.
             acidity (`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
             pka (`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
+            sigma (`pint.Quantity`, optional): Sigma parameters used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            cutoff (`pint.Quantity`, optional): Sigma parameters used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            offset (`pint.Quantity`, optional): Sigma parameters used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            epsilon (`pint.Quantity`, optional): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe. Defaults to None.
+
+        Note:
+            - `sigma`, `cutoff` and `offset` must have a dimensitonality of `[length]` and should be defined using pmb.units.
+            - `epsilon` must have a dimensitonality of `[energy]` and should be defined using pmb.units.
+            - `cutoff` defaults to `2**(1./6.) reduced_length`. 
+            - `offset` defaults to 0.
+            - The default setup corresponds to the Weeks−Chandler−Andersen (WCA) model, corresponding to purely steric interactions.
+            - For more information on `sigma`, `epsilon`, `cutoff` and `offset` check `pmb.setup_lj_interactions()`.
         """ 
+
         if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='particle'):
             index = self.df[self.df['name']==name].index[0]                                   
         else:
             index = len(self.df)
             self.df.at [index, 'name'] = name
             self.df.at [index,'pmb_type'] = 'particle'
-            
-        if diameter:
-            self.add_value_to_df(key=('diameter',''),index=index,new_value=diameter)
-        if epsilon:
-            self.add_value_to_df(key=('epsilon',''),index=index,new_value=epsilon)        
         
-        self.set_particle_acidity ( name=name, acidity = acidity , default_charge=q, pka=pka)
+        # If `cutoff` and `offset` are not defined, default them to 0
+
+        if cutoff is None:
+            cutoff=self.units.Quantity(2**(1./6.), "reduced_length")
+        if offset is None:
+            offset=self.units.Quantity(0, "reduced_length")
+
+        # Define LJ parameters
+        parameters_with_dimensionality={"sigma":{"value": sigma, "dimensionality": "[length]"},
+                                        "cutoff":{"value": cutoff, "dimensionality": "[length]"},
+                                        "offset":{"value": offset, "dimensionality": "[length]"},
+                                        "epsilon":{"value": epsilon, "dimensionality": "[energy]"},}
+
+        for parameter_key in parameters_with_dimensionality.keys():
+            if parameters_with_dimensionality[parameter_key]["value"] is not None:
+                self.check_dimensionality(variable=parameters_with_dimensionality[parameter_key]["value"], 
+                                          expected_dimensionality=parameters_with_dimensionality[parameter_key]["dimensionality"])
+                self.add_value_to_df(key=(parameter_key,''),
+                                    index=index,
+                                    new_value=parameters_with_dimensionality[parameter_key]["value"])
+
+        # Define particle acid/base properties
+        self.set_particle_acidity (name=name, 
+                                acidity = acidity , 
+                                default_charge=q, 
+                                pka=pka)
         return 
     
     def define_particles_parameter_from_dict(self, param_dict, param_name):
@@ -1266,7 +1318,7 @@ class pymbe_library():
         Args:
             name (`str`): Unique label that identifies the `protein`.
             model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
-            topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
+            topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
         """
 
         protein_seq_list = []     
@@ -1659,9 +1711,9 @@ class pymbe_library():
             raise ValueError(f"Combining_rule {combining_rule} currently not implemented in pyMBE, valid keys are {supported_combining_rules}")
 
         eps1 = self.df.loc[self.df["name"]==particle_name1].epsilon.iloc[0]
-        sigma1 = self.df.loc[self.df["name"]==particle_name1].diameter.iloc[0]
+        sigma1 = self.df.loc[self.df["name"]==particle_name1].sigma.iloc[0]
         eps2 = self.df.loc[self.df["name"]==particle_name2].epsilon.iloc[0]
-        sigma2 = self.df.loc[self.df["name"]==particle_name2].diameter.iloc[0]
+        sigma2 = self.df.loc[self.df["name"]==particle_name2].sigma.iloc[0]
         
         return {"epsilon": self.np.sqrt(eps1*eps2), "sigma": (sigma1+sigma2)/2.0}
 
@@ -1723,17 +1775,17 @@ class pymbe_library():
     
     def get_radius_map(self):
         '''
-        Gets the diameter of each `espresso type` in `pmb.df`. 
+        Gets the effective radius of each `espresso type` in `pmb.df`. 
         
         Returns:
             radius_map(`dict`): {espresso_type: radius}.
         '''
 
-        df_state_one = self.df[[('diameter',''),('state_one','es_type')]].dropna().drop_duplicates()
-        df_state_two = self.df[[('diameter',''),('state_two','es_type')]].dropna().drop_duplicates()
+        df_state_one = self.df[[('sigma',''),('state_one','es_type')]].dropna().drop_duplicates()
+        df_state_two = self.df[[('sigma',''),('state_two','es_type')]].dropna().drop_duplicates()
 
-        state_one = self.pd.Series (df_state_one.diameter.values/2.0,index=df_state_one.state_one.es_type.values)
-        state_two = self.pd.Series (df_state_two.diameter.values/2.0,index=df_state_two.state_two.es_type.values)
+        state_one = self.pd.Series(df_state_one.sigma.values/2.0,index=df_state_one.state_one.es_type.values)
+        state_two = self.pd.Series(df_state_two.sigma.values/2.0,index=df_state_two.state_two.es_type.values)
         radius_map  = self.pd.concat([state_one,state_two],axis=0).to_dict()
         
         return radius_map
@@ -1783,7 +1835,7 @@ class pymbe_library():
         """
         from espressomd import interactions
         without_units = ['q','es_type','acidity']
-        with_units = ['diameter','epsilon']
+        with_units = ['sigma','epsilon']
         with open(filename) as f:
             for line in f:
                 if line[0] == '#':
@@ -1805,7 +1857,7 @@ class pymbe_library():
                                 not_requiered_attributes[not_requiered_key]=None
                     self.define_particle(name=param_dict.pop('name'),
                                     q=not_requiered_attributes.pop('q'),
-                                    diameter=not_requiered_attributes.pop('diameter'),
+                                    sigma=not_requiered_attributes.pop('sigma'),
                                     acidity=not_requiered_attributes.pop('acidity'),
                                     epsilon=not_requiered_attributes.pop('epsilon'))
                 elif object_type == 'residue':
@@ -2028,7 +2080,7 @@ class pymbe_library():
             unit_length(`obj`): unit of length of the the coordinates in `filename` using the pyMBE UnitRegistry. Defaults to None.
 
         Returns:
-            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
+            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
 
         Note:
             - If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
@@ -2631,7 +2683,9 @@ class pymbe_library():
                         ('side_chains',''),
                         ('residue_list',''),
                         ('model',''),
-                        ('diameter',''),
+                        ('sigma',''),
+                        ('cutoff',''),
+                        ('offset',''),
                         ('epsilon',''),
                         ('state_one','label'),
                         ('state_one','es_type'),
@@ -2648,34 +2702,33 @@ class pymbe_library():
       
         return columns_names
 
-    def setup_lj_interactions (self, espresso_system, cutoff=None, shift='auto', combining_rule='Lorentz-Berthelot', warnings=True):
+    def setup_lj_interactions(self, espresso_system, shift_potential=True, combining_rule='Lorentz-Berthelot', warnings=True):
         """
-        Sets up the Lennard-Jones (LJ) potential between all pairs of particle types with values for `diameter` and `epsilon` stored in `pymbe.df`.
-        Stores the parameters loaded into ESPResSo for each type pair in `pymbe.df`.
-        Assumes that the LJ interactions between all particles will have the same `cutoff`, `shift` and `combining_rule`.
-        Check the documentation of ESPResSo for more info about the potential https://espressomd.github.io/doc4.2.0/inter_non-bonded.html
+        Sets up the Lennard-Jones (LJ) potential between all pairs of particle types with values for `sigma`, `offset`, and `epsilon` stored in `pymbe.df`.
 
         Args:
             espresso_system(`obj`): Instance of a system object from the espressomd library.
-            cutoff(`float`, optional): cut-off length of the LJ potential. Defaults to None.
-            shift (`string`, optional): If set to `auto` shifts the potential to be continous at `cutoff`. Defaults to `auto`.
-            combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
-            warning (`bool`): switch to activate/deactivate warning messages. Defaults to True.
+            shift_potential(`bool`, optional): If True, a shift will be automatically computed such that the potential is continuous at the cutoff radius. Otherwise, no shift will be applied. Defaults to True.
+            combining_rule(`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential between a pair of particles. Defaults to 'Lorentz-Berthelot'.
+            warning(`bool`, optional): switch to activate/deactivate warning messages. Defaults to True.
 
         Note:
-            If no `cutoff`  is given, its value is set to 2**(1./6.) in reduced_length units, corresponding to a purely steric potential.
+            - LJ interactions will only be set up between particles with defined values of `sigma` and `epsilon` in the pmb.df. 
+            - Currently, the only `combining_rule` supported is Lorentz-Berthelot.
+            - Check the documentation of ESPResSo for more info about the potential https://espressomd.github.io/doc4.2.0/inter_non-bonded.html
 
-        Note:
-            Currently, the only `combining_rule` supported is Lorentz-Berthelot.
         """
         from itertools import combinations_with_replacement
-        sigma=1*self.units('reduced_length')
-        implemented_combinatiorial_rules = ['Lorentz-Berthelot']
-        compulsory_parameters_in_df = ['diameter','epsilon']
-        if combining_rule not in implemented_combinatiorial_rules:
-            raise ValueError('In the current version of pyMBE, the only combinatorial rules implemented are ', implemented_combinatiorial_rules)
-        if cutoff is None:
-            cutoff=2**(1./6.)*self.units('reduced_length')
+        implemented_combining_rules = ['Lorentz-Berthelot']
+        compulsory_parameters_in_df = ['sigma','epsilon']
+        # Sanity check
+        if combining_rule not in implemented_combining_rules:
+            raise ValueError('In the current version of pyMBE, the only combinatorial rules implemented are ', implemented_combining_rules)
+        if shift_potential:
+            shift="auto"
+        else:
+            shift=0
+        # List which particles have sigma and epsilon values defined in pmb.df and which ones don't
         particles_types_with_LJ_parameters = []
         non_parametrized_labels= []
         for particle_type in self.get_type_map().values():
@@ -2689,39 +2742,32 @@ class pymbe_library():
                                                                             column_name='label'))
             else:
                 particles_types_with_LJ_parameters.append(particle_type)
+        lj_parameters_keys=["label","sigma","epsilon","offset","cutoff"]
+        # Set up LJ interactions between all particle types
         for type_pair in combinations_with_replacement(particles_types_with_LJ_parameters, 2):
-            diameter_list=[]
-            epsilon_list=[]
-            label_list=[]
-            Non_interacting_pair=False
+            lj_parameters={}
+            for key in lj_parameters_keys:
+                lj_parameters[key]=[]
             # Search the LJ parameters of the type pair
             for ptype in type_pair:
-                diameter=self.find_value_from_es_type(es_type=ptype, column_name='diameter').to('reduced_length').magnitude
-                label=self.find_value_from_es_type(es_type=ptype, column_name='label')
-                epsilon=self.find_value_from_es_type(es_type=ptype, column_name='epsilon').to('reduced_energy').magnitude
-                if diameter == 0:
-                    Non_interacting_pair=True
-                    break
-                elif diameter < 0:
-                    raise ValueError(f"Particle {label} has a negative diameter = {diameter}, check your pmb.df")
-                else:   
-                    label_list.append(label)
-                    diameter_list.append(diameter)
-                    epsilon_list.append(epsilon)
-            # If the diameter of one of the particle types is 0, no LJ interaction is setup
-            if Non_interacting_pair:
-                pass
+                for key in lj_parameters_keys:
+                    lj_parameters[key].append(self.find_value_from_es_type(es_type=ptype, column_name=key))
+            # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
+            if not all([ sigma_value.magnitude for sigma_value in lj_parameters["sigma"]]):
+                continue
+            # Apply combining rule
             if combining_rule == 'Lorentz-Berthelot':
-                diameter_sum=self.np.sum(diameter_list)
-                epsilon=self.np.sqrt(self.np.prod(epsilon_list))
-                offset=diameter_sum/2.-sigma.to('reduced_length').magnitude
-            espresso_system.non_bonded_inter[type_pair[0],type_pair[1]].lennard_jones.set_params(epsilon = epsilon, 
+                sigma=(lj_parameters["sigma"][0]+lj_parameters["sigma"][1])/2
+                cutoff=(lj_parameters["cutoff"][0]+lj_parameters["cutoff"][1])/2
+                offset=(lj_parameters["offset"][0]+lj_parameters["offset"][1])/2
+                epsilon=self.np.sqrt(lj_parameters["epsilon"][0]*lj_parameters["epsilon"][1])
+            espresso_system.non_bonded_inter[type_pair[0],type_pair[1]].lennard_jones.set_params(epsilon = epsilon.to('reduced_energy').magnitude, 
                                                                                     sigma = sigma.to('reduced_length').magnitude, 
                                                                                     cutoff = cutoff.to('reduced_length').magnitude,
-                                                                                    offset = offset, 
+                                                                                    offset = offset.to("reduced_length").magnitude, 
                                                                                     shift = shift)                                                                                          
             index = len(self.df)
-            self.df.at [index, 'name'] = f'LJ: {label_list[0]}-{label_list[1]}'
+            self.df.at [index, 'name'] = f'LJ: {lj_parameters["label"][0]}-{lj_parameters["label"][1]}'
             lj_params=espresso_system.non_bonded_inter[type_pair[0], type_pair[1]].lennard_jones.get_params()
             self.add_value_to_df(index=index,
                                 key=('pmb_type',''),
@@ -2730,26 +2776,26 @@ class pymbe_library():
                                 key=('parameters_of_the_potential',''),
                                 new_value=self.json.dumps(lj_params))                
         if non_parametrized_labels and warnings:
-            print(f'WARNING: No LJ interaction has been added in ESPResSo for particles with labels: {non_parametrized_labels}. Please, check your pmb.df to ensure if this is your desired setup.')
+            print(f'WARNING: The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.')
         return
 
-    def setup_particle_diameter(self, topology_dict):
+    def setup_particle_sigma(self, topology_dict):
         '''
-        Sets up the diameter of the particles in `positions`.
+        Sets up sigma of the particles in `topology_dict`.
 
         Args:
-            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'diameter': diameter_value}
+            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
         '''
         for residue in topology_dict.keys():
             residue_name = self.re.split(r'\d+', residue)[0]
             residue_number = self.re.split(r'(\d+)', residue)[1]
-            residue_diameter  = topology_dict[residue]['diameter']
-            diameter = residue_diameter*self.units.nm
+            residue_sigma  = topology_dict[residue]['sigma']
+            sigma = residue_sigma*self.units.nm
             index = self.df[(self.df['residue_id']==residue_number) & (self.df['name']==residue_name) ].index.values[0]
 
-            self.add_value_to_df(key= ('diameter',''),
+            self.add_value_to_df(key= ('sigma',''),
                         index=int (index),
-                        new_value=diameter)
+                        new_value=sigma)
             
         return 
 

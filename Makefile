@@ -8,6 +8,7 @@ docs:
 	pdoc ./pyMBE.py -o ./documentation --docformat google
 
 tests:
+	python3 testsuite/lj_tests.py
 	python3 testsuite/peptide_tests.py
 
 sample:

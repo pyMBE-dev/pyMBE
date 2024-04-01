@@ -20,8 +20,8 @@ if not os.path.exists('./frames'):
     os.makedirs('./frames')
 
 #Import functions from handy_functions script 
-from handy_scripts.handy_functions import minimize_espresso_system_energy
-from handy_scripts.handy_functions import block_analyze
+from lib.handy_functions import minimize_espresso_system_energy
+from lib.analysis import block_analyze
 
 # Simulation parameters
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
@@ -46,8 +46,8 @@ pep2_concentration = 1e-2 *pmb.units.mol/pmb.units.L
 N_peptide2_chains = 10
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-path_to_interactions=pmb.get_resource("reference_parameters/interaction_parameters/Lunkad2021.txt")
-path_to_pka=pmb.get_resource("reference_parameters/pka_sets/Hass2015.txt")
+path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
+path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.txt")
 pmb.load_interaction_parameters (filename=path_to_interactions) 
 pmb.load_pka_set (path_to_pka)
 
@@ -64,15 +64,15 @@ for aminoacid_key in sequence1+sequence2:
     if aminoacid_key in not_parametrized_acidic_aminoacids:
         pmb.define_particle(name=aminoacid_key,
                            acidity='acidic',
-                           diameter=0.35*pmb.units.nm, 
+                           sigma=0.35*pmb.units.nm, 
                            epsilon=1*pmb.units('reduced_energy'))
     elif aminoacid_key in not_parametrized_basic_aminoacids:
-        pmb.define_particle(name=aminoacid_key, acidity='basic',diameter=0.35*pmb.units.nm,epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_particle(name=aminoacid_key, acidity='basic',sigma=0.35*pmb.units.nm,epsilon=1*pmb.units('reduced_energy'))
         
     elif aminoacid_key in not_parametrized_neutral_aminoacids:
         pmb.define_particle(name=aminoacid_key,
                            q=0,
-                           diameter=0.35*pmb.units.nm, 
+                           sigma=0.35*pmb.units.nm, 
                            epsilon=1*pmb.units('reduced_energy'))
     already_defined_AA.append(aminoacid_key)
 
@@ -96,10 +96,10 @@ sodium_name = 'Na'
 chloride_name = 'Cl'
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
-pmb.define_particle(name=proton_name, q=1, diameter=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=hydroxide_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=sodium_name, q=1, diameter=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=chloride_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=proton_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=hydroxide_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=sodium_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=chloride_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 
 # System parameters
