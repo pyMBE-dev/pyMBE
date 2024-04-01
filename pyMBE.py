@@ -1252,10 +1252,10 @@ class pymbe_library():
             offset=self.units.Quantity(0, "reduced_length")
 
         # Define LJ parameters
-        parameters_with_dimensionality={"sigma":{"value": sigma, "dimensionality": "length"},
-                                        "cutoff":{"value": cutoff, "dimensionality": "length"},
-                                        "offset":{"value": offset, "dimensionality": "length"},
-                                        "epsilon":{"value": epsilon, "dimensionality": "energy"},}
+        parameters_with_dimensionality={"sigma":{"value": sigma, "dimensionality": "[length]"},
+                                        "cutoff":{"value": cutoff, "dimensionality": "[length]"},
+                                        "offset":{"value": offset, "dimensionality": "[length]"},
+                                        "epsilon":{"value": epsilon, "dimensionality": "[energy]"},}
 
         for parameter_key in parameters_with_dimensionality.keys():
             if parameters_with_dimensionality[parameter_key]["value"] is not None:
