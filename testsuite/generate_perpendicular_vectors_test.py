@@ -61,6 +61,6 @@ vector = pmb.generate_random_points_in_a_sphere(center=[1,2,3],
                                                 seed=None, 
                                                 on_surface=True)[0]
 check_if_different_perpendicular_vectors_are_generated(vector=vector,
-                                                        magnitude=2)
+                                                        magnitude=3)
 print(f"*** Unit test passed ***")
 print(f"*** All unit tests passed ***")
