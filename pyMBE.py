@@ -695,7 +695,8 @@ class pymbe_library():
             for residue in residue_list:
                 if first_residue:
                     residue_position = first_residue_position
-                    backbone_vector = self.generate_trialvectors(center=[0,0,0], 
+                    # Generate an arbitrary random unit vector
+                    backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0], 
                                                                  radius=1, 
                                                                  n_samples=1,
                                                                  on_surface=True)[0]
@@ -954,14 +955,13 @@ class pymbe_library():
                                               use_default_bond=use_default_bond)
 
                     if backbone_vector is None:
-                        bead_position=self.generate_trialvectors(center=central_bead_position, 
+                        bead_position=self.generate_random_points_in_a_sphere(center=central_bead_position, 
                                                                  radius=l0, 
                                                                  n_samples=1,
                                                                  on_surface=True)[0]
                     else:
-                        bead_position=self.generate_trial_perpendicular_vector(vector=backbone_vector,
-                                                                            origin=central_bead_position, 
-                                                                            magnitude=l0)
+                        bead_position=central_bead_position+self.generate_trial_perpendicular_vector(vector=backbone_vector,
+                                                                                                    magnitude=l0)
                     
                     side_bead_id = self.create_particle(name=side_chain_element, 
                                                                     espresso_system=espresso_system,
@@ -988,14 +988,13 @@ class pymbe_library():
                                               hard_check=True, 
                                               use_default_bond=use_default_bond)
                     if backbone_vector is None:
-                        residue_position=self.generate_trialvectors(center=central_bead_position, 
+                        residue_position=self.generate_random_points_in_a_sphere(center=central_bead_position, 
                                                                     radius=l0, 
                                                                     n_samples=1,
                                                                     on_surface=True)[0]
                     else:
-                        residue_position=self.generate_trial_perpendicular_vector(vector=backbone_vector,
-                                                                                origin=central_bead_position, 
-                                                                                magnitude=l0)
+                        residue_position=central_bead_position+self.generate_trial_perpendicular_vector(vector=backbone_vector,
+                                                                                                        magnitude=l0)
                     lateral_residue_info = self.create_residue(name=side_chain_element, espresso_system=espresso_system,
                         number_of_residues=1, central_bead_position=[residue_position],use_default_bond=use_default_bond)
                     lateral_residue_dict=list(lateral_residue_info.values())[0]
@@ -1226,9 +1225,9 @@ class pymbe_library():
             q (`int`, optional): Permanent charge of this particle type. Defaults to 0.
             acidity (`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
             pka (`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
-            sigma (`pint.Quantity`, optional): Sigma parameters used to set up Lennard-Jones interactions for this particle type. Defaults to None.
-            cutoff (`pint.Quantity`, optional): Sigma parameters used to set up Lennard-Jones interactions for this particle type. Defaults to None.
-            offset (`pint.Quantity`, optional): Sigma parameters used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            sigma (`pint.Quantity`, optional): Sigma parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            cutoff (`pint.Quantity`, optional): cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            offset (`pint.Quantity`, optional): offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
             epsilon (`pint.Quantity`, optional): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe. Defaults to None.
 
         Note:
@@ -1557,7 +1556,6 @@ class pymbe_library():
         return None
 
     def generate_coordinates_outside_sphere(self, center, radius, max_dist, n_samples):
-
         """
         Generates coordinates outside a sphere centered at `center`.
 
@@ -1577,40 +1575,15 @@ class pymbe_library():
         coord_list = []
         counter = 0
         while counter<n_samples:
-            coord = self.generate_trialvectors(center=center, radius=max_dist,n_samples=1)[0]
+            coord = self.generate_random_points_in_a_sphere(center=center, 
+                                            radius=max_dist,
+                                            n_samples=1)[0]
             if self.np.linalg.norm(coord-self.np.asarray(center))>=radius:
                 coord_list.append (coord)
                 counter += 1
         return coord_list
     
-    def generate_trial_perpendicular_vector(self,vector,origin,magnitude):
-        """
-        Generates an orthogonal vector to the input `vector`.
-
-        Args:
-            vector(`lst`): arbitrary vector.
-            origin(`lst`): origin of the orthogonal vector.
-            magnitude(`float`): magnitude of the orthogonal vector.
-            
-        Returns:
-            (`lst`): Orthogonal vector with the same magnitude as the input vector.
-        """ 
-        np_vec = self.np.array(vector) 
-        if self.np.all(np_vec == 0):
-            raise ValueError('Zero vector')
-        # Generate a random vector with the same size as the input vector
-        random_vector = self.generate_trialvectors(center=[0,0,0], 
-                                                   radius=1, 
-                                                   n_samples=1, 
-                                                   on_surface=True)[0]
-        # Project the random vector onto the input vector and subtract the projection
-        projection = self.np.dot(random_vector, np_vec) * np_vec
-        perpendicular_vector = random_vector - projection
-        # Normalize the perpendicular vector to have the same magnitude as the input vector
-        perpendicular_vector /= self.np.linalg.norm(perpendicular_vector) 
-        return origin+perpendicular_vector*magnitude
-   
-    def generate_trialvectors(self, center, radius, n_samples, seed=None, on_surface=False):
+    def generate_random_points_in_a_sphere(self, center, radius, n_samples, seed=None, on_surface=False):
         """
         Uniformly samples points from a hypersphere. If on_surface is set to True, the points are
         uniformly sampled from the surface of the hypersphere.
@@ -1642,10 +1615,36 @@ class pymbe_library():
             uniform_points = rng.uniform(size=n_samples)[:, self.np.newaxis]
             new_radii = self.np.power(uniform_points, 1/d)
             samples *= new_radii
-
         # scale the points to have the correct radius and center
         samples = samples * radius + center
         return samples 
+
+    def generate_trial_perpendicular_vector(self,vector,magnitude):
+        """
+        Generates an orthogonal vector to the input `vector`.
+
+        Args:
+            vector(`lst`): arbitrary vector.
+            magnitude(`float`): magnitude of the orthogonal vector.
+            
+        Returns:
+            (`lst`): Orthogonal vector with the same magnitude as the input vector.
+        """ 
+        np_vec = self.np.array(vector) 
+        np_vec /= self.np.linalg.norm(np_vec) 
+        if self.np.all(np_vec == 0):
+            raise ValueError('Zero vector')
+        # Generate a random vector 
+        random_vector = self.generate_random_points_in_a_sphere(radius=1, 
+                                                                center=[0,0,0],
+                                                                n_samples=1, 
+                                                                on_surface=True)[0]
+        # Project the random vector onto the input vector and subtract the projection
+        projection = self.np.dot(random_vector, np_vec) * np_vec
+        perpendicular_vector = random_vector - projection
+        # Normalize the perpendicular vector to have the same magnitude as the input vector
+        perpendicular_vector /= self.np.linalg.norm(perpendicular_vector) 
+        return perpendicular_vector*magnitude
 
     def get_bond_length(self, particle_name1, particle_name2, hard_check=False, use_default_bond=False) :
         """
@@ -2679,7 +2678,6 @@ class pymbe_library():
         Returns:
             columns_names(`obj`): pandas multiindex object with the column names of the pyMBE's dataframe
         """
-
         columns_names = self.pd.MultiIndex.from_tuples ([
                         ('name',''),
                         ('pmb_type',''),
@@ -2707,9 +2705,7 @@ class pymbe_library():
                         ('bond_object',''),
                         ('parameters_of_the_potential','')
                         ])
-
         self.df = self.pd.DataFrame (columns = columns_names)
-      
         return columns_names
 
     def setup_lj_interactions(self, espresso_system, shift_potential=True, combining_rule='Lorentz-Berthelot', warnings=True):
@@ -2802,11 +2798,9 @@ class pymbe_library():
             residue_sigma  = topology_dict[residue]['sigma']
             sigma = residue_sigma*self.units.nm
             index = self.df[(self.df['residue_id']==residue_number) & (self.df['name']==residue_name) ].index.values[0]
-
             self.add_value_to_df(key= ('sigma',''),
                         index=int (index),
-                        new_value=sigma)
-            
+                        new_value=sigma)           
         return 
 
     def write_output_vtf_file(self, espresso_system, filename):
