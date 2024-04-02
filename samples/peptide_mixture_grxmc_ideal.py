@@ -64,15 +64,15 @@ for aminoacid_key in sequence1+sequence2:
     if aminoacid_key in not_parametrized_acidic_aminoacids:
         pmb.define_particle(name=aminoacid_key,
                            acidity='acidic',
-                           diameter=0.35*pmb.units.nm, 
+                           sigma=0.35*pmb.units.nm, 
                            epsilon=1*pmb.units('reduced_energy'))
     elif aminoacid_key in not_parametrized_basic_aminoacids:
-        pmb.define_particle(name=aminoacid_key, acidity='basic',diameter=0.35*pmb.units.nm,epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_particle(name=aminoacid_key, acidity='basic',sigma=0.35*pmb.units.nm,epsilon=1*pmb.units('reduced_energy'))
         
     elif aminoacid_key in not_parametrized_neutral_aminoacids:
         pmb.define_particle(name=aminoacid_key,
                            q=0,
-                           diameter=0.35*pmb.units.nm, 
+                           sigma=0.35*pmb.units.nm, 
                            epsilon=1*pmb.units('reduced_energy'))
     already_defined_AA.append(aminoacid_key)
 
@@ -96,10 +96,10 @@ sodium_name = 'Na'
 chloride_name = 'Cl'
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
-pmb.define_particle(name=proton_name, q=1, diameter=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=hydroxide_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=sodium_name, q=1, diameter=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=chloride_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=proton_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=hydroxide_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=sodium_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=chloride_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 
 # System parameters
