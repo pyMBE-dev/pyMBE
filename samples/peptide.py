@@ -39,7 +39,7 @@ solvent_permitivity = 78.3
 
 # Peptide parameters
 
-sequence = 'nGEGGHc'
+sequence = 'nEEEEEc'
 model = '2beadAA'  # Model with 2 beads per each aminoacid
 pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 N_peptide_chains = 4

@@ -9,6 +9,7 @@ docs:
 
 tests:
 	python3 testsuite/lj_tests.py
+	python3 testsuite/generate_perpendicular_vectors_test.py
 	python3 testsuite/peptide_tests.py
 
 sample:
