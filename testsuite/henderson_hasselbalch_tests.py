@@ -31,9 +31,9 @@ print(f"*** Check that Henderson-Hasselbalch equation works correctly ***")
 
 # Calculate charge according to Henderson-Hasselbalch equation
 pH_range = np.linspace(2, 12, num=200)
-Z_HH_1 = pmb.calculate_HH(object_name = "peptide_1", 
+Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1", 
                         pH_list = pH_range)
-Z_HH_2 = pmb.calculate_HH(object_name = "peptide_2", 
+Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2", 
                         pH_list = pH_range)
 
 """
@@ -73,9 +73,9 @@ print(f"*** Test passed ***\n")
 
 print(f"*** Check that HH and HH_Don are consistent ***")
 
-Z_HH_1 = pmb.calculate_HH(object_name = "peptide_1", 
+Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1", 
                         pH_list = HH_Donnan_dict["pH_system_list"])
-Z_HH_2 = pmb.calculate_HH(object_name = "peptide_2", 
+Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2", 
                         pH_list = HH_Donnan_dict["pH_system_list"])
 
 np.testing.assert_allclose(Z_HH_1, HH_Donnan_dict["charges_dict"]["peptide_1"])

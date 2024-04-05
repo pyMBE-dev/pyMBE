@@ -213,13 +213,13 @@ class pymbe_library():
         center_of_mass = center_of_mass /total_beads  
         return center_of_mass
 
-    def calculate_HH(self, object_name, pH_list=None, pka_set=None):
+    def calculate_HH(self, molecule_name, pH_list=None, pka_set=None):
         """
         Calculates the charge per molecule according to the ideal Henderson-Hasselbalch titration curve 
-        for molecules with the name `object_name`.
+        for molecules with the name `molecule_name`.
 
         Args:
-            object_name (`str`): name of the molecule to calculate the ideal charge for
+            molecule_name (`str`): name of the molecule to calculate the ideal charge for
             pH_list(`lst`): pH-values to calculate. 
             pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}
 
@@ -241,7 +241,7 @@ class pymbe_library():
         Z_HH=[]
         for pH_value in pH_list:    
             Z=0
-            index = self.df.loc[self.df['name'] == object_name].index[0].item() 
+            index = self.df.loc[self.df['name'] == molecule_name].index[0].item() 
             residue_list = self.df.at [index,('residue_list','')]
             sequence = self.df.at [index,('sequence','')]
             if self.np.any(self.pd.isnull(sequence)):
@@ -399,12 +399,12 @@ class pymbe_library():
 
     def calculate_net_charge (self, espresso_system, molecule_name):
         '''
-        Calculates the net charge per molecule of molecules with `name` = object_name. 
+        Calculates the net charge per molecule of molecules with `name` = molecule_name. 
         Returns the net charge per molecule and a maps with the net charge per residue and molecule.
 
         Args:
             espresso_system: system information 
-            object_name (str): name of the molecule to calculate the net charge
+            molecule_name (str): name of the molecule to calculate the net charge
 
         Returns:
             {"mean": mean_net_charge, "molecules": {mol_id: net_charge_of_mol_id, }, "residues": {res_id: net_charge_of_res_id, }}
@@ -416,7 +416,7 @@ class pymbe_library():
         valid_pmb_types = ["molecule", "protein"]
         pmb_type=self.df.loc[self.df['name']==molecule_name].pmb_type.values[0]
         if pmb_type not in valid_pmb_types:
-            raise ValueError("The pyMBE object with name {object_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
+            raise ValueError("The pyMBE object with name {molecule_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
         charge_in_residues = {}
         id_map = self.get_particle_id_map(object_name=molecule_name)
         def create_charge_map(espresso_system,id_map,label):
