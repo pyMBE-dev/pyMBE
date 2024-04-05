@@ -24,11 +24,20 @@ jobs:
           source pymbe/bin/activate
           python3 maintainer/configure_venv.py
           python3 -m pip install -r requirements.txt
+          python3 -m pip install "pdoc==14.3"
           deactivate
       - name: Run testsuite
         run: |
           module load ESPResSo/4.2.1-foss-2023a
           source pymbe/bin/activate
           make tests
+          make docs
           deactivate
         shell: bash
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          path: "./documentation"
+          name: documentation
+          retention-days: 2
+          if-no-files-found: error
