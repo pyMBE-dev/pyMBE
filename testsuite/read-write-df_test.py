@@ -1,9 +1,8 @@
 import espressomd
+import re 
+from ast import literal_eval
 from espressomd import interactions
-
-import os
-import sys
-import inspect
+from pandas.testing import assert_frame_equal
 
 # Create an instance of pyMBE library
 import pyMBE
@@ -16,12 +15,15 @@ pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
-path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.txt")
-pmb.load_interaction_parameters (filename=path_to_interactions) 
-pmb.load_pka_set (path_to_pka)
+# path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
+# path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.txt")
+# pmb.load_interaction_parameters (filename=path_to_interactions) 
+# pmb.load_pka_set (path_to_pka)
 
 #Define particles
+
+print (pmb.df.dtypes)
+
 
 pmb.define_particle(
     name = "I",
@@ -29,6 +31,8 @@ pmb.define_particle(
     epsilon = 1*pmb.units('reduced_energy'),
     q = 0,
     acidity = "inert")
+
+
 
 # Acidic particle
 pmb.define_particle(
@@ -90,36 +94,29 @@ espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 
 #Setup potential energy
 
-pmb.setup_lj_interactions (espresso_system=espresso_system)
+# pmb.setup_lj_interactions (espresso_system=espresso_system)
+
+pmb.pd.options.display.max_colwidth = 10
+
+#Copy the pmb.df into a new DF for the unit test 
+stored_df = pmb.df.copy()
 
 #Write the pymbe DF to a csv file 
-
 df_filename = 'df-example_molecule.csv'
 
-pmb.write_pmb_df (filename=df_filename)
+pmb.write_pmb_df (filename = df_filename)
 
 # Read the same pyMBE df from a csv a load it in pyMBE
+read_df = pmb.read_pmb_df(filename = df_filename)
 
-read_df = pmb.read_pmb_df(df_filename)
+print(f"*** Unit test: comparison between the written pmb.df and read pmb.df using assert_frame_equal ***")
 
-#Compare both df
+# The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal
 
-dtype_comparison = pmb.df.dtypes == read_df.dtypes 
+stored_df['parameters_of_the_potential'] = stored_df['parameters_of_the_potential'].apply (lambda x: literal_eval(str(x)) if pmb.pd.notnull(x) else x)
 
-print(f"*** Unit test: test that the dtype between the written pmb.df and the file read are equal  ***")
+stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
 
-if dtype_comparison.all():
-    print(f"*** Unit test passed ***")
-else:
-    different_dtype_columns = pmb.df.columns[~dtype_comparison]
-    for col in different_dtype_columns:
-       raise ValueError (f"The following columns have different dtype: {col}: {pmb.df[col].dtype}")
+read_df['bond_object']  = read_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
 
-print(f"*** Unit test: test that the rows between the written pmb.df and the file read are equal  ***")
-
-row_comparison = pmb.df.equals(read_df)
-
-if row_comparison:
-    print(f"*** Unit test passed ***")
-else:
-    raise ValueError ('There is some inconsistency between the pmb.df and read_df')
+assert_frame_equal (stored_df, read_df, check_exact= True)
