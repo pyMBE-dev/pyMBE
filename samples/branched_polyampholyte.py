@@ -195,7 +195,7 @@ pH_range_HH = np.linspace(2, 12, num=1000)
 Z_HH_manually = [10 * (1/(1+10**(pH_value-9)) - 1/(1+10**(4-pH_value))) for pH_value in pH_range_HH]
 
 # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (pyMBE)
-Z_HH = pmb.calculate_HH(object_name="polyampholyte", 
+Z_HH = pmb.calculate_HH(molecule_name="polyampholyte", 
                         pH_list=pH_range_HH)
 
 fig, ax = plt.subplots(figsize=(10, 7))

@@ -8,6 +8,7 @@ docs:
 	pdoc ./pyMBE.py -o ./documentation --docformat google
 
 tests:
+	python3 testsuite/henderson_hasselbalch_tests.py
 	python3 testsuite/lj_tests.py
 	python3 testsuite/generate_perpendicular_vectors_test.py
 	python3 testsuite/peptide_tests.py

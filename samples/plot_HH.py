@@ -36,7 +36,7 @@ else:
 
 # pka_set is an optional argument, if it is not provided sugar will use the one stored in pmb.pka_set
 
-Z_HH = pmb.calculate_HH(object_name="example_pep", 
+Z_HH = pmb.calculate_HH(molecule_name="example_pep", 
                         pH_list=pH_values, 
                         pka_set=pka_set)
 
