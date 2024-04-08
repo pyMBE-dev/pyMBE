@@ -527,15 +527,19 @@ class pymbe_library():
 
         from ast import literal_eval
 
+        columns_dtype_int = ['particle_id','particle_id2', 'residue_id','molecule_id', 'model',('state_one','es_type'),('state_two','es_type'), 'sequence'] # , 
+
         columns_with_units = ['diameter', 'epsilon']
 
-        columns_with_list_or_dict = ['sequence', 'residue_list','side_chains', 'parameters_of_the_potential']
+        columns_with_list_or_dict = ['residue_list','side_chains', 'parameters_of_the_potential']
 
+        for column_name in columns_dtype_int:
+            df[column_name] = df[column_name].astype(object)
+            
         for column_name in columns_with_list_or_dict:
-            df[column_name] = df[column_name].apply(lambda x: literal_eval(x) if self.pd.notnull(x) else x)
+            df[column_name] = df[column_name].apply(lambda x: literal_eval(str(x)) if self.pd.notnull(x) else x)
 
         for column_name in columns_with_units:
-
             df[column_name] = df[column_name].apply(lambda x: self.create_variable_with_units(x) if self.pd.notnull(x) else x)
 
         df['bond_object'] = df['bond_object'].apply(lambda x: (self.convert_str_to_bond_object(x)) if self.pd.notnull(x) else x)
@@ -2082,13 +2086,16 @@ class pymbe_library():
         Note:
             This function only accepts files with CSV format. 
         """
+        
         if filename[-3:] != "csv":
             raise ValueError("Only files with CSV format are supported")
         df = self.pd.read_csv (filename,header=[0, 1], index_col=0)
         columns_names = self.setup_df()
-        df.columns = columns_names
         
-        self.df= self.convert_columns_to_original_format(df)
+        multi_index = self.pd.MultiIndex.from_tuples(columns_names)
+        df.columns = multi_index
+        
+        self.df = self.convert_columns_to_original_format(df)
         
         return self.df
     
@@ -2690,36 +2697,63 @@ class pymbe_library():
         Returns:
             columns_names(`obj`): pandas multiindex object with the column names of the pyMBE's dataframe
         """
-
-        columns_names = self.pd.MultiIndex.from_tuples ([
-                        ('name',''),
-                        ('pmb_type',''),
-                        ('particle_id',''), 
-                        ('particle_id2',''),
-                        ('residue_id',''),
-                        ('molecule_id',''),
-                        ('acidity',''),
-                        ('pka',''),
-                        ('central_bead',''),
-                        ('side_chains',''),
-                        ('residue_list',''),
-                        ('model',''),
-                        ('diameter',''),
-                        ('epsilon',''),
-                        ('state_one','label'),
-                        ('state_one','es_type'),
-                        ('state_one','charge'),
-                        ('state_two','label'),
-                        ('state_two','es_type'),
-                        ('state_two','charge'),
-                        ('sequence',''),
-                        ('bond_object',''),
-                        ('parameters_of_the_potential',''),
-                        ('l0','')
-                        ])
-
-        self.df = self.pd.DataFrame (columns = columns_names)
-      
+        
+        columns_dtypes = {
+            'name': {
+                '': str},
+            'pmb_type': {
+                '': str},
+            'particle_id': {
+                '': object},
+            'particle_id2':  {
+                '': object},
+            'residue_id':  {
+                '': object},
+            'molecule_id':  {
+                '': object},
+            'acidity':  {
+                '': str},
+            'pka':  {
+                '': float},
+            'central_bead':  {
+                '': object},
+            'side_chains': {
+                '': object},
+            'residue_list': {
+                '': object},
+            'model': {
+                '': str},
+            'diameter': {
+                '': object},
+            'epsilon': {
+                '': object},
+            'state_one': {
+                'label': str,
+                'es_type': object,
+                'charge': float },
+            'state_two': {
+                'label': str,
+                'es_type': object,
+                'charge': float },
+            'sequence': {
+                '': object},
+            'bond_object': {
+                '': object},
+            'parameters_of_the_potential':{
+                '': object},
+            'l0': {
+                '': float},
+        }
+        
+        self.df = self.pd.DataFrame(columns=self.pd.MultiIndex.from_tuples([(col_main, col_sub) for col_main, sub_cols in columns_dtypes.items() for col_sub in sub_cols.keys()]))
+        
+        for level1, sub_dtypes in columns_dtypes.items():
+            for level2, dtype in sub_dtypes.items():
+                self.df[level1, level2] = self.df[level1, level2].astype(dtype)
+                
+        columns_names = self.pd.MultiIndex.from_frame(self.df)
+        columns_names = columns_names.names
+                
         return columns_names
 
     def setup_lj_interactions (self, espresso_system, cutoff=None, shift='auto', combining_rule='Lorentz-Berthelot', warnings=True):
