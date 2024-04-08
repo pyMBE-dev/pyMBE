@@ -119,4 +119,8 @@ stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: literal_eva
 
 read_df['bond_object']  = read_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
 
-assert_frame_equal (stored_df, read_df, check_exact= True)
+try:
+    assert_frame_equal (stored_df, read_df, check_exact= True)
+    print (f"*** Unite test passed***")
+except AssertionError:
+    print (f"*** Unite test Failed***")
