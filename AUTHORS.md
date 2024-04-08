@@ -10,12 +10,13 @@ The following people have contributed to pyMBE:
 - Paola B. Torres (Universidad Tecnologica Nacional, Argentina)
 
 ## Contributors
+- Marius Aarsten (Norwegian University of Science and Tecnology, Norway)
 - Claudio F. Narambuena (Universidad Tecnologica Nacional, Argentina)
 
 ## Early testers of the library
 - Corinna Dannert (Norwegian University of Science and Technology, Norway)
 - Rita S. Dias (Norwegian University of Science and Technology, Norway)
--  Sergio Madurga (University of Barcelona, Spain)
+- Sergio Madurga (University of Barcelona, Spain)
 - Albert Martinez-Serra (Royal College of Surgeons, Ireland)
 - Francesc Mas (University of Barcelona, Spain)
 - Magdaléna Nejedlá (Charles University, Czech Republic)

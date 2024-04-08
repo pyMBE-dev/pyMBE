@@ -6,12 +6,6 @@ import inspect
 import numpy as np
 import matplotlib.pyplot as plt
 
-# Find path to pyMBE
-current_dir= os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-path_end_index=current_dir.find("pyMBE")
-pyMBE_path=current_dir[0:path_end_index]+"pyMBE"
-sys.path.insert(0, pyMBE_path)
-
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
@@ -21,8 +15,7 @@ pmb = pyMBE.pymbe_library()
 sequence="nDEHKc"
 pH_values = np.linspace(2, 12, num=21)
 load_pka_set_from_file=True   # If set to false, uses custom_pka_set
-path_to_pka_set_file=pyMBE_path+'/reference_parameters/pka_sets/Nozaki1967.txt' 
-
+path_to_pka=pmb.get_resource("parameters/pka_sets/Nozaki1967.txt")
 
 custom_pka_set={"D" : {"pka_value": 4.0, "acidity": "acidic"},
                 "E" : {"pka_value": 4.4, "acidity": "acidic"},
@@ -36,14 +29,14 @@ pmb.define_peptide(name="example_pep",
                    model="1beadAA")
 
 if load_pka_set_from_file:
-    pka_set=pmb.load_pka_set(filename=path_to_pka_set_file)
+    pka_set=pmb.load_pka_set(filename=path_to_pka)
     print('pka_set stored in pyMBE: ', pmb.get_pka_set())
 else:
     pka_set=custom_pka_set
 
 # pka_set is an optional argument, if it is not provided sugar will use the one stored in pmb.pka_set
 
-Z_HH = pmb.calculate_HH(object_name="example_pep", 
+Z_HH = pmb.calculate_HH(molecule_name="example_pep", 
                         pH_list=pH_values, 
                         pka_set=pka_set)
 

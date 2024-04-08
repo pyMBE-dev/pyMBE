@@ -16,10 +16,10 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 # Load some functions from the handy_scripts library for convinience
-from handy_scripts.handy_functions import setup_electrostatic_interactions
-from handy_scripts.handy_functions import minimize_espresso_system_energy
-from handy_scripts.handy_functions import setup_langevin_dynamics
-from handy_scripts.handy_functions import block_analyze
+from lib.handy_functions import setup_electrostatic_interactions
+from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import setup_langevin_dynamics
+from lib.analysis import block_analyze
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 if not os.path.exists('./frames'):
@@ -39,15 +39,15 @@ solvent_permitivity = 78.3
 
 # Peptide parameters
 
-sequence = 'nGEGGHc'
+sequence = 'nEEEEEc'
 model = '2beadAA'  # Model with 2 beads per each aminoacid
 pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 N_peptide_chains = 4
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-path_to_interactions=pmb.get_resource("reference_parameters/interaction_parameters/Lunkad2021.txt")
-path_to_pka=pmb.get_resource("reference_parameters/pka_sets/Hass2015.txt")
+path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
+path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.txt")
 pmb.load_interaction_parameters (filename=path_to_interactions) 
 pmb.load_pka_set (path_to_pka)
 
@@ -65,15 +65,15 @@ for aminoacid_key in sequence:
     if aminoacid_key in not_parametrized_acidic_aminoacids:
         pmb.define_particle(name=aminoacid_key,
                            acidity='acidic',
-                           diameter=0.35*pmb.units.nm, 
+                           sigma=0.35*pmb.units.nm, 
                            epsilon=1*pmb.units('reduced_energy'))
     elif aminoacid_key in not_parametrized_basic_aminoacids:
-        pmb.define_particle(name=aminoacid_key, acidity='basic',diameter=0.35*pmb.units.nm,epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_particle(name=aminoacid_key, acidity='basic',sigma=0.35*pmb.units.nm,epsilon=1*pmb.units('reduced_energy'))
         
     elif aminoacid_key in not_parametrized_neutral_aminoacids:
         pmb.define_particle(name=aminoacid_key,
                            q=0,
-                           diameter=0.35*pmb.units.nm, 
+                           sigma=0.35*pmb.units.nm, 
                            epsilon=1*pmb.units('reduced_energy'))
     already_defined_AA.append(aminoacid_key)
 
@@ -93,8 +93,8 @@ cation_name = 'Na'
 anion_name = 'Cl'
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
-pmb.define_particle(name=cation_name, q=1, diameter=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters
 volume = N_peptide_chains/(pmb.N_A*pep_concentration)
@@ -203,7 +203,7 @@ print("Net charge analysis")
 av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(input_data=Z_pH)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-Z_HH = pmb.calculate_HH(object_name=peptide_name, 
+Z_HH = pmb.calculate_HH(molecule_name=peptide_name, 
                         pH_list=pH_range)
 
 fig, ax = plt.subplots(figsize=(10, 7))

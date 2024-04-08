@@ -53,7 +53,7 @@ for index in titratables_AA_df.name.keys():
 
 # Calculate Henderson-Hasselbach titration curve 
 pH_range = np.linspace(2, 7, num=31)
-Z_HH = pmb.calculate_HH (object_name=pdb,
+Z_HH = pmb.calculate_HH (molecule_name=pdb,
                         pH_list = pH_range, 
                         pka_set=pka_set )
 

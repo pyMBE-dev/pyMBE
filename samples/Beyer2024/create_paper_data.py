@@ -127,7 +127,7 @@ if plot:
                             model="1beadAA")
     
     pH_range_HH = np.linspace(2, 12, num=1000)
-    Z_HH = pmb.calculate_HH(object_name=sequence,
+    Z_HH = pmb.calculate_HH(molecule_name=sequence,
                             pH_list=pH_range_HH)
 
     # Plot HH
