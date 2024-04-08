@@ -22,9 +22,6 @@ pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
 #Define particles
 
-print (pmb.df.dtypes)
-
-
 pmb.define_particle(
     name = "I",
     diameter = 0.3*pmb.units.nm,
@@ -109,18 +106,21 @@ pmb.write_pmb_df (filename = df_filename)
 # Read the same pyMBE df from a csv a load it in pyMBE
 read_df = pmb.read_pmb_df(filename = df_filename)
 
-print(f"*** Unit test: comparison between the written pmb.df and read pmb.df using assert_frame_equal ***")
 
+# Preprocess data for the Unit Test
 # The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal
 
 stored_df['parameters_of_the_potential'] = stored_df['parameters_of_the_potential'].apply (lambda x: literal_eval(str(x)) if pmb.pd.notnull(x) else x)
-
 stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
 
 read_df['bond_object']  = read_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
 
+print(f"*** Unit test: comparison between the written pmb.df and read pmb.df using assert_frame_equal ***")
+
 try:
     assert_frame_equal (stored_df, read_df, check_exact= True)
     print (f"*** Unite test passed***")
-except AssertionError:
+except AssertionError as message:
+    
     print (f"*** Unite test Failed***")
+    print (message)
