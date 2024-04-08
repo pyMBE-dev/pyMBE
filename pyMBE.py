@@ -516,6 +516,75 @@ class pymbe_library():
             self.add_value_to_df(key=(column_key,''),index=index,new_value=self.np.nan, warning=False)
         return
 
+    def convert_columns_to_original_format (self, df):
+        """
+        Converts the columns of the Dataframe to the original format in pyMBE.
+        
+        Args:
+            df(`DataFrame`): dataframe with pyMBE information as a string  
+        
+        """
+
+        from ast import literal_eval
+
+        columns_dtype_int = ['particle_id','particle_id2', 'residue_id','molecule_id', 'model',('state_one','es_type'),('state_two','es_type') ]  
+
+        columns_with_units = ['diameter', 'epsilon']
+
+        columns_with_list_or_dict = ['residue_list','side_chains', 'parameters_of_the_potential','sequence']
+
+        for column_name in columns_dtype_int:
+            df[column_name] = df[column_name].astype(object)
+            
+        for column_name in columns_with_list_or_dict:
+            if df[column_name].isnull().all():
+                df[column_name] = df[column_name].astype(object)
+            else:
+                df[column_name] = df[column_name].apply(lambda x: literal_eval(str(x)) if self.pd.notnull(x) else x)
+
+        for column_name in columns_with_units:
+            df[column_name] = df[column_name].apply(lambda x: self.create_variable_with_units(x) if self.pd.notnull(x) else x)
+
+        df['bond_object'] = df['bond_object'].apply(lambda x: (self.convert_str_to_bond_object(x)) if self.pd.notnull(x) else x)
+
+        return df
+    
+    def convert_str_to_bond_object (self, bond_str):
+        
+        """
+        Convert a row read as a `str` to the corresponding bond object. There are two supported bonds: HarmonicBond and FeneBond
+
+        Args:
+            bond_str (`str`): string with the information of a bond object
+
+        Returns:
+            bond_object(`obj`): EsPRESSo bond object 
+        """
+        
+        from ast import literal_eval
+        from espressomd.interactions import HarmonicBond
+        from espressomd.interactions import FeneBond
+
+        supported_bonds = ['HarmonicBond', 'FeneBond']
+
+        for bond in supported_bonds:
+
+            variable = self.re.subn(f'{bond}', '', bond_str)
+
+            if variable[1] == 1: 
+            
+                params = literal_eval(variable[0])
+
+                if bond == 'HarmonicBond':
+
+                    bond_object = HarmonicBond(r_cut =params['r_cut'], k = params['k'], r_0=params['r_0'])
+
+                elif bond == 'FeneBond':
+
+                    bond_object = FeneBond(k = params['k'], d_r_max =params['d_r_max'], r_0=params['r_0'])
+
+        return bond_object 
+
     def copy_df_entry(self, name, column_name, number_of_copies):
         '''
         Creates 'number_of_copies' of a given 'name' in `pymbe.df`.
@@ -1000,17 +1069,26 @@ class pymbe_library():
             residues_info[residue_id]['side_chain_ids']=side_chain_beads_ids
         return  residues_info
 
-    def create_variable_with_units(self, variable_dict):
+    def create_variable_with_units(self, variable):
         """
-        Returns a pint object with the value and units defined in `variable_dict`.
+        Returns a pint object with the value and units defined in `variable`.
 
         Args:
-            variable_dict(`dict`): {'value': value, 'units': units}
+            variable(`dict` or `str`): {'value': value, 'units': units}
         Returns:
             variable_with_units(`obj`): variable with units using the pyMBE UnitRegistry.
         """        
-        value=variable_dict.pop('value')
-        units=variable_dict.pop('units')
+        
+        if type(variable) is dict: 
+
+            value=variable.pop('value')
+            units=variable.pop('units')
+
+        elif type(variable) is str:
+
+            value = float(self.re.split('\s+', variable)[0])
+            units = self.re.split('\s+', variable)[1]
+        
         variable_with_units=value*self.units(units)
 
         return variable_with_units
@@ -1795,7 +1873,7 @@ class pymbe_library():
                     for not_requiered_key in without_units+with_units:
                         if not_requiered_key in param_dict.keys():
                             if not_requiered_key in with_units:
-                                not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable_dict=param_dict.pop(not_requiered_key))
+                                not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable=param_dict.pop(not_requiered_key))
                             elif not_requiered_key in without_units:
                                 not_requiered_attributes[not_requiered_key]=param_dict.pop(not_requiered_key)
                         else:
@@ -1824,13 +1902,13 @@ class pymbe_library():
                     name2 = param_dict.pop('name2')
                     bond_type = param_dict.pop('bond_type')
                     if bond_type == 'harmonic':
-                        k = self.create_variable_with_units(variable_dict=param_dict.pop('k'))
-                        r_0 = self.create_variable_with_units(variable_dict=param_dict.pop('r_0'))
+                        k = self.create_variable_with_units(variable=param_dict.pop('k'))
+                        r_0 = self.create_variable_with_units(variable=param_dict.pop('r_0'))
                         bond = interactions.HarmonicBond(k=k.to('reduced_energy / reduced_length**2').magnitude, r_0=r_0.to('reduced_length').magnitude)
                     elif bond_type == 'FENE':
-                        k = self.create_variable_with_units(variable_dict=param_dict.pop('k'))
-                        r_0 = self.create_variable_with_units(variable_dict=param_dict.pop('r_0'))
-                        d_r_max = self.create_variable_with_units(variable_dict=param_dict.pop('d_r_max'))
+                        k = self.create_variable_with_units(variable=param_dict.pop('k'))
+                        r_0 = self.create_variable_with_units(variable=param_dict.pop('r_0'))
+                        d_r_max = self.create_variable_with_units(variable=param_dict.pop('d_r_max'))
                         bond = interactions.FeneBond(k=k.to('reduced_energy / reduced_length**2').magnitude, r_0=r_0.to('reduced_length').magnitude, d_r_max=d_r_max.to('reduced_length').magnitude)
                     else:
                         raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
@@ -2011,13 +2089,18 @@ class pymbe_library():
         Note:
             This function only accepts files with CSV format. 
         """
+        
         if filename[-3:] != "csv":
             raise ValueError("Only files with CSV format are supported")
         df = self.pd.read_csv (filename,header=[0, 1], index_col=0)
         columns_names = self.setup_df()
-        df.columns = columns_names
-        self.df=df
-        return df
+        
+        multi_index = self.pd.MultiIndex.from_tuples(columns_names)
+        df.columns = multi_index
+        
+        self.df = self.convert_columns_to_original_format(df)
+        
+        return self.df
     
     def read_protein_vtf_in_df (self,filename,unit_length=None):
         """
@@ -2617,35 +2700,63 @@ class pymbe_library():
         Returns:
             columns_names(`obj`): pandas multiindex object with the column names of the pyMBE's dataframe
         """
-
-        columns_names = self.pd.MultiIndex.from_tuples ([
-                        ('name',''),
-                        ('pmb_type',''),
-                        ('particle_id',''), 
-                        ('particle_id2',''),
-                        ('residue_id',''),
-                        ('molecule_id',''),
-                        ('acidity',''),
-                        ('pka',''),
-                        ('central_bead',''),
-                        ('side_chains',''),
-                        ('residue_list',''),
-                        ('model',''),
-                        ('diameter',''),
-                        ('epsilon',''),
-                        ('state_one','label'),
-                        ('state_one','es_type'),
-                        ('state_one','charge'),
-                        ('state_two','label'),
-                        ('state_two','es_type'),
-                        ('state_two','charge'),
-                        ('sequence',''),
-                        ('bond_object',''),
-                        ('parameters_of_the_potential','')
-                        ])
-
-        self.df = self.pd.DataFrame (columns = columns_names)
-      
+        
+        columns_dtypes = {
+            'name': {
+                '': str},
+            'pmb_type': {
+                '': str},
+            'particle_id': {
+                '': object},
+            'particle_id2':  {
+                '': object},
+            'residue_id':  {
+                '': object},
+            'molecule_id':  {
+                '': object},
+            'acidity':  {
+                '': str},
+            'pka':  {
+                '': float},
+            'central_bead':  {
+                '': object},
+            'side_chains': {
+                '': object},
+            'residue_list': {
+                '': object},
+            'model': {
+                '': str},
+            'diameter': {
+                '': object},
+            'epsilon': {
+                '': object},
+            'state_one': {
+                'label': str,
+                'es_type': object,
+                'charge': float },
+            'state_two': {
+                'label': str,
+                'es_type': object,
+                'charge': float },
+            'sequence': {
+                '': object},
+            'bond_object': {
+                '': object},
+            'parameters_of_the_potential':{
+                '': object},
+            'l0': {
+                '': float},
+        }
+        
+        self.df = self.pd.DataFrame(columns=self.pd.MultiIndex.from_tuples([(col_main, col_sub) for col_main, sub_cols in columns_dtypes.items() for col_sub in sub_cols.keys()]))
+        
+        for level1, sub_dtypes in columns_dtypes.items():
+            for level2, dtype in sub_dtypes.items():
+                self.df[level1, level2] = self.df[level1, level2].astype(dtype)
+                
+        columns_names = self.pd.MultiIndex.from_frame(self.df)
+        columns_names = columns_names.names
+                
         return columns_names
 
     def setup_lj_interactions (self, espresso_system, cutoff=None, shift='auto', combining_rule='Lorentz-Berthelot', warnings=True):
@@ -2752,6 +2863,18 @@ class pymbe_library():
                         new_value=diameter)
             
         return 
+
+    def write_pmb_df (self, filename):
+        '''
+        Writes the pyMBE dataframe into a csv file
+        
+        Args:
+            filename (`str`): Path to the csv file 
+        '''
+
+        self.df.to_csv(filename)
+
+        return
 
     def write_output_vtf_file(self, espresso_system, filename):
         '''
