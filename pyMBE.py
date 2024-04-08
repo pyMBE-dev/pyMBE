@@ -230,7 +230,7 @@ class pymbe_library():
             - This function supports objects with pmb types: "molecule", "peptide" and "protein".
             - If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated
             - If no `pka_set` is given, the pKa values are taken from `pmb.df`
-            - This function should only be used for single-phase systems. For two-phase systems `calculate_HH_Donnan` has to be used.
+            - This function should only be used for single-phase systems. For two-phase systems `pmb.calculate_HH_Donnan`  should be used.
         """
         if pH_list is None:
             pH_list=self.np.linspace(2,12,50)    
@@ -284,7 +284,7 @@ class pymbe_library():
         Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.
 
         Args:
-            c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all (potentially) charge macromolecular species in the system. 
+            c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
             c_salt ('float'): Salt concentration in the reservoir.
             pH_list ('lst'): List of pH-values in the reservoir. 
             pka_set ('dict'): {"name": {"pka_value": pka, "acidity": acidity}}.
@@ -297,7 +297,7 @@ class pymbe_library():
         Note:
             - If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated
             - If no `pka_set` is given, the pKa values are taken from `pmb.df`
-            - If `c_macro` does not contain all (potentially) charged molecules in the system, the calculation will give a wrong result.
+            - If `c_macro` does not contain all charged molecules in the system, this function is likely to provide the wrong result.
         """
         if pH_list is None:
             pH_list=self.np.linspace(2,12,50)    
@@ -316,7 +316,7 @@ class pymbe_library():
             Calculates the charges of the different kinds of molecules according to the Henderson-Hasselbalch equation.
 
             Args:
-                c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all (potentially) charge macromolecular species in the system. 
+                c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
                 pH ('float'): pH-value that is used in the HH equation.
 
             Returns:
@@ -333,7 +333,7 @@ class pymbe_library():
 
             Args:
                 charge ('dict'): {"molecule_name": charge}
-                c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all (potentially) charge macromolecular species in the system. 
+                c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
             """
             nonlocal ionic_strength_res
             charge_density = 0.0
