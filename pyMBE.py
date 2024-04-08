@@ -527,17 +527,20 @@ class pymbe_library():
 
         from ast import literal_eval
 
-        columns_dtype_int = ['particle_id','particle_id2', 'residue_id','molecule_id', 'model',('state_one','es_type'),('state_two','es_type'), 'sequence'] # , 
+        columns_dtype_int = ['particle_id','particle_id2', 'residue_id','molecule_id', 'model',('state_one','es_type'),('state_two','es_type') ]  
 
         columns_with_units = ['diameter', 'epsilon']
 
-        columns_with_list_or_dict = ['residue_list','side_chains', 'parameters_of_the_potential']
+        columns_with_list_or_dict = ['residue_list','side_chains', 'parameters_of_the_potential','sequence']
 
         for column_name in columns_dtype_int:
             df[column_name] = df[column_name].astype(object)
             
         for column_name in columns_with_list_or_dict:
-            df[column_name] = df[column_name].apply(lambda x: literal_eval(str(x)) if self.pd.notnull(x) else x)
+            if df[column_name].isnull().all():
+                df[column_name] = df[column_name].astype(object)
+            else:
+                df[column_name] = df[column_name].apply(lambda x: literal_eval(str(x)) if self.pd.notnull(x) else x)
 
         for column_name in columns_with_units:
             df[column_name] = df[column_name].apply(lambda x: self.create_variable_with_units(x) if self.pd.notnull(x) else x)
