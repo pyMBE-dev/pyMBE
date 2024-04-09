@@ -2784,7 +2784,11 @@ class pymbe_library():
                 '': object},
             'model': {
                 '': str},
-            'diameter': {
+            'sigma': {
+                '': object},
+            'cutoff': {
+                '': object},
+            'offset': {
                 '': object},
             'epsilon': {
                 '': object},
