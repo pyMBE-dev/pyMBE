@@ -24,7 +24,7 @@ pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
 pmb.define_particle(
     name = "I",
-    diameter = 0.3*pmb.units.nm,
+    sigma = 0.3*pmb.units.nm,
     epsilon = 1*pmb.units('reduced_energy'),
     q = 0,
     acidity = "inert")
@@ -80,8 +80,8 @@ cation_name = 'Na'
 anion_name = 'Cl'
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
-pmb.define_particle(name=cation_name, q=1, diameter=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name,  q=-1, diameter=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 #System parameters
 molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
