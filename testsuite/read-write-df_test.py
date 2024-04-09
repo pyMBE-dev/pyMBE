@@ -91,7 +91,7 @@ espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 
 #Setup potential energy
 
-# pmb.setup_lj_interactions (espresso_system=espresso_system)
+pmb.setup_lj_interactions (espresso_system=espresso_system)
 
 pmb.pd.options.display.max_colwidth = 10
 
