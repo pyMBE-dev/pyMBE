@@ -548,7 +548,7 @@ class pymbe_library():
 
         columns_dtype_int = ['particle_id','particle_id2', 'residue_id','molecule_id', 'model',('state_one','es_type'),('state_two','es_type') ]  
 
-        columns_with_units = ['sigma', 'epsilon', 'cutoff']
+        columns_with_units = ['sigma', 'epsilon', 'cutoff', 'offset']
 
         columns_with_list_or_dict = ['residue_list','side_chains', 'parameters_of_the_potential','sequence']
 
