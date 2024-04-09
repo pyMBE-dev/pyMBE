@@ -2795,11 +2795,11 @@ class pymbe_library():
             'state_one': {
                 'label': str,
                 'es_type': object,
-                'charge': float },
+                'charge': object },
             'state_two': {
                 'label': str,
                 'es_type': object,
-                'charge': float },
+                'charge': object },
             'sequence': {
                 '': object},
             'bond_object': {
