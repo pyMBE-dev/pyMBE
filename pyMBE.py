@@ -101,8 +101,6 @@ class pymbe_library():
         used_bond_df = self.df.loc[self.df['particle_id2'].notnull()]
         #without this drop the program crashes when dropping duplicates because the 'bond' column is a dict
         used_bond_df = used_bond_df.drop([('bond_object','')],axis =1 )
-        # if len(used_bond_df.index) > 1: 
-        #     used_bond_df = used_bond_df.drop_duplicates(keep='first')
         used_bond_index = used_bond_df.index.to_list()
 
         for index in index_list:
