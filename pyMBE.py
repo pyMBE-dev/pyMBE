@@ -546,7 +546,7 @@ class pymbe_library():
 
         from ast import literal_eval
 
-        columns_dtype_int = ['particle_id','particle_id2', 'residue_id','molecule_id', 'model',('state_one','es_type'),('state_two','es_type') ]  
+        columns_dtype_int = ['particle_id','particle_id2', 'residue_id','molecule_id', 'model',('state_one','es_type'),('state_two','es_type'),('state_one','charge'),('state_two','charge') ]  
 
         columns_with_units = ['sigma', 'epsilon', 'cutoff', 'offset']
 
@@ -1210,6 +1210,7 @@ class pymbe_library():
         self.add_value_to_df(index=index,
                                 key=('parameters_of_the_potential',''),
                                 new_value=self.json.dumps(bond_object.get_params()))
+        self.df['parameters_of_the_potential'] = self.df['parameters_of_the_potential'].apply (lambda x: eval(str(x)) if self.pd.notnull(x) else x) 
         return
 
     def define_default_bond(self, bond_object, bond_type, epsilon=None, sigma=None, cutoff=None):
@@ -1257,6 +1258,8 @@ class pymbe_library():
         self.add_value_to_df(index=index,
                             key=('parameters_of_the_potential',''),
                             new_value=self.json.dumps(bond_object.get_params()))
+        
+        self.df['parameters_of_the_potential'] = self.df['parameters_of_the_potential'].apply (lambda x: eval(str(x)) if self.pd.notnull(x) else x) 
         return
 
     def define_epsilon_value_of_particles(self, eps_dict):
@@ -2837,6 +2840,7 @@ class pymbe_library():
             - Check the documentation of ESPResSo for more info about the potential https://espressomd.github.io/doc4.2.0/inter_non-bonded.html
 
         """
+        from ast import literal_eval
         from itertools import combinations_with_replacement
         implemented_combining_rules = ['Lorentz-Berthelot']
         compulsory_parameters_in_df = ['sigma','epsilon']
@@ -2888,14 +2892,18 @@ class pymbe_library():
             index = len(self.df)
             self.df.at [index, 'name'] = f'LJ: {lj_parameters["label"][0]}-{lj_parameters["label"][1]}'
             lj_params=espresso_system.non_bonded_inter[type_pair[0], type_pair[1]].lennard_jones.get_params()
+
             self.add_value_to_df(index=index,
                                 key=('pmb_type',''),
                                 new_value='LennardJones')
+            
             self.add_value_to_df(index=index,
                                 key=('parameters_of_the_potential',''),
-                                new_value=self.json.dumps(lj_params))                
+                                new_value=self.json.dumps(lj_params))                      
         if non_parametrized_labels and warnings:
             print(f'WARNING: The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.')
+            
+        self.df['parameters_of_the_potential'] = self.df['parameters_of_the_potential'].apply (lambda x: eval(str(x)) if self.pd.notnull(x) else x) 
         return
 
     def setup_particle_sigma(self, topology_dict):
