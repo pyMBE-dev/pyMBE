@@ -100,9 +100,7 @@ espresso_system=espressomd.System(box_l = [50]*3)
 pmb.setup_lj_interactions(espresso_system=espresso_system)
 
 # Check A-A LJ setup
-import json
 setup_AA_lj_parameters=pmb.df[pmb.df['name']=="LJ: A-A"].parameters_of_the_potential.values[0]
-setup_AA_lj_parameters = json.loads(setup_AA_lj_parameters)
 
 for parameter_key in ["sigma","offset","cutoff"]:
     np.testing.assert_equal(actual=setup_AA_lj_parameters[parameter_key], 
@@ -121,7 +119,6 @@ labels=["B-B", "BH-B", "BH-BH"]
 
 for label in labels:
     setup_lj_parameters=pmb.df[pmb.df['name']==f"LJ: {label}"].parameters_of_the_potential.values[0]
-    setup_lj_parameters = json.loads(setup_lj_parameters)
     for parameter_key in ["sigma","offset","cutoff"]:
         np.testing.assert_equal(actual=setup_lj_parameters[parameter_key], 
                                 desired=B_input_parameters[parameter_key].to("reduced_length").magnitude, 
@@ -147,7 +144,6 @@ ref_lj_parameters["epsilon"]=np.sqrt(A_input_parameters["epsilon"]*B_input_param
 # Check the parameters set up by pyMBE against the reference parameters
 for label in labels:
     setup_lj_parameters=pmb.df[pmb.df['name']==f"LJ: {label}"].parameters_of_the_potential.values[0]
-    setup_lj_parameters = json.loads(setup_lj_parameters)
     for parameter_key in ["sigma","offset","cutoff"]:
         np.testing.assert_equal(actual=setup_lj_parameters[parameter_key], 
                                 desired=ref_lj_parameters[parameter_key].to("reduced_length").magnitude, 
