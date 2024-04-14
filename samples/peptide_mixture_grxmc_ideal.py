@@ -8,7 +8,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import argparse
-from tqdm import tqdm
 from espressomd.io.writer import vtf
 from espressomd import interactions
 from espressomd import electrostatics
@@ -19,7 +18,7 @@ pmb = pyMBE.pymbe_library()
 
 # Command line arguments
 
-valid_modes=["standard", "unified"]
+valid_modes=["standard", "unified", "standard-test", "unified-test"]
 parser = argparse.ArgumentParser(description='Script that runs a simulation of an ideal peptide mixture in the grand-reaction ensemble using pyMBE and ESPResSo.')
 parser.add_argument('--mode',
                     type=str,
@@ -106,7 +105,7 @@ pmb.define_peptide (name=peptide2, sequence=sequence2, model=model)
 # Solution parameters
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
-if args.mode == 'standard':
+if args.mode == 'standard' or args.mode == 'standard-test':
     proton_name = 'Hplus'
     hydroxide_name = 'OHminus'
     sodium_name = 'Na'
@@ -117,7 +116,7 @@ if args.mode == 'standard':
     pmb.define_particle(name=sodium_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
     pmb.define_particle(name=chloride_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
-elif args.mode == 'unified':
+elif args.mode == 'unified' or args.mode == 'unified-test':
     cation_name = 'Na'
     anion_name = 'Cl'
 
@@ -140,12 +139,12 @@ pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 pmb.create_pmb_object(name=peptide1, number_of_objects= N_peptide1_chains,espresso_system=espresso_system, use_default_bond=True)
 pmb.create_pmb_object(name=peptide2, number_of_objects= N_peptide2_chains,espresso_system=espresso_system, use_default_bond=True)
 
-if args.mode == 'standard':
+if args.mode == 'standard' or args.mode == 'standard-test':
     pmb.create_counterions(object_name=peptide1,cation_name=proton_name,anion_name=hydroxide_name,espresso_system=espresso_system) # Create counterions for the peptide chains
     pmb.create_counterions(object_name=peptide2,cation_name=proton_name,anion_name=hydroxide_name,espresso_system=espresso_system) # Create counterions for the peptide chains
 
     c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,cation_name=sodium_name,anion_name=chloride_name,c_salt=c_salt)
-elif args.mode == 'unified':
+elif args.mode == 'unified' or args.mode == 'unified-test':
     pmb.create_counterions(object_name=peptide1, cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) # Create counterions for the peptide chains
     pmb.create_counterions(object_name=peptide2, cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) # Create counterions for the peptide chains
 
@@ -164,9 +163,9 @@ total_ionisible_groups = len (list_ionisible_groups)
 
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 
-if args.mode == 'standard':
+if args.mode == 'standard' or args.mode == 'standard-test':
     RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, SEED=SEED)
-elif args.mode == 'unified':
+elif args.mode == 'unified' or args.mode == 'unified-test':
     RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=2, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name, SEED=SEED)
 print('The acid-base reaction has been sucessfully setup for ', sucessful_reactions_labels)
 
@@ -209,7 +208,7 @@ pmb.write_pmb_df (filename='df.csv')
 # Main loop for performing simulations at different pH-values
 labels_obs=["time","charge","num_plus"]
 
-for index in tqdm(range(len(pH_range))):
+for index in range(len(pH_range)):
     
     pH_value=pH_range[index]
 
@@ -218,9 +217,9 @@ for index in tqdm(range(len(pH_range))):
     for label in labels_obs:
         time_series[label]=[]
 
-    if args.mode == 'standard':
+    if args.mode == 'standard' or args.mode == 'standard-test':
         RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, SEED=SEED)
-    elif args.mode == 'unified':
+    elif args.mode == 'unified' or args.mode == 'unified-test':
         RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name, SEED=SEED)
 
     # Inner loop for sampling each pH value
@@ -241,9 +240,9 @@ for index in tqdm(range(len(pH_range))):
             time_series["time"].append(espresso_system.time)
             time_series["charge"].append(np.mean((z_one_object)))
 
-            if args.mode == 'standard':
+            if args.mode == 'standard' or args.mode == 'standard-test':
                 time_series["num_plus"].append(espresso_system.number_of_particles(type=type_map["Na"])+espresso_system.number_of_particles(type=type_map["Hplus"]))
-            elif args.mode == 'unified':
+            elif args.mode == 'unified' or args.mode == 'unified-test':
                 time_series["num_plus"].append(espresso_system.number_of_particles(type=type_map["Na"]))
             
         if (step % N_samples_print == 0) :
@@ -264,27 +263,41 @@ for index in tqdm(range(len(pH_range))):
     err_xi_plus.append(err_concentration_plus/ionic_strength_res)
     print("pH = {:6.4g} done".format(pH_value))
    
-# Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-pH_range_HH = np.linspace(2, 12, num=100)
-HH_charge_dict = pmb.calculate_HH_Donnan(c_macro={peptide1: pep1_concentration, peptide2: pep2_concentration}, c_salt=c_salt, pH_list=pH_range_HH)
-Z_HH_Donnan = HH_charge_dict["charges_dict"]
-pH_sys = HH_charge_dict["pH_system_list"]
-xi = HH_charge_dict["partition_coefficients"]
 
-fig, ax = plt.subplots(figsize=(10, 7))
-plt.errorbar(pH_range, np.asarray(Z_pH)/N_peptide1_chains, yerr=np.asarray(err_Z_pH)/N_peptide1_chains, fmt = 'o', capsize=3, label='Simulation')
-ax.plot(pH_range_HH, np.asarray(Z_HH_Donnan[peptide1])+np.asarray(Z_HH_Donnan[peptide2]), "--r", label='HH+Donnan')
-plt.legend()
-plt.xlabel('pH')
-plt.ylabel('Charge of the peptide 1 + peptide 2 / e')
-plt.show()
-plt.close()
+if args.mode == 'standard' or args.mode == 'unified':
+    # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
+    pH_range_HH = np.linspace(2, 12, num=100)
+    HH_charge_dict = pmb.calculate_HH_Donnan(c_macro={peptide1: pep1_concentration, peptide2: pep2_concentration}, c_salt=c_salt, pH_list=pH_range_HH)
+    Z_HH_Donnan = HH_charge_dict["charges_dict"]
+    xi = HH_charge_dict["partition_coefficients"]
 
-fig, ax = plt.subplots(figsize=(10, 7))
-plt.errorbar(pH_range, xi_plus, yerr=err_xi_plus, fmt = 'o', capsize=3, label='Simulation')
-ax.plot(pH_range_HH, np.asarray(xi), "-k", label='HH+Donnan')
-plt.legend()
-plt.xlabel('pH')
-plt.ylabel(r'partition coefficient $\xi_+$')
-plt.show()
-plt.close()
+    # Plot the results
+    fig, ax = plt.subplots(figsize=(10, 7))
+    plt.errorbar(pH_range, np.asarray(Z_pH)/N_peptide1_chains, yerr=np.asarray(err_Z_pH)/N_peptide1_chains, fmt = 'o', capsize=3, label='Simulation')
+    ax.plot(pH_range_HH, np.asarray(Z_HH_Donnan[peptide1])+np.asarray(Z_HH_Donnan[peptide2]), "--r", label='HH+Donnan')
+    plt.legend()
+    plt.xlabel('pH')
+    plt.ylabel('Charge of the peptide 1 + peptide 2 / e')
+    plt.show()
+    plt.close()
+
+    fig, ax = plt.subplots(figsize=(10, 7))
+    plt.errorbar(pH_range, xi_plus, yerr=err_xi_plus, fmt = 'o', capsize=3, label='Simulation')
+    ax.plot(pH_range_HH, np.asarray(xi), "-k", label='HH+Donnan')
+    plt.legend()
+    plt.xlabel('pH')
+    plt.ylabel(r'partition coefficient $\xi_+$')
+    plt.show()
+    plt.close()
+
+elif args.mode == 'standard-test' or args.mode == 'unified-test':
+    # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
+    HH_charge_dict = pmb.calculate_HH_Donnan(c_macro={peptide1: pep1_concentration, peptide2: pep2_concentration}, c_salt=c_salt, pH_list=pH_range)
+    Z_HH_Donnan = HH_charge_dict["charges_dict"]
+    xi = HH_charge_dict["partition_coefficients"]
+    
+    # Check if charges agree
+    np.testing.assert_allclose(np.asarray(Z_pH)/N_peptide1_chains, np.asarray(Z_HH_Donnan[peptide1])+np.asarray(Z_HH_Donnan[peptide2]), rtol=0.01, atol=0.05)
+
+    # Check if partition coefficients agree
+    np.testing.assert_allclose(xi_plus, np.asarray(xi), rtol=0.1, atol=0.1)
