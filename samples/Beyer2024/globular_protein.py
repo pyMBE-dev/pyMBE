@@ -120,7 +120,7 @@ pmb.create_protein(name=protein_name,
 
 #Here we activate the motion of the protein 
 if args.move_protein:
-    pmb.activate_motion_of_rigid_object(espresso_system=espresso_system,
+    pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
                                         name=protein_name)
 
 # Here we put the protein on the center of the simulation box

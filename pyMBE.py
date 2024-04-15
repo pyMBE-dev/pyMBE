@@ -52,9 +52,9 @@ class pymbe_library():
         self.setup_df()
         return
     
-    def activate_motion_of_rigid_object(self, name, espresso_system):
+    def enable_motion_of_rigid_object(self, name, espresso_system):
         '''
-        Activates the motion of the rigid object `name` in the `espresso_system`.
+        Enables the motion of the rigid object `name` in the `espresso_system`.
 
         Args:
             name(`str`): Label of the object.
@@ -63,7 +63,7 @@ class pymbe_library():
         Note:
             - It requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
         '''
-        print ('activate_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
+        print ('enable_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
         if pmb_type != 'protein':
             raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
