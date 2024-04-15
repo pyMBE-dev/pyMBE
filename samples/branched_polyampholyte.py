@@ -6,7 +6,8 @@ from matplotlib.style import use
 import espressomd
 import numpy as np
 import matplotlib.pyplot as plt
-from tqdm import tqdm
+import argparse
+import pandas as pd
 from espressomd.io.writer import vtf
 from espressomd import interactions
 
@@ -14,6 +15,15 @@ from espressomd import interactions
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
+
+# Command line arguments
+parser = argparse.ArgumentParser(description='Script that runs a simulation of an ideal peptide in the cpH-ensemble using pyMBE and ESPResSo.')
+parser.add_argument('--no_plot', 
+                    default=False, 
+                    action='store_true',
+                    help='If set, no plots will be produced and the data will be written to a file.')
+args = parser.parse_args()
+
 
 # Load some functions from the handy_scripts library for convinience
 from lib.handy_functions import setup_langevin_dynamics
@@ -148,17 +158,24 @@ espresso_system.cell_system.skin=0.4
 
 N_frame=0
 Z_pH=[] # List of the average global charge at each pH
+err_Z_pH=[] # List of the error of the global charge at each pH
+
 
 #Save the pyMBE dataframe in a CSV file
 pmb.write_pmb_df (filename='df.csv')
 
 # Main loop for performing simulations at different pH-values
+labels_obs=["time","charge"]
 
-for index in tqdm(range(len(pH_range))):
+for index in range(len(pH_range)):
     
     pH_value=pH_range[index]
-    # Sample list inicialization
-    Z_sim=[]
+
+    time_series={}
+
+    for label in labels_obs:
+        time_series[label]=[]
+
     RE.constant_pH = pH_value
 
     # Inner loop for sampling each pH value
@@ -174,7 +191,9 @@ for index in tqdm(range(len(pH_range))):
             # Get polyampholyte net charge
             charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
                     molecule_name="polyampholyte")      
-            Z_sim.append(charge_dict["mean"])
+
+            time_series["time"].append(espresso_system.time)
+            time_series["charge"].append(charge_dict["mean"])
 
         if (step % N_samples_print == 0) :
             N_frame+=1
@@ -182,28 +201,44 @@ for index in tqdm(range(len(pH_range))):
                 vtf.writevsf(espresso_system, coordinates)
                 vtf.writevcf(espresso_system, coordinates)
 
-    Z_pH.append(Z_sim)
+    # Estimate the statistical error and the autocorrelation time of the data
+    print("Net charge analysis")
+    processed_data = block_analyze(full_data=pd.DataFrame(time_series, columns=labels_obs))
+
+    Z_pH.append(processed_data["mean", "charge"])
+    err_Z_pH.append(processed_data["err_mean", "charge"])
     print("pH = {:6.4g} done".format(pH_value))
    
-# Estimate the statistical error and the autocorrelation time of the data
 
-print("Net charge analysis")
-av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(input_data=Z_pH)
+if not args.no_plot:
+    # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (manually)
+    pH_range_HH = np.linspace(2, 12, num=1000)
+    Z_HH_manually = [10 * (1/(1+10**(pH_value-9)) - 1/(1+10**(4-pH_value))) for pH_value in pH_range_HH]
 
-# Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (manually)
-pH_range_HH = np.linspace(2, 12, num=1000)
-Z_HH_manually = [10 * (1/(1+10**(pH_value-9)) - 1/(1+10**(4-pH_value))) for pH_value in pH_range_HH]
+    # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (pyMBE)
+    Z_HH = pmb.calculate_HH(molecule_name="polyampholyte", 
+                            pH_list=pH_range_HH)
 
-# Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (pyMBE)
-Z_HH = pmb.calculate_HH(molecule_name="polyampholyte", 
-                        pH_list=pH_range_HH)
+    fig, ax = plt.subplots(figsize=(10, 7))
+    plt.errorbar(pH_range, Z_pH, yerr=err_Z_pH, fmt = 'o', capsize=3, label='Simulation')
+    plt.plot(pH_range_HH, Z_HH_manually, label="Henderson-Hasselbalch (manually)")
+    ax.plot(pH_range_HH, Z_HH, "-k", label='Henderson-Hasselbach (pyMBE)', linestyle="dashed")
+    plt.legend()
+    plt.xlabel('pH')
+    plt.ylabel('Charge of the polyampholyte / e')
 
-fig, ax = plt.subplots(figsize=(10, 7))
-plt.errorbar(pH_range, av_net_charge, yerr=err_net_charge, fmt = 'o', capsize=3, label='Simulation')
-plt.plot(pH_range_HH, Z_HH_manually, label="Henderson-Hasselbalch (manually)")
-ax.plot(pH_range_HH, Z_HH, "-k", label='Henderson-Hasselbach (pyMBE)', linestyle="dashed")
-plt.legend()
-plt.xlabel('pH')
-plt.ylabel('Charge of the polyampholyte / e')
+    plt.show()
 
-plt.show()
+else:
+    # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (pyMBE)
+    Z_HH = pmb.calculate_HH(molecule_name="polyampholyte", 
+                            pH_list=pH_range)
+
+    # Write out the data
+    data = {}
+    data["Z_sim"] = np.asarray(Z_pH)
+    data["Z_HH"] = np.asarray(Z_HH)
+    data = pd.DataFrame.from_dict(data) 
+
+    data_path = pmb.get_resource(path="samples")
+    data.to_csv(f"{data_path}/data_polyampholyte_cph.csv", index=False)

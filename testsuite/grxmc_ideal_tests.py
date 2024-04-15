@@ -21,7 +21,6 @@ run_command = ["python3", script_path, "--mode", "standard", "--no_plot"]
 subprocess.check_output(run_command)
 
 data = pd.read_csv(data_path)
-print(data)
 # Check if charges agree
 np.testing.assert_allclose(data["Z_sim"], data["Z_HH_Donnan"], rtol=0.01, atol=0.05)
 # Check if partition coefficients agree
@@ -36,7 +35,6 @@ run_command = ["python3", script_path, "--mode", "unified", "--no_plot"]
 subprocess.check_output(run_command)
 
 data = pd.read_csv(data_path)
-print(data)
 # Check if charges agree
 np.testing.assert_allclose(data["Z_sim"], data["Z_HH_Donnan"], rtol=0.01, atol=0.05)
 # Check if partition coefficients agree
