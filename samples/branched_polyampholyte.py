@@ -1,4 +1,4 @@
-# Load espresso, sugar and other necessary libraries
+# Load espresso, pyMBE and other necessary libraries
 import sys
 import os 
 import inspect
@@ -10,18 +10,22 @@ import argparse
 import pandas as pd
 from espressomd.io.writer import vtf
 from espressomd import interactions
-
+import pyMBE
 
 # Create an instance of pyMBE library
-import pyMBE
+
 pmb = pyMBE.pymbe_library()
 
 # Command line arguments
-parser = argparse.ArgumentParser(description='Script that runs a simulation of an ideal peptide in the cpH-ensemble using pyMBE and ESPResSo.')
-parser.add_argument('--no_plot', 
+parser = argparse.ArgumentParser(description='Script that runs a Monte Carlo simulation of an ideal branched polyampholyte using pyMBE and ESPResSo.')
+parser.add_argument('--plot', 
                     default=False, 
                     action='store_true',
-                    help='If set, no plots will be produced and the data will be written to a file.')
+                    help='If set, the data will be ploted instead than written to a file.')
+parser.add_argument('--test', 
+                    default=False, 
+                    action='store_true',
+                    help='to run a short simulation for testing the script')
 args = parser.parse_args()
 
 
@@ -36,14 +40,24 @@ if not os.path.exists('./frames'):
 # Simulation parameters
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 pH_range = np.linspace(2, 12, num=20)
-Samples_per_pH = 100
-MD_steps_per_sample = 0
+Samples_per_pH = 1000
+MD_steps_per_sample = 1000
 steps_eq = int(Samples_per_pH/3)
 N_samples_print = 10  # Write the trajectory every 100 samples
 probability_reaction =0.5 
 SEED = 100
 dt = 0.001
 solvent_permitivity = 78.3
+N_polyampholyte_chains = 5
+polyampholyte_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
+volume = N_polyampholyte_chains/(pmb.N_A*polyampholyte_concentration)
+
+if args.test:
+    Samples_per_pH = 100
+    probability_reaction = 1 
+    N_samples_print = 1000
+    N_polyampholyte_chains = 1 
+    pH_range = np.linspace(2, 12, num=10)
 
 # Define different particles
 # Inert particle 
@@ -106,9 +120,7 @@ pmb.define_particle(name=cation_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pm
 pmb.define_particle(name=anion_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters
-N_polyampholyte_chains = 5
-polyampholyte_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
-volume = N_polyampholyte_chains/(pmb.N_A*polyampholyte_concentration)
+
 L = volume ** (1./3.) # Side of the simulation box
 calculated_polyampholyte_concentration = N_polyampholyte_chains/(volume*pmb.N_A)
 
@@ -131,8 +143,8 @@ list_ionisible_groups = basic_groups + acidic_groups
 total_ionisible_groups = len (list_ionisible_groups)
 
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
-print('The polyampholyte concentration in your system is ', calculated_polyampholyte_concentration.to('mol/L') , 'with', N_polyampholyte_chains, 'peptides')
-print('The ionisable groups in your peptide are ', list_ionisible_groups)
+print('The polyampholyte concentration in your system is ', calculated_polyampholyte_concentration.to('mol/L') , 'with', N_polyampholyte_chains, 'molecules')
+print('The ionisable groups in your polyampholyte are ', list_ionisible_groups)
 
 RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=2, SEED=SEED)
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
@@ -191,8 +203,10 @@ for index in range(len(pH_range)):
             # Get polyampholyte net charge
             charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
                     molecule_name="polyampholyte")      
-
-            time_series["time"].append(espresso_system.time)
+            if args.test:
+                time_series["time"].append(step)
+            else:
+                time_series["time"].append(espresso_system.time)
             time_series["charge"].append(charge_dict["mean"])
 
         if (step % N_samples_print == 0) :
@@ -202,15 +216,13 @@ for index in range(len(pH_range)):
                 vtf.writevcf(espresso_system, coordinates)
 
     # Estimate the statistical error and the autocorrelation time of the data
-    print("Net charge analysis")
     processed_data = block_analyze(full_data=pd.DataFrame(time_series, columns=labels_obs))
-
     Z_pH.append(processed_data["mean", "charge"])
     err_Z_pH.append(processed_data["err_mean", "charge"])
     print("pH = {:6.4g} done".format(pH_value))
    
 
-if not args.no_plot:
+if args.plot:
     # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (manually)
     pH_range_HH = np.linspace(2, 12, num=1000)
     Z_HH_manually = [10 * (1/(1+10**(pH_value-9)) - 1/(1+10**(4-pH_value))) for pH_value in pH_range_HH]
@@ -222,7 +234,7 @@ if not args.no_plot:
     fig, ax = plt.subplots(figsize=(10, 7))
     plt.errorbar(pH_range, Z_pH, yerr=err_Z_pH, fmt = 'o', capsize=3, label='Simulation')
     plt.plot(pH_range_HH, Z_HH_manually, label="Henderson-Hasselbalch (manually)")
-    ax.plot(pH_range_HH, Z_HH, "-k", label='Henderson-Hasselbach (pyMBE)', linestyle="dashed")
+    ax.plot(pH_range_HH, Z_HH, "-k", label='Henderson-Hasselbach (pyMBE)')
     plt.legend()
     plt.xlabel('pH')
     plt.ylabel('Charge of the polyampholyte / e')

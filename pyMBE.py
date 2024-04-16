@@ -486,7 +486,10 @@ class pymbe_library():
             `bool`: `True` if the cell has a value, `False` otherwise.
         """
         idx = self.pd.IndexSlice
-        return not self.pd.isna(self.df.loc[index, idx[key]])
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return not self.pd.isna(self.df.loc[index, idx[key]])
 
     def check_if_name_is_defined_in_df(self, name, pmb_type_to_be_defined):
         """

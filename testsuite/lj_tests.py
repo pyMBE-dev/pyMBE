@@ -1,7 +1,8 @@
 # Import pyMBE and other libraries
 import pyMBE
 import numpy as np
-
+import warnings
+        
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library()
 
@@ -15,18 +16,21 @@ input_parameters={"name":"A",
                     "offset":3*pmb.units.nm}
 
 pmb.define_particle(**input_parameters)
-
 for parameter_key in input_parameters.keys():
-    np.testing.assert_equal(actual=pmb.df[parameter_key].values[0], 
-                            desired=input_parameters[parameter_key], 
-                            verbose=True)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        np.testing.assert_equal(actual=pmb.df[parameter_key].values[0], 
+                                desired=input_parameters[parameter_key], 
+                                verbose=True)
 print("*** Unit test passed ***")
 print(f"*** Unit test: check that `offset` defaults to 0***")
 # Clean pmb.df
 pmb.setup_df()
 # Define dummy particle
 pmb.define_particle(name="A")
-np.testing.assert_equal(actual=pmb.df["offset"].values[0], 
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    np.testing.assert_equal(actual=pmb.df["offset"].values[0], 
                         desired=pmb.units.Quantity(0,"reduced_length"), 
                         verbose=True)
 print("*** Unit test passed ***")
@@ -36,7 +40,9 @@ print(f"*** Unit test: check that `cutoff` defaults to `2**(1./6.) reduced_lengt
 pmb.setup_df()
 # Define dummy particle
 pmb.define_particle(name="A")
-np.testing.assert_equal(actual=pmb.df["cutoff"].values[0], 
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    np.testing.assert_equal(actual=pmb.df["cutoff"].values[0], 
                         desired=pmb.units.Quantity(2**(1./6.),"reduced_length"), 
                         verbose=True)
 print("*** Unit test passed ***")

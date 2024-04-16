@@ -1,4 +1,4 @@
-#Load espresso, sugar and other necessary libraries
+#Load espresso, pyMBE and other necessary libraries
 import sys
 import os 
 import inspect
@@ -11,10 +11,14 @@ import argparse
 from espressomd.io.writer import vtf
 from espressomd import interactions
 from espressomd import electrostatics
+import pyMBE
 
 # Create an instance of pyMBE library
-import pyMBE
 pmb = pyMBE.pymbe_library()
+
+import warnings
+
+
 
 # Command line arguments
 
@@ -24,10 +28,16 @@ parser.add_argument('--mode',
                     type=str,
                     default= "standard",
                     help='Set if the grand-reaction method is used with unified ions or not, valid modes are {valid_modes}')
-parser.add_argument('--no_plot', 
+parser.add_argument('--plot', 
                     default=False, 
                     action='store_true',
-                    help='If set, no plots will be produced and the data will be written to a file.')
+                    help='If set, the data will be ploted instead than written to a file.')
+
+parser.add_argument('--test', 
+                    default=False, 
+                    action='store_true',
+                    help='to run a short simulation for testing the script')
+
 args = parser.parse_args()
 
 if args.mode not in valid_modes:
@@ -54,45 +64,37 @@ dt = 0.001
 solvent_permitivity = 78.3
 
 # Peptide parameters
-sequence1 = 'nGEGHc'
+sequence1 = 'nEHc'
 model = '1beadAA'  # Model with 2 beads per each aminoacid
 pep1_concentration = 1e-2 *pmb.units.mol/pmb.units.L
 N_peptide1_chains = 10
 
-sequence2 = 'nGEEHHc'
+sequence2 = 'nEEHHc'
 pep2_concentration = 1e-2 *pmb.units.mol/pmb.units.L
 N_peptide2_chains = 10
 
+if args.test:
+    Samples_per_pH = 500
+    probability_reaction = 1 
+    N_samples_print = 1000
+    N_peptide1_chains = 5
+    N_peptide2_chains = 5
+    pH_range = np.linspace(2, 12, num=10)
+
+
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
+# Note that this parameterization only includes some of the natural aminoacids
+# For the other aminoacids the user needs to use  a parametrization including all the aminoacids in the peptide sequence
 path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.txt")
+path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
+
+
+
+
 pmb.load_interaction_parameters(filename=path_to_interactions) 
-pmb.load_pka_set(path_to_pka)
-
-# Use a generic parametrization for the aminoacids not parametrized
-not_parametrized_neutral_aminoacids = ['A','N','Q','G','I','L','M','F','P','O','S','U','T','W','V','J']
-not_parametrized_acidic_aminoacids = ['C','c']
-not_parametrized_basic_aminoacids = ['R','n']
-
-already_defined_AA=[]
-
-for aminoacid_key in sequence1+sequence2:
-    if aminoacid_key in already_defined_AA:
-        continue
-    if aminoacid_key in not_parametrized_acidic_aminoacids:
-        pmb.define_particle(name=aminoacid_key,
-                           acidity='acidic',
-                           sigma=0.35*pmb.units.nm, 
-                           epsilon=1*pmb.units('reduced_energy'))
-    elif aminoacid_key in not_parametrized_basic_aminoacids:
-        pmb.define_particle(name=aminoacid_key, acidity='basic',sigma=0.35*pmb.units.nm,epsilon=1*pmb.units('reduced_energy'))
-        
-    elif aminoacid_key in not_parametrized_neutral_aminoacids:
-        pmb.define_particle(name=aminoacid_key,
-                           q=0,
-                           sigma=0.35*pmb.units.nm, 
-                           epsilon=1*pmb.units('reduced_energy'))
-    already_defined_AA.append(aminoacid_key)
+with warnings.catch_warnings():
+    warnings.simplefilter('error')
+    pmb.load_pka_set(path_to_pka)
 
 generic_bond_lenght=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
@@ -184,9 +186,6 @@ non_interacting_type = max(type_map.values())+1
 RE.set_non_interacting_type (type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
-# Minimize the system energy to avoid huge starting force due to random inicialization of the system
-minimize_espresso_system_energy (espresso_system=espresso_system)
-
 espresso_system.time_step = dt
 
 #Save the initial state
@@ -242,7 +241,10 @@ for index in range(len(pH_range)):
             for pid in particle_id_list:
                 z_one_object +=espresso_system.part.by_id(pid).q
 
-            time_series["time"].append(espresso_system.time)
+            if args.test:
+                time_series["time"].append(step)
+            else:
+                time_series["time"].append(espresso_system.time)
             time_series["charge"].append(np.mean((z_one_object)))
 
             if args.mode == 'standard':
@@ -257,19 +259,18 @@ for index in range(len(pH_range)):
                 vtf.writevcf(espresso_system, coordinates)
 
     # Estimate the statistical error and the autocorrelation time of the data
-    print("Net charge analysis")
     processed_data = block_analyze(full_data=pd.DataFrame(time_series, columns=labels_obs))
 
     Z_pH.append(processed_data["mean", "charge"])
     err_Z_pH.append(processed_data["err_mean", "charge"])
     concentration_plus = (processed_data["mean", "num_plus"]/(pmb.N_A * L**3)).to('mol/L')
     err_concentration_plus = (processed_data["err_mean", "num_plus"]/(pmb.N_A * L**3)).to('mol/L')
-    xi_plus.append(concentration_plus/ionic_strength_res)
+    xi_plus.append((concentration_plus/ionic_strength_res).magnitude)
     err_xi_plus.append(err_concentration_plus/ionic_strength_res)
     print("pH = {:6.4g} done".format(pH_value))
    
 
-if not args.no_plot:
+if args.plot:
     # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
     pH_range_HH = np.linspace(2, 12, num=100)
     HH_charge_dict = pmb.calculate_HH_Donnan(c_macro={peptide1: pep1_concentration, peptide2: pep2_concentration}, c_salt=c_salt, pH_list=pH_range_HH)

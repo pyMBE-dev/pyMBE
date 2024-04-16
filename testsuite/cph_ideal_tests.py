@@ -13,9 +13,10 @@ script_path = pmb.get_resource(f"samples/branched_polyampholyte.py")
 data_path = pmb.get_resource(f"samples/data_polyampholyte_cph.csv")
 
 
-print(f"*** Running test for cpH (ideal) ***\n")
+print(f"*** Constant pH (cpH) implementation tests ***\n")
+print(f"*** Test that our implementation of the cpH method reproduces the Henderson Hasselbalch equation for an ideal polyampholyte ***\n")
 
-run_command = ["python3", script_path, "--no_plot"]
+run_command = ["python3", script_path, "--test"]
 subprocess.check_output(run_command)
 
 data = pd.read_csv(data_path)
