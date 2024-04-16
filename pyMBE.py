@@ -731,7 +731,7 @@ class pymbe_library():
                 name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
                 espresso_system(`obj`): Instance of a system object from espressomd library.
                 number_of_molecules(`int`): Number of molecules of type `name` to be created.
-                list_of_first_residue_positions(`list`, optional): List of coordinates where the first_residue_position will be created, random by default
+                list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default
                 use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
             Returns:
                 molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
