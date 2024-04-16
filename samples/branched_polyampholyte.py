@@ -18,10 +18,6 @@ pmb = pyMBE.pymbe_library()
 
 # Command line arguments
 parser = argparse.ArgumentParser(description='Script that runs a Monte Carlo simulation of an ideal branched polyampholyte using pyMBE and ESPResSo.')
-parser.add_argument('--plot', 
-                    default=False, 
-                    action='store_true',
-                    help='If set, the data will be ploted instead than written to a file.')
 parser.add_argument('--test', 
                     default=False, 
                     action='store_true',
@@ -222,7 +218,21 @@ for index in range(len(pH_range)):
     print("pH = {:6.4g} done".format(pH_value))
    
 
-if args.plot:
+if args.test:
+     # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (pyMBE)
+    Z_HH = pmb.calculate_HH(molecule_name="polyampholyte", 
+                            pH_list=pH_range)
+
+    # Write out the data
+    data = {}
+    data["Z_sim"] = np.asarray(Z_pH)
+    data["Z_HH"] = np.asarray(Z_HH)
+    data = pd.DataFrame.from_dict(data) 
+
+    data_path = pmb.get_resource(path="samples")
+    data.to_csv(f"{data_path}/data_polyampholyte_cph.csv", index=False)
+
+else:
     # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (manually)
     pH_range_HH = np.linspace(2, 12, num=1000)
     Z_HH_manually = [10 * (1/(1+10**(pH_value-9)) - 1/(1+10**(4-pH_value))) for pH_value in pH_range_HH]
@@ -240,17 +250,3 @@ if args.plot:
     plt.ylabel('Charge of the polyampholyte / e')
 
     plt.show()
-
-else:
-    # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (pyMBE)
-    Z_HH = pmb.calculate_HH(molecule_name="polyampholyte", 
-                            pH_list=pH_range)
-
-    # Write out the data
-    data = {}
-    data["Z_sim"] = np.asarray(Z_pH)
-    data["Z_HH"] = np.asarray(Z_HH)
-    data = pd.DataFrame.from_dict(data) 
-
-    data_path = pmb.get_resource(path="samples")
-    data.to_csv(f"{data_path}/data_polyampholyte_cph.csv", index=False)

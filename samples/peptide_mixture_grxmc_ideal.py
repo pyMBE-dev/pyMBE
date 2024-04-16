@@ -28,11 +28,6 @@ parser.add_argument('--mode',
                     type=str,
                     default= "standard",
                     help='Set if the grand-reaction method is used with unified ions or not, valid modes are {valid_modes}')
-parser.add_argument('--plot', 
-                    default=False, 
-                    action='store_true',
-                    help='If set, the data will be ploted instead than written to a file.')
-
 parser.add_argument('--test', 
                     default=False, 
                     action='store_true',
@@ -74,7 +69,7 @@ pep2_concentration = 1e-2 *pmb.units.mol/pmb.units.L
 N_peptide2_chains = 10
 
 if args.test:
-    Samples_per_pH = 500
+    Samples_per_pH = 1000
     probability_reaction = 1 
     N_samples_print = 1000
     N_peptide1_chains = 5
@@ -270,7 +265,24 @@ for index in range(len(pH_range)):
     print("pH = {:6.4g} done".format(pH_value))
    
 
-if args.plot:
+if args.test:
+    # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
+    HH_charge_dict = pmb.calculate_HH_Donnan(c_macro={peptide1: pep1_concentration, peptide2: pep2_concentration}, c_salt=c_salt, pH_list=pH_range)
+    Z_HH_Donnan = HH_charge_dict["charges_dict"]
+    xi = HH_charge_dict["partition_coefficients"]
+ 
+    # Write out the data
+    data = {}
+    data["Z_sim"] = np.asarray(Z_pH)/N_peptide1_chains
+    data["xi_sim"] = np.asarray(xi_plus)
+    data["Z_HH_Donnan"] = np.asarray(Z_HH_Donnan[peptide1])+np.asarray(Z_HH_Donnan[peptide2])
+    data["xi_HH_Donnan"] = np.asarray(xi)
+    data = pd.DataFrame.from_dict(data) 
+
+    data_path = pmb.get_resource(path="samples")
+    data.to_csv(f"{data_path}/data_peptide_grxmc.csv", index=False)
+
+else:
     # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
     pH_range_HH = np.linspace(2, 12, num=100)
     HH_charge_dict = pmb.calculate_HH_Donnan(c_macro={peptide1: pep1_concentration, peptide2: pep2_concentration}, c_salt=c_salt, pH_list=pH_range_HH)
@@ -295,20 +307,3 @@ if args.plot:
     plt.ylabel(r'partition coefficient $\xi_+$')
     plt.show()
     plt.close()
-
-else:
-    # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-    HH_charge_dict = pmb.calculate_HH_Donnan(c_macro={peptide1: pep1_concentration, peptide2: pep2_concentration}, c_salt=c_salt, pH_list=pH_range)
-    Z_HH_Donnan = HH_charge_dict["charges_dict"]
-    xi = HH_charge_dict["partition_coefficients"]
- 
-    # Write out the data
-    data = {}
-    data["Z_sim"] = np.asarray(Z_pH)/N_peptide1_chains
-    data["xi_sim"] = np.asarray(xi_plus)
-    data["Z_HH_Donnan"] = np.asarray(Z_HH_Donnan[peptide1])+np.asarray(Z_HH_Donnan[peptide2])
-    data["xi_HH_Donnan"] = np.asarray(xi)
-    data = pd.DataFrame.from_dict(data) 
-
-    data_path = pmb.get_resource(path="samples")
-    data.to_csv(f"{data_path}/data_peptide_grxmc.csv", index=False)
