@@ -24,22 +24,58 @@ pmb.pd.options.display.max_colwidth = 10
 #This line allows you to see the complete amount of rows in the dataframe
 pmb.pd.set_option('display.max_rows', None)
 
-# The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
-if not os.path.exists('./frames'):
-    os.makedirs('./frames')
+
+
+
+valid_modes=["short-run","long-run", "test"]
 
 parser = argparse.ArgumentParser(description='Script to run globular protein simulation in espressomd')
 
-parser.add_argument('--pdb', type=str, required= True,  help='PDB code of the protein')
-parser.add_argument('--pH', type=float, required= True,  help='pH value')
-parser.add_argument('--path_to_cg', type=str, required= True,  help='Path to the CG structure of the protein')
-parser.add_argument('--move_protein', type=float, required= False, default=False,  help='Activates the motion of the protein')
-parser.add_argument('--metal_ion_name', type=str, required= False, default=None,  help='Name of the metal ion in the protein')
-parser.add_argument('--metal_ion_charge', type=int, required= False, default=None,  help='Charge of the metal ion in the protein')
+parser.add_argument('--pdb',
+                    type=str, 
+                    required= True,  
+                    help='PDB code of the protein')
+parser.add_argument('--pH', 
+                    type=float, 
+                    required= True,  
+                    help='pH value')
+parser.add_argument('--path_to_cg', 
+                    type=str, 
+                    required= True,  
+                    help='Path to the CG structure of the protein')
+parser.add_argument('--move_protein', 
+                    type=float, 
+                    required= False, 
+                    default=False,  
+                    help='Activates the motion of the protein')
+parser.add_argument('--metal_ion_name', 
+                    type=str, 
+                    required= False, 
+                    default=None,  
+                    help='Name of the metal ion in the protein')
+parser.add_argument('--metal_ion_charge', 
+                    type=int, 
+                    required= False, 
+                    default=None,  
+                    help='Charge of the metal ion in the protein')
+
+parser.add_argument('--mode',
+                    type=str,
+                    default= "short-run",
+                    help='sets for how long the simulation runs, valid modes are {valid_modes}')
+
+parser.add_argument('--output',
+                    type=str,
+                    required= False,
+                    help='output directory')
+
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose")
 
 
 args = parser.parse_args ()
 protein_name = args.pdb
+mode=args.mode
+verbose=args.no_verbose
 
 #System Parameters 
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
@@ -54,16 +90,31 @@ solvent_permitivity = 78.3
 epsilon = 1*pmb.units('reduced_energy')
 
 #Simulation Parameters
-t_max = 1e3 #  in LJ units of time
+ #  in LJ units of time
+dt = 0.01
 stride_obs = 10 #  in LJ units of time
 stride_traj = 100 # in LJ units of time
-dt = 0.01
-N_samples = int (t_max / stride_obs)
 integ_steps = int (stride_obs/dt)
+
+if mode == 'short-run':
+    t_max = 1e2
+    N_samples = int (t_max / stride_obs)
+elif mode == 'long-run':
+    t_max = 1e3
+    N_samples = int (t_max / stride_obs)
+elif mode == 'test':
+    t_max = 1e2
+    N_samples = int (t_max / stride_obs)
+else: 
+    raise RuntimeError()    
 
 #Switch for Electrostatics and WCA interactions 
 WCA = True
 Electrostatics = True
+
+# The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
+if not os.path.exists('./frames'):
+    os.makedirs('./frames')
 
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
 espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
