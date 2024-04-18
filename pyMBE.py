@@ -736,6 +736,14 @@ class pymbe_library():
             Returns:
                 molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
             """
+            for item in list_of_first_residue_positions:
+                if isinstance(item, list) == False:
+                    raise ValueError(f"The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
+                elif len(item) != 3:
+                    raise ValueError(f"The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
+
+            if len(list_of_first_residue_positions) != number_of_molecules:
+                            raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
             if number_of_molecules <= 0:
                 return
             if not self.check_if_name_is_defined_in_df(name=name,
@@ -760,13 +768,8 @@ class pymbe_library():
                         if list_of_first_residue_positions == None:
                             residue_position = None
                         else:
-                            if len(list_of_first_residue_positions) != number_of_molecules:
-                                raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
                             for item in list_of_first_residue_positions:
-                                if isinstance(item, list) and len(item) == 3:
-                                    residue_position = [self.np.array(list_of_first_residue_positions[pos_index])]
-                                else:
-                                    raise ValueError(f"First residue position, {list_of_first_residue_positions}, is formatted wrong. Should be a nested list with 3 elements per list, corresponding to xyz coord.")
+                                residue_position = [self.np.array(list_of_first_residue_positions[pos_index])]
                         # Generate an arbitrary random unit vector
                         backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0], 
                                                                     radius=1, 
