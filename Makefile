@@ -9,6 +9,7 @@ docs:
 
 tests:
 	python3 testsuite/peptide_tests.py
+	python3 testsuite/set_particle_acidity_test.py
 
 sample:
 	python3 sample_scripts/peptide_simulation_example.py
