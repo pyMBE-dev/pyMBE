@@ -736,14 +736,15 @@ class pymbe_library():
             Returns:
                 molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
             """
-            for item in list_of_first_residue_positions:
-                if isinstance(item, list) == False:
-                    raise ValueError(f"The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
-                elif len(item) != 3:
-                    raise ValueError(f"The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
+            if list_of_first_residue_positions != None:
+                for item in list_of_first_residue_positions:
+                    if isinstance(item, list) == False:
+                        raise ValueError(f"The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
+                    elif len(item) != 3:
+                        raise ValueError(f"The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
 
-            if len(list_of_first_residue_positions) != number_of_molecules:
-                            raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
+                if len(list_of_first_residue_positions) != number_of_molecules:
+                                raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
             if number_of_molecules <= 0:
                 return
             if not self.check_if_name_is_defined_in_df(name=name,
