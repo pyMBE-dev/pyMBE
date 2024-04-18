@@ -2024,16 +2024,16 @@ class pymbe_library():
                     name2 = param_dict.pop('name2')
                     bond_type = param_dict.pop('bond_type')
                     if bond_type == 'harmonic':
-                        k = self.create_variable_with_units(variable_dict=param_dict.pop('k'))
-                        r_0 = self.create_variable_with_units(variable_dict=param_dict.pop('r_0'))
+                        k = self.create_variable_with_units(variable=param_dict.pop('k'))
+                        r_0 = self.create_variable_with_units(variable=param_dict.pop('r_0'))
                         bond = {'r_0'    : r_0,
                                 'k'      : k,
                                 }
 
                     elif bond_type == 'FENE':
-                        k = self.create_variable_with_units(variable_dict=param_dict.pop('k'))
-                        r_0 = self.create_variable_with_units(variable_dict=param_dict.pop('r_0'))
-                        d_r_max = self.create_variable_with_units(variable_dict=param_dict.pop('d_r_max'))
+                        k = self.create_variable_with_units(variable=param_dict.pop('k'))
+                        r_0 = self.create_variable_with_units(variable=param_dict.pop('r_0'))
+                        d_r_max = self.create_variable_with_units(variable=param_dict.pop('d_r_max'))
                         bond =  {'r_0'    : r_0,
                                  'k'      : k,
                                  'd_r_max': d_r_max,
