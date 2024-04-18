@@ -15,6 +15,7 @@ tests:
 	python3 testsuite/cph_ideal_tests.py
 	python3 testsuite/grxmc_ideal_tests.py
 	python3 testsuite/peptide_tests.py
+	python3 testsuite/create_molecule_position_test.py
 
 visual:
 	python3 handy_scripts/vmd-traj.py
