@@ -13,7 +13,7 @@ tests:
 	python3 testsuite/generate_perpendicular_vectors_test.py
 	python3 testsuite/read-write-df_test.py
 	python3 testsuite/peptide_tests.py
-	python3 testsuite/create_molecule_position.py
+	python3 testsuite/create_molecule_position_test.py
 
 sample:
 	python3 sample_scripts/peptide_simulation_example.py
