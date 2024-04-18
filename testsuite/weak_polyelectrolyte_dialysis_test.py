@@ -11,7 +11,10 @@ import pandas as pd
 pmb = pyMBE.pymbe_library()
 
 script_path=pmb.get_resource(f"samples/Beyer2024/weak_polyelectrolyte_dialysis.py")
-test_pH_values=[3,7,11]
+test_pH_values=[3,5,7,9]
+c_salt_res=0.01
+c_mon_sys=0.435
+pKa_value=4.0
 rtol=0.1 # relative tolerance
 atol=0.05 # absolute tolerance
 
@@ -19,7 +22,7 @@ print(f"*** Running test for weak polyelectrolyte dialysis with G-RxMC (interact
 with tempfile.TemporaryDirectory() as time_series_path:
     for pH in test_pH_values:
         print(f"pH = {pH}")
-        run_command=["python3", script_path, "--c_salt_res", str(0.01), "--c_mon_sys", str(0.435), "--pKa_value", str(4.0), "--pH_res", str(pH), "--mode", "test", "--output", time_series_path]
+        run_command=["python3", script_path, "--c_salt_res", str(c_salt_res), "--c_mon_sys", str(c_mon_sys), "--pKa_value", str(pKa_value), "--pH_res", str(pH), "--mode", "test", "--output", time_series_path]
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)
     # Analyze all time series
