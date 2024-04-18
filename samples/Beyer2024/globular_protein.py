@@ -14,9 +14,9 @@ import pyMBE
 pmb = pyMBE.pymbe_library()
 
 #Import functions from handy_functions script 
-from handy_scripts.handy_functions import setup_electrostatic_interactions
-from handy_scripts.handy_functions import minimize_espresso_system_energy
-from handy_scripts.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import setup_electrostatic_interactions
+from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import setup_langevin_dynamics
 
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
@@ -74,42 +74,42 @@ topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
 #Defines the protein in the pmb.df
 pmb.define_protein (name=protein_name, topology_dict=topology_dict, model = '2beadAA')
 
-#Create dictionary with the value of epsilon and diameter for each residue
+#Create dictionary with the value of epsilon and sigma for each residue
 clean_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
 epsilon_dict = {}
-diameter_dict = {}
+sigma_dict = {}
 
 for residue in clean_sequence:
     if residue not in epsilon_dict.keys():
         epsilon_dict [residue] = epsilon
-        diameter_dict [residue] = 0.355*pmb.units.nm
+        sigma_dict [residue] = 0.355*pmb.units.nm
     epsilon_dict  ['CA'] = epsilon
-    diameter_dict ['CA'] = 0.355*pmb.units.nm
+    sigma_dict ['CA'] = 0.355*pmb.units.nm
 
-#Define epsilon and diameter for each particle into pmb.df
+#Define epsilon and sigma for each particle into pmb.df
 
 pmb.define_particles_parameter_from_dict (param_dict = epsilon_dict,
                                             param_name ='epsilon')
-pmb.define_particles_parameter_from_dict (param_dict = diameter_dict,
-                                            param_name ='diameter')
+pmb.define_particles_parameter_from_dict (param_dict = sigma_dict,
+                                            param_name ='sigma')
 
 #Defines the metal ion present in the protein 
 if args.metal_ion_name is not None:
     pmb.define_particle(name = args.metal_ion_name, 
                         q=args.metal_ion_charge, 
-                        diameter=0.355*pmb.units.nm, 
+                        sigma=0.355*pmb.units.nm, 
                         epsilon=epsilon)
 
 # Here we define the solution particles in the pmb.df 
 cation_name = 'Na'
 anion_name = 'Cl'
 
-pmb.define_particle(name = cation_name, q = 1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
-pmb.define_particle(name = anion_name,  q =-1, diameter=0.2*pmb.units.nm, epsilon=epsilon)
+pmb.define_particle(name = cation_name, q = 1, sigma=0.2*pmb.units.nm, epsilon=epsilon)
+pmb.define_particle(name = anion_name,  q =-1, sigma=0.2*pmb.units.nm, epsilon=epsilon)
 
 # Here we upload the pka set from the reference_parameters folder
-path_to_pka=pmb.get_resource('reference_parameters/pka_sets/Nozaki1967.txt') 
+path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.txt') 
 pmb.load_pka_set (filename=path_to_pka)
 
 #We create the protein in espresso 
@@ -197,7 +197,7 @@ Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
 #Save the pyMBE dataframe in a CSV file
-pmb.df.to_csv('df.csv')
+pmb.write_pmb_df (filename='df.csv')
 
 #Here we start the main loop over the Nsamples 
 
