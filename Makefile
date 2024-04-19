@@ -16,6 +16,7 @@ tests:
 	python3 testsuite/grxmc_ideal_tests.py
 	python3 testsuite/peptide_tests.py
 	python3 testsuite/weak_polyelectrolyte_dialysis_test.py
+	python3 testsuite/create_molecule_position_test.py
 
 visual:
 	python3 handy_scripts/vmd-traj.py
