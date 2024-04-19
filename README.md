@@ -41,7 +41,7 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 To use pyMBE in your simulations, first clone this repository locally:
 
 ```sh
-git clone git@github.com:pm-blanco/pyMBE.git
+git clone git@github.com:pyMBE-dev/pyMBE.git
 ```
 
 Please, be aware that pyMBE is intended to be a supporting tool to setup simulations with ESPResSo.
