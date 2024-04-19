@@ -1,9 +1,8 @@
 import os
-import sys
-import inspect
 from tqdm import tqdm
 import espressomd
 import argparse
+import pandas as pd 
 
 from espressomd import interactions
 from espressomd.io.writer import vtf
@@ -17,15 +16,12 @@ pmb = pyMBE.pymbe_library()
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_langevin_dynamics
-
+from lib import analysis
 # Here you can adjust the width of the panda columns displayed when running the code 
 pmb.pd.options.display.max_colwidth = 10
 
 #This line allows you to see the complete amount of rows in the dataframe
 pmb.pd.set_option('display.max_rows', None)
-
-
-
 
 valid_modes=["short-run","long-run", "test"]
 
@@ -73,15 +69,21 @@ parser.add_argument('--no_verbose', action='store_false', help="Switch to deacti
 
 
 args = parser.parse_args ()
-protein_name = args.pdb
+
 mode=args.mode
 verbose=args.no_verbose
+
+protein_name = args.pdb
+pH_value = args.pH 
+
+inputs={"pH": args.pH,
+        "protein_pdb": args.pdb}
 
 #System Parameters 
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
 SEED = 77 
-pH_value = args.pH 
+
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
 c_protein =  2e-4 * pmb.units.mol / pmb.units.L 
 Box_V =  1. / (pmb.N_A*c_protein)
@@ -97,10 +99,10 @@ stride_traj = 100 # in LJ units of time
 integ_steps = int (stride_obs/dt)
 
 if mode == 'short-run':
-    t_max = 1e2
+    t_max = 1e3
     N_samples = int (t_max / stride_obs)
 elif mode == 'long-run':
-    t_max = 1e3
+    t_max = 1e4
     N_samples = int (t_max / stride_obs)
 elif mode == 'test':
     t_max = 1e2
@@ -196,15 +198,17 @@ acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=
 list_ionisible_groups = basic_groups + acidic_groups
 total_ionisible_groups = len (list_ionisible_groups)
 
-print('The box length of the system is', Box_L.to('reduced_length'), Box_L.to('nm'))
-print('The ionisable groups in the protein are ', list_ionisible_groups)
-print ('The total amount of ionizable groups are:',total_ionisible_groups)
+if verbose:
+    print('The box length of the system is', Box_L.to('reduced_length'), Box_L.to('nm'))
+    print('The ionisable groups in the protein are ', list_ionisible_groups)
+    print ('The total amount of ionizable groups are:',total_ionisible_groups)
 
 #Setup of the reactions in espresso 
 RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, 
                                                 constant_pH= pH_value, 
                                                 SEED = SEED )
-print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
+if verbose:
+    print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 type_map = pmb.get_type_map()
 types = list (type_map.values())
@@ -213,14 +217,12 @@ espresso_system.setup_type_map( type_list = types)
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
 RE.set_non_interacting_type (type=non_interacting_type)
-print('The non interacting type is set to ', non_interacting_type)
+if verbose:
+    print('The non interacting type is set to ', non_interacting_type)
 
 # Setup the potential energy
 
 if (WCA):
-
-    print ('Setup of LJ interactions.. ')
-
     pmb.setup_lj_interactions (espresso_system=espresso_system)
     minimize_espresso_system_energy (espresso_system=espresso_system)
 
@@ -252,34 +254,54 @@ pmb.write_pmb_df (filename='df.csv')
 
 #Here we start the main loop over the Nsamples 
 
+labels_obs=["time","charge"]
+time_series={}
+
+for label in labels_obs:
+    time_series[label]=[]
+
 for step in tqdm(range(N_samples)):
         
-        espresso_system.integrator.run (steps = integ_steps)
-        RE.reaction( reaction_steps = total_ionisible_groups)
+    espresso_system.integrator.run (steps = integ_steps)
+    RE.reaction( reaction_steps = total_ionisible_groups)
 
-        charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
-                                                molecule_name=protein_name)
-        net_charge = charge_dict['mean']
-        net_charge_residues = charge_dict ['residues']
+    charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
+                                            molecule_name=protein_name)
+    
+    net_charge_residues = charge_dict ['residues']
+    
+    #NOTE: Fix to filter only titratable residues and add it to labels_obs
+    if len(net_charge_amino_save.keys()) == 0:
+        for amino in net_charge_residues.keys():
+            label = pmb.df.loc[int (amino)].state_one.label
+            net_charge_amino_save [label] = []
+    for amino in net_charge_residues.keys():   
+        label = pmb.df.loc[int (amino)].state_one.label         
+        net_charge_amino_save [label].append (net_charge_residues[amino])
+    
+    if (step % stride_traj == 0  ):
+        n_frame +=1
+        pmb.write_output_vtf_file(espresso_system=espresso_system,
+                                    filename=f"frames/trajectory{n_frame}.vtf")
 
-        time_step.append (str(espresso_system.time))
-        net_charge_list.append (net_charge)
+    # Store observables
+    time_series["time"].append(espresso_system.time)
+    time_series["charge"].append(charge_dict["mean"])
+    # time_series["charge-residues"].append(charge_dict ['residues'])
+    
 
-        if len(net_charge_amino_save.keys()) == 0:
-            for amino in net_charge_residues.keys():
-                net_charge_amino_save [amino] = []
-        for amino in net_charge_residues.keys():            
-            net_charge_amino_save [amino].append (net_charge_residues[amino])
+data_path = args.output
+if data_path is None:
+    data_path=pmb.get_resource(path="samples/Beyer2024")+"/time_series"
 
-        if (step % stride_traj == 0  ):
-            n_frame +=1
-            pmb.write_output_vtf_file(espresso_system=espresso_system,
-                                        filename=f"frames/trajectory{n_frame}.vtf")
+if not os.path.exists(data_path):
+    os.makedirs(data_path)
+    
+time_series=pd.DataFrame(time_series)
+filename=analysis.built_output_name(input_dict=inputs)
 
-#We save the calculated observables into a new df 
-observables_df['time'] = time_step 
-observables_df['Znet'] = net_charge_list
+time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
 
-observables_df=pmb.pd.concat([observables_df,pmb.pd.DataFrame(net_charge_amino_save)], axis=1)
-
-observables_df.to_csv(f'pH-{pH_value}_observables.csv',index=False)
+if verbose:
+    print("*** DONE ***")
+   
