@@ -55,6 +55,7 @@ parser.add_argument('--output',
                     type=str,
                     required= False,
                     help='output directory')
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose")
 args = parser.parse_args()
 
 # Inputs
@@ -65,6 +66,8 @@ inputs={"csalt": args.c_salt_res,
 
 mode=args.mode
 valid_modes=["short-run","long-run", "test"]
+verbose=args.no_verbose
+
 if mode not in valid_modes:
     raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
@@ -115,7 +118,8 @@ pH_res = args.pH_res
 pka_set = {'A': {"pka_value": args.pKa_value, "acidity": "acidic"}}
 volume = N_chains * Chain_length/(pmb.N_A*c_mon_sys)
 L = volume ** (1./3.)
-print("Box length:", L.to('reduced_length').magnitude)
+if verbose:
+    print("Box length:", L.to('reduced_length').magnitude)
 
 
 #######################################################
@@ -124,26 +128,31 @@ print("Box length:", L.to('reduced_length').magnitude)
 
 # Create an instance of an espresso system
 espresso_system = espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
-print("Created espresso object")
+if verbose:
+    print("Created espresso object")
 
 # Add all bonds to espresso system
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
-print("Added bonds")
+if verbose:
+    print("Added bonds")
 
 # Create molecules and ions in the espresso system
 pmb.create_pmb_object(name=polyacid_name, number_of_objects=N_chains, espresso_system=espresso_system)
 pmb.create_counterions(object_name=polyacid_name, cation_name=proton_name, anion_name=hydroxide_name, espresso_system=espresso_system)
 c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system, cation_name=sodium_name, anion_name=chloride_name, c_salt=c_salt_res)
-print("Created molecules")
+if verbose:
+    print("Created molecules")
 
 # Set up the reactions
 path_to_ex_pot=pmb.get_resource("testsuite/data/src/")
 ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/excess_chemical_potential.dat", unpack=True)
 excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
 activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
-print("Setting up reactions...")
+if verbose:
+    print("Setting up reactions...")
 RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, c_salt_res=c_salt_res, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, SEED=REACTION_SEED, activity_coefficient=activity_coefficient_monovalent_pair, pka_set=pka_set)
-print('The acid-base reaction has been sucessfully set up for ', sucessful_reactions_labels)
+if verbose:
+    print('The acid-base reaction has been sucessfully set up for ', sucessful_reactions_labels)
 
 # Setup espresso to track the ionization of the acid groups
 type_map = pmb.get_type_map()
@@ -164,16 +173,16 @@ setup_langevin_dynamics(espresso_system=espresso_system,
                                     SEED = LANGEVIN_SEED,
                                     time_step=DT,
                                     tune_skin=False)
-
-print("Running warmup without electrostatics")
-for i in tqdm(range(100)):
+if verbose:
+    print("Running warmup without electrostatics")
+for i in tqdm(range(100),disable=not verbose):
     espresso_system.integrator.run(steps=1000)
     RE.reaction(reaction_steps=1000)
 
 setup_electrostatic_interactions(units=pmb.units,
-                                            espresso_system=espresso_system,
-                                            kT=pmb.kT,
-                                            solvent_permittivity=solvent_permittivity)
+                                espresso_system=espresso_system,
+                                kT=pmb.kT,
+                                solvent_permittivity=solvent_permittivity)
 espresso_system.thermostat.turn_off()
 minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max_displacement=0.01, skin=0.4)
 setup_langevin_dynamics(espresso_system=espresso_system, 
@@ -182,13 +191,13 @@ setup_langevin_dynamics(espresso_system=espresso_system,
                                     time_step=DT,
                                     tune_skin=False)
 
-
-print("Running warmup with electrostatics")
+if verbose:
+    print("Running warmup with electrostatics")
 if mode == "long-run":
     N_warmup_loops = 1000
 else:
     N_warmup_loops = 100
-for i in tqdm(range(N_warmup_loops)):
+for i in tqdm(range(N_warmup_loops),disable=not verbose):
     espresso_system.integrator.run(steps=1000)
     RE.reaction(reaction_steps=100)
 
@@ -206,7 +215,7 @@ if mode == "long-run":
     N_production_loops = 5000
 else:
     N_production_loops = 100
-for i in tqdm(range(N_production_loops)):
+for i in tqdm(range(N_production_loops),disable=not verbose):
     espresso_system.integrator.run(steps=1000)
     RE.reaction(reaction_steps=100)
 

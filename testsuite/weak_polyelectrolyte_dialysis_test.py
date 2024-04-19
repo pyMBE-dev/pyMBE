@@ -22,7 +22,7 @@ print(f"*** Running test for weak polyelectrolyte dialysis with G-RxMC (interact
 with tempfile.TemporaryDirectory() as time_series_path:
     for pH in test_pH_values:
         print(f"pH = {pH}")
-        run_command=["python3", script_path, "--c_salt_res", str(c_salt_res), "--c_mon_sys", str(c_mon_sys), "--pKa_value", str(pKa_value), "--pH_res", str(pH), "--mode", "test", "--output", time_series_path]
+        run_command=["python3", script_path, "--c_salt_res", str(c_salt_res), "--c_mon_sys", str(c_mon_sys), "--pKa_value", str(pKa_value), "--pH_res", str(pH), "--mode", "test", "--output", time_series_path, "--no_verbose"]
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)
     # Analyze all time series
@@ -37,7 +37,3 @@ ref_charge=np.sort(ref_data["mean","alpha"].to_numpy())
 np.testing.assert_allclose(test_charge, ref_charge, rtol=rtol, atol=atol)
 print(f"*** Test was successful ***")
 
-"""
-# Save data for future testing
-data.to_csv(f"{data_path}/data.csv", index=False)
-"""
