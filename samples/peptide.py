@@ -1,4 +1,4 @@
-# Load espresso, sugar and other necessary libraries
+# Load espresso, pyMBE and other necessary libraries
 import sys
 import os 
 import inspect
@@ -10,9 +10,9 @@ from tqdm import tqdm
 from espressomd.io.writer import vtf
 from espressomd import interactions
 from espressomd import electrostatics
+import pyMBE
 
 # Create an instance of pyMBE library
-import pyMBE
 pmb = pyMBE.pymbe_library()
 
 # Load some functions from the handy_scripts library for convinience

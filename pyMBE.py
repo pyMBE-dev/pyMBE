@@ -486,7 +486,10 @@ class pymbe_library():
             `bool`: `True` if the cell has a value, `False` otherwise.
         """
         idx = self.pd.IndexSlice
-        return not self.pd.isna(self.df.loc[index, idx[key]])
+        import warnings
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            return not self.pd.isna(self.df.loc[index, idx[key]])
 
     def check_if_name_is_defined_in_df(self, name, pmb_type_to_be_defined):
         """
@@ -722,101 +725,114 @@ class pymbe_library():
             for name in counterion_number.keys():
                 print(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
-
-    def create_molecule(self, name, number_of_molecules, espresso_system, first_residue_position=None, use_default_bond=False):
-        """
-        Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
-
-        Args:
-            name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
-            espresso_system(`obj`): Instance of a system object from espressomd library.
-            number_of_molecules(`int`): Number of molecules of type `name` to be created.
-            first_residue_position(`list`, optional): coordinates where the first_residue_position will be created, random by default
-            use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
-        Returns:
-            molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
-        """
-        if number_of_molecules <= 0:
-            return
-        if not self.check_if_name_is_defined_in_df(name=name,
-                                                    pmb_type_to_be_defined='molecule'):
-            raise ValueError(f"{name} must correspond to a label of a pmb_type='molecule' defined on df")
-        first_residue = True
-        molecule_info = []
-        residue_list = self.df[self.df['name']==name].residue_list.values [0]
-
-        self.copy_df_entry(name=name,
-                        column_name='molecule_id',
-                        number_of_copies=number_of_molecules)
         
-        molecules_index = self.np.where(self.df['name']==name)
-        molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
-        used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
+    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, use_default_bond=False):
+            """
+            Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
-        for molecule_index in molecule_index_list:         
+            Args:
+                name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
+                espresso_system(`obj`): Instance of a system object from espressomd library.
+                number_of_molecules(`int`): Number of molecules of type `name` to be created.
+                list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default
+                use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
+            Returns:
+                molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
+            """
+            if list_of_first_residue_positions != None:
+                for item in list_of_first_residue_positions:
+                    if isinstance(item, list) == False:
+                        raise ValueError(f"The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
+                    elif len(item) != 3:
+                        raise ValueError(f"The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
 
-            molecule_id = self.assign_molecule_id (name=name,pmb_type='molecule',used_molecules_id=used_molecules_id,molecule_index=molecule_index)
+                if len(list_of_first_residue_positions) != number_of_molecules:
+                                raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
+            if number_of_molecules <= 0:
+                return
+            if not self.check_if_name_is_defined_in_df(name=name,
+                                                        pmb_type_to_be_defined='molecule'):
+                raise ValueError(f"{name} must correspond to a label of a pmb_type='molecule' defined on df")
+            first_residue = True
+            molecule_info = []
+            residue_list = self.df[self.df['name']==name].residue_list.values [0]
 
-            for residue in residue_list:
-                if first_residue:
-                    residue_position = first_residue_position
-                    # Generate an arbitrary random unit vector
-                    backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0], 
-                                                                 radius=1, 
-                                                                 n_samples=1,
-                                                                 on_surface=True)[0]
-                    residues_info = self.create_residue(name=residue,
-                                                        number_of_residues=1, 
-                                                        espresso_system=espresso_system, 
-                                                        central_bead_position=first_residue_position,  
-                                                        use_default_bond= use_default_bond, 
-                                                        backbone_vector=backbone_vector)
-                    residue_id = next(iter(residues_info))
-                    for index in self.df[self.df['residue_id']==residue_id].index:
-                        self.add_value_to_df(key=('molecule_id',''),
-                                            index=int (index),
-                                            new_value=molecule_id)
-                    central_bead_id = residues_info[residue_id]['central_bead_id']
-                    previous_residue = residue
-                    residue_position = espresso_system.part.by_id(central_bead_id).pos
-                    previous_residue_id = central_bead_id
-                    first_residue = False          
-                else:                    
-                    previous_central_bead_name=self.df[self.df['name']==previous_residue].central_bead.values[0]
-                    new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]       
-                    bond = self.search_bond(particle_name1=previous_central_bead_name, 
-                                            particle_name2=new_central_bead_name, 
-                                            hard_check=True, 
-                                            use_default_bond=use_default_bond)                
-                    l0 = self.get_bond_length(particle_name1=previous_central_bead_name, 
-                                              particle_name2=new_central_bead_name, 
-                                              hard_check=True, 
-                                              use_default_bond=use_default_bond)                
-                    residue_position = residue_position+backbone_vector*l0
-                    residues_info = self.create_residue(name=residue, 
-                                                        number_of_residues=1, 
-                                                        espresso_system=espresso_system, 
-                                                        central_bead_position=[residue_position],
-                                                        use_default_bond= use_default_bond, 
-                                                        backbone_vector=backbone_vector)
-                    residue_id = next(iter(residues_info))      
-                    for index in self.df[self.df['residue_id']==residue_id].index:
-                        if not self.check_if_df_cell_has_a_value(index=index,key=('molecule_id','')):
-                            self.df.at[index,'molecule_id'] = molecule_id
+            self.copy_df_entry(name=name,
+                            column_name='molecule_id',
+                            number_of_copies=number_of_molecules)
+            
+            molecules_index = self.np.where(self.df['name']==name)
+            molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
+            used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
+            pos_index = 0 
+            for molecule_index in molecule_index_list:        
+                molecule_id = self.assign_molecule_id (name=name,pmb_type='molecule',used_molecules_id=used_molecules_id,molecule_index=molecule_index)
+                for residue in residue_list:
+                    if first_residue:
+                        if list_of_first_residue_positions == None:
+                            residue_position = None
+                        else:
+                            for item in list_of_first_residue_positions:
+                                residue_position = [self.np.array(list_of_first_residue_positions[pos_index])]
+                        # Generate an arbitrary random unit vector
+                        backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0], 
+                                                                    radius=1, 
+                                                                    n_samples=1,
+                                                                    on_surface=True)[0]
+                        residues_info = self.create_residue(name=residue,
+                                                            number_of_residues=1, 
+                                                            espresso_system=espresso_system, 
+                                                            central_bead_position=residue_position,  
+                                                            use_default_bond= use_default_bond, 
+                                                            backbone_vector=backbone_vector)
+                        residue_id = next(iter(residues_info))
+                        for index in self.df[self.df['residue_id']==residue_id].index:
                             self.add_value_to_df(key=('molecule_id',''),
                                                 index=int (index),
-                                                new_value=molecule_id,
-                                                warning=False)            
-                    central_bead_id = residues_info[residue_id]['central_bead_id']
-                    espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
-                    self.add_bond_in_df(particle_id1=central_bead_id,
-                                        particle_id2=previous_residue_id,
-                                        use_default_bond=use_default_bond)            
-                    previous_residue_id = central_bead_id
-                    previous_residue = residue                    
-                molecule_info.append(residues_info)
-            first_residue = True
-        return molecule_info
+                                                new_value=molecule_id)
+                        central_bead_id = residues_info[residue_id]['central_bead_id']
+                        previous_residue = residue
+                        residue_position = espresso_system.part.by_id(central_bead_id).pos
+                        previous_residue_id = central_bead_id
+                        first_residue = False          
+                    else:                    
+                        previous_central_bead_name=self.df[self.df['name']==previous_residue].central_bead.values[0]
+                        new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]       
+                        bond = self.search_bond(particle_name1=previous_central_bead_name, 
+                                                particle_name2=new_central_bead_name, 
+                                                hard_check=True, 
+                                                use_default_bond=use_default_bond)                
+                        l0 = self.get_bond_length(particle_name1=previous_central_bead_name, 
+                                                particle_name2=new_central_bead_name, 
+                                                hard_check=True, 
+                                                use_default_bond=use_default_bond)                
+                        residue_position = residue_position+backbone_vector*l0
+                        residues_info = self.create_residue(name=residue, 
+                                                            number_of_residues=1, 
+                                                            espresso_system=espresso_system, 
+                                                            central_bead_position=[residue_position],
+                                                            use_default_bond= use_default_bond, 
+                                                            backbone_vector=backbone_vector)
+                        residue_id = next(iter(residues_info))      
+                        for index in self.df[self.df['residue_id']==residue_id].index:
+                            if not self.check_if_df_cell_has_a_value(index=index,key=('molecule_id','')):
+                                self.df.at[index,'molecule_id'] = molecule_id
+                                self.add_value_to_df(key=('molecule_id',''),
+                                                    index=int (index),
+                                                    new_value=molecule_id,
+                                                    warning=False)            
+                        central_bead_id = residues_info[residue_id]['central_bead_id']
+                        espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
+                        self.add_bond_in_df(particle_id1=central_bead_id,
+                                            particle_id2=previous_residue_id,
+                                            use_default_bond=use_default_bond)            
+                        previous_residue_id = central_bead_id
+                        previous_residue = residue                    
+                    molecule_info.append(residues_info)
+                first_residue = True
+                pos_index+=1
+            
+            return molecule_info
     
     def create_particle(self, name, espresso_system, number_of_particles, position=None, fix=False):
         """
@@ -888,7 +904,7 @@ class pymbe_library():
         elif pmb_type == 'residue':
             self.create_residue(name=name,number_of_residues=number_of_objects, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
         elif pmb_type == 'molecule':
-            self.create_molecule(name=name,number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, first_residue_position=position)
+            self.create_molecule(name=name,number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, list_of_first_residue_positions=position)
         return
 
     def create_protein(self, name, number_of_proteins, espresso_system, topology_dict):
