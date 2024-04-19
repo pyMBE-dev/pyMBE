@@ -94,18 +94,22 @@ epsilon = 1*pmb.units('reduced_energy')
 #Simulation Parameters
  #  in LJ units of time
 dt = 0.01
-stride_obs = 10 #  in LJ units of time
 stride_traj = 100 # in LJ units of time
-integ_steps = int (stride_obs/dt)
 
 if mode == 'short-run':
+    stride_obs = 0.2 #  in LJ units of time
+    integ_steps = int (stride_obs/dt)
     t_max = 1e3
     N_samples = int (t_max / stride_obs)
 elif mode == 'long-run':
+    stride_obs = 10 #  in LJ units of time
+    integ_steps = int (stride_obs/dt)
     t_max = 1e4
     N_samples = int (t_max / stride_obs)
 elif mode == 'test':
     t_max = 1e2
+    stride_obs = 0.2 #  in LJ units of time
+    integ_steps = int (stride_obs/dt)
     N_samples = int (t_max / stride_obs)
 else: 
     raise RuntimeError()    
