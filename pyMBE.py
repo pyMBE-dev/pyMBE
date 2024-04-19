@@ -1201,17 +1201,26 @@ class pymbe_library():
 
         valid_bond_types   = ["harmonic", "FENE"]
         
-        bond_lenght        = bond_parameters['r_0'].to('reduced_length')
-        bond_magnitude     = bond_parameters['k'].to('reduced_energy / reduced_length**2')
+        if 'r_0' in bond_parameters:
+            bond_length        = bond_parameters['r_0'].to('reduced_length')
+        else:
+            raise ValueError("Equilibrium bond length (r_0) is missing")
+        if 'k' in bond_parameters:
+            bond_magnitude     = bond_parameters['k'].to('reduced_energy / reduced_length**2')
+        else:
+            raise ValueError("Magnitud of the potential (k) is missing")
         
         if bond_type == 'harmonic':
             bond_object    = interactions.HarmonicBond(k   = bond_magnitude.magnitude,
-                                                       r_0 = bond_lenght.magnitude)
+                                                       r_0 = bond_length.magnitude)
         elif bond_type == 'FENE':
-            max_bond_stret = bond_parameters['d_r_max'].to('reduced_length')
+            if 'd_r_max' in bond_parameters:
+                max_bond_stret = bond_parameters['d_r_max'].to('reduced_length')
+            else:
+                raise ValueError("Maximal stretching length (d_r_max) is missing")
             bond_object    = interactions.FeneBond(k       = bond_magnitude.magnitude,
                                                    d_r_max = max_bond_stret.magnitude,
-                                                   r_0     = bond_lenght.magnitude)
+                                                   r_0     = bond_length.magnitude)
         else:
             raise ValueError(f"Bond type {bond_type} currently not implemented in pyMBE, valid types are {valid_bond_types}")
 
