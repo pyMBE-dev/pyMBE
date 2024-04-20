@@ -135,21 +135,18 @@ pmb.define_protein (name=protein_name, topology_dict=topology_dict, model = '2be
 clean_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
 
 epsilon_dict = {}
-sigma_dict = {}
 
 for residue in clean_sequence:
     if residue not in epsilon_dict.keys():
         epsilon_dict [residue] = epsilon
-        sigma_dict [residue] = 0.355*pmb.units.nm
     epsilon_dict  ['CA'] = epsilon
-    sigma_dict ['CA'] = 0.355*pmb.units.nm
+
+
 
 #Define epsilon and sigma for each particle into pmb.df
 
 pmb.define_particles_parameter_from_dict (param_dict = epsilon_dict,
                                             param_name ='epsilon')
-pmb.define_particles_parameter_from_dict (param_dict = sigma_dict,
-                                            param_name ='sigma')
 
 #Defines the metal ion present in the protein 
 if args.metal_ion_name is not None:
