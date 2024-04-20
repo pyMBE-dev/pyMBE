@@ -8,7 +8,8 @@ import argparse
 pmb = pyMBE.pymbe_library()
 
 # Expected inputs
-supported_filenames=["Glu-HisMSDE.csv",
+supported_filenames=["data_landsgesell.csv",
+                     "Glu-HisMSDE.csv",
                      "Lys-AspMSDE.csv",
                      "histatin5_SoftMatter.txt",
                      "1beb-10mM-torres.dat",
@@ -26,7 +27,8 @@ args = parser.parse_args()
 filename=args.src_filename
 
 # Outputs
-output_filenames={"Lys-AspMSDE.csv": "Lunkad2021a.csv",
+output_filenames={"data_landsgesell.csv": "Landsgesell2020a.csv",
+                  "Lys-AspMSDE.csv": "Lunkad2021a.csv",
                   "Glu-HisMSDE.csv": "Lunkad2021b.csv",
                   "histatin5_SoftMatter.txt": "Blanco2020a.csv",
                   "1beb-10mM-torres.dat": "Torres2017.csv",
@@ -36,11 +38,14 @@ output_filenames={"Lys-AspMSDE.csv": "Lunkad2021a.csv",
 if filename not in supported_filenames:
     ValueError(f"Filename {filename} not supported, supported files are {supported_filenames}")
 
-# Extact the data from Ref.
+# Extract the data from Ref.
 ref_path=pmb.get_resource(f"testsuite/data/src/{filename}")
 Refs_lunkad=["Glu-HisMSDE.csv","Lys-AspMSDE.csv"]
 Ref_blanco=["histatin5_SoftMatter.txt"]
+
 Ref_torres = ["1f6s-10mM-torres.dat","1beb-10mM-torres.dat" ]
+Ref_landsgesell=["data_landsgesell.csv"]
+
 
 if filename in Refs_lunkad:
     data=pd.read_csv(ref_path)
@@ -54,6 +59,7 @@ elif filename in Ref_blanco:
     data=np.loadtxt(ref_path, delimiter=",")
     Z_ref=data[:,1]         
     Z_ref_err=data[:,2]
+
     pH_range = np.linspace(2, 12, num=21)
     
 elif filename in Ref_torres:
@@ -70,14 +76,25 @@ elif filename in Ref_torres:
             Z_ref.append (float(line_split[1]))
             Z_ref_err.append(float(line_split[2]))
 
-
+elif filename in Ref_landsgesell:
+    data = pd.read_csv(ref_path, sep="\t", index_col=False)
 else:
     raise RuntimeError()
+
 
 # Store the data
 data=pd.DataFrame({"pH": pH_range,
                   "charge": Z_ref,
                   "charge_error": Z_ref_err})
+
+if filename in Refs_lunkad+Ref_blanco:
+    pH_range = np.linspace(2, 12, num=21)
+
+    # Store the data
+    data=pd.DataFrame({"pH": pH_range,
+                      "charge": Z_ref,
+                      "charge_error": Z_ref_err})
+
 
 data_path=pmb.get_resource(f"testsuite/data")
 data.to_csv(f"{data_path}/{output_filenames[filename]}", 
