@@ -416,7 +416,7 @@ class pymbe_library():
         pmb_type=self.df.loc[self.df['name']==molecule_name].pmb_type.values[0]
         if pmb_type not in valid_pmb_types:
             raise ValueError("The pyMBE object with name {molecule_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
-        charge_in_residues = {}
+
         id_map = self.get_particle_id_map(object_name=molecule_name)
         def create_charge_map(espresso_system,id_map,label):
             charge_map={}
@@ -939,7 +939,7 @@ class pymbe_library():
                                                             fix = True)
 
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
-
+                
                 self.add_value_to_df(key=('residue_id',''),
                                             index=int (index),
                                             new_value=residue_number)
@@ -947,6 +947,10 @@ class pymbe_library():
                 self.add_value_to_df(key=('molecule_id',''),
                                         index=int (index),
                                         new_value=molecule_id)
+                
+                self.add_value_to_df(key=('sigma',''),
+                                        index=int (index),
+                                        new_value=topology_dict[residue]['sigma'])
 
         return
 
@@ -2199,8 +2203,9 @@ class pymbe_library():
                             atom_name = line_split [3]
                             atom_resname = line_split [5]
                             chain_id = line_split [9]
-
-                            particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id]
+                            radius = float(line_split [11])*unit_length# Unit Amstrong 
+                            sigma = 2*radius
+                            particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, sigma]
          
                         elif line_header.isnumeric (): 
 
@@ -2215,7 +2220,7 @@ class pymbe_library():
     
             if atom_id == 1:
                 atom_name = particles_dict[atom_id][0]
-                numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2]]
+                numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
                 numbered_label.append(numbered_name)
 
             elif atom_id != 1: 
@@ -2224,7 +2229,7 @@ class pymbe_library():
                     i += 1                    
                     count = 1
                     atom_name = particles_dict[atom_id][0]
-                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2]]
+                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
                     numbered_label.append(numbered_name)
                     
                 elif particles_dict[atom_id-1][1] == particles_dict[atom_id][1]:
@@ -2232,14 +2237,16 @@ class pymbe_library():
                         i +=1  
                         count = 0
                     atom_name = particles_dict[atom_id][0]
-                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2]]
+                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
                     numbered_label.append(numbered_name)
                     count +=1
 
         topology_dict = {}
 
         for i in range (0, len(numbered_label)):   
-            topology_dict [numbered_label[i][0]] = {'initial_pos': coord_list[i] ,'chain_id':numbered_label[i][1] }
+            topology_dict [numbered_label[i][0]] = {'initial_pos': coord_list[i] ,
+                                                    'chain_id':numbered_label[i][1],
+                                                    'sigma':numbered_label[i][2] }
 
         return topology_dict
 
