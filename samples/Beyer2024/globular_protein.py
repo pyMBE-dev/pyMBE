@@ -4,10 +4,6 @@ import espressomd
 import argparse
 import pandas as pd 
 
-from espressomd import interactions
-from espressomd.io.writer import vtf
-from espressomd import electrostatics 
-
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library()
@@ -141,10 +137,7 @@ for residue in clean_sequence:
         epsilon_dict [residue] = epsilon
     epsilon_dict  ['CA'] = epsilon
 
-
-
-#Define epsilon and sigma for each particle into pmb.df
-
+#Define epsilon for each particle into pmb.df
 pmb.define_particles_parameter_from_dict (param_dict = epsilon_dict,
                                             param_name ='epsilon')
 
@@ -271,15 +264,22 @@ for step in tqdm(range(N_samples)):
     
     net_charge_residues = charge_dict ['residues']
     
-    #NOTE: Fix to filter only titratable residues and add it to labels_obs
     if len(net_charge_amino_save.keys()) == 0:
         for amino in net_charge_residues.keys():
-            label = pmb.df.loc[int (amino)].state_one.label
-            net_charge_amino_save [label] = []
-    for amino in net_charge_residues.keys():   
-        label = pmb.df.loc[int (amino)].state_one.label         
-        net_charge_amino_save [label].append (net_charge_residues[amino])
-    
+            if pmb.df.loc[int (amino)].pmb_type.values[0] == 'particle':
+                if pmb.df.loc[int (amino)].acidity.values[0] != 'inert':
+                    name = pmb.df.loc[int (amino)]['name'].values[0]
+                    label = f'charge{name}'
+                    net_charge_amino_save[label] = []
+                    if label not in time_series.keys():
+                        time_series[label] = []
+                        
+    for amino in net_charge_residues.keys():
+        name = pmb.df.loc[int (amino)]['name'].values[0]
+        label = f'charge{name}'
+        if label in net_charge_amino_save.keys():
+            net_charge_amino_save[label].append(net_charge_residues[amino])
+            
     if (step % stride_traj == 0  ):
         n_frame +=1
         pmb.write_output_vtf_file(espresso_system=espresso_system,
@@ -288,8 +288,11 @@ for step in tqdm(range(N_samples)):
     # Store observables
     time_series["time"].append(espresso_system.time)
     time_series["charge"].append(charge_dict["mean"])
-    # time_series["charge-residues"].append(charge_dict ['residues'])
     
+    #NOTE need to double check
+    for label in net_charge_amino_save.keys ():
+        charge_amino = sum(net_charge_amino_save[label])
+        time_series[label].append(charge_amino)
 
 data_path = args.output
 if data_path is None:
@@ -305,4 +308,6 @@ time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
 
 if verbose:
     print("*** DONE ***")
-   
+
+
+
