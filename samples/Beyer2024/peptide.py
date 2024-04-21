@@ -66,8 +66,11 @@ if sequence not in valid_sequences:
     raise ValueError(f"ERROR: the only valid peptide sequence for this test script are {valid_sequences}")
 
 if sequence in Lunkad_test_sequences:
-    pmb.load_interaction_parameters (filename='parameters/peptides/Lunkad2021.txt')
-    pmb.load_pka_set (filename='parameters/pka_sets/CRC1991.txt')
+    print(sequence)
+    path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
+    path_to_pka=pmb.get_resource("parameters/pka_sets/CRC1991.txt")
+    pmb.load_interaction_parameters(filename=path_to_interactions)
+    pmb.load_pka_set (filename=path_to_pka)
     model = '2beadAA'  # Model with 2 beads per each aminoacid
     N_peptide_chains = 4
     sigma_cation=0.35*pmb.units.nm
@@ -214,7 +217,7 @@ for sample in tqdm.trange(Nsamples,disable=not verbose):
 
 data_path = args.output
 if data_path is None:
-    data_path=pmb.get_resource(path="samples/Beyer2024")+"/time_series"
+    data_path=pmb.get_resource(path="samples/Beyer2024")+"/time_series/peptides"
 
 if not os.path.exists(data_path):
     os.makedirs(data_path)
