@@ -268,8 +268,8 @@ if plot:
         style={"linestyle":"none", 
             "marker":"s", 
             "label":"Torres  et al.", 
-            "ms":15,
-            "color":"C0"}
+            "color":"C0",
+            "markeredgewidth":1.5}
     
         
     elif fig_label == "9":
@@ -319,9 +319,8 @@ if plot:
                    label="pyMBE", 
                    color="C1", 
                    fillstyle="none",
-                   ms=15, 
                    markeredgewidth=1.5)
-           
+        plt.xticks([2,3,4,5,6,7])
     elif fig_label == "9":
         data=data.astype({("pH","value"): 'float'}).sort_values(by=("pH","value"))
         plt.errorbar(data["pH"]["value"], 
