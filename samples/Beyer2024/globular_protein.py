@@ -296,7 +296,7 @@ for step in tqdm(range(N_samples)):
 
 data_path = args.output
 if data_path is None:
-    data_path=pmb.get_resource(path="samples/Beyer2024")+"/time_series"
+    data_path=pmb.get_resource(path="samples/Beyer2024/")+"/time_series/globular_protein"
 
 if not os.path.exists(data_path):
     os.makedirs(data_path)
