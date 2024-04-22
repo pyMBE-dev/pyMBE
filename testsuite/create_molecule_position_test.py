@@ -31,14 +31,15 @@ pmb.define_residue(
     side_chains = ['side_mon', 'side_mon']
     )
 
-
-
+bond_type = 'harmonic'
 generic_bond_lenght=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
-generic_bond = interactions.HarmonicBond(k=generic_harmonic_constant.to('reduced_energy / reduced_length**2').magnitude,
-                                 r_0=generic_bond_lenght.to('reduced_length').magnitude)
 
-pmb.define_default_bond(bond_object = generic_bond, bond_type="harmonic")
+harmonic_bond = {'r_0'    : generic_bond_lenght,
+                 'k'      : generic_harmonic_constant,
+                 }
+
+pmb.define_default_bond(bond_type = bond_type, bond_parameters = harmonic_bond)
 
 # Defines the peptine in the pyMBE data frame
 molecule_name = 'generic_molecule'

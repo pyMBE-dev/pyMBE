@@ -93,12 +93,16 @@ pmb.define_particle(name='A', acidity='acidic', sigma=1*pmb.units('reduced_lengt
 pmb.define_residue(name='rA', central_bead="A", side_chains=[])
 pmb.define_molecule(name=polyacid_name, residue_list=['rA']*Chain_length)
 
+
+bond_type = 'FENE'
 fene_spring_constant = 30 * pmb.units('reduced_energy / reduced_length**2')
 fene_r_max = 1.5 * pmb.units('reduced_length')
-fene_bond = interactions.FeneBond(k=fene_spring_constant.to('reduced_energy / reduced_length**2').magnitude,
-                                 d_r_max=fene_r_max.to('reduced_length').magnitude)
-pmb.define_bond(bond_object = fene_bond, particle_name1='A', particle_name2='A', bond_type="FENE")
 
+fene_bond = {'k'      : fene_spring_constant,
+             'd_r_max': fene_r_max, 
+            }
+
+pmb.define_default_bond(bond_type = bond_type, bond_parameters = fene_bond)
 
 # Parameters of the small ions
 proton_name = 'Hplus'
