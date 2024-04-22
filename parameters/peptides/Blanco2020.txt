@@ -1,16 +1,16 @@
 # Parameters from Blanco et al. Soft Matter, 17(3), 655-669, 2021.
-{"object_type":"particle", "name": "D", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "E", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "n", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "S", "q":0, "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "H", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "A", "q":0, "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "K", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "Y", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "R", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "G", "q":0, "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "F", "q":0, "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
-{"object_type":"particle", "name": "c", "diameter": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "D", "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "E", "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "n", "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "S", "q":0, "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "H", "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "A", "q":0, "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "K", "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "Y", "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "R", "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "G", "q":0, "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "F", "q":0, "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
+{"object_type":"particle", "name": "c", "sigma": {"value":0.4, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}}
 {"object_type":"bond", "name1": "n", "name2": "D", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "S", "name2": "D", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
 {"object_type":"bond", "name1": "S", "name2": "H", "bond_type": "harmonic", "r_0": {"value":0.4, "units":"nm"}, "k": {"value": 0.41, "units":"N / m"}}
