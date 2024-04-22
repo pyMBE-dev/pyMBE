@@ -102,7 +102,7 @@ fene_bond = {'k'      : fene_spring_constant,
              'd_r_max': fene_r_max, 
             }
 
-pmb.define_default_bond(bond_type = bond_type, bond_parameters = fene_bond)
+pmb.define_bond(bond_type = bond_type, bond_parameters = fene_bond, particle_pairs = [['A','A']])
 
 # Parameters of the small ions
 proton_name = 'Hplus'
