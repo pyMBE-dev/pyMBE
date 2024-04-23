@@ -678,6 +678,67 @@ class pymbe_library():
             print(f"\n Added salt concentration of {c_salt_calculated.to('mol/L')} given by {N_cation} cations and {N_anion} anions")
         return c_salt_calculated
 
+    def create_bond_in_espresso(self, bond_type, bond_parameters):
+        '''
+        Creates either a harmonic or a FENE bond in ESPREesSo
+
+        Args:
+            bond_type (`str`)        : label to identify the potential to model the bond.
+            bond_parameters (`dict`) : parameters of the potential of the bond.
+
+        Note:
+            Currently, only HARMONIC and FENE bonds are supported.
+
+            For a HARMONIC bond the dictionary must contain:
+
+                - k (`obj`)      : Magnitude of the bond. It should have units of energy/length**2 
+                using the `pmb.units` UnitRegistry.
+                - r_0 (`obj`)    : Equilibrium bond length. It should have units of length using 
+                the `pmb.units` UnitRegistry.
+           
+            For a FENE bond the dictionay must additionally contain:
+                
+                - d_r_max (`obj`): Maximal stretching length for FENE. It should have 
+                units of length using the `pmb.units` UnitRegistry. Default 'None'.
+
+        Returns:
+              bond_object (`obj`): a harmonic or a FENE bond object in ESPREesSo
+        '''
+        from espressomd import interactions
+
+        valid_bond_types   = ["harmonic", "FENE"]
+        
+        if 'k' in bond_parameters:
+            bond_magnitude     = bond_parameters['k'].to('reduced_energy / reduced_length**2')
+        else:
+            raise ValueError("Magnitud of the potential (k) is missing")
+        
+        if bond_type == 'harmonic':
+            if 'r_0' in bond_parameters:
+                bond_length        = bond_parameters['r_0'].to('reduced_length')
+            else:
+                raise ValueError("Equilibrium bond length (r_0) is missing")
+            bond_object    = interactions.HarmonicBond(k   = bond_magnitude.magnitude,
+                                                       r_0 = bond_length.magnitude)
+        elif bond_type == 'FENE':
+            if 'r_0' in bond_parameters:
+                bond_length        = bond_parameters['r_0'].to('reduced_length').magnitude
+            else:
+                print("WARNING: No value provided for r_0. Defaulting to r_0 = 0")
+                bond_length=0
+            if 'd_r_max' in bond_parameters:
+                max_bond_stret = bond_parameters['d_r_max'].to('reduced_length')
+            else:
+                raise ValueError("Maximal stretching length (d_r_max) is missing")
+            bond_object    = interactions.FeneBond(r_0     = bond_length, 
+                                                   k       = bond_magnitude.magnitude,
+                                                   d_r_max = max_bond_stret.magnitude)
+        else:
+            raise ValueError(f"Bond type {bond_type} currently not implemented in pyMBE, valid types are {valid_bond_types}")
+
+        return bond_object
+
+
     def create_counterions(self, object_name, cation_name, anion_name, espresso_system,verbose=True):
         """
         Creates particles of `cation_name` and `anion_name` in `espresso_system` to counter the net charge of `pmb_object`.
@@ -1184,60 +1245,6 @@ class pymbe_library():
             residue_list.append('AA-'+residue_name)
         return residue_list
 
-    def create_bond_in_espresso(self, bond_type, bond_parameters):
-        '''
-        Creates either a harmonic or a FENE bond in ESPREesSo
-
-        Args:
-            bond_type (`str`)        : label to identify the potential to model the bond.
-            bond_parameters (`dict`) : parameters of the potential of the bond.
-
-        Note:
-            Currently, only HARMONIC and FENE bonds are supported.
-
-            For a HARMONIC bond the dictionary must contain:
-
-                - k (`obj`)      : Magnitude of the bond. It should have units of energy/length**2 
-                using the `pmb.units` UnitRegistry.
-                - r_0 (`obj`)    : Equilibrium bond length. It should have units of length using 
-                the `pmb.units` UnitRegistry.
-           
-            For a FENE bond the dictionay must additionally contain:
-                
-                - d_r_max (`obj`): Maximal stretching length for FENE. It should have 
-                units of length using the `pmb.units` UnitRegistry. Default 'None'.
-
-        Returns:
-              bond_object (`obj`): a harmonic or a FENE bond object in ESPREesSo
-        '''
-        from espressomd import interactions
-
-        valid_bond_types   = ["harmonic", "FENE"]
-        
-        if 'k' in bond_parameters:
-            bond_magnitude     = bond_parameters['k'].to('reduced_energy / reduced_length**2')
-        else:
-            raise ValueError("Magnitud of the potential (k) is missing")
-        
-        if bond_type == 'harmonic':
-            if 'r_0' in bond_parameters:
-                bond_length        = bond_parameters['r_0'].to('reduced_length')
-            else:
-                raise ValueError("Equilibrium bond length (r_0) is missing")
-            bond_object    = interactions.HarmonicBond(k   = bond_magnitude.magnitude,
-                                                       r_0 = bond_length.magnitude)
-        elif bond_type == 'FENE':
-            if 'd_r_max' in bond_parameters:
-                max_bond_stret = bond_parameters['d_r_max'].to('reduced_length')
-            else:
-                raise ValueError("Maximal stretching length (d_r_max) is missing")
-            bond_object    = interactions.FeneBond(k       = bond_magnitude.magnitude,
-                                                   d_r_max = max_bond_stret.magnitude)
-        else:
-            raise ValueError(f"Bond type {bond_type} currently not implemented in pyMBE, valid types are {valid_bond_types}")
-
-        return bond_object
-
     def define_bond(self, bond_type, bond_parameters, particle_pairs):
         
         '''
@@ -1251,14 +1258,14 @@ class pymbe_library():
         Note:
             Currently, only HARMONIC and FENE bonds are supported.
 
-            For a HARMONIC bond the dictionary must contain:
+            For a HARMONIC bond the dictionary must contain the following parameters:
 
                 - k (`obj`)      : Magnitude of the bond. It should have units of energy/length**2 
                 using the `pmb.units` UnitRegistry.
                 - r_0 (`obj`)    : Equilibrium bond length. It should have units of length using 
                 the `pmb.units` UnitRegistry.
            
-            For a FENE bond the dictionay must additionally contain:
+            For a FENE bond the dictionay must contain the same parameters as for a HARMONIC bond and:
                 
                 - d_r_max (`obj`): Maximal stretching length for FENE. It should have 
                 units of length using the `pmb.units` UnitRegistry. Default 'None'.
@@ -2041,27 +2048,27 @@ class pymbe_library():
                                         sequence=param_dict.pop('sequence'),
                                         model=param_dict.pop('model'))
                 elif object_type == 'bond':
-                    name1 = param_dict.pop('name1')
-                    name2 = param_dict.pop('name2')
+                    particle_pairs = param_dict.pop('particle_pairs')
+                    bond_parameters = param_dict.pop('bond_parameters')
                     bond_type = param_dict.pop('bond_type')
                     if bond_type == 'harmonic':
-                        k = self.create_variable_with_units(variable=param_dict.pop('k'))
-                        r_0 = self.create_variable_with_units(variable=param_dict.pop('r_0'))
+                        k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
+                        r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
                         bond = {'r_0'    : r_0,
                                 'k'      : k,
                                 }
 
                     elif bond_type == 'FENE':
-                        k = self.create_variable_with_units(variable=param_dict.pop('k'))
-                        r_0 = self.create_variable_with_units(variable=param_dict.pop('r_0'))
-                        d_r_max = self.create_variable_with_units(variable=param_dict.pop('d_r_max'))
+                        k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
+                        r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
+                        d_r_max = self.create_variable_with_units(variable=bond_parameters.pop('d_r_max'))
                         bond =  {'r_0'    : r_0,
                                  'k'      : k,
                                  'd_r_max': d_r_max,
                                  }
                     else:
                         raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
-                    self.define_bond(bond_type=bond_type, bond_parameters=bond, particle_pairs=[[name1, name2]])
+                    self.define_bond(bond_type=bond_type, bond_parameters=bond, particle_pairs=particle_pairs)
                 else:
                     raise ValueError(object_type+' is not a known pmb object type')
                 if verbose:

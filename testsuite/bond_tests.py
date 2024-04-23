@@ -1,10 +1,32 @@
 # Import pyMBE and other libraries
 import pyMBE
 import numpy as np
-import warnings
         
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library()
+
+def check_bond_setup(bond_object, input_parameters, bond_type):
+        """
+        Checks that pyMBE sets up a bond object correctly.
+
+        Args:
+                bond_object(`espressomd.interactions`): instance of a espresso bond object.
+                input_parameters(`dict`): dictionary with the parameters for the bond potential.
+                bond_type(`str`): label identifying the bond type
+        """
+        # Check that pyMBE stores the correct type of bond
+        if bond_type.lower() not in str(bond_object).lower():
+                raise Exception("*** Test failed: pyMBE does not store the correct type of bond ***")
+        # Check that pyMBE defines the bond with the correct parameters
+        bond_params = bond_object.get_params()
+        reduced_units = {'r_0'    : 'reduced_length',
+                        'k'      : 'reduced_energy / reduced_length**2',
+                        'd_r_max': 'reduced_length'}
+        for key in input_parameters.keys():
+                np.testing.assert_equal(actual=bond_params[key], 
+                        desired=input_parameters[key].m_as(reduced_units[key]), 
+                        verbose=True)                
+        return 0
 
 #### DEFINE_BOND TESTS ###
 
@@ -24,16 +46,13 @@ pmb.define_bond(bond_type = bond_type,
                 bond_parameters = bond,
                 particle_pairs = [['A', 'A']])
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    np.testing.assert_equal(actual=str(np.array(pmb.filter_df(pmb_type = 'bond')['bond_object'])[0])[:8], 
-                        desired='Harmonic', 
-                        verbose=True)
+check_bond_setup(bond_object=pmb.filter_df(pmb_type = 'bond')['bond_object'].values[0],
+                input_parameters=bond,
+                bond_type=bond_type)
 
 print("*** Unit test passed ***")
 
 # Clean pmb.df
-
 pmb.setup_df()
 
 print(f"*** Unit test: check that define_bond sets up a FENE bond correctly ***")
@@ -54,11 +73,10 @@ pmb.define_bond(bond_type = bond_type,
                 bond_parameters = bond,
                 particle_pairs = [['A', 'A']])
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    np.testing.assert_equal(actual=str(np.array(pmb.filter_df(pmb_type = 'bond')['bond_object'])[0])[:4], 
-            desired='Fene', 
-            verbose=True)
+
+check_bond_setup(bond_object=pmb.filter_df(pmb_type = 'bond')['bond_object'].values[0],
+                input_parameters=bond,
+                bond_type=bond_type)
 
 print("*** Unit test passed ***")
 
@@ -93,11 +111,12 @@ pmb.define_bond(bond_type = bond_type_2,
                 bond_parameters = bond_2,
                 particle_pairs = [['B', 'B']])
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    np.testing.assert_equal(actual=[str(np.array(pmb.filter_df(pmb_type = 'bond')['bond_object'])[0])[:8], str(np.array(pmb.filter_df(pmb_type = 'bond')['bond_object'])[1])[:4]],
-                        desired=['Harmonic','Fene'],
-                        verbose=True)
+check_bond_setup(bond_object=pmb.filter_df(pmb_type = 'bond')['bond_object'][2],
+                input_parameters=bond_1,
+                bond_type=bond_type_1)
+check_bond_setup(bond_object=pmb.filter_df(pmb_type = 'bond')['bond_object'][3],
+                input_parameters=bond_2,
+                bond_type=bond_type_2)
 
 print("*** Unit test passed ***")
 
@@ -221,11 +240,9 @@ bond = {'r_0'    : 0.4*pmb.units.nm,
 pmb.define_default_bond(bond_type = bond_type,
                         bond_parameters = bond)
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    np.testing.assert_equal(actual=str(np.array(pmb.filter_df(pmb_type = 'bond')['bond_object'])[0])[:8],
-                        desired='Harmonic',
-                        verbose=True)
+check_bond_setup(bond_object=pmb.filter_df(pmb_type = 'bond')['bond_object'].values[0],
+                input_parameters=bond,
+                bond_type=bond_type)
 
 print("*** Unit test passed ***")
 
@@ -246,11 +263,9 @@ bond = {'r_0'    : 0.4*pmb.units.nm,
 pmb.define_default_bond(bond_type = bond_type,
                         bond_parameters = bond)
 
-with warnings.catch_warnings():
-    warnings.simplefilter("ignore")
-    np.testing.assert_equal(actual=str(np.array(pmb.filter_df(pmb_type = 'bond')['bond_object'])[0])[:4],
-            desired='Fene',
-            verbose=True)
+check_bond_setup(bond_object=pmb.filter_df(pmb_type = 'bond')['bond_object'].values[0],
+                input_parameters=bond,
+                bond_type=bond_type)
 
 print("*** Unit test passed ***")
 
