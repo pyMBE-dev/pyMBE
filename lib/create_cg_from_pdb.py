@@ -308,14 +308,17 @@ def create_sidechain_beads  (pdb_df) :
         x_coord_r = pdb_df['x_pos'] 
         y_coord_r = pdb_df['y_pos'] 
         z_coord_r = pdb_df['z_pos'] 
+        
+        pdb_df['radius_mean'] = pdb_df.groupby(['residue_name'])['radius_r'].transform (np.mean).round(4)
 
         atom_number_pdb_r = pd.Series(pdb_df.residue_number)
         resname_r = pd.Series(pdb_df.residue_name)
         resname_one_letter_r=  pd.Series (pdb_df.resname_one_letter)
         resid_r = pd.Series(pdb_df.residue_number)
 
-        radius_r = pd.Series(pdb_df['radius_r'])
+        radius_r = pd.Series(pdb_df['radius_mean'])
         chain_r = pd.Series(pdb_df.chain_id)
+                
         residues_bead = {'atom_numbers_r': atom_number_pdb_r,\
              'x_coord_r':x_coord_r,'y_coord_r':y_coord_r,'z_coord_r':z_coord_r, \
                 'resname_r':resname_r,'resname_one_letter_r':resname_one_letter_r , 'radius_r':radius_r, 'chain_r': chain_r, 'resid_r': resid_r}
