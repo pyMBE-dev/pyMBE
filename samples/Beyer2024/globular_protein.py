@@ -76,8 +76,6 @@ inputs={"pH": args.pH,
         "protein_pdb": args.pdb}
 
 #System Parameters 
-pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
-
 SEED = 77 
 
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
@@ -93,18 +91,20 @@ dt = 0.01
 stride_traj = 100 # in LJ units of time
 
 if mode == 'short-run':
-    stride_obs = 0.3 #  in LJ units of time
+    stride_obs = 10 #  in LJ units of time
     integ_steps = int (stride_obs/dt)
-    t_max = 1e3
+    t_max = 5e3
     N_samples = int (t_max / stride_obs)
+    
 elif mode == 'long-run':
     stride_obs = 10 #  in LJ units of time
     integ_steps = int (stride_obs/dt)
-    t_max = 1e4
+    t_max = 1e5
     N_samples = int (t_max / stride_obs)
+    
 elif mode == 'test':
-    t_max = 1e2
-    stride_obs = 0.2 #  in LJ units of time
+    t_max = 1e3
+    stride_obs = 10 #  in LJ units of time
     integ_steps = int (stride_obs/dt)
     N_samples = int (t_max / stride_obs)
 else: 
@@ -152,8 +152,8 @@ if args.metal_ion_name is not None:
 cation_name = 'Na'
 anion_name = 'Cl'
 
-pmb.define_particle(name = cation_name, q = 1, sigma=0.2*pmb.units.nm, epsilon=epsilon)
-pmb.define_particle(name = anion_name,  q =-1, sigma=0.2*pmb.units.nm, epsilon=epsilon)
+pmb.define_particle(name = cation_name, q = 1, sigma=0.4*pmb.units.nm, epsilon=epsilon)
+pmb.define_particle(name = anion_name,  q =-1, sigma=0.4*pmb.units.nm, epsilon=epsilon)
 
 # Here we upload the pka set from the reference_parameters folder
 path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.txt') 

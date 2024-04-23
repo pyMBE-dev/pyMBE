@@ -953,7 +953,7 @@ class pymbe_library():
                                                             number_of_particles=1,
                                                             position=[position], 
                                                             fix = True)
-
+                print(topology_dict)
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
                 
                 self.add_value_to_df(key=('residue_id',''),
@@ -966,7 +966,7 @@ class pymbe_library():
                 
                 self.add_value_to_df(key=('sigma',''),
                                         index=int (index),
-                                        new_value=topology_dict[residue]['sigma'])
+                                        new_value=topology_dict["sigma"])
 
         return
 
