@@ -164,7 +164,6 @@ pmb.create_protein(name=protein_name,
                                number_of_proteins=1,
                                espresso_system=espresso_system,
                                topology_dict=topology_dict)
-
 #Here we activate the motion of the protein 
 if args.move_protein:
     pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
@@ -238,7 +237,7 @@ setup_langevin_dynamics (espresso_system=espresso_system,
 observables_df = pmb.pd.DataFrame()
 time_step = []
 net_charge_list = []
-net_charge_amino_save = {}
+
 
 Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
@@ -254,32 +253,39 @@ time_series={}
 for label in labels_obs:
     time_series[label]=[]
 
-for step in tqdm(range(N_samples)):
-        
-    espresso_system.integrator.run (steps = integ_steps)
-    RE.reaction( reaction_steps = total_ionisible_groups)
-
-    charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
+charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
                                             molecule_name=protein_name)
     
-    net_charge_residues = charge_dict ['residues']
-    
-    if len(net_charge_amino_save.keys()) == 0:
-        for amino in net_charge_residues.keys():
-            if pmb.df.loc[int (amino)].pmb_type.values[0] == 'particle':
-                if pmb.df.loc[int (amino)].acidity.values[0] != 'inert':
-                    name = pmb.df.loc[int (amino)]['name'].values[0]
-                    label = f'charge{name}'
-                    net_charge_amino_save[label] = []
-                    if label not in time_series.keys():
-                        time_series[label] = []
-                        
-    for amino in net_charge_residues.keys():
-        name = pmb.df.loc[int (amino)]['name'].values[0]
-        label = f'charge{name}'
-        if label in net_charge_amino_save.keys():
-            net_charge_amino_save[label].append(net_charge_residues[amino])
-            
+net_charge_residues = charge_dict ['residues']
+net_charge_amino_save = {}
+AA_label_list=[]    
+for amino in net_charge_residues.keys():
+    amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & (pmb.df['acidity'] != "inert")]
+    if not amino_part_row.empty:
+        label = f'charge_{amino_part_row["name"].values[0]}'
+        if label not in AA_label_list:
+            AA_label_list.append(label)
+            net_charge_amino_save[label] = []
+            time_series[label] = []
+
+for step in tqdm(range(N_samples)):      
+    espresso_system.integrator.run (steps = integ_steps)
+    RE.reaction( reaction_steps = total_ionisible_groups)
+    charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
+                                            molecule_name=protein_name)
+    charge_residues = charge_dict['residues']
+    charge_residues_per_type={}
+
+    for label in AA_label_list:
+        charge_residues_per_type[label]=[]
+
+    for amino in charge_residues.keys():
+        amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & (pmb.df['acidity'] != "inert")]
+        if not amino_part_row.empty:
+            label = f'charge_{amino_part_row["name"].values[0]}'
+            if label in AA_label_list:
+                charge_residues_per_type[label].append(charge_residues[amino])
+
     if (step % stride_traj == 0  ):
         n_frame +=1
         pmb.write_output_vtf_file(espresso_system=espresso_system,
@@ -289,9 +295,8 @@ for step in tqdm(range(N_samples)):
     time_series["time"].append(espresso_system.time)
     time_series["charge"].append(charge_dict["mean"])
     
-    #NOTE need to double check
-    for label in net_charge_amino_save.keys ():
-        charge_amino = sum(net_charge_amino_save[label])
+    for label in AA_label_list:
+        charge_amino = pmb.np.mean(charge_residues_per_type[label])
         time_series[label].append(charge_amino)
 
 data_path = args.output

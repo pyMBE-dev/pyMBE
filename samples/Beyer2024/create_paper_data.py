@@ -61,15 +61,13 @@ if fig_label in labels_fig7 and not plot:
 ## Protein plots (Fig. 8)
 
 labels_fig8=["8a", "8b"]
-valid_pdb_codes = ["1F6S", "1BEB"]
-
 if fig_label in labels_fig8:
     
     script_path=pmb.get_resource(f"samples/Beyer2024/globular_protein.py")
     pH_range = np.linspace(2, 7, num=11)
 
     if fig_label == "8a":
-        protein_pdb = "1F6S"
+        protein_pdb = "1f6s"
         path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
         for pH in pH_range:
             run_command=f"python3 {script_path} --pdb {protein_pdb} --pH {pH} --mode {mode} --path_to_cg {path_to_cg} --metal_ion_name Ca  --metal_ion_charge 2 --no_verbose"
@@ -77,7 +75,7 @@ if fig_label in labels_fig8:
             os.system(run_command)
 
     elif fig_label == "8b":
-        protein_pdb = "1BEB"
+        protein_pdb = "1beb"
         path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
         for pH in pH_range:
             run_command=f"python3 {script_path} --pdb {protein_pdb} --pH {pH} --mode {mode} --path_to_cg {path_to_cg} --no_verbose"
