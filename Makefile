@@ -10,6 +10,7 @@ docs:
 tests:
 	python3 testsuite/lj_tests.py
 	python3 testsuite/set_particle_acidity_test.py
+	python3 testsuite/bond_tests.py
 	python3 testsuite/generate_perpendicular_vectors_test.py
 	python3 testsuite/create_molecule_position_test.py
 	python3 testsuite/read-write-df_test.py
