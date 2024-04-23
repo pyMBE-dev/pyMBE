@@ -953,7 +953,7 @@ class pymbe_library():
                                                             number_of_particles=1,
                                                             position=[position], 
                                                             fix = True)
-                print(topology_dict)
+                
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
                 
                 self.add_value_to_df(key=('residue_id',''),
@@ -963,10 +963,6 @@ class pymbe_library():
                 self.add_value_to_df(key=('molecule_id',''),
                                         index=int (index),
                                         new_value=molecule_id)
-                
-                self.add_value_to_df(key=('sigma',''),
-                                        index=int (index),
-                                        new_value=topology_dict["sigma"])
 
         return
 
@@ -1132,7 +1128,7 @@ class pymbe_library():
 
         return variable_with_units
 
-    def define_AA_particles_in_sequence(self, sequence):
+    def define_AA_particles_in_sequence(self, sequence, sigma_dict=None):
         '''
         Defines in `pmb.df` all the different particles in `sequence`.
 
@@ -1146,7 +1142,7 @@ class pymbe_library():
         already_defined_AA=[]
         acidic_aminoacids = ['c','E','D','Y','C']
         basic_aminoacids  = ['R','n','K','H']
-
+        
         for residue_name in sequence:
             if residue_name in already_defined_AA:
                 continue
@@ -1156,6 +1152,10 @@ class pymbe_library():
                 self.define_particle (name=residue_name, acidity='basic')
             else:
                 self.define_particle (name=residue_name, q=0)
+                
+        if sigma_dict:
+            self.define_particles_parameter_from_dict(param_dict = sigma_dict, 
+                                                      param_name = 'sigma')
         return 
 
     def define_AA_residues(self, sequence, model):
@@ -1430,15 +1430,20 @@ class pymbe_library():
         if model == '2beadAA':
             self.define_particle(name='CA')
 
+        sigma_dict = {}
+        
         for residue in topology_dict.keys():
             residue_name = self.re.split(r'\d+', residue)[0]
+            
+            if residue_name not in sigma_dict.keys():
+                sigma_dict [residue_name] =  topology_dict[residue]['sigma']
             if residue_name != 'CA' and residue_name != 'Ca':
                 protein_seq_list.append(residue_name)                  
 
         protein_sequence = ''.join(protein_seq_list)
         clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
 
-        self.define_AA_particles_in_sequence (sequence=clean_sequence)
+        self.define_AA_particles_in_sequence (sequence=clean_sequence, sigma_dict = sigma_dict)
         residue_list = self.define_AA_residues(sequence=clean_sequence, model=model)
 
         index = len(self.df)
@@ -2219,7 +2224,7 @@ class pymbe_library():
                             atom_name = line_split [3]
                             atom_resname = line_split [5]
                             chain_id = line_split [9]
-                            radius = float(line_split [11])*unit_length# Unit Amstrong 
+                            radius = float(line_split [11])*unit_length 
                             sigma = 2*radius
                             particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, sigma]
          
