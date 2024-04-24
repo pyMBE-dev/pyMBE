@@ -510,7 +510,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Creates a coarse-grained model from a protein structure given in PDB format')    
     parser.add_argument('--filename', dest='filename', help='\nPath to the PDB file\n')
     parser.add_argument('--download_pdb', dest='pdb_code', help='Downloads the corresponding PDB from RCSB and coarse-grains it') 
-    parser.add_argument('--model', dest='model', default='2bead', type=str , help='\nCoarse-grained model to be used\n')
+    parser.add_argument('--model', dest='model', default='2beadAA', type=str , help='\nCoarse-grained model to be used\n')
     parser.add_argument('--chain_id', type=str , help='\nSpecific chaid_id to coarse-grain\n') 
     parser.add_argument('--verbose', dest='verbose', action='store_true')
     parser.add_argument('--no-verbose', dest='verbose', action='store_false')
