@@ -3,7 +3,6 @@ import pyMBE
 from lib import analysis
 import os 
 import numpy as np
-import pandas as pd
 import argparse 
 import subprocess
 
@@ -194,9 +193,9 @@ if plot:
     elif fig_label in labels_fig8:
         
         if fig_label == "8a":
-            protein_pdb = '1F6S'
+            protein_pdb = '1f6s'
         elif fig_label == "8b":
-            protein_pdb = '1BEB'
+            protein_pdb = '1beb'
     
         path_to_cg=pmb.get_resource(f"parameters/globular_proteins/{protein_pdb}.vtf")
         topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
@@ -306,9 +305,12 @@ if plot:
                        markeredgewidth=1.5)
         plt.xticks([2,4,6,8,10,12])
         
-    elif fig_label in labels_fig8:
+    elif fig_label in labels_fig8:   
+
         data=data.astype({("pH","value"): 'float'}).sort_values(by=("pH","value"))
-        data=data[data.pdb.value == f"{protein_pdb}"]
+        data=data[data.pdb.value == f'{protein_pdb}']
+
+
         plt.errorbar(data["pH"]["value"], 
                    data["mean","charge"], 
                    yerr=data["err_mean","charge"], 
@@ -319,6 +321,7 @@ if plot:
                    fillstyle="none",
                    markeredgewidth=1.5)
         plt.xticks([2,3,4,5,6,7])
+        
     elif fig_label == "9":
         data=data.astype({("pH","value"): 'float'}).sort_values(by=("pH","value"))
         plt.errorbar(data["pH"]["value"], 
