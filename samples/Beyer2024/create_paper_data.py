@@ -69,17 +69,18 @@ if fig_label in labels_fig8:
         protein_pdb = "1f6s"
         path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
         for pH in pH_range:
-            run_command=f"python3 {script_path} --pdb {protein_pdb} --pH {pH} --mode {mode} --path_to_cg {path_to_cg} --metal_ion_name Ca  --metal_ion_charge 2 --no_verbose"
-            print(run_command)
-            os.system(run_command)
+            
+            run_command=["python3", script_path, "--pdb", protein_pdb, "--pH", str(pH), "--path_to_cg", path_to_cg,  "--mode", mode, "--no_verbose", "--metal_ion_name", "Ca", "--metal_ion_charge", str(2)]
+            print(subprocess.list2cmdline(run_command))
+            subprocess.check_output(run_command)
 
     elif fig_label == "8b":
         protein_pdb = "1beb"
         path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
         for pH in pH_range:
-            run_command=f"python3 {script_path} --pdb {protein_pdb} --pH {pH} --mode {mode} --path_to_cg {path_to_cg} --no_verbose"
-            print(run_command)
-            os.system(run_command)
+            run_command=["python3", script_path, "--pdb", protein_pdb, "--pH", str(pH), "--path_to_cg", path_to_cg,  "--mode", mode, "--no_verbose"]
+            print(subprocess.list2cmdline(run_command))
+            subprocess.check_output(run_command)
     else:
         raise RuntimeError()
 

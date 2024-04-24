@@ -1201,18 +1201,11 @@ class pymbe_library():
         '''
 
         already_defined_AA=[]
-        acidic_aminoacids = ['c','E','D','Y','C']
-        basic_aminoacids  = ['R','n','K','H']
         
         for residue_name in sequence:
             if residue_name in already_defined_AA:
                 continue
-            if residue_name in acidic_aminoacids:
-                self.define_particle (name=residue_name, acidity='acidic')
-            elif residue_name in basic_aminoacids:
-                self.define_particle (name=residue_name, acidity='basic')
-            else:
-                self.define_particle (name=residue_name, q=0)
+            self.define_particle (name=residue_name, q=0)
                 
         if sigma_dict:
             self.define_particles_parameter_from_dict(param_dict = sigma_dict, 
