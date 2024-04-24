@@ -1,7 +1,6 @@
 # Import pyMBE and other libraries
 import pyMBE
 from lib import analysis
-import os
 import tempfile
 import subprocess
 import numpy as np
@@ -11,7 +10,7 @@ import pandas as pd
 
 def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="test"):
     """
-    Runs a set of tests for a given peptide sequence.
+    Runs a set of tests for a given protein pdb.
 
     Args:
         script_path(`str`): Path to the script to run the test.
