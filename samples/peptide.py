@@ -79,10 +79,14 @@ for aminoacid_key in sequence:
 
 generic_bond_lenght=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
-generic_bond = interactions.HarmonicBond(k=generic_harmonic_constant.to('reduced_energy / reduced_length**2').magnitude,
-                                 r_0=generic_bond_lenght.to('reduced_length').magnitude)
 
-pmb.define_default_bond(bond_object = generic_bond, bond_type="harmonic")
+HARMONIC_parameters = {'r_0'    : generic_bond_lenght,
+                       'k'      : generic_harmonic_constant,
+                      }
+
+pmb.define_default_bond(bond_type = 'harmonic',
+                        bond_parameters = HARMONIC_parameters)
+
 
 # Defines the peptine in the pyMBE data frame
 peptide_name = 'generic_peptide'

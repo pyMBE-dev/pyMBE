@@ -678,6 +678,67 @@ class pymbe_library():
             print(f"\n Added salt concentration of {c_salt_calculated.to('mol/L')} given by {N_cation} cations and {N_anion} anions")
         return c_salt_calculated
 
+    def create_bond_in_espresso(self, bond_type, bond_parameters):
+        '''
+        Creates either a harmonic or a FENE bond in ESPREesSo
+
+        Args:
+            bond_type (`str`)        : label to identify the potential to model the bond.
+            bond_parameters (`dict`) : parameters of the potential of the bond.
+
+        Note:
+            Currently, only HARMONIC and FENE bonds are supported.
+
+            For a HARMONIC bond the dictionary must contain:
+
+                - k (`obj`)      : Magnitude of the bond. It should have units of energy/length**2 
+                using the `pmb.units` UnitRegistry.
+                - r_0 (`obj`)    : Equilibrium bond length. It should have units of length using 
+                the `pmb.units` UnitRegistry.
+           
+            For a FENE bond the dictionay must additionally contain:
+                
+                - d_r_max (`obj`): Maximal stretching length for FENE. It should have 
+                units of length using the `pmb.units` UnitRegistry. Default 'None'.
+
+        Returns:
+              bond_object (`obj`): a harmonic or a FENE bond object in ESPREesSo
+        '''
+        from espressomd import interactions
+
+        valid_bond_types   = ["harmonic", "FENE"]
+        
+        if 'k' in bond_parameters:
+            bond_magnitude     = bond_parameters['k'].to('reduced_energy / reduced_length**2')
+        else:
+            raise ValueError("Magnitud of the potential (k) is missing")
+        
+        if bond_type == 'harmonic':
+            if 'r_0' in bond_parameters:
+                bond_length        = bond_parameters['r_0'].to('reduced_length')
+            else:
+                raise ValueError("Equilibrium bond length (r_0) is missing")
+            bond_object    = interactions.HarmonicBond(k   = bond_magnitude.magnitude,
+                                                       r_0 = bond_length.magnitude)
+        elif bond_type == 'FENE':
+            if 'r_0' in bond_parameters:
+                bond_length        = bond_parameters['r_0'].to('reduced_length').magnitude
+            else:
+                print("WARNING: No value provided for r_0. Defaulting to r_0 = 0")
+                bond_length=0
+            if 'd_r_max' in bond_parameters:
+                max_bond_stret = bond_parameters['d_r_max'].to('reduced_length')
+            else:
+                raise ValueError("Maximal stretching length (d_r_max) is missing")
+            bond_object    = interactions.FeneBond(r_0     = bond_length, 
+                                                   k       = bond_magnitude.magnitude,
+                                                   d_r_max = max_bond_stret.magnitude)
+        else:
+            raise ValueError(f"Bond type {bond_type} currently not implemented in pyMBE, valid types are {valid_bond_types}")
+
+        return bond_object
+
+
     def create_counterions(self, object_name, cation_name, anion_name, espresso_system,verbose=True):
         """
         Creates particles of `cation_name` and `anion_name` in `espresso_system` to counter the net charge of `pmb_object`.
@@ -1183,80 +1244,94 @@ class pymbe_library():
                                     side_chains = side_chains)              
             residue_list.append('AA-'+residue_name)
         return residue_list
- 
-    def define_bond(self, bond_object, bond_type, particle_name1, particle_name2):
-        """
-        Defines a pmb object of type `bond` in `pymbe.df`
+
+    def define_bond(self, bond_type, bond_parameters, particle_pairs):
         
+        '''
+        Defines a pmb object of type `bond` in `pymbe.df`.
+
         Args:
-            bond_object (`cls`): instance of a bond object from espressomd library
-            bond_type (`str`): label identifying the used bonded potential
-            particle_name1 (`str`): `name` of the first `particle` to be bonded.
-            particle_name2 (`str`): `name` of the second `particle` to be bonded.
-        
+            bond_type (`str`)        : label to identify the potential to model the bond.
+            bond_parameters (`dict`) : parameters of the potential of the bond.
+            particle_pairs (`lst`)   : list of the `names` of the `particles` to be bonded.
+
         Note:
-            - Currently, only harmonic and FENE bonds are supported.
-        """    
-        
-        valid_bond_types=["harmonic", "FENE"]
-        if bond_type not in valid_bond_types:
-                       raise ValueError(f"Bond type {bond_type} currently not implemented in pyMBE, valid types are {valid_bond_types}")
+            Currently, only HARMONIC and FENE bonds are supported.
 
-        lj_parameters=self.get_lj_parameters(particle_name1=particle_name1, 
-                                        particle_name2=particle_name2, 
-                                        combining_rule='Lorentz-Berthelot')
+            For a HARMONIC bond the dictionary must contain the following parameters:
 
-        cutoff = 2**(1.0/6.0) * lj_parameters["sigma"]
-        l0 = self.calculate_initial_bond_length(bond_object=bond_object, 
-                                                bond_type=bond_type, 
-                                                epsilon=lj_parameters["epsilon"],
-                                                sigma=lj_parameters["sigma"],
-                                                cutoff=cutoff)
+                - k (`obj`)      : Magnitude of the bond. It should have units of energy/length**2 
+                using the `pmb.units` UnitRegistry.
+                - r_0 (`obj`)    : Equilibrium bond length. It should have units of length using 
+                the `pmb.units` UnitRegistry.
+           
+            For a FENE bond the dictionay must contain the same parameters as for a HARMONIC bond and:
+                
+                - d_r_max (`obj`): Maximal stretching length for FENE. It should have 
+                units of length using the `pmb.units` UnitRegistry. Default 'None'.
+        '''
 
-        index = len(self.df)
-        for label in [particle_name1+'-'+particle_name2,particle_name2+'-'+particle_name1]:
-            self.check_if_name_is_defined_in_df(name=label, pmb_type_to_be_defined="bond")
-        self.df.at [index,'name']= particle_name1+'-'+particle_name2
-        self.df.at [index,'bond_object'] = bond_object
-        self.df.at [index,'l0'] = l0
-        self.add_value_to_df(index=index,
-                                key=('pmb_type',''),
-                                new_value='bond')
-        self.add_value_to_df(index=index,
-                                key=('parameters_of_the_potential',''),
-                                new_value=self.json.dumps(bond_object.get_params()))
+        bond_object=self.create_bond_in_espresso(bond_type, bond_parameters)
+
+        for particle_name1, particle_name2 in particle_pairs:
+
+            lj_parameters=self.get_lj_parameters(particle_name1 = particle_name1,
+                                                 particle_name2 = particle_name2,
+                                                 combining_rule = 'Lorentz-Berthelot')
+
+            cutoff = 2**(1.0/6.0) * lj_parameters["sigma"]
+
+            l0 = self.calculate_initial_bond_length(bond_object = bond_object,
+                                                    bond_type   = bond_type,
+                                                    epsilon     = lj_parameters["epsilon"],
+                                                    sigma       = lj_parameters["sigma"],
+                                                    cutoff      = cutoff)
+            index = len(self.df)
+            for label in [particle_name1+'-'+particle_name2,particle_name2+'-'+particle_name1]:
+                self.check_if_name_is_defined_in_df(name=label, pmb_type_to_be_defined="bond")
+            self.df.at [index,'name']= particle_name1+'-'+particle_name2
+            self.df.at [index,'bond_object'] = bond_object
+            self.df.at [index,'l0'] = l0
+            self.add_value_to_df(index=index,
+                                    key=('pmb_type',''),
+                                    new_value='bond')
+            self.add_value_to_df(index=index,
+                                    key=('parameters_of_the_potential',''),
+                                    new_value=self.json.dumps(bond_object.get_params()))
+
         self.df['parameters_of_the_potential'] = self.df['parameters_of_the_potential'].apply (lambda x: eval(str(x)) if self.pd.notnull(x) else x) 
         return
 
-    def define_default_bond(self, bond_object, bond_type, epsilon=None, sigma=None, cutoff=None):
+    
+    def define_default_bond(self, bond_type, bond_parameters, epsilon=None, sigma=None, cutoff=None):
         """
         Asigns `bond` in `pmb.df` as the default bond.
         The LJ parameters can be optionally provided to calculate the initial bond length
 
         Args:
-            bond (`obj`): instance of a bond object from the espressomd library.
-            bond_type (`str`): label identifying the used bonded potential
-            sigma (`float`, optional): LJ sigma of the interaction between the particles
+            bond_type (`str`)          : label to identify the potential to model the bond.
+            bond_parameters (`dict`)   : parameters of the potential of the bond.
+            sigma (`float`, optional)  : LJ sigma of the interaction between the particles
             epsilon (`float`, optional): LJ epsilon for the interaction between the particles
-            cutoff (`float`, optional): cutoff-radius of the LJ interaction
+            cutoff (`float`, optional) : cutoff-radius of the LJ interaction
 
         Note:
             - Currently, only harmonic and FENE bonds are supported. 
         """
-        valid_bond_types=["harmonic", "FENE"]
-        if bond_type not in valid_bond_types:
-            raise ValueError(f"Bond type {bond_type} currently not implemented in pyMBE, valid types are {valid_bond_types}")
+        
+        bond_object=self.create_bond_in_espresso(bond_type, bond_parameters)
+
         if epsilon is None:
             epsilon=1*self.units('reduced_energy')
         if sigma is None:
             sigma=1*self.units('reduced_length')
         if cutoff is None:
             cutoff=2**(1.0/6.0)*self.units('reduced_length')
-        l0 = self.calculate_initial_bond_length(bond_object=bond_object, 
-                                                bond_type=bond_type, 
-                                                epsilon=epsilon,
-                                                sigma=sigma,
-                                                cutoff=cutoff)
+        l0 = self.calculate_initial_bond_length(bond_object = bond_object, 
+                                                bond_type   = bond_type, 
+                                                epsilon     = epsilon,
+                                                sigma       = sigma,
+                                                cutoff      = cutoff)
 
         if self.check_if_name_is_defined_in_df(name='default',pmb_type_to_be_defined='bond'):
             return
@@ -1264,16 +1339,15 @@ class pymbe_library():
             index = max(self.df.index)+1
         else:
             index = 0
-        self.df.at [index,'name'] = 'default'
+        self.df.at [index,'name']        = 'default'
         self.df.at [index,'bond_object'] = bond_object
-        self.df.at [index,'l0'] = l0
-        self.add_value_to_df(index=index,
-                            key=('pmb_type',''),
-                            new_value='bond')
-        self.add_value_to_df(index=index,
-                            key=('parameters_of_the_potential',''),
-                            new_value=self.json.dumps(bond_object.get_params()))
-        
+        self.df.at [index,'l0']          = l0
+        self.add_value_to_df(index       = index,
+                            key          = ('pmb_type',''),
+                            new_value    = 'bond')
+        self.add_value_to_df(index       = index,
+                            key          = ('parameters_of_the_potential',''),
+                            new_value    = self.json.dumps(bond_object.get_params()))
         self.df['parameters_of_the_potential'] = self.df['parameters_of_the_potential'].apply (lambda x: eval(str(x)) if self.pd.notnull(x) else x) 
         return
 
@@ -1974,21 +2048,27 @@ class pymbe_library():
                                         sequence=param_dict.pop('sequence'),
                                         model=param_dict.pop('model'))
                 elif object_type == 'bond':
-                    name1 = param_dict.pop('name1')
-                    name2 = param_dict.pop('name2')
+                    particle_pairs = param_dict.pop('particle_pairs')
+                    bond_parameters = param_dict.pop('bond_parameters')
                     bond_type = param_dict.pop('bond_type')
                     if bond_type == 'harmonic':
-                        k = self.create_variable_with_units(variable=param_dict.pop('k'))
-                        r_0 = self.create_variable_with_units(variable=param_dict.pop('r_0'))
-                        bond = interactions.HarmonicBond(k=k.to('reduced_energy / reduced_length**2').magnitude, r_0=r_0.to('reduced_length').magnitude)
+                        k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
+                        r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
+                        bond = {'r_0'    : r_0,
+                                'k'      : k,
+                                }
+
                     elif bond_type == 'FENE':
-                        k = self.create_variable_with_units(variable=param_dict.pop('k'))
-                        r_0 = self.create_variable_with_units(variable=param_dict.pop('r_0'))
-                        d_r_max = self.create_variable_with_units(variable=param_dict.pop('d_r_max'))
-                        bond = interactions.FeneBond(k=k.to('reduced_energy / reduced_length**2').magnitude, r_0=r_0.to('reduced_length').magnitude, d_r_max=d_r_max.to('reduced_length').magnitude)
+                        k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
+                        r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
+                        d_r_max = self.create_variable_with_units(variable=bond_parameters.pop('d_r_max'))
+                        bond =  {'r_0'    : r_0,
+                                 'k'      : k,
+                                 'd_r_max': d_r_max,
+                                 }
                     else:
                         raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
-                    self.define_bond(bond_object=bond, bond_type=bond_type, particle_name1=name1, particle_name2=name2)
+                    self.define_bond(bond_type=bond_type, bond_parameters=bond, particle_pairs=particle_pairs)
                 else:
                     raise ValueError(object_type+' is not a known pmb object type')
                 if verbose:
@@ -2339,7 +2419,9 @@ class pymbe_library():
         """
         acidity_valid_keys = ['inert','acidic', 'basic']
         if acidity not in acidity_valid_keys:
-            raise ValueError(self.df[name].name +' provided acidity not supported, valid keys are ', acidity_valid_keys)   
+            raise ValueError(f"Acidity {acidity} provided for particle name  {name} is not supproted. Valid keys are: {acidity_valid_keys}")
+        if acidity in ['acidic', 'basic'] and pka is None:
+            raise ValueError(f"pKa not provided for particle with name {name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
         for index in self.df[self.df['name']==name].index:       
             if pka:
                 self.add_value_to_df(key=('pka',''),index=index,new_value=pka)

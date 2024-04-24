@@ -150,7 +150,7 @@ To make sure your code is valid, please run the testsuite before submitting your
 
 ```sh
 source pymbe/bin/activate
-make testsuite
+make tests
 deactivate
 ```
 

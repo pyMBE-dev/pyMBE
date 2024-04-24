@@ -97,15 +97,16 @@ pmb.define_molecule(
     residue_list = 5*["Res_1"] + 5*["Res_2"])
 
 # Define bonds
-generic_bond_length = 0.4 * pmb.units.nm
+bond_type = 'harmonic'
+generic_bond_lenght=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-generic_bond = interactions.HarmonicBond(
-        k=generic_harmonic_constant.to('reduced_energy / reduced_length**2').magnitude,
-        r_0=generic_bond_length.to('reduced_length').magnitude)
+harmonic_bond = {'r_0'    : generic_bond_lenght,
+                 'k'      : generic_harmonic_constant,
+                 }
 
-pmb.define_default_bond(bond_object = generic_bond, 
-        bond_type="harmonic")
+
+pmb.define_default_bond(bond_type = bond_type, bond_parameters = harmonic_bond)
 
 # Solution parameters
 cation_name = 'Na'
