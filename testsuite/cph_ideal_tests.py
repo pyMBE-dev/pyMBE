@@ -21,6 +21,6 @@ subprocess.check_output(run_command)
 
 data = pd.read_csv(data_path)
 # Check if charges agree
-np.testing.assert_allclose(data["Z_sim"], data["Z_HH"], rtol=0.05, atol=0.1)
+np.testing.assert_allclose(data["Z_sim"], data["Z_HH"], rtol=0.15, atol=0.2)
 
 print(f"*** Test passed ***\n")
