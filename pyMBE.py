@@ -2533,6 +2533,71 @@ class pymbe_library():
             sucessfull_reactions_labels.append(name)
         return RE, sucessfull_reactions_labels
 
+    def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, SEED, activity_coefficient=None, exclusion_range=None, use_exclusion_radius_per_type = False):
+        """
+        Sets up grand-canonical coupling to a reservoir of salt.
+        For reactive systems coupled to a reservoir, the grand-reaction method has to be used instead.
+
+        Args:
+            c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
+            salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
+            salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
+            SEED ('int'): Seed for the random number generator.
+            activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
+            exclusion_range(`float`, optional): For distances shorter than this value, no particles will be inserted.
+            use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
+
+        Returns:
+            RE (`obj`): Instance of a reaction_ensemble.ReactionEnsemble object from the espressomd library.
+        """
+        from espressomd import reaction_methods
+        if exclusion_range is None:
+            exclusion_range = max(self.get_radius_map().values())*2.0
+        if use_exclusion_radius_per_type:
+            exclusion_radius_per_type = self.get_radius_map()
+        else:
+            exclusion_radius_per_type = {}
+        
+        #If no function for the activity coefficient is provided, the ideal case is assumed.
+        if activity_coefficient is None:
+            activity_coefficient = lambda x: 1.0
+        
+        RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
+                                                    exclusion_range=exclusion_range.magnitude, 
+                                                    seed=SEED, 
+                                                    exclusion_radius_per_type = exclusion_radius_per_type
+                                                    )
+
+        # Determine the concentrations of the various species in the reservoir and the equilibrium constants
+        determined_activity_coefficient = activity_coefficient(c_salt_res)
+        K_salt = (c_salt_res.to('1/(N_A * reduced_length**3)')**2) * determined_activity_coefficient
+
+        salt_cation_es_type = self.df.loc[self.df['name']==salt_cation_name].state_one.es_type.values[0]
+        salt_anion_es_type = self.df.loc[self.df['name']==salt_anion_name].state_one.es_type.values[0]     
+
+        salt_cation_charge = self.df.loc[self.df['name']==salt_cation_name].state_one.charge.values[0]
+        salt_anion_charge = self.df.loc[self.df['name']==salt_anion_name].state_one.charge.values[0]     
+
+        if salt_cation_charge <= 0:
+            raise ValueError('ERROR salt cation charge must be positive, charge ', salt_cation_charge)
+        if salt_anion_charge >= 0:
+            raise ValueError('ERROR salt anion charge must be negative, charge ', salt_anion_charge)
+
+        # Grand-canonical coupling to the reservoir
+        RE.add_reaction(
+            gamma = K_salt.magnitude,
+            reactant_types = [],
+            reactant_coefficients = [],
+            product_types = [ salt_cation_es_type, salt_anion_es_type ],
+            product_coefficients = [ 1, 1 ],
+            default_charges = {
+                salt_cation_es_type: salt_cation_charge, 
+                salt_anion_es_type: salt_anion_charge, 
+            }
+        )
+
+        return RE
+
     def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, SEED, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
