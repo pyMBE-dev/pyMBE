@@ -16,8 +16,10 @@ tests:
 	python3 testsuite/read-write-df_test.py
 	python3 testsuite/henderson_hasselbalch_tests.py
 	python3 testsuite/cph_ideal_tests.py
+	python3 testsuite/gcmc_tests.py
 	python3 testsuite/grxmc_ideal_tests.py
 	python3 testsuite/peptide_tests.py
+	python3 testsuite/gcmc_tests.py --mode interacting
 	python3 testsuite/weak_polyelectrolyte_dialysis_test.py
 	python3 testsuite/globular_protein_tests.py
 sample:
