@@ -3,14 +3,13 @@ import pyMBE
 from lib import analysis
 import os 
 import numpy as np
-import pandas as pd
 import argparse 
 import subprocess
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library()
 
-valid_fig_labels=["7a", "7b", "7c", "9"]
+valid_fig_labels=["7a", "7b", "7c", "8a", "8b", "9"]
 valid_modes=["short-run","long-run", "test"]
 
 parser = argparse.ArgumentParser(description='Script to create the data from Beyer2024')
@@ -57,6 +56,35 @@ if fig_label in labels_fig7 and not plot:
         subprocess.check_output(run_command)
 
 
+
+## Protein plots (Fig. 8)
+
+labels_fig8=["8a", "8b"]
+if fig_label in labels_fig8:
+    
+    script_path=pmb.get_resource(f"samples/Beyer2024/globular_protein.py")
+    pH_range = np.linspace(2, 7, num=11)
+
+    if fig_label == "8a":
+        protein_pdb = "1f6s"
+        path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
+        for pH in pH_range:
+            
+            run_command=["python3", script_path, "--pdb", protein_pdb, "--pH", str(pH), "--path_to_cg", path_to_cg,  "--mode", mode, "--no_verbose", "--metal_ion_name", "Ca", "--metal_ion_charge", str(2)]
+            print(subprocess.list2cmdline(run_command))
+            subprocess.check_output(run_command)
+
+    elif fig_label == "8b":
+        protein_pdb = "1beb"
+        path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
+        for pH in pH_range:
+            run_command=["python3", script_path, "--pdb", protein_pdb, "--pH", str(pH), "--path_to_cg", path_to_cg,  "--mode", mode, "--no_verbose"]
+            print(subprocess.list2cmdline(run_command))
+            subprocess.check_output(run_command)
+    else:
+        raise RuntimeError()
+
+
 ## Weak polyelectrolyte dialysis plot (Fig. 9)
 if fig_label == "9" and not plot: 
     script_path=pmb.get_resource(f"samples/Beyer2024/weak_polyelectrolyte_dialysis.py")
@@ -70,6 +98,10 @@ if fig_label == "9" and not plot:
 # Analyze all time series
 if fig_label in labels_fig7:
     time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series/peptides")
+    
+if fig_label in labels_fig8:    
+    time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series/globular_protein")
+    
 if fig_label == "9":
     time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series/grxmc")
 
@@ -104,7 +136,7 @@ if plot:
              linewidth=0.6)
 
     # Set labels for the axes
-    if fig_label in labels_fig7:
+    if fig_label in labels_fig7+labels_fig8:
         plt.ylabel(r"Net charge $Z/e$")
         plt.xlabel(r"pH in the solution")
     elif fig_label == "9":
@@ -117,7 +149,7 @@ if plot:
     if fig_label in ["7a","7b"]:
         pka_path=pmb.get_resource("parameters/pka_sets/CRC1991.txt")
         pmb.load_pka_set (filename=pka_path)
-    elif fig_label == "7c":
+    elif fig_label in ["7c", "8a", "8b"]:
         pka_path=pmb.get_resource("parameters/pka_sets/Nozaki1967.txt")
         pmb.load_pka_set (filename=pka_path)
         # FIXME: this is only necessary due to an undesired feature in calculate_HH
@@ -132,6 +164,10 @@ if plot:
         ref_path=pmb.get_resource("testsuite/data/Lunkad2021b.csv")
     elif fig_label == "7c":
         ref_path=pmb.get_resource("testsuite/data/Blanco2020a.csv")
+    elif fig_label == "8a":
+        ref_path=pmb.get_resource("testsuite/data/Torres2022.csv")
+    elif fig_label == "8b":
+        ref_path=pmb.get_resource("testsuite/data/Torres2017.csv")
     elif fig_label == "9":
         ref_path=pmb.get_resource("testsuite/data/Landsgesell2020a.csv")
     else:
@@ -154,6 +190,32 @@ if plot:
                    Z_HH, 
                    label=r"HH", 
                    color="black")
+
+    elif fig_label in labels_fig8:
+        
+        if fig_label == "8a":
+            protein_pdb = '1f6s'
+        elif fig_label == "8b":
+            protein_pdb = '1beb'
+    
+        path_to_cg=pmb.get_resource(f"parameters/globular_proteins/{protein_pdb}.vtf")
+        topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
+    
+        pmb.define_protein (name=protein_pdb, 
+                            topology_dict=topology_dict, 
+                            model = '2beadAA')
+            
+        pH_range_HH = np.linspace(2, 7, num=1000)
+        
+        Z_HH = pmb.calculate_HH(molecule_name=protein_pdb,
+                                pH_list=pH_range_HH)
+
+         # Plot HH
+        plt.plot(pH_range_HH,
+               Z_HH, 
+               label=r"HH", 
+               color="black")
+    
 
     elif fig_label == "9":
         c_salt_res = 0.01 * pmb.units.mol/pmb.units.L
@@ -186,6 +248,7 @@ if plot:
 
     # Plot Ref data
     ref_data=ref_data.sort_values(by="pH",ascending=True)
+    
     if fig_label in ["7a","7b"]:
         style={"linestyle":"none", 
                 "marker":"s", 
@@ -197,6 +260,16 @@ if plot:
                 "label":"Blanco  et al.", 
                 "color":"green",  
                 "markeredgewidth":1.5}
+        
+    elif fig_label in labels_fig8:
+        
+        style={"linestyle":"none", 
+            "marker":"s", 
+            "label":"Torres  et al.", 
+            "color":"C0",
+            "markeredgewidth":1.5}
+    
+        
     elif fig_label == "9":
         style={"linestyle":"none", 
                 "marker":"s", 
@@ -204,11 +277,12 @@ if plot:
                 "color":"C0",  
                 "markeredgewidth":1.5}
 
-    if fig_label in ["7a", "7b", "7c"]:
+    if fig_label in labels_fig7+labels_fig8:
         plt.errorbar(ref_data["pH"], 
                        ref_data["charge"], 
                        ref_data["charge_error"], 
                         **style)
+
     elif fig_label == "9":
         ref_data = ref_data.loc[np.isclose(ref_data["cs_bulk"], (c_salt_res.to('mol/reduced_length**3')*pmb.N_A).magnitude, rtol=1e-03) & np.isclose(ref_data["c_poly_[mol/l]"], 0.435/50, rtol=1e-03) & np.isclose(ref_data["Kcideal_in_mol_per_l"], 10**(-4), rtol=1e-03)]
         plt.errorbar(ref_data["pH"], 
@@ -231,6 +305,24 @@ if plot:
                        fillstyle="none",
                        markeredgewidth=1.5)
         plt.xticks([2,4,6,8,10,12])
+        
+    elif fig_label in labels_fig8:   
+
+        data=data.astype({("pH","value"): 'float'}).sort_values(by=("pH","value"))
+        data=data[data.pdb.value == f'{protein_pdb}']
+
+
+        plt.errorbar(data["pH"]["value"], 
+                   data["mean","charge"], 
+                   yerr=data["err_mean","charge"], 
+                   linestyle="none", 
+                   marker="o", 
+                   label="pyMBE", 
+                   color="C1", 
+                   fillstyle="none",
+                   markeredgewidth=1.5)
+        plt.xticks([2,3,4,5,6,7])
+        
     elif fig_label == "9":
         data=data.astype({("pH","value"): 'float'}).sort_values(by=("pH","value"))
         plt.errorbar(data["pH"]["value"], 
@@ -243,7 +335,6 @@ if plot:
                        fillstyle="none",
                        markeredgewidth=1.5)
         plt.xticks([2,4,6,8,10,12])
-
 
     # Save plot
     fig_path=pmb.get_resource("samples/Beyer2024")+"/figs"

@@ -308,14 +308,17 @@ def create_sidechain_beads  (pdb_df) :
         x_coord_r = pdb_df['x_pos'] 
         y_coord_r = pdb_df['y_pos'] 
         z_coord_r = pdb_df['z_pos'] 
+        
+        pdb_df['radius_mean'] = pdb_df.groupby(['residue_name'])['radius_r'].transform (np.mean).round(4)
 
         atom_number_pdb_r = pd.Series(pdb_df.residue_number)
         resname_r = pd.Series(pdb_df.residue_name)
         resname_one_letter_r=  pd.Series (pdb_df.resname_one_letter)
         resid_r = pd.Series(pdb_df.residue_number)
 
-        radius_r = pd.Series(pdb_df['radius_r'])
+        radius_r = pd.Series(pdb_df['radius_mean'])
         chain_r = pd.Series(pdb_df.chain_id)
+                
         residues_bead = {'atom_numbers_r': atom_number_pdb_r,\
              'x_coord_r':x_coord_r,'y_coord_r':y_coord_r,'z_coord_r':z_coord_r, \
                 'resname_r':resname_r,'resname_one_letter_r':resname_one_letter_r , 'radius_r':radius_r, 'chain_r': chain_r, 'resid_r': resid_r}
@@ -507,7 +510,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Creates a coarse-grained model from a protein structure given in PDB format')    
     parser.add_argument('--filename', dest='filename', help='\nPath to the PDB file\n')
     parser.add_argument('--download_pdb', dest='pdb_code', help='Downloads the corresponding PDB from RCSB and coarse-grains it') 
-    parser.add_argument('--model', dest='model', default='2bead', type=str , help='\nCoarse-grained model to be used\n')
+    parser.add_argument('--model', dest='model', default='2beadAA', type=str , help='\nCoarse-grained model to be used\n')
     parser.add_argument('--chain_id', type=str , help='\nSpecific chaid_id to coarse-grain\n') 
     parser.add_argument('--verbose', dest='verbose', action='store_true')
     parser.add_argument('--no-verbose', dest='verbose', action='store_false')

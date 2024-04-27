@@ -52,9 +52,9 @@ class pymbe_library():
         self.setup_df()
         return
     
-    def activate_motion_of_rigid_object(self, name, espresso_system):
+    def enable_motion_of_rigid_object(self, name, espresso_system):
         '''
-        Activates the motion of the rigid object `name` in the `espresso_system`.
+        Enables the motion of the rigid object `name` in the `espresso_system`.
 
         Args:
             name(`str`): Label of the object.
@@ -63,7 +63,7 @@ class pymbe_library():
         Note:
             - It requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
         '''
-        print ('activate_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
+        print ('enable_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
         pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
         if pmb_type != 'protein':
             raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
@@ -416,7 +416,7 @@ class pymbe_library():
         pmb_type=self.df.loc[self.df['name']==molecule_name].pmb_type.values[0]
         if pmb_type not in valid_pmb_types:
             raise ValueError("The pyMBE object with name {molecule_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
-        charge_in_residues = {}
+
         id_map = self.get_particle_id_map(object_name=molecule_name)
         def create_charge_map(espresso_system,id_map,label):
             charge_map={}
@@ -1014,9 +1014,9 @@ class pymbe_library():
                                                             number_of_particles=1,
                                                             position=[position], 
                                                             fix = True)
-
+                
                 index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
-
+                
                 self.add_value_to_df(key=('residue_id',''),
                                             index=int (index),
                                             new_value=residue_number)
@@ -1189,7 +1189,7 @@ class pymbe_library():
 
         return variable_with_units
 
-    def define_AA_particles_in_sequence(self, sequence):
+    def define_AA_particles_in_sequence(self, sequence, sigma_dict=None):
         '''
         Defines in `pmb.df` all the different particles in `sequence`.
 
@@ -1201,18 +1201,15 @@ class pymbe_library():
         '''
 
         already_defined_AA=[]
-        acidic_aminoacids = ['c','E','D','Y','C']
-        basic_aminoacids  = ['R','n','K','H']
-
+        
         for residue_name in sequence:
             if residue_name in already_defined_AA:
                 continue
-            if residue_name in acidic_aminoacids:
-                self.define_particle (name=residue_name, acidity='acidic')
-            elif residue_name in basic_aminoacids:
-                self.define_particle (name=residue_name, acidity='basic')
-            else:
-                self.define_particle (name=residue_name, q=0)
+            self.define_particle (name=residue_name, q=0)
+                
+        if sigma_dict:
+            self.define_particles_parameter_from_dict(param_dict = sigma_dict, 
+                                                      param_name = 'sigma')
         return 
 
     def define_AA_residues(self, sequence, model):
@@ -1500,15 +1497,20 @@ class pymbe_library():
         if model == '2beadAA':
             self.define_particle(name='CA')
 
+        sigma_dict = {}
+        
         for residue in topology_dict.keys():
             residue_name = self.re.split(r'\d+', residue)[0]
+            
+            if residue_name not in sigma_dict.keys():
+                sigma_dict [residue_name] =  topology_dict[residue]['sigma']
             if residue_name != 'CA' and residue_name != 'Ca':
                 protein_seq_list.append(residue_name)                  
 
         protein_sequence = ''.join(protein_seq_list)
         clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
 
-        self.define_AA_particles_in_sequence (sequence=clean_sequence)
+        self.define_AA_particles_in_sequence (sequence=clean_sequence, sigma_dict = sigma_dict)
         residue_list = self.define_AA_residues(sequence=clean_sequence, model=model)
 
         index = len(self.df)
@@ -2295,8 +2297,9 @@ class pymbe_library():
                             atom_name = line_split [3]
                             atom_resname = line_split [5]
                             chain_id = line_split [9]
-
-                            particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id]
+                            radius = float(line_split [11])*unit_length 
+                            sigma = 2*radius
+                            particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, sigma]
          
                         elif line_header.isnumeric (): 
 
@@ -2311,7 +2314,7 @@ class pymbe_library():
     
             if atom_id == 1:
                 atom_name = particles_dict[atom_id][0]
-                numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2]]
+                numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
                 numbered_label.append(numbered_name)
 
             elif atom_id != 1: 
@@ -2320,7 +2323,7 @@ class pymbe_library():
                     i += 1                    
                     count = 1
                     atom_name = particles_dict[atom_id][0]
-                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2]]
+                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
                     numbered_label.append(numbered_name)
                     
                 elif particles_dict[atom_id-1][1] == particles_dict[atom_id][1]:
@@ -2328,14 +2331,16 @@ class pymbe_library():
                         i +=1  
                         count = 0
                     atom_name = particles_dict[atom_id][0]
-                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2]]
+                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
                     numbered_label.append(numbered_name)
                     count +=1
 
         topology_dict = {}
 
         for i in range (0, len(numbered_label)):   
-            topology_dict [numbered_label[i][0]] = {'initial_pos': coord_list[i] ,'chain_id':numbered_label[i][1] }
+            topology_dict [numbered_label[i][0]] = {'initial_pos': coord_list[i] ,
+                                                    'chain_id':numbered_label[i][1],
+                                                    'sigma':numbered_label[i][2] }
 
         return topology_dict
 

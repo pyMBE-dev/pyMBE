@@ -19,9 +19,9 @@ tests:
 	python3 testsuite/grxmc_ideal_tests.py
 	python3 testsuite/peptide_tests.py
 	python3 testsuite/weak_polyelectrolyte_dialysis_test.py
+	python3 testsuite/globular_protein_tests.py
 sample:
 	python3 sample_scripts/peptide_simulation_example.py
-
 
 visual:
 	python3 handy_scripts/vmd-traj.py
