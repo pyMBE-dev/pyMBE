@@ -55,7 +55,9 @@ parser.add_argument('--output',
                     type=str,
                     required= False,
                     help='output directory')
-parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose")
+parser.add_argument('--no_verbose', 
+                    action='store_false', 
+                    help="Switch to deactivate verbose")
 args = parser.parse_args()
 
 # Inputs
