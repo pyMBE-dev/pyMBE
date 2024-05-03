@@ -13,7 +13,7 @@ script_path = pmb.get_resource(f"samples/peptide_mixture_grxmc_ideal.py")
 data_path = pmb.get_resource(f"samples/data_peptide_grxmc.csv")
 
 print(f"*** Grand reaction (G-RxMC) implementation tests ***\n")
-print(f"*** Test that our implementation of the original G-RxMC method reproduces the Henderson Hasselbalch equation corrected with the Donnan potential (HH+Don) for an ideal mixture of peptides ***")
+print(f"*** Test that our implementation of the original G-RxMC method reproduces the Henderson-Hasselbalch equation corrected with the Donnan potential (HH+Don) for an ideal mixture of peptides ***")
 
 run_command = ["python3", script_path, "--mode", "standard", "--test"]
 subprocess.check_output(run_command)
