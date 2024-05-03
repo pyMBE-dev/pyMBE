@@ -9,6 +9,7 @@ class pymbe_library():
         e(`obj`): Elemental charge using the `pmb.units` UnitRegistry.
         df(`obj`): PandasDataframe used to bookkeep all the information stored in pyMBE. Typically refered as `pmb.df`. 
         kT(`obj`): Thermal energy using the `pmb.units` UnitRegistry. It is used as the unit of reduced energy.
+        Kw(`obj`): Ionic product of water using the `pmb.units` UnitRegistry. Used in the setup of the G-RxMC method.
     """
     import pint
     import re
@@ -22,8 +23,9 @@ class pymbe_library():
     e=1.60217662e-19 *units.C
     df=None
     kT=None
+    Kw=None
 
-    def __init__(self, temperature=None, unit_length=None, unit_charge=None):
+    def __init__(self, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
         Initializes the pymbe_library by setting up the reduced unit system with `temperature` and `reduced_length` 
         and sets up  the `pmb.df` for bookkeeping.
@@ -32,11 +34,13 @@ class pymbe_library():
             temperature(`obj`,optional): Value of the temperature in the pyMBE UnitRegistry. Defaults to None.
             unit_length(`obj`, optional): Value of the unit of length in the pyMBE UnitRegistry. Defaults to None.
             unit_charge (`obj`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            Kw (`obj`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
         
         Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
             - If no `unit_length` is given, a value of 0.355 nm is assumed by default.
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
+            - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
         # Default definitions of reduced units
         if temperature is None:
@@ -45,7 +49,10 @@ class pymbe_library():
             unit_length= 0.355 * self.units.nm
         if unit_charge is None:
             unit_charge=self.units.e
+        if Kw is None:
+            Kw = 1e-14
         self.kT=temperature*self.Kb
+        self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
         self.units.define(f'reduced_energy = {self.kT}')
         self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = 1*e')
@@ -1607,11 +1614,10 @@ class pymbe_library():
 
         self_consistent_run = 0
         cH_res = 10**(-pH_res) * self.units.mol/self.units.l #initial guess for the concentration of H+
-        KW = 1e-14 * self.units.mol**2 / (self.units.l**2)
 
         def determine_reservoir_concentrations_selfconsistently(cH_res, c_salt_res):
             #Calculate and initial guess for the concentrations of various species based on ideal gas estimate
-            cOH_res = KW / cH_res 
+            cOH_res = self.Kw / cH_res 
             cNa_res = None
             cCl_res = None
             if (cOH_res>=cH_res):
@@ -1628,7 +1634,7 @@ class pymbe_library():
                 if(self_consistent_run<max_number_sc_runs):
                     self_consistent_run+=1
                     ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-                    cOH_res = KW / (cH_res * activity_coefficient_monovalent_pair(ionic_strength_res))
+                    cOH_res = self.Kw / (cH_res * activity_coefficient_monovalent_pair(ionic_strength_res))
                     if (cOH_res>=cH_res):
                         #adjust the concentration of sodium if there is excess OH- in the reservoir:
                         cNa_res = c_salt_res + (cOH_res-cH_res)
@@ -2450,7 +2456,7 @@ class pymbe_library():
                     self.add_value_to_df(key=('state_two','charge'),index=index,new_value=0)   
         return
     
-    def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None):
+    def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None, Kw=None):
         """
         Sets the set of reduced units used by pyMBE.units and it prints it.
 
@@ -2458,11 +2464,13 @@ class pymbe_library():
             unit_length (`obj`,optional): Reduced unit of length defined using the `pmb.units` UnitRegistry. Defaults to None. 
             unit_charge (`obj`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
             temperature (`obj`,optional): Temperature of the system, defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            Kw (`obj`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
 
         Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
             - If no `unit_length` is given, a value of 0.355 nm is assumed by default.
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
+            - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
         self.units=self.pint.UnitRegistry()
         if unit_length is None:
@@ -2471,10 +2479,13 @@ class pymbe_library():
             temperature=298.15 * self.units.K
         if unit_charge is None:
             unit_charge=self.units.e
+        if Kw is None:
+            Kw = 1e-14
         self.N_A=6.02214076e23 / self.units.mol
         self.Kb=1.38064852e-23 * self.units.J / self.units.K
         self.e=1.60217662e-19 *self.units.C
         self.kT=temperature*self.Kb
+        self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
         self.units.define(f'reduced_energy = {self.kT} ')
         self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = {unit_charge}')        

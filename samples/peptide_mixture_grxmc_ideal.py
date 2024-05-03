@@ -47,7 +47,7 @@ from lib.handy_functions import minimize_espresso_system_energy
 from lib.analysis import block_analyze
 
 # Simulation parameters
-pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
+pmb.set_reduced_units(unit_length=0.4*pmb.units.nm, Kw=1e-14)
 pH_range = np.linspace(2, 12, num=20)
 Samples_per_pH = 500
 MD_steps_per_sample = 0
