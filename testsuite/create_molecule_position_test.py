@@ -9,7 +9,6 @@ print(f"***create_molecule with input position list unit test ***")
 print(f"*** Unit test: Check that the positions of the central bead of the first residue in the generated molecules are equal to the input positions***")
 # Simulation parameters
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
-SEED = 100
 solvent_permitivity = 78.3
 N_molecules = 3
 molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L

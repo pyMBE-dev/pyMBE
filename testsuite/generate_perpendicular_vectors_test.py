@@ -40,7 +40,6 @@ print(f"*** Unit test: Check that the function creates perpendicular vectors to 
 vector = pmb.generate_random_points_in_a_sphere(center=[0,0,0],
                                                 radius=1, 
                                                 n_samples=1, 
-                                                seed=None, 
                                                 on_surface=True)[0]
 check_if_different_perpendicular_vectors_are_generated(vector=vector,
                                                     magnitude=1)
@@ -49,7 +48,6 @@ print(f"*** Unit test: Check that the function creates perpendicular vectors to 
 vector = pmb.generate_random_points_in_a_sphere(center=[1,2,3],
                                                 radius=1, 
                                                 n_samples=1, 
-                                                seed=None, 
                                                 on_surface=True)[0]
 check_if_different_perpendicular_vectors_are_generated(vector=vector,
                                                     magnitude=1)
@@ -58,7 +56,6 @@ print(f"*** Unit test: Check that the function creates perpendicular vectors wit
 vector = pmb.generate_random_points_in_a_sphere(center=[1,2,3],
                                                 radius=2, 
                                                 n_samples=1, 
-                                                seed=None, 
                                                 on_surface=True)[0]
 check_if_different_perpendicular_vectors_are_generated(vector=vector,
                                                         magnitude=3)

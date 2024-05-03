@@ -25,6 +25,7 @@ class pymbe_library():
     kT=None
     Kw=None
     SEED=None
+    rng=None
 
     def __init__(self, SEED, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
@@ -43,8 +44,9 @@ class pymbe_library():
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
             - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
-        # Seed for RNG
+        # Seed and RNG
         self.SEED=SEED
+        self.rng = self.np.random.default_rng(SEED)
         # Default definitions of reduced units
         if temperature is None:
             temperature= 298.15 * self.units.K
@@ -454,7 +456,9 @@ class pymbe_library():
             espresso_system(`obj`): Instance of a system object from the espressomd library.
         """
         center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
-        box_center = [espresso_system.box_l[0]/2.0]*3
+        box_center = [espresso_system.box_l[0]/2.0,
+                      espresso_system.box_l[1]/2.0,
+                      espresso_system.box_l[2]/2.0]
         pmb_type = self.df.loc[self.df['molecule_id']==molecule_id].pmb_type.values[0]
         pmb_objects = ['protein','molecule','peptide']
         if pmb_type in pmb_objects:
@@ -1761,7 +1765,7 @@ class pymbe_library():
                 counter += 1
         return coord_list
     
-    def generate_random_points_in_a_sphere(self, center, radius, n_samples, seed=None, on_surface=False):
+    def generate_random_points_in_a_sphere(self, center, radius, n_samples, on_surface=False):
         """
         Uniformly samples points from a hypersphere. If on_surface is set to True, the points are
         uniformly sampled from the surface of the hypersphere.
@@ -1770,7 +1774,6 @@ class pymbe_library():
             center(`lst`): Array with the coordinates of the center of the spheres.
             radius(`float`): Radius of the sphere.
             n_samples(`int`): Number of sample points to generate inside the sphere.
-            seed (`int`, optional): Seed for the random number generator.
             on_surface (`bool`, optional): If set to True, points will be uniformly sampled on the surface of the hypersphere.
 
         Returns:
@@ -1783,14 +1786,13 @@ class pymbe_library():
         center=self.np.array(center)
         d = center.shape[0]
         # sample n_samples points in d dimensions from a standard normal distribution
-        rng = self.np.random.default_rng(seed)
-        samples = rng.normal(size=(n_samples, d))
+        samples = self.rng.normal(size=(n_samples, d))
         # make the samples lie on the surface of the unit hypersphere
         normalize_radii = self.np.linalg.norm(samples, axis=1)[:, self.np.newaxis]
         samples /= normalize_radii
         if not on_surface:
             # make the samples lie inside the hypersphere with the correct density
-            uniform_points = rng.uniform(size=n_samples)[:, self.np.newaxis]
+            uniform_points = self.rng.uniform(size=n_samples)[:, self.np.newaxis]
             new_radii = self.np.power(uniform_points, 1/d)
             samples *= new_radii
         # scale the points to have the correct radius and center
