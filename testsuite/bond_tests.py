@@ -3,7 +3,7 @@ import pyMBE
 import numpy as np
         
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 def check_bond_setup(bond_object, input_parameters, bond_type):
         """

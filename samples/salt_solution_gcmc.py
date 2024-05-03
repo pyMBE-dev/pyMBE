@@ -19,7 +19,7 @@ import pyMBE
 from lib import analysis
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 import warnings
 
@@ -68,7 +68,6 @@ solvent_permittivity = 78.9
 # Integration parameters
 DT = 0.01
 LANGEVIN_SEED = 42
-REACTION_SEED = 42
 
 # Define salt
 cation_name = 'Na'
@@ -98,9 +97,9 @@ if args.mode == "interacting":
     ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/excess_chemical_potential.dat", unpack=True)
     excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
     activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
-    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, SEED=REACTION_SEED, activity_coefficient=activity_coefficient_monovalent_pair)
+    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, activity_coefficient=activity_coefficient_monovalent_pair)
 elif args.mode == "ideal":
-    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, SEED=REACTION_SEED)
+    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name)
 if verbose:
     print("Set up GCMC...")
 

@@ -4,7 +4,7 @@ import numpy as np
 import warnings
         
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 print("*** LJ unit tests ***")
 print(f"*** Unit test: check that all LJ input parameters in define_particle are correctly stored in pmb.df***")

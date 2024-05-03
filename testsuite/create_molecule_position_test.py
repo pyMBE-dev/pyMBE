@@ -3,7 +3,7 @@ import espressomd
 from espressomd import interactions
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 print(f"***create_molecule with input position list unit test ***")
 print(f"*** Unit test: Check that the positions of the central bead of the first residue in the generated molecules are equal to the input positions***")

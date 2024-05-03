@@ -24,8 +24,9 @@ class pymbe_library():
     df=None
     kT=None
     Kw=None
+    SEED=None
 
-    def __init__(self, temperature=None, unit_length=None, unit_charge=None, Kw=None):
+    def __init__(self, SEED, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
         Initializes the pymbe_library by setting up the reduced unit system with `temperature` and `reduced_length` 
         and sets up  the `pmb.df` for bookkeeping.
@@ -42,6 +43,8 @@ class pymbe_library():
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
             - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
+        # Seed for RNG
+        self.SEED=SEED
         # Default definitions of reduced units
         if temperature is None:
             temperature= 298.15 * self.units.K
@@ -2492,14 +2495,13 @@ class pymbe_library():
         self.print_reduced_units()
         return
 
-    def setup_cpH (self, counter_ion, constant_pH, SEED, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_cpH (self, counter_ion, constant_pH, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up the Acid/Base reactions for acidic/basic `particles` defined in `pmb.df` to be sampled in the constant pH ensemble. 
 
         Args:
             counter_ion(`str`): `name` of the counter_ion `particle`.
             constant_pH(`float`): pH-value.
-            SEED(`int`): Seed for the random number generator.
             exclusion_range(`float`, optional): Below this value, no particles will be inserted.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
@@ -2521,7 +2523,7 @@ class pymbe_library():
         
         RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     constant_pH=constant_pH,
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
@@ -2544,7 +2546,7 @@ class pymbe_library():
             sucessfull_reactions_labels.append(name)
         return RE, sucessfull_reactions_labels
 
-    def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, SEED, activity_coefficient=None, exclusion_range=None, use_exclusion_radius_per_type = False):
+    def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, activity_coefficient=None, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
         Sets up grand-canonical coupling to a reservoir of salt.
         For reactive systems coupled to a reservoir, the grand-reaction method has to be used instead.
@@ -2553,7 +2555,6 @@ class pymbe_library():
             c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
-            SEED ('int'): Seed for the random number generator.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`float`, optional): For distances shorter than this value, no particles will be inserted.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
@@ -2575,7 +2576,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 
@@ -2609,7 +2610,7 @@ class pymbe_library():
 
         return RE
 
-    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, SEED, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2624,7 +2625,6 @@ class pymbe_library():
             hydroxide_name ('str'): Name of the hydroxide (OH-) particle.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
-            SEED ('int'): Seed for the random number generator.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`float`, optional): For distances shorter than this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
@@ -2652,7 +2652,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 
@@ -2818,7 +2818,7 @@ class pymbe_library():
             sucessful_reactions_labels.append(name)
         return RE, sucessful_reactions_labels, ionic_strength_res
 
-    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, SEED, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2833,7 +2833,6 @@ class pymbe_library():
             c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             cation_name ('str'): Name of the cationic particle.
             anion_name ('str'): Name of the anionic particle.
-            SEED ('int'): Seed for the random number generator.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`float`, optional): Below this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
@@ -2861,7 +2860,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 

@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 # Input parameters
 

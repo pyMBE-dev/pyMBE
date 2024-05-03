@@ -14,7 +14,7 @@ from espressomd import electrostatics
 import pyMBE
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 import warnings
 
@@ -54,7 +54,7 @@ MD_steps_per_sample = 0
 steps_eq = int(Samples_per_pH)
 N_samples_print = 1000  # Write the trajectory every 100 samples
 probability_reaction =1
-SEED = 42
+LANGEVIN_SEED = 42
 dt = 0.001
 solvent_permitivity = 78.3
 
@@ -173,9 +173,9 @@ total_ionisible_groups = len (list_ionisible_groups)
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 
 if args.mode == 'standard':
-    RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, SEED=SEED)
+    RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name)
 elif args.mode == 'unified':
-    RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=2, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name, SEED=SEED)
+    RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=2, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name)
 print('The acid-base reaction has been sucessfully setup for ', sucessful_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
@@ -198,7 +198,7 @@ with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
 # Setup espresso to do langevin dynamics
 espresso_system.time_step= dt 
 espresso_system.integrator.set_vv()
-espresso_system.thermostat.set_langevin(kT=pmb.kT.to('reduced_energy').magnitude, gamma=0.1, seed=SEED)
+espresso_system.thermostat.set_langevin(kT=pmb.kT.to('reduced_energy').magnitude, gamma=0.1, seed=LANGEVIN_SEED)
 
 N_frame=0
 Z_pH=[] # List of the average global charge at each pH
@@ -224,9 +224,9 @@ for index in range(len(pH_range)):
         time_series[label]=[]
 
     if args.mode == 'standard':
-        RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, SEED=SEED)
+        RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name)
     elif args.mode == 'unified':
-        RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name, SEED=SEED)
+        RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name)
 
     # Inner loop for sampling each pH value
 

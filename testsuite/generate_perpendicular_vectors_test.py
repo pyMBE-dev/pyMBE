@@ -1,7 +1,7 @@
 import numpy as np
 import pyMBE
 from itertools import combinations
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 def check_if_different_perpendicular_vectors_are_generated(vector,magnitude,n=50):
     """
