@@ -455,6 +455,8 @@ class pymbe_library():
             molecule_id(`int`): Id of the molecule to be centered.
             espresso_system(`obj`): Instance of a system object from the espressomd library.
         """
+        if len(self.df.loc[self.df['molecule_id']==molecule_id].pmb_type) == 0:
+            raise ValueError("The provided molecule_id is not present in the pyMBE dataframe.")      
         center_of_mass = self.calculate_center_of_mass_of_molecule(molecule_id=molecule_id,espresso_system=espresso_system)
         box_center = [espresso_system.box_l[0]/2.0,
                       espresso_system.box_l[1]/2.0,

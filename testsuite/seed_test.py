@@ -6,7 +6,7 @@ import pyMBE
 
 espresso_system = espressomd.System(box_l = [100]*3)
 
-def run_peptide_simulation(SEED):
+def build_peptide_in_espresso(SEED):
     pmb = pyMBE.pymbe_library(SEED=SEED)
 
     # Simulation parameters
@@ -53,8 +53,8 @@ def run_peptide_simulation(SEED):
 
 
 print(f"*** Check that the using the same SEED results in the same initial particle positions***")
-positions1 = run_peptide_simulation(42)
-positions2= run_peptide_simulation(42)
+positions1 = build_peptide_in_espresso(42)
+positions2 = build_peptide_in_espresso(42)
 
 np.testing.assert_almost_equal(positions1, positions2)
 
