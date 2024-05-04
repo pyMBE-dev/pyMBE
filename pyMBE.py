@@ -24,8 +24,10 @@ class pymbe_library():
     df=None
     kT=None
     Kw=None
+    SEED=None
+    rng=None
 
-    def __init__(self, temperature=None, unit_length=None, unit_charge=None, Kw=None):
+    def __init__(self, SEED, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
         Initializes the pymbe_library by setting up the reduced unit system with `temperature` and `reduced_length` 
         and sets up  the `pmb.df` for bookkeeping.
@@ -42,6 +44,9 @@ class pymbe_library():
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
             - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
+        # Seed and RNG
+        self.SEED=SEED
+        self.rng = self.np.random.default_rng(SEED)
         # Default definitions of reduced units
         if temperature is None:
             temperature= 298.15 * self.units.K
@@ -199,10 +204,10 @@ class pymbe_library():
     
     def calculate_center_of_mass_of_molecule(self, molecule_id, espresso_system):
         """
-        Calculates the center of mass of type `name`.
+        Calculates the center of the molecule with a given molecule_id.
 
         Args:
-            molecule_id(`int`): Id of the molecule to be centered.
+            molecule_id(`int`): Id of the molecule whose center of mass is to be calculated.
             espresso_system(`obj`): Instance of a system object from the espressomd library.
         
         Returns:
@@ -290,7 +295,7 @@ class pymbe_library():
         Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.
 
         Args:
-            c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
+            c_macro ('dict'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
             c_salt ('float'): Salt concentration in the reservoir.
             pH_list ('lst'): List of pH-values in the reservoir. 
             pka_set ('dict'): {"name": {"pka_value": pka, "acidity": acidity}}.
@@ -450,15 +455,16 @@ class pymbe_library():
             molecule_id(`int`): Id of the molecule to be centered.
             espresso_system(`obj`): Instance of a system object from the espressomd library.
         """
-        center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
-        box_center = [espresso_system.box_l[0]/2.0]*3
-        pmb_type = self.df.loc[self.df['molecule_id']==molecule_id].pmb_type.values[0]
-        pmb_objects = ['protein','molecule','peptide']
-        if pmb_type in pmb_objects:
-            particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
-            for pid in particle_id_list:
-                es_pos = espresso_system.part.by_id(pid).pos
-                espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
+        if len(self.df.loc[self.df['molecule_id']==molecule_id].pmb_type) == 0:
+            raise ValueError("The provided molecule_id is not present in the pyMBE dataframe.")      
+        center_of_mass = self.calculate_center_of_mass_of_molecule(molecule_id=molecule_id,espresso_system=espresso_system)
+        box_center = [espresso_system.box_l[0]/2.0,
+                      espresso_system.box_l[1]/2.0,
+                      espresso_system.box_l[2]/2.0]
+        particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+        for pid in particle_id_list:
+            es_pos = espresso_system.part.by_id(pid).pos
+            espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
         return 
 
     def check_dimensionality(self, variable, expected_dimensionality):
@@ -795,112 +801,114 @@ class pymbe_library():
         return counterion_number
         
     def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, use_default_bond=False):
-            """
-            Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
+        """
+        Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
-            Args:
-                name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
-                espresso_system(`obj`): Instance of a system object from espressomd library.
-                number_of_molecules(`int`): Number of molecules of type `name` to be created.
-                list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default
-                use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
-            Returns:
-                molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
-            """
-            if list_of_first_residue_positions != None:
-                for item in list_of_first_residue_positions:
-                    if isinstance(item, list) == False:
-                        raise ValueError(f"The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
-                    elif len(item) != 3:
-                        raise ValueError(f"The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
+        Args:
+            name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
+            espresso_system(`obj`): Instance of a system object from espressomd library.
+            number_of_molecules(`int`): Number of molecules of type `name` to be created.
+            list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default
+            use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
+        Returns:
 
-                if len(list_of_first_residue_positions) != number_of_molecules:
-                                raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
-            if number_of_molecules <= 0:
-                return
-            if not self.check_if_name_is_defined_in_df(name=name,
-                                                        pmb_type_to_be_defined='molecule'):
-                raise ValueError(f"{name} must correspond to a label of a pmb_type='molecule' defined on df")
-            first_residue = True
-            molecule_info = []
-            residue_list = self.df[self.df['name']==name].residue_list.values [0]
+            molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
+        """
+        if list_of_first_residue_positions != None:
+            for item in list_of_first_residue_positions:
+                if isinstance(item, list) == False:
+                    raise ValueError(f"The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
+                elif len(item) != 3:
+                    raise ValueError(f"The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
 
-            self.copy_df_entry(name=name,
-                            column_name='molecule_id',
-                            number_of_copies=number_of_molecules)
-            
-            molecules_index = self.np.where(self.df['name']==name)
-            molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
-            used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
-            pos_index = 0 
-            for molecule_index in molecule_index_list:        
-                molecule_id = self.assign_molecule_id (name=name,pmb_type='molecule',used_molecules_id=used_molecules_id,molecule_index=molecule_index)
-                for residue in residue_list:
-                    if first_residue:
-                        if list_of_first_residue_positions == None:
-                            residue_position = None
-                        else:
-                            for item in list_of_first_residue_positions:
-                                residue_position = [self.np.array(list_of_first_residue_positions[pos_index])]
-                        # Generate an arbitrary random unit vector
-                        backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0], 
-                                                                    radius=1, 
-                                                                    n_samples=1,
-                                                                    on_surface=True)[0]
-                        residues_info = self.create_residue(name=residue,
-                                                            number_of_residues=1, 
-                                                            espresso_system=espresso_system, 
-                                                            central_bead_position=residue_position,  
-                                                            use_default_bond= use_default_bond, 
-                                                            backbone_vector=backbone_vector)
-                        residue_id = next(iter(residues_info))
-                        for index in self.df[self.df['residue_id']==residue_id].index:
+            if len(list_of_first_residue_positions) != number_of_molecules:
+                            raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
+        if number_of_molecules <= 0:
+            return
+        if not self.check_if_name_is_defined_in_df(name=name,
+                                                    pmb_type_to_be_defined='molecule'):
+            raise ValueError(f"{name} must correspond to a label of a pmb_type='molecule' defined on df")
+        first_residue = True
+        molecules_info = {}
+        residue_list = self.df[self.df['name']==name].residue_list.values [0]
+
+        self.copy_df_entry(name=name,
+                        column_name='molecule_id',
+                        number_of_copies=number_of_molecules)
+        
+        molecules_index = self.np.where(self.df['name']==name)
+        molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
+        used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
+        pos_index = 0 
+        for molecule_index in molecule_index_list:        
+            molecule_id = self.assign_molecule_id(name=name,pmb_type='molecule',used_molecules_id=used_molecules_id,molecule_index=molecule_index)
+            molecules_info[molecule_id] = {}
+            for residue in residue_list:
+                if first_residue:
+                    if list_of_first_residue_positions == None:
+                        residue_position = None
+                    else:
+                        for item in list_of_first_residue_positions:
+                            residue_position = [self.np.array(list_of_first_residue_positions[pos_index])]
+                    # Generate an arbitrary random unit vector
+                    backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0], 
+                                                                radius=1, 
+                                                                n_samples=1,
+                                                                on_surface=True)[0]
+                    residues_info = self.create_residue(name=residue,
+                                                        number_of_residues=1, 
+                                                        espresso_system=espresso_system, 
+                                                        central_bead_position=residue_position,  
+                                                        use_default_bond= use_default_bond, 
+                                                        backbone_vector=backbone_vector)
+                    residue_id = next(iter(residues_info))
+                    for index in self.df[self.df['residue_id']==residue_id].index:
+                        self.add_value_to_df(key=('molecule_id',''),
+                                            index=int (index),
+                                            new_value=molecule_id)
+                    central_bead_id = residues_info[residue_id]['central_bead_id']
+                    previous_residue = residue
+                    residue_position = espresso_system.part.by_id(central_bead_id).pos
+                    previous_residue_id = central_bead_id
+                    first_residue = False          
+                else:                    
+                    previous_central_bead_name=self.df[self.df['name']==previous_residue].central_bead.values[0]
+                    new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]       
+                    bond = self.search_bond(particle_name1=previous_central_bead_name, 
+                                            particle_name2=new_central_bead_name, 
+                                            hard_check=True, 
+                                            use_default_bond=use_default_bond)                
+                    l0 = self.get_bond_length(particle_name1=previous_central_bead_name, 
+                                            particle_name2=new_central_bead_name, 
+                                            hard_check=True, 
+                                            use_default_bond=use_default_bond)                
+                    residue_position = residue_position+backbone_vector*l0
+                    residues_info = self.create_residue(name=residue, 
+                                                        number_of_residues=1, 
+                                                        espresso_system=espresso_system, 
+                                                        central_bead_position=[residue_position],
+                                                        use_default_bond= use_default_bond, 
+                                                        backbone_vector=backbone_vector)
+                    residue_id = next(iter(residues_info))      
+                    for index in self.df[self.df['residue_id']==residue_id].index:
+                        if not self.check_if_df_cell_has_a_value(index=index,key=('molecule_id','')):
+                            self.df.at[index,'molecule_id'] = molecule_id
                             self.add_value_to_df(key=('molecule_id',''),
                                                 index=int (index),
-                                                new_value=molecule_id)
-                        central_bead_id = residues_info[residue_id]['central_bead_id']
-                        previous_residue = residue
-                        residue_position = espresso_system.part.by_id(central_bead_id).pos
-                        previous_residue_id = central_bead_id
-                        first_residue = False          
-                    else:                    
-                        previous_central_bead_name=self.df[self.df['name']==previous_residue].central_bead.values[0]
-                        new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]       
-                        bond = self.search_bond(particle_name1=previous_central_bead_name, 
-                                                particle_name2=new_central_bead_name, 
-                                                hard_check=True, 
-                                                use_default_bond=use_default_bond)                
-                        l0 = self.get_bond_length(particle_name1=previous_central_bead_name, 
-                                                particle_name2=new_central_bead_name, 
-                                                hard_check=True, 
-                                                use_default_bond=use_default_bond)                
-                        residue_position = residue_position+backbone_vector*l0
-                        residues_info = self.create_residue(name=residue, 
-                                                            number_of_residues=1, 
-                                                            espresso_system=espresso_system, 
-                                                            central_bead_position=[residue_position],
-                                                            use_default_bond= use_default_bond, 
-                                                            backbone_vector=backbone_vector)
-                        residue_id = next(iter(residues_info))      
-                        for index in self.df[self.df['residue_id']==residue_id].index:
-                            if not self.check_if_df_cell_has_a_value(index=index,key=('molecule_id','')):
-                                self.df.at[index,'molecule_id'] = molecule_id
-                                self.add_value_to_df(key=('molecule_id',''),
-                                                    index=int (index),
-                                                    new_value=molecule_id,
-                                                    warning=False)            
-                        central_bead_id = residues_info[residue_id]['central_bead_id']
-                        espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
-                        self.add_bond_in_df(particle_id1=central_bead_id,
-                                            particle_id2=previous_residue_id,
-                                            use_default_bond=use_default_bond)            
-                        previous_residue_id = central_bead_id
-                        previous_residue = residue                    
-                    molecule_info.append(residues_info)
-                first_residue = True
-                pos_index+=1
-            
-            return molecule_info
+                                                new_value=molecule_id,
+                                                warning=False)            
+                    central_bead_id = residues_info[residue_id]['central_bead_id']
+                    espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
+                    self.add_bond_in_df(particle_id1=central_bead_id,
+                                        particle_id2=previous_residue_id,
+                                        use_default_bond=use_default_bond)            
+                    previous_residue_id = central_bead_id
+                    previous_residue = residue                    
+                molecules_info[molecule_id][residue_id] = residues_info[residue_id]
+            first_residue = True
+            pos_index+=1
+        
+        return molecules_info
     
     def create_particle(self, name, espresso_system, number_of_particles, position=None, fix=False):
         """
@@ -933,7 +941,7 @@ class pymbe_library():
             df_index=int (index_list[index])
             self.clean_df_row(index=df_index)
             if position is None:
-                particle_position = self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
+                particle_position = self.rng.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
             else:
                 particle_position = position[index]
             if len(espresso_system.part.all()) == 0:
@@ -949,7 +957,7 @@ class pymbe_library():
             self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, warning=False)                  
         return created_pid_list
 
-    def create_pmb_object (self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
+    def create_pmb_object(self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
         """
         Creates all `particle`s associated to `pmb object` into  `espresso` a number of times equal to `number_of_objects`.
         
@@ -970,9 +978,9 @@ class pymbe_library():
         if pmb_type == 'particle':
             self.create_particle(name=name, number_of_particles=number_of_objects, espresso_system=espresso_system, position=position)
         elif pmb_type == 'residue':
-            self.create_residue(name=name,number_of_residues=number_of_objects, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
+            self.create_residue(name=name, number_of_residues=number_of_objects, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
         elif pmb_type == 'molecule':
-            self.create_molecule(name=name,number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, list_of_first_residue_positions=position)
+            self.create_molecule(name=name, number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, list_of_first_residue_positions=position)
         return
 
     def create_protein(self, name, number_of_proteins, espresso_system, topology_dict):
@@ -1758,7 +1766,7 @@ class pymbe_library():
                 counter += 1
         return coord_list
     
-    def generate_random_points_in_a_sphere(self, center, radius, n_samples, seed=None, on_surface=False):
+    def generate_random_points_in_a_sphere(self, center, radius, n_samples, on_surface=False):
         """
         Uniformly samples points from a hypersphere. If on_surface is set to True, the points are
         uniformly sampled from the surface of the hypersphere.
@@ -1767,7 +1775,6 @@ class pymbe_library():
             center(`lst`): Array with the coordinates of the center of the spheres.
             radius(`float`): Radius of the sphere.
             n_samples(`int`): Number of sample points to generate inside the sphere.
-            seed (`int`, optional): Seed for the random number generator.
             on_surface (`bool`, optional): If set to True, points will be uniformly sampled on the surface of the hypersphere.
 
         Returns:
@@ -1780,14 +1787,13 @@ class pymbe_library():
         center=self.np.array(center)
         d = center.shape[0]
         # sample n_samples points in d dimensions from a standard normal distribution
-        rng = self.np.random.default_rng(seed)
-        samples = rng.normal(size=(n_samples, d))
+        samples = self.rng.normal(size=(n_samples, d))
         # make the samples lie on the surface of the unit hypersphere
         normalize_radii = self.np.linalg.norm(samples, axis=1)[:, self.np.newaxis]
         samples /= normalize_radii
         if not on_surface:
             # make the samples lie inside the hypersphere with the correct density
-            uniform_points = rng.uniform(size=n_samples)[:, self.np.newaxis]
+            uniform_points = self.rng.uniform(size=n_samples)[:, self.np.newaxis]
             new_radii = self.np.power(uniform_points, 1/d)
             samples *= new_radii
         # scale the points to have the correct radius and center
@@ -2492,14 +2498,13 @@ class pymbe_library():
         self.print_reduced_units()
         return
 
-    def setup_cpH (self, counter_ion, constant_pH, SEED, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_cpH (self, counter_ion, constant_pH, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up the Acid/Base reactions for acidic/basic `particles` defined in `pmb.df` to be sampled in the constant pH ensemble. 
 
         Args:
             counter_ion(`str`): `name` of the counter_ion `particle`.
             constant_pH(`float`): pH-value.
-            SEED(`int`): Seed for the random number generator.
             exclusion_range(`float`, optional): Below this value, no particles will be inserted.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
@@ -2521,7 +2526,7 @@ class pymbe_library():
         
         RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     constant_pH=constant_pH,
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
@@ -2544,7 +2549,7 @@ class pymbe_library():
             sucessfull_reactions_labels.append(name)
         return RE, sucessfull_reactions_labels
 
-    def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, SEED, activity_coefficient=None, exclusion_range=None, use_exclusion_radius_per_type = False):
+    def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, activity_coefficient=None, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
         Sets up grand-canonical coupling to a reservoir of salt.
         For reactive systems coupled to a reservoir, the grand-reaction method has to be used instead.
@@ -2553,7 +2558,6 @@ class pymbe_library():
             c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
-            SEED ('int'): Seed for the random number generator.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`float`, optional): For distances shorter than this value, no particles will be inserted.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
@@ -2575,7 +2579,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 
@@ -2609,7 +2613,7 @@ class pymbe_library():
 
         return RE
 
-    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, SEED, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2624,7 +2628,6 @@ class pymbe_library():
             hydroxide_name ('str'): Name of the hydroxide (OH-) particle.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
-            SEED ('int'): Seed for the random number generator.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`float`, optional): For distances shorter than this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
@@ -2652,7 +2655,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 
@@ -2818,7 +2821,7 @@ class pymbe_library():
             sucessful_reactions_labels.append(name)
         return RE, sucessful_reactions_labels, ionic_strength_res
 
-    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, SEED, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2833,7 +2836,6 @@ class pymbe_library():
             c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             cation_name ('str'): Name of the cationic particle.
             anion_name ('str'): Name of the anionic particle.
-            SEED ('int'): Seed for the random number generator.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`float`, optional): Below this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
@@ -2861,7 +2863,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 

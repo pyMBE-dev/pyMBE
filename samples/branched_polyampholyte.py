@@ -14,7 +14,7 @@ import pyMBE
 
 # Create an instance of pyMBE library
 
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 # Command line arguments
 parser = argparse.ArgumentParser(description='Script that runs a Monte Carlo simulation of an ideal branched polyampholyte using pyMBE and ESPResSo.')
@@ -41,7 +41,7 @@ MD_steps_per_sample = 1000
 steps_eq = int(Samples_per_pH/3)
 N_samples_print = 10  # Write the trajectory every 100 samples
 probability_reaction =0.5 
-SEED = 100
+LANGEVIN_SEED = 100
 dt = 0.001
 solvent_permitivity = 78.3
 N_polyampholyte_chains = 5
@@ -143,7 +143,7 @@ print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 print('The polyampholyte concentration in your system is ', calculated_polyampholyte_concentration.to('mol/L') , 'with', N_polyampholyte_chains, 'molecules')
 print('The ionisable groups in your polyampholyte are ', list_ionisible_groups)
 
-RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=2, SEED=SEED)
+RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=2)
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups 
@@ -159,7 +159,7 @@ print('The non interacting type is set to ', non_interacting_type)
 #Setup Langevin
 setup_langevin_dynamics(espresso_system=espresso_system, 
                                     kT = pmb.kT, 
-                                    SEED = SEED,
+                                    SEED = LANGEVIN_SEED,
                                     time_step=dt,
                                     tune_skin=False)
 

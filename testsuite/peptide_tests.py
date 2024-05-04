@@ -50,7 +50,7 @@ def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol,mode="test"):
         raise RuntimeError
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 script_path=pmb.get_resource(f"samples/Beyer2024/peptide.py")
 test_pH_values=[3,7,11]

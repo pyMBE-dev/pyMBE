@@ -6,7 +6,7 @@ from pandas.testing import assert_frame_equal
 
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 print ('*** Unit tests: read and write from pyMBE dataframe ***')
 

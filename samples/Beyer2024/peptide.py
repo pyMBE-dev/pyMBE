@@ -17,7 +17,7 @@ from lib import analysis
 from lib import handy_functions as hf
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 valid_modes=["short-run","long-run", "test"]
 parser = argparse.ArgumentParser(description='Script to run the peptide test cases for pyMBE')
@@ -51,7 +51,7 @@ verbose=args.no_verbose
 if mode not in valid_modes:
     raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
-SEED = 100
+LANGEVIN_SEED = 100
 dt = 0.01
 solvent_permitivity = 78.3
 pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
@@ -152,8 +152,7 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                     verbose=verbose)
 
 RE, successful_reactions_labels = pmb.setup_cpH(counter_ion=cation_name,
-                                                constant_pH=pH,
-                                                SEED=SEED)
+                                                constant_pH=pH)
 
 if verbose:
     print(f"The box length of your system is {L.to('reduced_length')} = {L.to('nm')}")
@@ -184,7 +183,7 @@ hf.minimize_espresso_system_energy (espresso_system=espresso_system,
 
 hf.setup_langevin_dynamics(espresso_system=espresso_system,
                             kT = pmb.kT,
-                            SEED = SEED,
+                            SEED = LANGEVIN_SEED,
                             time_step=dt,
                             tune_skin=False)
 

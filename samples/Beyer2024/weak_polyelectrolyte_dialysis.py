@@ -21,7 +21,7 @@ import pyMBE
 from lib import analysis
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 # Load some functions from the handy_scripts library for convinience
 from lib.handy_functions import setup_electrostatic_interactions
@@ -80,7 +80,6 @@ solvent_permittivity = 78.9
 # Integration parameters
 DT = 0.01
 LANGEVIN_SEED = 42
-REACTION_SEED = 42
 
 # Parameters of the polyacid model
 Chain_length = 50
@@ -156,7 +155,7 @@ excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(io
 activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
 if verbose:
     print("Setting up reactions...")
-RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, c_salt_res=c_salt_res, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, SEED=REACTION_SEED, activity_coefficient=activity_coefficient_monovalent_pair, pka_set=pka_set)
+RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, c_salt_res=c_salt_res, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, activity_coefficient=activity_coefficient_monovalent_pair, pka_set=pka_set)
 if verbose:
     print('The acid-base reaction has been sucessfully set up for ', sucessful_reactions_labels)
 

@@ -3,15 +3,15 @@ import espressomd
 from espressomd import interactions
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 print(f"***create_molecule with input position list unit test ***")
 print(f"*** Unit test: Check that the positions of the central bead of the first residue in the generated molecules are equal to the input positions***")
 # Simulation parameters
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
-SEED = 100
 solvent_permitivity = 78.3
 N_molecules = 3
+chain_length = 5
 molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
@@ -41,9 +41,9 @@ harmonic_bond = {'r_0'    : generic_bond_lenght,
 
 pmb.define_default_bond(bond_type = bond_type, bond_parameters = harmonic_bond)
 
-# Defines the peptine in the pyMBE data frame
+# Defines the peptide in the pyMBE data frame
 molecule_name = 'generic_molecule'
-pmb.define_molecule (name=molecule_name, residue_list = ['res1'])
+pmb.define_molecule(name=molecule_name, residue_list = ['res1']*chain_length)
 
 # Solution parameters
 cation_name = 'Na'
@@ -59,27 +59,51 @@ L = volume ** (1./3.) # Side of the simulation box
 calculated_peptide_concentration = N_molecules/(volume*pmb.N_A)
 
 # Create an instance of an espresso system
-espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
+espresso_system=espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
 
 # Add all bonds to espresso system
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
-molecule = pmb.create_molecule(name=molecule_name,
+molecules = pmb.create_molecule(name=molecule_name,
                         number_of_molecules= N_molecules,
                         espresso_system=espresso_system,
                         use_default_bond=True,
                         list_of_first_residue_positions = pos_list)
 
-###Running unit test here. Use np.testing.assert_almost_equal of the input position list and the central_bead_pos list under here.
+# Running unit test here. Use np.testing.assert_almost_equal of the input position list and the central_bead_pos list under here.
 central_bead_pos = []
-for molecule_map in molecule:
-            for molecule_id, info in molecule_map.items():
-                central_bead_id = info['central_bead_id']
-                side_chain_ids = info['side_chain_ids']
-                central_bead_pos.append(espresso_system.part.by_id(central_bead_id).pos.tolist())
-
+for molecule_id in molecules:
+    info = next(iter(molecules[molecule_id].values()))
+    central_bead_id = info['central_bead_id']
+    side_chain_ids = info['side_chain_ids']
+    central_bead_pos.append(espresso_system.part.by_id(central_bead_id).pos.tolist())
 
 np.testing.assert_almost_equal(pos_list, central_bead_pos)
+
+print(f"*** Unit test passed ***\n")
+
+
+print(f"*** Unit test: Check that center_molecule_in_simulation_box works correctly for cubic boxes***")
+
+molecule_id = pmb.df.loc[pmb.df['name']==molecule_name].molecule_id.values[0]
+pmb.center_molecule_in_simulation_box(molecule_id=molecule_id, espresso_system=espresso_system)
+center_of_mass = pmb.calculate_center_of_mass_of_molecule(molecule_id=molecule_id, espresso_system=espresso_system)
+center_of_mass_ref = [L.to('reduced_length').magnitude/2]*3
+
+np.testing.assert_almost_equal(center_of_mass, center_of_mass_ref)
+
+print(f"*** Unit test passed ***\n")
+
+
+print(f"*** Unit test: Check that center_molecule_in_simulation_box works correctly for non-cubic boxes***")
+
+espresso_system.change_volume_and_rescale_particles(d_new=3*L.to('reduced_length').magnitude, dir="z")
+molecule_id = pmb.df.loc[pmb.df['name']==molecule_name].molecule_id.values[2]
+pmb.center_molecule_in_simulation_box(molecule_id=molecule_id, espresso_system=espresso_system)
+center_of_mass = pmb.calculate_center_of_mass_of_molecule(molecule_id=molecule_id, espresso_system=espresso_system)
+center_of_mass_ref = [L.to('reduced_length').magnitude/2, L.to('reduced_length').magnitude/2, 1.5*L.to('reduced_length').magnitude]
+
+np.testing.assert_almost_equal(center_of_mass, center_of_mass_ref)
 
 print(f"*** Unit test passed ***")
