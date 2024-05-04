@@ -939,7 +939,7 @@ class pymbe_library():
             df_index=int (index_list[index])
             self.clean_df_row(index=df_index)
             if position is None:
-                particle_position = self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
+                particle_position = self.rng.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
             else:
                 particle_position = position[index]
             if len(espresso_system.part.all()) == 0:
@@ -955,7 +955,7 @@ class pymbe_library():
             self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, warning=False)                  
         return created_pid_list
 
-    def create_pmb_object (self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
+    def create_pmb_object(self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
         """
         Creates all `particle`s associated to `pmb object` into  `espresso` a number of times equal to `number_of_objects`.
         
@@ -976,9 +976,9 @@ class pymbe_library():
         if pmb_type == 'particle':
             self.create_particle(name=name, number_of_particles=number_of_objects, espresso_system=espresso_system, position=position)
         elif pmb_type == 'residue':
-            self.create_residue(name=name,number_of_residues=number_of_objects, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
+            self.create_residue(name=name, number_of_residues=number_of_objects, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
         elif pmb_type == 'molecule':
-            self.create_molecule(name=name,number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, list_of_first_residue_positions=position)
+            self.create_molecule(name=name, number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, list_of_first_residue_positions=position)
         return
 
     def create_protein(self, name, number_of_proteins, espresso_system, topology_dict):

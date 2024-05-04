@@ -88,7 +88,7 @@ pmb.define_default_bond(bond_type = 'harmonic',
                         bond_parameters = HARMONIC_parameters)
 
 
-# Defines the peptine in the pyMBE data frame
+# Defines the peptide in the pyMBE data frame
 peptide_name = 'generic_peptide'
 pmb.define_peptide (name=peptide_name, sequence=sequence, model=model)
 
