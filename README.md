@@ -159,3 +159,21 @@ folder and a corresponding line in the `testsuite` target of the Makefile.
 
 Every contribution is automatically tested in CI using EESSI (https://www.eessi.io)
 and the [EESSI GitHub Action](https://github.com/marketplace/actions/eessi).
+
+## References
+
+Check out the corresponding [preprint](https://doi.org/10.48550/arXiv.2401.14954) to learn more about pyMBE.
+If you use pyMBE in your research, make sure to cite the preprint:
+
+```bibtex
+@article{beyer2024pymbe,
+  title={pyMBE: the Python-based Molecule Builder for ESPResSo},
+  author={Beyer, David and Torres, Paola B and Pineda, Sebastian P and Narambuena, Claudio F and Grad, Jean-No{\"e}l and Ko{\v{s}}ovan, Peter and Blanco, Pablo M},
+  journal={arXiv preprint arXiv:2401.14954},
+  year={2024},
+  doi={10.48550/arXiv.2401.14954}
+}
+```
+
+Also make sure to properly cite the corresponding papers if you use the $\mathrm{p}K_{\mathrm{A}}$-sets or interaction parameters provided in the `parameters/` folder.
+The relevant references are provided as comments in the corresponding files.
