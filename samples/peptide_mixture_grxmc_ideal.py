@@ -80,7 +80,7 @@ if args.test:
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 # Note that this parameterization only includes some of the natural aminoacids
 # For the other aminoacids the user needs to use  a parametrization including all the aminoacids in the peptide sequence
-path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.txt")
+path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
 path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
 
 

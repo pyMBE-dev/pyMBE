@@ -14,7 +14,7 @@ c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 model = '1beadAA' 
 
 # Load pKa-values
-path_to_pka=pmb.get_resource("parameters/pka_sets/Nozaki1967.txt")
+path_to_pka=pmb.get_resource("parameters/pka_sets/Nozaki1967.json")
 pmb.load_pka_set(path_to_pka)
 
 # Define the peptides in the pyMBE data frame

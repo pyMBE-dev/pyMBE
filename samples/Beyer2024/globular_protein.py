@@ -156,7 +156,7 @@ pmb.define_particle(name = cation_name, q = 1, sigma=0.4*pmb.units.nm, epsilon=e
 pmb.define_particle(name = anion_name,  q =-1, sigma=0.4*pmb.units.nm, epsilon=epsilon)
 
 # Here we upload the pka set from the reference_parameters folder
-path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.txt') 
+path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.json') 
 pmb.load_pka_set (filename=path_to_pka)
 
 #We create the protein in espresso 

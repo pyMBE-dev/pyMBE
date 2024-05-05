@@ -2089,7 +2089,7 @@ class pymbe_library():
                     print('Added: '+line)
         return
     
-    def load_pka_set(self,filename, verbose=False):
+    def load_pka_set(self, filename, verbose=False):
         """
         Loads the pka_set stored in `filename` into `pmb.df`.
         
@@ -2100,21 +2100,19 @@ class pymbe_library():
         Note:
             - If `name` is already defined in the `pymbe.df`, it prints a warning.
         """
-        pKa_list=[]
-        with open(filename) as f:
-            for line in f:
-                if line[0] == '#':
-                    continue
-                param_dict=self.json.loads(line)
-                pKa_list.append(param_dict)    
-                if verbose:
-                    print('Added: '+line)
-        for pka_set in pKa_list:            
-            self.check_pka_set(pka_set=pka_set)
-            for pka_key in pka_set: 
-                acidity =   pka_set[pka_key]['acidity']        
-                pka_value = pka_set[pka_key]['pka_value']     
-                self.define_particle(name=pka_key,acidity=acidity, pka=pka_value)
+        with open(filename, 'r') as f:
+            pka_data = self.json.load(f)
+            pka_set = pka_data["data"]
+
+        self.check_pka_set(pka_set=pka_set)
+
+        for key in pka_set:
+            acidity = pka_set[key]['acidity']
+            pka_value = pka_set[key]['pka_value']
+            self.define_particle(
+                    name=key,
+                    acidity=acidity, 
+                    pka=pka_value)
         return
 
     def parse_sequence_from_file(self,sequence):

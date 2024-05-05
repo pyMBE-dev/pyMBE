@@ -68,9 +68,9 @@ if sequence not in valid_sequences:
 if sequence in Lunkad_test_sequences:
     print(sequence)
     path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
-    path_to_pka=pmb.get_resource("parameters/pka_sets/CRC1991.txt")
+    path_to_pka=pmb.get_resource("parameters/pka_sets/CRC1991.json")
     pmb.load_interaction_parameters(filename=path_to_interactions)
-    pmb.load_pka_set (filename=path_to_pka)
+    pmb.load_pka_set(filename=path_to_pka)
     model = '2beadAA'  # Model with 2 beads per each aminoacid
     N_peptide_chains = 4
     sigma_cation=0.35*pmb.units.nm
@@ -80,7 +80,7 @@ if sequence in Lunkad_test_sequences:
 
 elif sequence in Blanco_test_sequence:
     pmb.load_interaction_parameters (pmb.get_resource(path='parameters/peptides/Blanco2020.txt'))
-    pmb.load_pka_set (pmb.get_resource(path='parameters/pka_sets/Nozaki1967.txt'))
+    pmb.load_pka_set (pmb.get_resource(path='parameters/pka_sets/Nozaki1967.json'))
     model = '1beadAA'
     N_peptide_chains = 1
     c_salt = 5e-3 * pmb.units.mol/ pmb.units.L
