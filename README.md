@@ -163,7 +163,7 @@ and the [EESSI GitHub Action](https://github.com/marketplace/actions/eessi).
 ## References
 
 Check out the corresponding [preprint](https://doi.org/10.48550/arXiv.2401.14954) to learn more about pyMBE.
-If you use pyMBE in your research, make sure to cite the preprint:
+If you use pyMBE in your research, please cite our preprint:
 
 ```bibtex
 @article{beyer2024pymbe,
@@ -175,5 +175,5 @@ If you use pyMBE in your research, make sure to cite the preprint:
 }
 ```
 
-Also make sure to properly cite the corresponding papers if you use the $\mathrm{p}K_{\mathrm{A}}$-sets or interaction parameters provided in the `parameters/` folder.
+Please also make sure to properly cite the original authors if you use the resources provided in the `parameters/` folder.
 The relevant references are provided as comments in the corresponding files.
