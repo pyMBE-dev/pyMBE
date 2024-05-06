@@ -154,7 +154,7 @@ if plot:
         pmb.load_pka_set (filename=pka_path)
         # FIXME: this is only necessary due to an undesired feature in calculate_HH
         # that forces to have all particles defined in pyMBE
-        par_path=pmb.get_resource("parameters/peptides/Blanco2020.txt")
+        par_path=pmb.get_resource("parameters/peptides/Blanco2021.json")
         pmb.load_interaction_parameters(par_path)
 
     # Load ref data    

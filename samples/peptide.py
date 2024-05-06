@@ -46,7 +46,7 @@ N_peptide_chains = 4
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
+path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
 path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
 pmb.load_interaction_parameters (filename=path_to_interactions) 
 pmb.load_pka_set (path_to_pka)

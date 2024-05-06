@@ -2026,67 +2026,69 @@ class pymbe_library():
         from espressomd import interactions
         without_units = ['q','es_type','acidity']
         with_units = ['sigma','epsilon']
-        with open(filename) as f:
-            for line in f:
-                if line[0] == '#':
-                    continue
-                param_dict=self.json.loads(line)
-                object_type=param_dict['object_type']
-                if object_type == 'particle':
-                    not_requiered_attributes={}    
-                    for not_requiered_key in without_units+with_units:
-                        if not_requiered_key in param_dict.keys():
-                            if not_requiered_key in with_units:
-                                not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable=param_dict.pop(not_requiered_key))
-                            elif not_requiered_key in without_units:
-                                not_requiered_attributes[not_requiered_key]=param_dict.pop(not_requiered_key)
-                        else:
-                            if not_requiered_key == 'acidity':
-                                not_requiered_attributes[not_requiered_key] = 'inert'
-                            else:    
-                                not_requiered_attributes[not_requiered_key]=None
-                    self.define_particle(name=param_dict.pop('name'),
-                                    q=not_requiered_attributes.pop('q'),
-                                    sigma=not_requiered_attributes.pop('sigma'),
-                                    acidity=not_requiered_attributes.pop('acidity'),
-                                    epsilon=not_requiered_attributes.pop('epsilon'))
-                elif object_type == 'residue':
-                    self.define_residue (name = param_dict.pop('name'),
-                                        central_bead = param_dict.pop('central_bead_name'),
-                                        side_chains = param_dict.pop('side_chains_names'))
-                elif object_type == 'molecule':
-                    self.define_molecule(name=param_dict.pop('name'),
-                                        residue_list=param_dict.pop('residue_name_list'))
-                elif object_type == 'peptide':
-                    self.define_peptide(name=param_dict.pop('name'),
-                                        sequence=param_dict.pop('sequence'),
-                                        model=param_dict.pop('model'))
-                elif object_type == 'bond':
-                    particle_pairs = param_dict.pop('particle_pairs')
-                    bond_parameters = param_dict.pop('bond_parameters')
-                    bond_type = param_dict.pop('bond_type')
-                    if bond_type == 'harmonic':
-                        k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
-                        r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
-                        bond = {'r_0'    : r_0,
-                                'k'      : k,
-                                }
 
-                    elif bond_type == 'FENE':
-                        k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
-                        r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
-                        d_r_max = self.create_variable_with_units(variable=bond_parameters.pop('d_r_max'))
-                        bond =  {'r_0'    : r_0,
-                                 'k'      : k,
-                                 'd_r_max': d_r_max,
-                                 }
+        with open(filename, 'r') as f:
+            interaction_data = self.json.load(f)
+            interaction_parameter_set = interaction_data["data"]
+
+        for key in interaction_parameter_set:
+            param_dict=interaction_parameter_set[key]
+            object_type=param_dict['object_type']
+            if object_type == 'particle':
+                not_requiered_attributes={}    
+                for not_requiered_key in without_units+with_units:
+                    if not_requiered_key in param_dict.keys():
+                        if not_requiered_key in with_units:
+                            not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable=param_dict.pop(not_requiered_key))
+                        elif not_requiered_key in without_units:
+                            not_requiered_attributes[not_requiered_key]=param_dict.pop(not_requiered_key)
                     else:
-                        raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
-                    self.define_bond(bond_type=bond_type, bond_parameters=bond, particle_pairs=particle_pairs)
+                        if not_requiered_key == 'acidity':
+                            not_requiered_attributes[not_requiered_key] = 'inert'
+                        else:    
+                            not_requiered_attributes[not_requiered_key]=None
+                self.define_particle(name=param_dict.pop('name'),
+                                q=not_requiered_attributes.pop('q'),
+                                sigma=not_requiered_attributes.pop('sigma'),
+                                acidity=not_requiered_attributes.pop('acidity'),
+                                epsilon=not_requiered_attributes.pop('epsilon'))
+            elif object_type == 'residue':
+                self.define_residue (name = param_dict.pop('name'),
+                                    central_bead = param_dict.pop('central_bead_name'),
+                                    side_chains = param_dict.pop('side_chains_names'))
+            elif object_type == 'molecule':
+                self.define_molecule(name=param_dict.pop('name'),
+                                    residue_list=param_dict.pop('residue_name_list'))
+            elif object_type == 'peptide':
+                self.define_peptide(name=param_dict.pop('name'),
+                                    sequence=param_dict.pop('sequence'),
+                                    model=param_dict.pop('model'))
+            elif object_type == 'bond':
+                particle_pairs = param_dict.pop('particle_pairs')
+                bond_parameters = param_dict.pop('bond_parameters')
+                bond_type = param_dict.pop('bond_type')
+                if bond_type == 'harmonic':
+                    k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
+                    r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
+                    bond = {'r_0'    : r_0,
+                            'k'      : k,
+                            }
+
+                elif bond_type == 'FENE':
+                    k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
+                    r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
+                    d_r_max = self.create_variable_with_units(variable=bond_parameters.pop('d_r_max'))
+                    bond =  {'r_0'    : r_0,
+                             'k'      : k,
+                             'd_r_max': d_r_max,
+                             }
                 else:
-                    raise ValueError(object_type+' is not a known pmb object type')
-                if verbose:
-                    print('Added: '+line)
+                    raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
+                self.define_bond(bond_type=bond_type, bond_parameters=bond, particle_pairs=particle_pairs)
+            else:
+                raise ValueError(object_type+' is not a known pmb object type')
+            if verbose:
+                print('Added: '+line)
         return
     
     def load_pka_set(self, filename, verbose=False):
