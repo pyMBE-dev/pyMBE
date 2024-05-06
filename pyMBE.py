@@ -1988,7 +1988,7 @@ class pymbe_library():
             path(`str`): Relative path to the resource
 
         Returns:
-            path(`int`): Absolute path to the resource
+            path(`str`): Absolute path to the resource
 
         '''
         import os
