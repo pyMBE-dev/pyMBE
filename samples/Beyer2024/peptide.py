@@ -66,7 +66,6 @@ if sequence not in valid_sequences:
     raise ValueError(f"ERROR: the only valid peptide sequence for this test script are {valid_sequences}")
 
 if sequence in Lunkad_test_sequences:
-    print(sequence)
     path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
     path_to_pka=pmb.get_resource("parameters/pka_sets/CRC1991.json")
     pmb.load_interaction_parameters(filename=path_to_interactions)

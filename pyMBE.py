@@ -141,14 +141,14 @@ class pymbe_library():
         
         return
 
-    def add_value_to_df(self,index,key,new_value, warning=True):
+    def add_value_to_df(self,index,key,new_value, verbose=True):
         """
         Adds a value to a cell in the `pmb.df` DataFrame.
 
         Args:
             index(`int`): index of the row to add the value to.
             key(`str`): the column label to add the value to.
-            warning(`bool`, optional): If true, prints a warning if a value is being overwritten in `pmb.df`. Defaults to true.
+            verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
         """
         # Make sure index is a scalar integer value
         index = int (index)
@@ -156,7 +156,7 @@ class pymbe_library():
         idx = self.pd.IndexSlice
         if self.check_if_df_cell_has_a_value(index=index,key=key):
             old_value= self.df.loc[index,idx[key]]
-            if warning:
+            if verbose:
                 if old_value != new_value:
                     name=self.df.loc[index,('name','')]
                     pmb_type=self.df.loc[index,('pmb_type','')]
@@ -198,7 +198,7 @@ class pymbe_library():
         self.add_value_to_df (key=('molecule_id',''),
                                 index=int(molecule_index),
                                 new_value=molecule_id, 
-                                warning=False)
+                                verbose=False)
 
         return molecule_id
     
@@ -547,7 +547,7 @@ class pymbe_library():
             columns_keys_to_clean(`list` of `str`, optional): List with the column keys to be cleaned. Defaults to [`particle_id`, `particle_id2`, `residue_id`, `molecule_id`].
         """   
         for column_key in columns_keys_to_clean:
-            self.add_value_to_df(key=(column_key,''),index=index,new_value=self.np.nan, warning=False)
+            self.add_value_to_df(key=(column_key,''),index=index,new_value=self.np.nan, verbose=False)
         return
 
     def convert_columns_to_original_format (self, df):
@@ -896,7 +896,7 @@ class pymbe_library():
                             self.add_value_to_df(key=('molecule_id',''),
                                                 index=int (index),
                                                 new_value=molecule_id,
-                                                warning=False)            
+                                                verbose=False)            
                     central_bead_id = residues_info[residue_id]['central_bead_id']
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
                     self.add_bond_in_df(particle_id1=central_bead_id,
@@ -954,7 +954,7 @@ class pymbe_library():
                 espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q,fix =[fix,fix,fix])        
             else:
                 espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q)        
-            self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, warning=False)                  
+            self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, verbose=False)                  
         return created_pid_list
 
     def create_pmb_object(self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
@@ -1078,7 +1078,7 @@ class pymbe_library():
                 residue_id=0
             else:
                 residue_id = self.df['residue_id'].max() + 1
-            self.add_value_to_df(key=('residue_id',''),index=int (residue_index),new_value=residue_id, warning=False)
+            self.add_value_to_df(key=('residue_id',''),index=int (residue_index),new_value=residue_id, verbose=False)
             # create the principal bead
             if self.df.loc[self.df['name']==name].central_bead.values[0] is self.np.NaN:
                 raise ValueError("central_bead must contain a particle name")        
@@ -1128,7 +1128,7 @@ class pymbe_library():
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int (index),
                                         new_value=residue_id, 
-                                        warning=False)
+                                        verbose=False)
                     side_chain_beads_ids.append(side_bead_id)
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, side_bead_id))
                     self.add_bond_in_df(particle_id1=central_bead_id,
@@ -1163,7 +1163,7 @@ class pymbe_library():
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int(index),
                                         new_value=residue_id, 
-                                        warning=False)
+                                        verbose=False)
                     # Change the residue_id of the particles in the residue in the side chain
                     side_chain_beads_ids+=[central_bead_side_chain_id]+lateral_beads_side_chain_ids
                     for particle_id in side_chain_beads_ids:
@@ -1171,7 +1171,7 @@ class pymbe_library():
                         self.add_value_to_df(key=('residue_id',''),
                                             index=int (index),
                                             new_value=residue_id, 
-                                            warning=False)
+                                            verbose=False)
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, central_bead_side_chain_id))
                     self.add_bond_in_df(particle_id1=central_bead_id,
                                         particle_id2=central_bead_side_chain_id,
@@ -1395,7 +1395,7 @@ class pymbe_library():
         self.df.at [index,('residue_list','')] = residue_list
         return
 
-    def define_particle(self, name, q=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None):
+    def define_particle(self, name, q=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None,verbose=True):
         """
         Defines the properties of a particle object.
 
@@ -1405,9 +1405,10 @@ class pymbe_library():
             acidity (`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
             pka (`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
             sigma (`pint.Quantity`, optional): Sigma parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
-            cutoff (`pint.Quantity`, optional): cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
-            offset (`pint.Quantity`, optional): offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            cutoff (`pint.Quantity`, optional): Cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            offset (`pint.Quantity`, optional): Offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
             epsilon (`pint.Quantity`, optional): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe. Defaults to None.
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - `sigma`, `cutoff` and `offset` must have a dimensitonality of `[length]` and should be defined using pmb.units.
@@ -1444,13 +1445,15 @@ class pymbe_library():
                                           expected_dimensionality=parameters_with_dimensionality[parameter_key]["dimensionality"])
                 self.add_value_to_df(key=(parameter_key,''),
                                     index=index,
-                                    new_value=parameters_with_dimensionality[parameter_key]["value"])
+                                    new_value=parameters_with_dimensionality[parameter_key]["value"],
+                                    verbose=verbose)
 
         # Define particle acid/base properties
         self.set_particle_acidity (name=name, 
                                 acidity = acidity , 
                                 default_charge=q, 
-                                pka=pka)
+                                pka=pka,
+                                verbose=verbose)
         return 
     
     def define_particles_parameter_from_dict(self, param_dict, param_name):
@@ -2015,13 +2018,13 @@ class pymbe_library():
         type_map  = self.pd.concat([state_one,state_two],axis=0).to_dict()
         return type_map
 
-    def load_interaction_parameters(self, filename, verbose=False):
+    def load_interaction_parameters(self, filename, verbose=True):
         """
         Loads the interaction parameters stored in `filename` into `pmb.df`
         
         Args:
             filename(`str`): name of the file to be read
-            verbose(`bool`): switches on/off the reading prints
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
         """
         from espressomd import interactions
         without_units = ['q','es_type','acidity']
@@ -2051,7 +2054,8 @@ class pymbe_library():
                                 q=not_requiered_attributes.pop('q'),
                                 sigma=not_requiered_attributes.pop('sigma'),
                                 acidity=not_requiered_attributes.pop('acidity'),
-                                epsilon=not_requiered_attributes.pop('epsilon'))
+                                epsilon=not_requiered_attributes.pop('epsilon'),
+                                verbose=verbose)
             elif object_type == 'residue':
                 self.define_residue (name = param_dict.pop('name'),
                                     central_bead = param_dict.pop('central_bead_name'),
@@ -2087,17 +2091,16 @@ class pymbe_library():
                 self.define_bond(bond_type=bond_type, bond_parameters=bond, particle_pairs=particle_pairs)
             else:
                 raise ValueError(object_type+' is not a known pmb object type')
-            if verbose:
-                print('Added: '+line)
+            
         return
     
-    def load_pka_set(self, filename, verbose=False):
+    def load_pka_set(self, filename, verbose=True):
         """
         Loads the pka_set stored in `filename` into `pmb.df`.
         
         Args:
             filename(`str`): name of the file with the pka set to be loaded. Expected format is {name:{"acidity": acidity, "pka_value":pka_value}}.
-            verbose(`bool`, optional): If activated, the function reports each pKa value loaded. Defaults to False
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - If `name` is already defined in the `pymbe.df`, it prints a warning.
@@ -2114,7 +2117,8 @@ class pymbe_library():
             self.define_particle(
                     name=key,
                     acidity=acidity, 
-                    pka=pka_value)
+                    pka=pka_value,
+                    verbose=verbose)
         return
 
     def parse_sequence_from_file(self,sequence):
@@ -2423,7 +2427,7 @@ class pymbe_library():
 
         return list_of_particles_in_residue
 
-    def set_particle_acidity(self, name, acidity='inert', default_charge=0, pka=None):
+    def set_particle_acidity(self, name, acidity='inert', default_charge=0, pka=None, verbose=True):
         """
         Sets the particle acidity if it is acidic or basic, creates `state_one` and `state_two` with the protonated and 
         deprotonated states. In each state is set: `label`,`charge` and `es_type`. If it is inert, it will define only `state_one`.
@@ -2433,6 +2437,7 @@ class pymbe_library():
             acidity (`str`): Identifies whether the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
             default_charge (`int`): Charge of the particle. Defaults to 0.
             pka (`float`, optional):  If `particle` is an acid or a base, it defines its pka-value. Defaults to None.
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
         """
         acidity_valid_keys = ['inert','acidic', 'basic']
         if acidity not in acidity_valid_keys:
@@ -2441,28 +2446,62 @@ class pymbe_library():
             raise ValueError(f"pKa not provided for particle with name {name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
         for index in self.df[self.df['name']==name].index:       
             if pka:
-                self.add_value_to_df(key=('pka',''),index=index,new_value=pka)
-            self.add_value_to_df(key=('acidity',''),index=index,new_value=acidity) 
+                self.add_value_to_df(key=('pka',''),
+                                    index=index,
+                                    new_value=pka, 
+                                    verbose=verbose)
+            self.add_value_to_df(key=('acidity',''),
+                                 index=index,
+                                 new_value=acidity, 
+                                 verbose=verbose) 
             if not self.check_if_df_cell_has_a_value(index=index,key=('state_one','es_type')):
-                self.add_value_to_df(key=('state_one','es_type'),index=index,new_value=self.propose_unused_type())  
+                self.add_value_to_df(key=('state_one','es_type'),
+                                     index=index,
+                                     new_value=self.propose_unused_type(), 
+                                     verbose=verbose)  
             if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'inert':
-                self.add_value_to_df(key=('state_one','charge'),index=index,new_value=default_charge)
-                self.add_value_to_df(key=('state_one','label'),index=index,new_value=name)
+                self.add_value_to_df(key=('state_one','charge'),
+                                     index=index,
+                                     new_value=default_charge, 
+                                     verbose=verbose)
+                self.add_value_to_df(key=('state_one','label'),
+                                     index=index,
+                                     new_value=name, 
+                                     verbose=verbose)
             else:
                 protonated_label = f'{name}H'
-                self.add_value_to_df(key=('state_one','label'),index=index,new_value=protonated_label)
-                self.add_value_to_df(key=('state_two','label'),index=index,new_value=name)
+                self.add_value_to_df(key=('state_one','label'),
+                                     index=index,
+                                     new_value=protonated_label, 
+                                     verbose=verbose)
+                self.add_value_to_df(key=('state_two','label'),
+                                     index=index,
+                                     new_value=name, 
+                                     verbose=verbose)
                 if not self.check_if_df_cell_has_a_value(index=index,key=('state_two','es_type')):
-                    self.add_value_to_df(key=('state_two','es_type'),index=index,new_value=self.propose_unused_type())
+                    self.add_value_to_df(key=('state_two','es_type'),
+                                         index=index,
+                                         new_value=self.propose_unused_type(), 
+                                         verbose=verbose)
                 if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'acidic':        
-                    self.add_value_to_df(key=('state_one','charge'),index=index,new_value=0)
-                    self.add_value_to_df(key=('state_two','charge'),index=index,new_value=-1)
+                    self.add_value_to_df(key=('state_one','charge'),
+                                         index=index,new_value=0, 
+                                         verbose=verbose)
+                    self.add_value_to_df(key=('state_two','charge'),
+                                         index=index,
+                                         new_value=-1, 
+                                         verbose=verbose)
                 elif self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'basic':
-                    self.add_value_to_df(key=('state_one','charge'),index=index,new_value=+1)
-                    self.add_value_to_df(key=('state_two','charge'),index=index,new_value=0)   
+                    self.add_value_to_df(key=('state_one','charge'),
+                                         index=index,new_value=+1, 
+                                         verbose=verbose)
+                    self.add_value_to_df(key=('state_two','charge'),
+                                         index=index,
+                                         new_value=0, 
+                                         verbose=verbose)   
         return
     
-    def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None, Kw=None):
+    def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None, Kw=None, verbose=True):
         """
         Sets the set of reduced units used by pyMBE.units and it prints it.
 
@@ -2471,6 +2510,7 @@ class pymbe_library():
             unit_charge (`obj`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
             temperature (`obj`,optional): Temperature of the system, defined using the `pmb.units` UnitRegistry. Defaults to None. 
             Kw (`obj`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
@@ -2494,8 +2534,9 @@ class pymbe_library():
         self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
         self.units.define(f'reduced_energy = {self.kT} ')
         self.units.define(f'reduced_length = {unit_length}')
-        self.units.define(f'reduced_charge = {unit_charge}')        
-        self.print_reduced_units()
+        self.units.define(f'reduced_charge = {unit_charge}')
+        if verbose:        
+            self.print_reduced_units()
         return
 
     def setup_cpH (self, counter_ion, constant_pH, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):

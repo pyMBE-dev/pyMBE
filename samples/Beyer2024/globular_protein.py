@@ -267,7 +267,7 @@ for amino in net_charge_residues.keys():
             net_charge_amino_save[label] = []
             time_series[label] = []
 
-for step in tqdm(range(N_samples)):      
+for step in tqdm(range(N_samples),disable=not verbose):      
     espresso_system.integrator.run (steps = integ_steps)
     RE.reaction( reaction_steps = total_ionisible_groups)
     charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
