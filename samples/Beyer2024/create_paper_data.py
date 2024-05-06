@@ -147,14 +147,14 @@ if plot:
 
     # Load pka set
     if fig_label in ["7a","7b"]:
-        pka_path=pmb.get_resource("parameters/pka_sets/CRC1991.txt")
+        pka_path=pmb.get_resource("parameters/pka_sets/CRC1991.json")
         pmb.load_pka_set (filename=pka_path)
     elif fig_label in ["7c", "8a", "8b"]:
-        pka_path=pmb.get_resource("parameters/pka_sets/Nozaki1967.txt")
+        pka_path=pmb.get_resource("parameters/pka_sets/Nozaki1967.json")
         pmb.load_pka_set (filename=pka_path)
         # FIXME: this is only necessary due to an undesired feature in calculate_HH
         # that forces to have all particles defined in pyMBE
-        par_path=pmb.get_resource("parameters/peptides/Blanco2020.txt")
+        par_path=pmb.get_resource("parameters/peptides/Blanco2021.json")
         pmb.load_interaction_parameters(par_path)
 
     # Load ref data    

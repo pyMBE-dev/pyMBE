@@ -1,2 +1,0 @@
-# pka values from Thurlkill RL, Grimsley GR, Scholtz JM, Pace CN. pK values of the ionizable groups of proteins. Protein Sci. 2006 May;15(5):1214-8
-{"D" : {"pka_value": 3.67, "acidity": "acidic"},"E" : {"pka_value": 4.25, "acidity": "acidic"},"Y" : {"pka_value": 9.84, "acidity": "acidic"},"C" : {"pka_value": 8.55, "acidity": "acidic"},"H" : {"pka_value": 6.54, "acidity": "basic"},"K" : {"pka_value": 10.40, "acidity": "basic"},"n" : {"pka_value": 8.00, "acidity": "basic"},"c" : {"pka_value": 3.67, "acidity": "acidic"}}

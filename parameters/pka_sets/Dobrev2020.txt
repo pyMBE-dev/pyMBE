@@ -1,3 +1,0 @@
-# pKa-values from Dobrev P., Probing the Accuracy of Explicit Solvent Constant pH Molecular Dynamics Simulations for Peptides, J. Chem. Theory Comput. 2020, 16, 2561−2569
-# "n" and "c" were added from Nozaki pKa set
-{"E" : {"pka_value": 4.08, "acidity": "acidic"},"H" : {"pka_value": 6.54, "acidity": "basic"},"n" : {"pka_value": 7.5, "acidity": "basic"},"c" : {"pka_value": 3.8, "acidity": "acidic"}}

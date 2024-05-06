@@ -15,7 +15,7 @@ pmb = pyMBE.pymbe_library(SEED=42)
 sequence="nDEHKc"
 pH_values = np.linspace(2, 12, num=21)
 load_pka_set_from_file=True   # If set to false, uses custom_pka_set
-path_to_pka=pmb.get_resource("parameters/pka_sets/Nozaki1967.txt")
+path_to_pka=pmb.get_resource("parameters/pka_sets/Nozaki1967.json")
 
 custom_pka_set={"D" : {"pka_value": 4.0, "acidity": "acidic"},
                 "E" : {"pka_value": 4.4, "acidity": "acidic"},

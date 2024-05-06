@@ -8,7 +8,8 @@ pmb = pyMBE.pymbe_library(SEED=42)
 print(f"***create_molecule with input position list unit test ***")
 print(f"*** Unit test: Check that the positions of the central bead of the first residue in the generated molecules are equal to the input positions***")
 # Simulation parameters
-pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
+pmb.set_reduced_units(unit_length=0.4*pmb.units.nm,
+                      verbose=False)
 solvent_permitivity = 78.3
 N_molecules = 3
 chain_length = 5

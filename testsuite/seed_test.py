@@ -10,17 +10,18 @@ def build_peptide_in_espresso(SEED):
     pmb = pyMBE.pymbe_library(SEED=SEED)
 
     # Simulation parameters
-    pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
+    pmb.set_reduced_units(unit_length=0.4*pmb.units.nm,
+                          verbose=False)
 
     # Peptide parameters
     sequence = 'EEEEEEE'
     model = '2beadAA'  # Model with 2 beads per each aminoacid
 
     # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-    path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
-    path_to_pka=pmb.get_resource("parameters/pka_sets/CRC1991.txt")
-    pmb.load_interaction_parameters(filename=path_to_interactions) 
-    pmb.load_pka_set(path_to_pka)
+    path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
+    path_to_pka=pmb.get_resource("parameters/pka_sets/CRC1991.json")
+    pmb.load_interaction_parameters(filename=path_to_interactions, verbose=False) 
+    pmb.load_pka_set(path_to_pka, verbose=False)
 
     # Defines the peptide in the pyMBE data frame
     peptide_name = 'generic_peptide'

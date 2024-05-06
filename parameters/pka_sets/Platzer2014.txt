@@ -1,2 +1,0 @@
-# pKa-values from Platzer G, Okon M, McIntosh LP. 2014.  J. Biomol. NMR 60:109–29
-{"D" : {"pka_value": 3.86, "acidity": "acidic"},"E" : {"pka_value": 4.34, "acidity": "acidic"},"Y" : {"pka_value": 9.76, "acidity": "acidic"},"C" : {"pka_value": 8.49, "acidity": "acidic"},"H" : {"pka_value": 6.45, "acidity": "basic"},"K" : {"pka_value": 10.34, "acidity": "basic"},"R" : {"pka_value": 13.9, "acidity": "basic"},"n" : {"pka_value": 8.23, "acidity": "basic"},"c" : {"pka_value": 3.55, "acidity": "acidic"}}

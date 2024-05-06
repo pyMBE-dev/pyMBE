@@ -15,6 +15,7 @@ tests:
 	python3 testsuite/create_molecule_position_test.py
 	python3 testsuite/seed_test.py
 	python3 testsuite/read-write-df_test.py
+	python3 testsuite/parameter_test.py
 	python3 testsuite/henderson_hasselbalch_tests.py
 	python3 testsuite/cph_ideal_tests.py
 	python3 testsuite/grxmc_ideal_tests.py
