@@ -2,7 +2,8 @@
 	"metadata": {
 		"summary": "pKa-values for phosphorilated aminoacids J U and Z from Bienkiewicz & K.J. Lumb",
 		"source": "Bienkiewicz & K.J. Lumb, J Biomol NMR 15: 203-206 (1999).", 
-		"doi": "10.1023/A:1008375029746"
+		"doi": "10.1023/A:1008375029746",
+		"citekey": "bienkiewicz1999a" 
 	},
 	"data": {
 		"J": {"pka_value": 5.96, "acidity": "acidic"},

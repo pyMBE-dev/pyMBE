@@ -2,7 +2,8 @@
 	"metadata": {
 		"summary": "pKa-values from Platzer et al.",
 		"source": "Platzer G, Okon M, McIntosh LP. 2014.  J. Biomol. NMR 60:109–29", 
-		"doi": "10.1007/s10858-014-9862-y"
+		"doi": "10.1007/s10858-014-9862-y",
+		"citekey": "platzer2014a"
 	},
 	"data": {
 		"D" : {"pka_value": 3.86, "acidity": "acidic"},

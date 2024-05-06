@@ -2,7 +2,8 @@
 	"metadata": {
 		"summary": "pKa-values from CRC 72nd edition",
 		"source": "Handbook of Chemistry and Physics, 72nd Edition, CRC Press, Boca Raton, FL, 1991.",
-		"isbn": "0-8493-0565-9"
+		"isbn": "0-8493-0565-9",
+		"citekey": "lide1991a"
 	},
 	"data": {
 		"D": {"pka_value": 3.65, "acidity": "acidic"},

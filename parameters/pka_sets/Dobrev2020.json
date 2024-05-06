@@ -3,7 +3,8 @@
 		"summary": "pKa-values from Dobrev",
 		"source": "Dobrev P., Probing the Accuracy of Explicit Solvent Constant pH Molecular Dynamics Simulations for Peptides, J. Chem. Theory Comput. 2020, 16, 2561−2569", 
 		"notes": "n and c were added from Nozaki pKa set",
-		"doi": "10.1021/acs.jctc.9b01232" 
+		"doi": "10.1021/acs.jctc.9b01232",
+		"citekey": "dobrev2020a"
 	},
 	"data": {
 		"E" : {"pka_value": 4.08, "acidity": "acidic"},

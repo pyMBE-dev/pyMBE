@@ -2,7 +2,8 @@
 	"metadata": {
 		"summary": "pKa-values from Nozaki et al.",
 		"source": "Y. Nozaki and C. Tanford, Methods Enzymol., 1967, 11, 715–734.",
-		"doi": "10.1016/S0076-6879(67)11088-4"
+		"doi": "10.1016/S0076-6879(67)11088-4",
+		"citekey": "nozaki1967a"
 	},
 	"data": {
 		"D": {"pka_value": 4.0, "acidity": "acidic"},

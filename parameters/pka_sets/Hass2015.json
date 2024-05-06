@@ -2,7 +2,8 @@
 	"metadata": {
 		"summary": "pKa-values of Hass et al.",
 		"source": "Hass MA, Mulder FAA. Contemporary NMR Studies of Protein Electrostatics. Annu Rev Biophys. 2015;44:53-75.", 
-		"doi": "10.1146/annurev-biophys-083012-130351" 
+		"doi": "10.1146/annurev-biophys-083012-130351",
+		"citekey": "hass2015a"
 	},
 	"data": {
 		"D": {"pka_value": 4.0, "acidity": "acidic"},
