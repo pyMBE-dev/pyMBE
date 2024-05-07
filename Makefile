@@ -23,11 +23,12 @@ tests:
 	python3 testsuite/gcmc_tests.py
 	python3 testsuite/weak_polyelectrolyte_dialysis_test.py
 	python3 testsuite/globular_protein_tests.py
+
 sample:
-	python3 sample_scripts/peptide_simulation_example.py
+	python3 samples/peptide.py
 
 visual:
-	python3 handy_scripts/vmd-traj.py
+	python3 visualization/vmd-traj.py
 	vmd -e visualization.tcl
 
 tutorial:

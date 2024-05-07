@@ -77,10 +77,10 @@ for aminoacid_key in sequence:
                            epsilon=1*pmb.units('reduced_energy'))
     already_defined_AA.append(aminoacid_key)
 
-generic_bond_lenght=0.4 * pmb.units.nm
+generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-HARMONIC_parameters = {'r_0'    : generic_bond_lenght,
+HARMONIC_parameters = {'r_0'    : generic_bond_length,
                        'k'      : generic_harmonic_constant,
                       }
 

@@ -57,10 +57,10 @@ pmb.define_molecule(
 
 
 bond_type = 'harmonic'
-generic_bond_lenght=0.4 * pmb.units.nm
+generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-harmonic_bond = {'r_0'    : generic_bond_lenght,
+harmonic_bond = {'r_0'    : generic_bond_length,
                  'k'      : generic_harmonic_constant,
                  }
 
@@ -105,4 +105,3 @@ print(f"*** Unit test: check that the dataframe stored by pyMBE to file is the s
 
 assert_frame_equal (stored_df, read_df, check_exact= True)
 print (f"*** Unit test passed***")
-    

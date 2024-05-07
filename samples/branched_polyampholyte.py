@@ -98,10 +98,10 @@ pmb.define_molecule(
 
 # Define bonds
 bond_type = 'harmonic'
-generic_bond_lenght=0.4 * pmb.units.nm
+generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-harmonic_bond = {'r_0'    : generic_bond_lenght,
+harmonic_bond = {'r_0'    : generic_bond_length,
                  'k'      : generic_harmonic_constant,
                  }
 

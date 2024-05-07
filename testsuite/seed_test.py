@@ -28,10 +28,10 @@ def build_peptide_in_espresso(SEED):
     pmb.define_peptide(name=peptide_name, sequence=sequence, model=model)
 
     # Bond parameters
-    generic_bond_lenght=0.4 * pmb.units.nm
+    generic_bond_length=0.4 * pmb.units.nm
     generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-    HARMONIC_parameters = {'r_0'    : generic_bond_lenght,
+    HARMONIC_parameters = {'r_0'    : generic_bond_length,
                            'k'      : generic_harmonic_constant}
 
     pmb.define_default_bond(bond_type = 'harmonic',
