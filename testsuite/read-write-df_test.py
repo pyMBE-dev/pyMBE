@@ -1,7 +1,7 @@
-import espressomd
 import re 
-from ast import literal_eval
-from pandas.testing import assert_frame_equal
+import ast
+import espressomd
+import pandas as pd
 
 # Create an instance of pyMBE library
 import pyMBE
@@ -83,7 +83,7 @@ espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 # Setup potential energy
 
 pmb.setup_lj_interactions (espresso_system=espresso_system)
-pmb.pd.options.display.max_colwidth = 10
+pd.options.display.max_colwidth = 10
 
 # Copy the pmb.df into a new DF for the unit test 
 stored_df = pmb.df.copy()
@@ -97,10 +97,10 @@ read_df = pmb.read_pmb_df(filename = df_filename)
 
 # Preprocess data for the Unit Test
 # The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal
-stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
-read_df['bond_object']  = read_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
+stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: ast.literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pd.notnull(x) else x)
+read_df['bond_object']  = read_df['bond_object'].apply(lambda x: ast.literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pd.notnull(x) else x)
 
 print("*** Unit test: check that the dataframe stored by pyMBE to file is the same as the one read from the file (same values and variable types) ***")
 
-assert_frame_equal (stored_df, read_df, check_exact= True)
+pd.testing.assert_frame_equal (stored_df, read_df, check_exact= True)
 print("*** Unit test passed***")

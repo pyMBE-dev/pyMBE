@@ -1,6 +1,7 @@
+import sys
+import argparse
 import numpy as np
 import pandas as pd
-import argparse
 from biopandas.pdb import PandasPdb
 from genericpath import isfile
 pd.options.mode.chained_assignment = None
@@ -523,13 +524,13 @@ if __name__ == '__main__':
 
     if args.filename is None and args.pdb_code is None:
         verbose_print(message="WARNING: no inputs were provided, nothing was done", verbose=args.verbose)
-        exit()
+        sys.exit(1)
     elif args.filename is not None and args.pdb_code is not None:
         verbose_print(message="ERROR: --filename and --download_pdb argparse modes cannot be active at the same time, please choose one functionality", verbose=args.verbose)
-        exit()
+        sys.exit(1)
     if args.model not in valid_keys_models:
         verbose_print(message="ERROR: --model only takes " + str(valid_keys_models), verbose=args.verbose)
-        exit()
+        sys.exit(1)
 
     biopandas_df = create_biopandas_df()
     pdb_df = create_pandas_df_of_the_protein_and_metal_ions(biopandas_df)

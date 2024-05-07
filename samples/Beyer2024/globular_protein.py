@@ -2,6 +2,7 @@ import os
 from tqdm import tqdm
 import espressomd
 import argparse
+import numpy as np
 import pandas as pd 
 
 # Create an instance of pyMBE library
@@ -14,10 +15,10 @@ from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_langevin_dynamics
 from lib import analysis
 # Here you can adjust the width of the panda columns displayed when running the code 
-pmb.pd.options.display.max_colwidth = 10
+pd.options.display.max_colwidth = 10
 
 #This line allows you to see the complete amount of rows in the dataframe
-pmb.pd.set_option('display.max_rows', None)
+pd.set_option('display.max_rows', None)
 
 valid_modes=["short-run","long-run", "test"]
 
@@ -233,7 +234,7 @@ setup_langevin_dynamics (espresso_system=espresso_system,
                                     kT = pmb.kT, 
                                     SEED = LANGEVIN_SEED)
 
-observables_df = pmb.pd.DataFrame()
+observables_df = pd.DataFrame()
 time_step = []
 net_charge_list = []
 
@@ -295,7 +296,7 @@ for step in tqdm(range(N_samples),disable=not verbose):
     time_series["charge"].append(charge_dict["mean"])
     
     for label in AA_label_list:
-        charge_amino = pmb.np.mean(charge_residues_per_type[label])
+        charge_amino = np.mean(charge_residues_per_type[label])
         time_series[label].append(charge_amino)
 
 data_path = args.output

@@ -21,6 +21,7 @@ disable=all
 # it should appear only once). See also the "--disable" option for examples.
 enable=dangerous-default-value,        # W0102
        duplicate-key,                  # W0109
+       eval-used,                      # W0123
        assert-on-tuple,                # W0199
        bad-indentation,                # W0311
        wildcard-import,                # W0401
@@ -35,6 +36,7 @@ enable=dangerous-default-value,        # W0102
        cyclic-import,                  # R0401
        trailing-comma-tuple,           # R1707
        consider-using-in,              # R1714
+       consider-using-sys-exit,        # R1722
        singleton-comparison,           # C0121
        unidiomatic-typecheck,          # C0123
        bad-classmethod-argument,       # C0202
