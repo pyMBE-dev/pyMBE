@@ -1,8 +1,5 @@
 # Import pyMBE and other libraries
 import pyMBE
-from lib import analysis
-import os
-import tempfile
 import subprocess
 import numpy as np
 import pandas as pd

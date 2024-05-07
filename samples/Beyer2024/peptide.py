@@ -1,15 +1,9 @@
 # Load espresso, sugar and other necessary libraries
-import sys
 import os
-import inspect
 import espressomd
-import numpy as np
 import pandas as pd
 import argparse
 import tqdm
-from espressomd.io.writer import vtf
-from espressomd import interactions
-from espressomd import electrostatics
 
 # Import pyMBE
 import pyMBE

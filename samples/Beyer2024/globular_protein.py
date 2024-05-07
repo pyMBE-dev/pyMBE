@@ -214,11 +214,11 @@ if verbose:
 
 # Setup the potential energy
 
-if (WCA):
+if WCA:
     pmb.setup_lj_interactions (espresso_system=espresso_system)
     minimize_espresso_system_energy (espresso_system=espresso_system)
 
-    if (Electrostatics):
+    if Electrostatics:
 
         setup_electrostatic_interactions (units=pmb.units,
                                         espresso_system=espresso_system,
@@ -285,7 +285,7 @@ for step in tqdm(range(N_samples),disable=not verbose):
             if label in AA_label_list:
                 charge_residues_per_type[label].append(charge_residues[amino])
 
-    if (step % stride_traj == 0  ):
+    if step % stride_traj == 0 :
         n_frame +=1
         pmb.write_output_vtf_file(espresso_system=espresso_system,
                                     filename=f"frames/trajectory{n_frame}.vtf")

@@ -1,7 +1,5 @@
-from os import listdir
-from os.path import isfile, join
-import numpy as np
-import math as mt
+import os
+import math
 import re
 
 frame_dir='./frames'            # Path to the directory of the frame trajectories
@@ -13,7 +11,8 @@ radcyl = 1                      # Width of the simulation box
 
 # Create the list of files
 
-files = [name for name in listdir(frame_dir) if isfile(join(frame_dir, name))]
+files = [name for name in os.listdir(frame_dir)
+         if os.path.isfile(os.path.join(frame_dir, name))]
 
 files=sorted(files) 
 
@@ -62,12 +61,12 @@ for frame in range(minimum_index,maximum_index+1): # 'file' is a builtin type, '
                 
                 header=line_clean[0]
 
-                if (header == "unitcell"):
+                if header == "unitcell":
 
                     box=line_clean[1:4]
                     unitcell[N_frame]=box
 
-                elif (header == "atom"):
+                elif header == "atom":
                     
                     id_atom=line_clean[1]
                     r_atom=line_clean[3]
@@ -80,12 +79,12 @@ for frame in range(minimum_index,maximum_index+1): # 'file' is a builtin type, '
 
                         type_list.append(type_atom)
 
-                elif (header == "bond"):
+                elif header == "bond":
 
                     bond_info=line_clean[1]
                     frame_bond_list.append(bond_info)
 
-                elif (header.isnumeric()):
+                elif header.isnumeric():
                     
                     id_part=line_clean[0]
                     coord_part=line_clean[1:]
@@ -131,7 +130,7 @@ for frame in range(N_frame):
         
     for typ in type_list:
 
-        if (N_type_frame[typ] > N_type[typ]):
+        if N_type_frame[typ] > N_type[typ]:
 
              N_type[typ]=N_type_frame[typ]
 
@@ -202,7 +201,7 @@ with open(nametraj, "w") as f_vmd:
         f_vmd.write("timestep indexed")
         f_vmd.write("\n")
 
-        if (unitcell[frame] != unit_cell_frame):
+        if unitcell[frame] != unit_cell_frame:
 
             f_vmd.write("unitcell")
             
@@ -218,7 +217,7 @@ with open(nametraj, "w") as f_vmd:
         
         for id_at in range(N_part):
 
-            if (id_at < len(frame_coord_list)):
+            if id_at < len(frame_coord_list):
 
                 at_list=frame_atom_list[id_at]
                 at_type=int(at_list[-1])
@@ -234,7 +233,7 @@ with open(nametraj, "w") as f_vmd:
 
                         size_box=float(unit_cell_frame[n_cor])
                         cor=float(cor)
-                        pbc_cor=cor-mt.floor(cor/size_box)*size_box
+                        pbc_cor=cor-math.floor(cor/size_box)*size_box
                         f_vmd.write(str(pbc_cor)+" ")
                         n_cor+=1
                     else:

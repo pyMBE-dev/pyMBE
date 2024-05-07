@@ -1,15 +1,11 @@
 # Load espresso, pyMBE and other necessary libraries
-import sys
 import os 
-import inspect
-from matplotlib.style import use
 import espressomd
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import pandas as pd
 from espressomd.io.writer import vtf
-from espressomd import interactions
 import pyMBE
 
 # Create an instance of pyMBE library
@@ -176,10 +172,8 @@ pmb.write_pmb_df (filename='df.csv')
 # Main loop for performing simulations at different pH-values
 labels_obs=["time","charge"]
 
-for index in range(len(pH_range)):
+for pH_value in pH_range:
     
-    pH_value=pH_range[index]
-
     time_series={}
 
     for label in labels_obs:
@@ -196,7 +190,7 @@ for index in range(len(pH_range)):
         else:
             RE.reaction( reaction_steps = total_ionisible_groups)
 
-        if ( step > steps_eq):
+        if step > steps_eq:
             # Get polyampholyte net charge
             charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
                     molecule_name="polyampholyte")      
@@ -206,7 +200,7 @@ for index in range(len(pH_range)):
                 time_series["time"].append(espresso_system.time)
             time_series["charge"].append(charge_dict["mean"])
 
-        if (step % N_samples_print == 0) :
+        if step % N_samples_print == 0:
             N_frame+=1
             with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
                 vtf.writevsf(espresso_system, coordinates)

@@ -1,16 +1,13 @@
 # Import pyMBE and other libraries
 import pyMBE
 from lib import analysis
-import os
 import tempfile
 import subprocess
 import numpy as np
-import pandas as pd
-import argparse
 
 # Template of the test
 
-def gcmc_test(mode):
+def gcmc_test(mode, script_path):
     if mode == "ideal":
         print(f"*** Running test for GCMC of salt solution (ideal). ***")
     elif mode == "interacting":
@@ -40,7 +37,7 @@ rtol=0.05 # relative tolerance
 atol=0.0 # absolute tolerance
 
 # Ideal test
-gcmc_test("ideal")
+gcmc_test("ideal", script_path)
 
 # Interacting test
-gcmc_test("interacting")
+gcmc_test("interacting", script_path)

@@ -1,7 +1,6 @@
 import espressomd
 import re 
 from ast import literal_eval
-from espressomd import interactions
 from pandas.testing import assert_frame_equal
 
 # Create an instance of pyMBE library

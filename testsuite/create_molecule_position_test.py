@@ -1,6 +1,5 @@
 import numpy as np 
 import espressomd
-from espressomd import interactions
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library(SEED=42)
@@ -36,7 +35,7 @@ bond_type = 'harmonic'
 generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-harmonic_bond = {'r_0'    : generic_bond_lenght,
+harmonic_bond = {'r_0'    : generic_bond_length,
                  'k'      : generic_harmonic_constant,
                  }
 

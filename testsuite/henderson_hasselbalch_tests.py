@@ -1,6 +1,5 @@
 import numpy as np
 import pyMBE
-from itertools import combinations
 pmb = pyMBE.pymbe_library(SEED=42)
 
 print(f"*** Running HH tests ***\n")

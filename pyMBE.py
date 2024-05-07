@@ -186,8 +186,8 @@ class pymbe_library():
         else:
             # check if a residue is part of another molecule
             check_residue_name = self.df[self.df['residue_list'].astype(str).str.contains(name)]
-            pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]                
-            if not check_residue_name.empty and pmb_type == pmb_type :              
+            mol_pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
+            if not check_residue_name.empty and mol_pmb_type == pmb_type:
                 for value in check_residue_name.index.to_list():                  
                     if value not in used_molecules_id:                              
                         molecule_id = self.df.loc[value].molecule_id.values[0]                    
@@ -538,7 +538,7 @@ class pymbe_library():
                     raise ValueError('missing a requiered key ', required_keys, 'in the following entry of pka_set', pka_entry)
         return
 
-    def clean_df_row(self, index, columns_keys_to_clean=["particle_id", "particle_id2", "residue_id", "molecule_id"]):
+    def clean_df_row(self, index, columns_keys_to_clean=("particle_id", "particle_id2", "residue_id", "molecule_id")):
         """
         Cleans the columns of `pmb.df` in `columns_keys_to_clean` of the row with index `index` by assigning them a np.nan value.
 
@@ -778,11 +778,11 @@ class pymbe_library():
                 object_charge['positive']+=1*(self.np.abs(espresso_system.part.by_id(id).q ))
             elif espresso_system.part.by_id(id).q < 0:
                 object_charge['negative']+=1*(self.np.abs(espresso_system.part.by_id(id).q ))
-        if (object_charge['positive'] % abs(anion_charge) == 0):
+        if object_charge['positive'] % abs(anion_charge) == 0:
             counterion_number[anion_name]=int(object_charge['positive']/abs(anion_charge))
         else:
             raise ValueError('The number of positive charges in the pmb_object must be divisible by the  charge of the anion')
-        if (object_charge['negative'] % abs(cation_charge) == 0):
+        if object_charge['negative'] % abs(cation_charge) == 0:
             counterion_number[cation_name]=int(object_charge['negative']/cation_charge)
         else:
             raise ValueError('The number of negative charges in the pmb_object must be divisible by the  charge of the cation')
@@ -814,9 +814,9 @@ class pymbe_library():
 
             molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
         """
-        if list_of_first_residue_positions != None:
+        if list_of_first_residue_positions is not None:
             for item in list_of_first_residue_positions:
-                if isinstance(item, list) == False:
+                if not isinstance(item, list):
                     raise ValueError(f"The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
                 elif len(item) != 3:
                     raise ValueError(f"The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
@@ -845,7 +845,7 @@ class pymbe_library():
             molecules_info[molecule_id] = {}
             for residue in residue_list:
                 if first_residue:
-                    if list_of_first_residue_positions == None:
+                    if list_of_first_residue_positions is None:
                         residue_position = None
                     else:
                         for item in list_of_first_residue_positions:
@@ -1190,15 +1190,15 @@ class pymbe_library():
             variable_with_units(`obj`): variable with units using the pyMBE UnitRegistry.
         """        
         
-        if type(variable) is dict: 
+        if isinstance(variable, dict):
 
             value=variable.pop('value')
             units=variable.pop('units')
 
-        elif type(variable) is str:
+        elif isinstance(variable, str):
 
-            value = float(self.re.split('\s+', variable)[0])
-            units = self.re.split('\s+', variable)[1]
+            value = float(self.re.split(r'\s+', variable)[0])
+            units = self.re.split(r'\s+', variable)[1]
         
         variable_with_units=value*self.units(units)
 
@@ -1522,7 +1522,7 @@ class pymbe_library():
             
             if residue_name not in sigma_dict.keys():
                 sigma_dict [residue_name] =  topology_dict[residue]['sigma']
-            if residue_name != 'CA' and residue_name != 'Ca':
+            if residue_name not in ('CA', 'Ca'):
                 protein_seq_list.append(residue_name)                  
 
         protein_sequence = ''.join(protein_seq_list)
@@ -1631,7 +1631,7 @@ class pymbe_library():
             cOH_res = self.Kw / cH_res 
             cNa_res = None
             cCl_res = None
-            if (cOH_res>=cH_res):
+            if cOH_res>=cH_res:
                 #adjust the concentration of sodium if there is excess OH- in the reservoir:
                 cNa_res = c_salt_res + (cOH_res-cH_res)
                 cCl_res = c_salt_res
@@ -1642,11 +1642,11 @@ class pymbe_library():
                 
             def calculate_concentrations_self_consistently(cH_res, cOH_res, cNa_res, cCl_res):
                 nonlocal max_number_sc_runs, self_consistent_run
-                if(self_consistent_run<max_number_sc_runs):
+                if self_consistent_run<max_number_sc_runs:
                     self_consistent_run+=1
                     ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
                     cOH_res = self.Kw / (cH_res * activity_coefficient_monovalent_pair(ionic_strength_res))
-                    if (cOH_res>=cH_res):
+                    if cOH_res>=cH_res:
                         #adjust the concentration of sodium if there is excess OH- in the reservoir:
                         cNa_res = c_salt_res + (cOH_res-cH_res)
                         cCl_res = c_salt_res
@@ -1664,7 +1664,7 @@ class pymbe_library():
         determined_pH = -self.np.log10(cH_res.to('mol/L').magnitude * self.np.sqrt(activity_coefficient_monovalent_pair(ionic_strength_res)))
 
         while abs(determined_pH-pH_res)>1e-6:
-            if (determined_pH>pH_res):
+            if determined_pH > pH_res:
                 cH_res *= 1.005
             else:
                 cH_res /= 1.003
@@ -2026,7 +2026,6 @@ class pymbe_library():
             filename(`str`): name of the file to be read
             verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
         """
-        from espressomd import interactions
         without_units = ['q','es_type','acidity']
         with_units = ['sigma','epsilon']
 
@@ -2209,7 +2208,7 @@ class pymbe_library():
                 "COOH": "c"}
         clean_sequence=[]
         if isinstance(sequence, str):
-            if (sequence.find("-") != -1):
+            if sequence.find("-") != -1:
                 splited_sequence=sequence.split("-")
                 for residue in splited_sequence:
                     if len(residue) == 1:
@@ -2225,7 +2224,7 @@ class pymbe_library():
                         if residue in keys.keys():
                             clean_sequence.append(keys[residue])
                         else:
-                            if (residue.upper() in keys.keys()):
+                            if residue.upper() in keys.keys():
                                 clean_sequence.append(keys[residue.upper()])
                             else:
                                 raise ValueError("Unknown  code for a residue: ", residue, " please review the input sequence")
@@ -2264,7 +2263,7 @@ class pymbe_library():
             This function only accepts files with CSV format. 
         """
         
-        if filename[-3:] != "csv":
+        if filename.rsplit(".", 1)[1] != "csv":
             raise ValueError("Only files with CSV format are supported")
         df = self.pd.read_csv (filename,header=[0, 1], index_col=0)
         columns_names = self.setup_df()
@@ -2296,7 +2295,7 @@ class pymbe_library():
         coord_list = []
         particles_dict = {}
 
-        if unit_length == None:
+        if unit_length is None:
             unit_length = 1 * self.units.angstrom 
 
         with open (filename,'r') as protein_model:
@@ -3061,7 +3060,6 @@ class pymbe_library():
             - Check the documentation of ESPResSo for more info about the potential https://espressomd.github.io/doc4.2.0/inter_non-bonded.html
 
         """
-        from ast import literal_eval
         from itertools import combinations_with_replacement
         implemented_combining_rules = ['Lorentz-Berthelot']
         compulsory_parameters_in_df = ['sigma','epsilon']
@@ -3097,7 +3095,7 @@ class pymbe_library():
                 for key in lj_parameters_keys:
                     lj_parameters[key].append(self.find_value_from_es_type(es_type=ptype, column_name=key))
             # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
-            if not all([ sigma_value.magnitude for sigma_value in lj_parameters["sigma"]]):
+            if not all(sigma_value.magnitude for sigma_value in lj_parameters["sigma"]):
                 continue
             # Apply combining rule
             if combining_rule == 'Lorentz-Berthelot':

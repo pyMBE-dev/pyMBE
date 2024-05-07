@@ -1,16 +1,11 @@
 #Load espresso, pyMBE and other necessary libraries
-import sys
 import os 
-import inspect
-from matplotlib.style import use
 import espressomd
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import argparse
 from espressomd.io.writer import vtf
-from espressomd import interactions
-from espressomd import electrostatics
 import pyMBE
 
 # Create an instance of pyMBE library
@@ -36,14 +31,13 @@ parser.add_argument('--test',
 args = parser.parse_args()
 
 if args.mode not in valid_modes:
-    raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
+    raise ValueError(f"Mode {args.mode} is not currently supported, valid modes are {valid_modes}")
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 if not os.path.exists('./frames'):
     os.makedirs('./frames')
 
 #Import functions from handy_functions script 
-from lib.handy_functions import minimize_espresso_system_energy
 from lib.analysis import block_analyze
 
 # Simulation parameters
@@ -214,10 +208,8 @@ pmb.write_pmb_df (filename='df.csv')
 # Main loop for performing simulations at different pH-values
 labels_obs=["time","charge","num_plus"]
 
-for index in range(len(pH_range)):
+for pH_value in pH_range:
     
-    pH_value=pH_range[index]
-
     time_series={}
 
     for label in labels_obs:
@@ -237,7 +229,7 @@ for index in range(len(pH_range)):
         else:
             RE.reaction(reaction_steps = total_ionisible_groups)
 
-        if (step > steps_eq):
+        if step > steps_eq:
             # Get peptide net charge      
             z_one_object=0
             for pid in particle_id_list:
@@ -254,7 +246,7 @@ for index in range(len(pH_range)):
             elif args.mode == 'unified':
                 time_series["num_plus"].append(espresso_system.number_of_particles(type=type_map["Na"]))
             
-        if (step % N_samples_print == 0) :
+        if step % N_samples_print == 0:
             N_frame+=1
             with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
                 vtf.writevsf(espresso_system, coordinates)

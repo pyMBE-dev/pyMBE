@@ -3,6 +3,7 @@ import pyMBE
 from itertools import combinations
 pmb = pyMBE.pymbe_library(SEED=42)
 
+
 def check_if_different_perpendicular_vectors_are_generated(vector,magnitude,n=50):
     """
     Checks if pmb.generate_trial_perpendicular_vector generates perpendicular vectors to `vector`.
@@ -33,7 +34,6 @@ def check_if_different_perpendicular_vectors_are_generated(vector,magnitude,n=50
                                         desired = magnitude, 
                                         decimal = 5, 
                                         verbose = True)
-    return
 
 print(f"*** generate_trial_perpendicular_vector unit tests ***")
 print(f"*** Unit test: Check that the function creates perpendicular vectors to an arbitrary vector of the same magnitude  ***")

@@ -1,18 +1,11 @@
 # Load python modules
-import sys
 import os 
-import inspect
-from matplotlib.style import use
 import espressomd
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import interpolate
 import argparse
 from tqdm import tqdm
-from espressomd.io.writer import vtf
-from espressomd import interactions
-from espressomd import electrostatics
 
 # Import pyMBE
 import pyMBE
@@ -21,7 +14,6 @@ from lib import analysis
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(SEED=42)
 
-import warnings
 
 
 # Command line arguments
@@ -55,7 +47,6 @@ if args.mode not in valid_modes:
 
 #Import functions from handy_functions script 
 from lib.handy_functions import minimize_espresso_system_energy
-from lib.analysis import block_analyze
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import setup_langevin_dynamics
 

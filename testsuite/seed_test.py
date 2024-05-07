@@ -1,7 +1,5 @@
 import numpy as np 
 import espressomd
-import warnings
-from espressomd import interactions
 import pyMBE
 
 espresso_system = espressomd.System(box_l = [100]*3)

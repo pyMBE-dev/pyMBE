@@ -1,15 +1,10 @@
 # Load espresso, pyMBE and other necessary libraries
-import sys
 import os 
-import inspect
-from matplotlib.style import use
 import espressomd
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from espressomd.io.writer import vtf
-from espressomd import interactions
-from espressomd import electrostatics
 import pyMBE
 
 # Create an instance of pyMBE library
@@ -186,13 +181,13 @@ for index in tqdm(range(len(pH_range))):
         else:
             RE.reaction( reaction_steps = total_ionisible_groups)
 
-        if ( step > steps_eq):
+        if step > steps_eq:
             # Get peptide net charge
             charge_dict=pmb.calculate_net_charge (  espresso_system=espresso_system, 
                                                     molecule_name=peptide_name)      
             Z_sim.append(charge_dict["mean"])
 
-        if (step % N_samples_print == 0) :
+        if step % N_samples_print == 0:
             N_frame+=1
             with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
                 vtf.writevsf(espresso_system, coordinates)
@@ -204,7 +199,7 @@ for index in tqdm(range(len(pH_range))):
 # Estimate the statistical error and the autocorrelation time of the data
 
 print("Net charge analysis")
-av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(input_data=Z_pH)
+av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(full_data=Z_pH)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 Z_HH = pmb.calculate_HH(molecule_name=peptide_name, 
