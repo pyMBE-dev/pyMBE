@@ -33,3 +33,6 @@ visual:
 
 tutorial:
 	jupyter-lab tutorials/pyMBE_tutorial.ipynb
+
+pylint:
+	pylint pyMBE.py lib/ testsuite/ samples/ maintainer/ visualization/
