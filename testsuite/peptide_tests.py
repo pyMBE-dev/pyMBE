@@ -51,7 +51,7 @@ def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol,mode="test"):
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(SEED=42)
 
-script_path=pmb.get_resource(f"samples/Beyer2024/peptide.py")
+script_path=pmb.get_resource("samples/Beyer2024/peptide.py")
 test_pH_values=[3,7,11]
 rtol=0.1 # relative tolerance
 atol=0.5 # absolute tolerance

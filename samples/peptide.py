@@ -194,7 +194,7 @@ for index in tqdm(range(len(pH_range))):
                 vtf.writevcf(espresso_system, coordinates)
 
     Z_pH.append(Z_sim)
-    print("pH = {:6.4g} done".format(pH_value))
+    print(f"pH = {pH_value:6.4g} done")
    
 # Estimate the statistical error and the autocorrelation time of the data
 
@@ -211,6 +211,6 @@ ax.plot(pH_range, Z_HH, "-k", label='Henderson-Hasselbach')
 plt.legend()
 plt.xlabel('pH')
 plt.ylabel('Charge of the peptide / e')
-plt.title('Peptide sequence: '+ sequence)
+plt.title(f'Peptide sequence: {sequence}')
 
 plt.show()

@@ -38,7 +38,7 @@ def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="
         
     if mode == "test":
         # Get reference test data
-        ref_data=pd.read_csv(data_path+f"/{protein_pdb}.csv", header=[0, 1])
+        ref_data=pd.read_csv(f"{data_path}/{protein_pdb}.csv", header=[0, 1])
         # Check charge
         test_charge=np.sort(data["mean","charge"].to_numpy())
         ref_charge=np.sort(ref_data["mean","charge"].to_numpy())
@@ -54,7 +54,7 @@ def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(SEED=42)
 
-script_path=pmb.get_resource(f"samples/Beyer2024/globular_protein.py")
+script_path=pmb.get_resource("samples/Beyer2024/globular_protein.py")
 test_pH_values=[2,5,7]
 rtol=0.1 # relative tolerance
 atol=0.5 # absolute tolerance

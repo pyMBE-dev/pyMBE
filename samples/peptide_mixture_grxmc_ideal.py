@@ -248,7 +248,7 @@ for pH_value in pH_range:
             
         if step % N_samples_print == 0:
             N_frame+=1
-            with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
+            with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
                 vtf.writevsf(espresso_system, coordinates)
                 vtf.writevcf(espresso_system, coordinates)
 
@@ -261,7 +261,7 @@ for pH_value in pH_range:
     err_concentration_plus = (processed_data["err_mean", "num_plus"]/(pmb.N_A * L**3)).to('mol/L')
     xi_plus.append((concentration_plus/ionic_strength_res).magnitude)
     err_xi_plus.append(err_concentration_plus/ionic_strength_res)
-    print("pH = {:6.4g} done".format(pH_value))
+    print(f"pH = {pH_value:6.4g} done")
    
 
 if args.test:

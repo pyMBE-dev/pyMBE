@@ -100,7 +100,7 @@ read_df = pmb.read_pmb_df(filename = df_filename)
 stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
 read_df['bond_object']  = read_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
 
-print(f"*** Unit test: check that the dataframe stored by pyMBE to file is the same as the one read from the file (same values and variable types) ***")
+print("*** Unit test: check that the dataframe stored by pyMBE to file is the same as the one read from the file (same values and variable types) ***")
 
 assert_frame_equal (stored_df, read_df, check_exact= True)
-print (f"*** Unit test passed***")
+print("*** Unit test passed***")

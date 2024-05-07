@@ -60,7 +60,7 @@ class pymbe_library():
         self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
         self.units.define(f'reduced_energy = {self.kT}')
         self.units.define(f'reduced_length = {unit_length}')
-        self.units.define(f'reduced_charge = 1*e')
+        self.units.define('reduced_charge = 1*e')
         self.setup_df()
         return
     
@@ -398,14 +398,14 @@ class pymbe_library():
         cutoff_red=cutoff.to('reduced_length').magnitude
 
         if bond_type == "harmonic":
-               r_0 = bond_object.params.get('r_0')
-               k = bond_object.params.get('k')
-               l0 = self.optimize.minimize(lambda x: 0.5*k*(x-r_0)**2 + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red), x0=r_0).x
+            r_0 = bond_object.params.get('r_0')
+            k = bond_object.params.get('k')
+            l0 = self.optimize.minimize(lambda x: 0.5*k*(x-r_0)**2 + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red), x0=r_0).x
         elif bond_type == "FENE":
-               r_0 = bond_object.params.get('r_0')
-               k = bond_object.params.get('k')
-               d_r_max = bond_object.params.get('d_r_max')
-               l0 = self.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*self.np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red), x0=1.0).x
+            r_0 = bond_object.params.get('r_0')
+            k = bond_object.params.get('k')
+            d_r_max = bond_object.params.get('d_r_max')
+            l0 = self.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*self.np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red), x0=1.0).x
         return l0
 
     def calculate_net_charge (self, espresso_system, molecule_name):
@@ -638,7 +638,7 @@ class pymbe_library():
         df_by_name = self.df.loc[self.df.name == name]
         if number_of_copies != 1:           
             if df_by_name[column_name].isnull().values.any():       
-                    df_by_name_repeated = self.pd.concat ([df_by_name]*(number_of_copies-1), ignore_index=True)
+                df_by_name_repeated = self.pd.concat ([df_by_name]*(number_of_copies-1), ignore_index=True)
             else:
                 df_by_name = df_by_name[df_by_name.index == df_by_name.index.min()] 
                 df_by_name_repeated = self.pd.concat ([df_by_name]*(number_of_copies), ignore_index=True)
@@ -817,12 +817,12 @@ class pymbe_library():
         if list_of_first_residue_positions is not None:
             for item in list_of_first_residue_positions:
                 if not isinstance(item, list):
-                    raise ValueError(f"The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
+                    raise ValueError("The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
                 elif len(item) != 3:
-                    raise ValueError(f"The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
+                    raise ValueError("The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
 
             if len(list_of_first_residue_positions) != number_of_molecules:
-                            raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
+                raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
         if number_of_molecules <= 0:
             return
         if not self.check_if_name_is_defined_in_df(name=name,
@@ -1099,7 +1099,7 @@ class pymbe_library():
             side_chain_beads_ids = []
             for side_chain_element in side_chain_list:
                 if side_chain_element not in self.df.values:              
-                        raise ValueError (side_chain_element +'is not defined')
+                    raise ValueError (side_chain_element +'is not defined')
                 pmb_type = self.df[self.df['name']==side_chain_element].pmb_type.values[0] 
                 if pmb_type == 'particle':
                     bond = self.search_bond(particle_name1=central_bead_name, 
@@ -2240,16 +2240,16 @@ class pymbe_library():
                     clean_sequence.append(residue_ok)
         if isinstance(sequence, list):
             for residue in sequence:
-                    if residue in keys.values():
-                        residue_ok=residue
+                if residue in keys.values():
+                    residue_ok=residue
+                else:
+                    if residue.upper() in keys.values():
+                        residue_ok=residue.upper()
+                    elif (residue.upper() in keys.keys()):
+                        clean_sequence.append(keys[residue.upper()])
                     else:
-                        if residue.upper() in keys.values():
-                            residue_ok=residue.upper()
-                        elif (residue.upper() in keys.keys()):
-                            clean_sequence.append(keys[residue.upper()])
-                        else:
-                            raise ValueError("Unknown code for a residue: ", residue, " please review the input sequence")
-                    clean_sequence.append(residue_ok)
+                        raise ValueError("Unknown code for a residue: ", residue, " please review the input sequence")
+                clean_sequence.append(residue_ok)
         return clean_sequence
     
     def read_pmb_df (self,filename):
@@ -2299,28 +2299,22 @@ class pymbe_library():
             unit_length = 1 * self.units.angstrom 
 
         with open (filename,'r') as protein_model:
-
-                for line in protein_model :
-                    line_split = line.split ()
-    
-                    if line_split : 
-                        line_header = line_split [0]
-
-                        if line_header == 'atom':
-
-                            atom_id  = line_split [1]
-                            atom_name = line_split [3]
-                            atom_resname = line_split [5]
-                            chain_id = line_split [9]
-                            radius = float(line_split [11])*unit_length 
-                            sigma = 2*radius
-                            particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, sigma]
-         
-                        elif line_header.isnumeric (): 
-
-                            atom_coord = line_split [1:] 
-                            atom_coord = [(float(i)*unit_length).to('reduced_length').magnitude for i in atom_coord]
-                            coord_list.append (atom_coord)
+            for line in protein_model :
+                line_split = line.split()
+                if line_split:
+                    line_header = line_split[0]
+                    if line_header == 'atom':
+                        atom_id  = line_split[1]
+                        atom_name = line_split[3]
+                        atom_resname = line_split[5]
+                        chain_id = line_split[9]
+                        radius = float(line_split [11])*unit_length 
+                        sigma = 2*radius
+                        particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, sigma]
+                    elif line_header.isnumeric(): 
+                        atom_coord = line_split[1:] 
+                        atom_coord = [(float(i)*unit_length).to('reduced_length').magnitude for i in atom_coord]
+                        coord_list.append (atom_coord)
 
         numbered_label = []
         i = 0   
@@ -3170,7 +3164,7 @@ class pymbe_library():
             for particle in espresso_system.part: 
                 type_label = self.find_value_from_es_type(es_type=particle.type, column_name='label')
                 coordinates.write (f'atom {particle.id} radius 1 name {type_label} type {type_label}\n' )
-            coordinates.write (f'timestep indexed\n')
+            coordinates.write ('timestep indexed\n')
             for particle in espresso_system.part:
                 coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
         return 

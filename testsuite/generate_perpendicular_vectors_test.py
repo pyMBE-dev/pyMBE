@@ -35,29 +35,30 @@ def check_if_different_perpendicular_vectors_are_generated(vector,magnitude,n=50
                                         decimal = 5, 
                                         verbose = True)
 
-print(f"*** generate_trial_perpendicular_vector unit tests ***")
-print(f"*** Unit test: Check that the function creates perpendicular vectors to an arbitrary vector of the same magnitude  ***")
+
+print("*** generate_trial_perpendicular_vector unit tests ***")
+print("*** Unit test: Check that the function creates perpendicular vectors to an arbitrary vector of the same magnitude  ***")
 vector = pmb.generate_random_points_in_a_sphere(center=[0,0,0],
                                                 radius=1, 
                                                 n_samples=1, 
                                                 on_surface=True)[0]
 check_if_different_perpendicular_vectors_are_generated(vector=vector,
                                                     magnitude=1)
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: Check that the function creates perpendicular vectors to a vector with an arbitrary origin ***")
+print("*** Unit test passed ***")
+print("*** Unit test: Check that the function creates perpendicular vectors to a vector with an arbitrary origin ***")
 vector = pmb.generate_random_points_in_a_sphere(center=[1,2,3],
                                                 radius=1, 
                                                 n_samples=1, 
                                                 on_surface=True)[0]
 check_if_different_perpendicular_vectors_are_generated(vector=vector,
                                                     magnitude=1)
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: Check that the function creates perpendicular vectors with a different magnitude  ***")
+print("*** Unit test passed ***")
+print("*** Unit test: Check that the function creates perpendicular vectors with a different magnitude  ***")
 vector = pmb.generate_random_points_in_a_sphere(center=[1,2,3],
                                                 radius=2, 
                                                 n_samples=1, 
                                                 on_surface=True)[0]
 check_if_different_perpendicular_vectors_are_generated(vector=vector,
                                                         magnitude=3)
-print(f"*** Unit test passed ***")
-print(f"*** All unit tests passed ***")
+print("*** Unit test passed ***")
+print("*** All unit tests passed ***")

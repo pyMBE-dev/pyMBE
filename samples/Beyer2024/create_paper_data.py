@@ -40,7 +40,7 @@ if mode not in valid_modes:
 labels_fig7=["7a", "7b", "7c"]
 
 if fig_label in labels_fig7 and not plot:
-    script_path=pmb.get_resource(f"samples/Beyer2024/peptide.py")
+    script_path=pmb.get_resource("samples/Beyer2024/peptide.py")
     if fig_label == "7a":
         sequence="K"*5+"D"*5
     elif fig_label == "7b":
@@ -62,7 +62,7 @@ if fig_label in labels_fig7 and not plot:
 labels_fig8=["8a", "8b"]
 if fig_label in labels_fig8:
     
-    script_path=pmb.get_resource(f"samples/Beyer2024/globular_protein.py")
+    script_path=pmb.get_resource("samples/Beyer2024/globular_protein.py")
     pH_range = np.linspace(2, 7, num=11)
 
     if fig_label == "8a":
@@ -87,7 +87,7 @@ if fig_label in labels_fig8:
 
 ## Weak polyelectrolyte dialysis plot (Fig. 9)
 if fig_label == "9" and not plot: 
-    script_path=pmb.get_resource(f"samples/Beyer2024/weak_polyelectrolyte_dialysis.py")
+    script_path=pmb.get_resource("samples/Beyer2024/weak_polyelectrolyte_dialysis.py")
     pH_range = np.linspace(1, 13, num=13)
     c_salt_res = 0.01 * pmb.units.mol/pmb.units.L
     for pH in pH_range:
@@ -97,13 +97,13 @@ if fig_label == "9" and not plot:
 
 # Analyze all time series
 if fig_label in labels_fig7:
-    time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series/peptides")
+    time_series_folder_path=pmb.get_resource("samples/Beyer2024/time_series/peptides")
     
 if fig_label in labels_fig8:    
-    time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series/globular_protein")
+    time_series_folder_path=pmb.get_resource("samples/Beyer2024/time_series/globular_protein")
     
 if fig_label == "9":
-    time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series/grxmc")
+    time_series_folder_path=pmb.get_resource("samples/Beyer2024/time_series/grxmc")
 
 data=analysis.analyze_time_series(path_to_datafolder=time_series_folder_path)
 

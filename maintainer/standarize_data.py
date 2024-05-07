@@ -96,6 +96,6 @@ if filename in Refs_lunkad+Ref_blanco:
                       "charge_error": Z_ref_err})
 
 
-data_path=pmb.get_resource(f"testsuite/data")
+data_path=pmb.get_resource("testsuite/data")
 data.to_csv(f"{data_path}/{output_filenames[filename]}", 
             index=False)

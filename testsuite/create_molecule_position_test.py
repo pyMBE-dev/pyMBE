@@ -4,8 +4,8 @@ import espressomd
 import pyMBE
 pmb = pyMBE.pymbe_library(SEED=42)
 
-print(f"***create_molecule with input position list unit test ***")
-print(f"*** Unit test: Check that the positions of the central bead of the first residue in the generated molecules are equal to the input positions***")
+print("***create_molecule with input position list unit test ***")
+print("*** Unit test: Check that the positions of the central bead of the first residue in the generated molecules are equal to the input positions***")
 # Simulation parameters
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm,
                       verbose=False)
@@ -81,10 +81,10 @@ for molecule_id in molecules:
 
 np.testing.assert_almost_equal(pos_list, central_bead_pos)
 
-print(f"*** Unit test passed ***\n")
+print("*** Unit test passed ***\n")
 
 
-print(f"*** Unit test: Check that center_molecule_in_simulation_box works correctly for cubic boxes***")
+print("*** Unit test: Check that center_molecule_in_simulation_box works correctly for cubic boxes***")
 
 molecule_id = pmb.df.loc[pmb.df['name']==molecule_name].molecule_id.values[0]
 pmb.center_molecule_in_simulation_box(molecule_id=molecule_id, espresso_system=espresso_system)
@@ -93,10 +93,10 @@ center_of_mass_ref = [L.to('reduced_length').magnitude/2]*3
 
 np.testing.assert_almost_equal(center_of_mass, center_of_mass_ref)
 
-print(f"*** Unit test passed ***\n")
+print("*** Unit test passed ***\n")
 
 
-print(f"*** Unit test: Check that center_molecule_in_simulation_box works correctly for non-cubic boxes***")
+print("*** Unit test: Check that center_molecule_in_simulation_box works correctly for non-cubic boxes***")
 
 espresso_system.change_volume_and_rescale_particles(d_new=3*L.to('reduced_length').magnitude, dir="z")
 molecule_id = pmb.df.loc[pmb.df['name']==molecule_name].molecule_id.values[2]
@@ -106,4 +106,4 @@ center_of_mass_ref = [L.to('reduced_length').magnitude/2, L.to('reduced_length')
 
 np.testing.assert_almost_equal(center_of_mass, center_of_mass_ref)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")

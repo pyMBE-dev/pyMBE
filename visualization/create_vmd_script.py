@@ -507,7 +507,7 @@ def create_output_vtf_trajectory_for_vmd (output_trajectory,data_frames,new_part
         n_part +=1
 
         output_vmd.write (f'atom {str(hidden_id)}')
-        output_vmd.write (f' radius 1')
+        output_vmd.write (' radius 1')
         output_vmd.write (f' name {hidden_name}')
         output_vmd.write (f' typ {hidden_type} \n')
 
@@ -515,7 +515,7 @@ def create_output_vtf_trajectory_for_vmd (output_trajectory,data_frames,new_part
 
         for frame in range(data_frames['N_frame']):
            
-            output_vmd.write(f'\ntimestep indexed\n')
+            output_vmd.write('\ntimestep indexed\n')
             
             frame_atom_list  = frame_atom[frame]
             frame_coord_list = frame_coord[frame]
@@ -595,16 +595,16 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
 
     with open(output_visualization, "w") as output_file:
 
-        output_file.write(f'mol delete top\n')
-        output_file.write(f'display depthcue off\n')
+        output_file.write('mol delete top\n')
+        output_file.write('display depthcue off\n')
         output_file.write(f'mol load vtf {os.path.basename(output_trajectory)}\n')
-        output_file.write(f'mol delrep 0 top\n')
-        output_file.write(f'display resetview\n')
-        output_file.write(f'mol representation CPK 1.000000 0.000000\n')
-        output_file.write(f'mol selelection all\n')
-        output_file.write(f'animate goto 0\n')
-        output_file.write(f'color Display Background white\n')
-        output_file.write(f'axes location off\n')
+        output_file.write('mol delrep 0 top\n')
+        output_file.write('display resetview\n')
+        output_file.write('mol representation CPK 1.000000 0.000000\n')
+        output_file.write('mol selelection all\n')
+        output_file.write('animate goto 0\n')
+        output_file.write('color Display Background white\n')
+        output_file.write('axes location off\n')
         output_file.write(f'pbc box_draw -color gray -width {str(width_box_line)}\n')
 
         color=0
@@ -623,9 +623,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 1 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 1 \n') 
+                    output_file.write('mol addrep top\n\n')
 
                 elif typ in basic_charged_groups:
 
@@ -634,9 +634,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 0 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 0 \n') 
+                    output_file.write('mol addrep top\n\n')
 
                 elif typ == 'CA':
 
@@ -645,9 +645,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 4 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 4 \n') 
+                    output_file.write('mol addrep top\n\n')
 
                 elif typ == 'Na':
 
@@ -656,9 +656,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 10 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 10 \n') 
+                    output_file.write('mol addrep top\n\n')
 
                 elif typ == 'Cl':
 
@@ -667,9 +667,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 9 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 9 \n') 
+                    output_file.write('mol addrep top\n\n')
 
                 else:
 
@@ -678,9 +678,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 7 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 7 \n') 
+                    output_file.write('mol addrep top\n\n')
 
         else:  
 
@@ -691,9 +691,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                 output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                 output_file.write(f'${var} set radius 1.0\n')
                 output_file.write(f'mol selection name {typ}\n')
-                output_file.write(f'mol material Opaque\n')
+                output_file.write('mol material Opaque\n')
                 output_file.write(f'mol color ColorID {str(color)}\n')
-                output_file.write(f'mol addrep top\n\n')
+                output_file.write('mol addrep top\n\n')
                 color=color+1
 
 
@@ -701,11 +701,11 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
         var="typ"+hidden_type
         output_file.write(f'set {var} [atomselect top "name {hidden_type} "]\n')
         output_file.write(f'${var} set radius 1\n')
-        output_file.write(f'mol representation CPK 1.000000 16.000000\n')
+        output_file.write('mol representation CPK 1.000000 16.000000\n')
         output_file.write(f'mol selection name {hidden_type}\n')
-        output_file.write(f'mol material Goodsell\n')
+        output_file.write('mol material Goodsell\n')
         output_file.write(f'mol color ColorID {str(8)}\n')
-        output_file.write(f'mol addrep top\n\n')
+        output_file.write('mol addrep top\n\n')
 
     return 0
 

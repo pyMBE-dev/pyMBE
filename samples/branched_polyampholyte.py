@@ -202,7 +202,7 @@ for pH_value in pH_range:
 
         if step % N_samples_print == 0:
             N_frame+=1
-            with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
+            with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
                 vtf.writevsf(espresso_system, coordinates)
                 vtf.writevcf(espresso_system, coordinates)
 
@@ -210,7 +210,7 @@ for pH_value in pH_range:
     processed_data = block_analyze(full_data=pd.DataFrame(time_series, columns=labels_obs))
     Z_pH.append(processed_data["mean", "charge"])
     err_Z_pH.append(processed_data["err_mean", "charge"])
-    print("pH = {:6.4g} done".format(pH_value))
+    print(f"pH = {pH_value:6.4g} done")
    
 
 if args.test:

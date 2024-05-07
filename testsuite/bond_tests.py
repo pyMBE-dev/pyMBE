@@ -1,36 +1,36 @@
 # Import pyMBE and other libraries
 import pyMBE
 import numpy as np
-        
+
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(SEED=42)
 
 def check_bond_setup(bond_object, input_parameters, bond_type):
-        """
-        Checks that pyMBE sets up a bond object correctly.
+    """
+    Checks that pyMBE sets up a bond object correctly.
 
-        Args:
-                bond_object(`espressomd.interactions`): instance of a espresso bond object.
-                input_parameters(`dict`): dictionary with the parameters for the bond potential.
-                bond_type(`str`): label identifying the bond type
-        """
-        # Check that pyMBE stores the correct type of bond
-        if bond_type.lower() not in str(bond_object).lower():
-                raise Exception("*** Test failed: pyMBE does not store the correct type of bond ***")
-        # Check that pyMBE defines the bond with the correct parameters
-        bond_params = bond_object.get_params()
-        reduced_units = {'r_0'    : 'reduced_length',
-                        'k'      : 'reduced_energy / reduced_length**2',
-                        'd_r_max': 'reduced_length'}
-        for key in input_parameters.keys():
-                np.testing.assert_equal(actual=bond_params[key], 
-                        desired=input_parameters[key].m_as(reduced_units[key]), 
-                        verbose=True)                
-        return 0
+    Args:
+            bond_object(`espressomd.interactions`): instance of a espresso bond object.
+            input_parameters(`dict`): dictionary with the parameters for the bond potential.
+            bond_type(`str`): label identifying the bond type
+    """
+    # Check that pyMBE stores the correct type of bond
+    if bond_type.lower() not in str(bond_object).lower():
+        raise Exception("*** Test failed: pyMBE does not store the correct type of bond ***")
+    # Check that pyMBE defines the bond with the correct parameters
+    bond_params = bond_object.get_params()
+    reduced_units = {'r_0'    : 'reduced_length',
+                     'k'      : 'reduced_energy / reduced_length**2',
+                     'd_r_max': 'reduced_length'}
+    for key in input_parameters.keys():
+        np.testing.assert_equal(actual=bond_params[key],
+                desired=input_parameters[key].m_as(reduced_units[key]),
+                verbose=True)
+    return 0
 
 #### DEFINE_BOND TESTS ###
 
-print(f"*** Unit test: check that define_bond sets up a harmonic bond correctly ***")
+print("*** Unit test: check that define_bond sets up a harmonic bond correctly ***")
 
 # Define dummy particle
 
@@ -55,7 +55,7 @@ print("*** Unit test passed ***")
 # Clean pmb.df
 pmb.setup_df()
 
-print(f"*** Unit test: check that define_bond sets up a FENE bond correctly ***")
+print("*** Unit test: check that define_bond sets up a FENE bond correctly ***")
 
 # Define dummy particle
 
@@ -84,7 +84,7 @@ print("*** Unit test passed ***")
 
 pmb.setup_df()
 
-print(f"*** Unit test: check that define_bond sets up a harmonic and a FENE bonds correctly in the same script ***")
+print("*** Unit test: check that define_bond sets up a harmonic and a FENE bonds correctly in the same script ***")
 
 # Define dummy particle
 
@@ -124,7 +124,7 @@ print("*** Unit test passed ***")
 
 pmb.setup_df()
 
-print(f"*** Unit test: check that define_bond raises a ValueError if the provided bond_type differs from the two currently implemented (harmonic and FENE) ***")
+print("*** Unit test: check that define_bond raises a ValueError if the provided bond_type differs from the two currently implemented (harmonic and FENE) ***")
 
 # Define dummy particle
 
@@ -143,9 +143,9 @@ input_parameters={"bond_type": bond_type,
 
 np.testing.assert_raises(ValueError, pmb.define_bond, **input_parameters)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_bond raises a ValueError if the provided dictionary does not have the Equilibrium length (r_0) for setting up a harmonic bond ***")
+print("*** Unit test: check that define_bond raises a ValueError if the provided dictionary does not have the Equilibrium length (r_0) for setting up a harmonic bond ***")
 
 # Define dummy particle
 
@@ -163,9 +163,9 @@ input_parameters={"bond_type": bond_type,
 
 np.testing.assert_raises(ValueError, pmb.define_bond, **input_parameters)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_bond raises a ValueError if the provided dictionary does not have the Magnitud of the potential (k) for setting up a harmonic bond ***")
+print("*** Unit test: check that define_bond raises a ValueError if the provided dictionary does not have the Magnitud of the potential (k) for setting up a harmonic bond ***")
 
 # Define dummy particle
 
@@ -183,9 +183,9 @@ input_parameters={"bond_type": bond_type,
 
 np.testing.assert_raises(ValueError, pmb.define_bond, **input_parameters)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_bond raises a ValueError if the provided dictionary does not have the Magnitud of the potential (k) for setting up a FENE bond ***")
+print("*** Unit test: check that define_bond raises a ValueError if the provided dictionary does not have the Magnitud of the potential (k) for setting up a FENE bond ***")
 
 # Define dummy particle
 
@@ -204,9 +204,9 @@ input_parameters={"bond_type": bond_type,
 
 np.testing.assert_raises(ValueError, pmb.define_bond, **input_parameters)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_bond raises a ValueError if the provided dictionary does not have the Maximal stretching length (d_r_max) for setting up a FENE bond ***")
+print("*** Unit test: check that define_bond raises a ValueError if the provided dictionary does not have the Maximal stretching length (d_r_max) for setting up a FENE bond ***")
 
 # Define dummy particle
 
@@ -225,11 +225,11 @@ input_parameters={"bond_type": bond_type,
 
 np.testing.assert_raises(ValueError, pmb.define_bond, **input_parameters)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
 #### DEFINE_DEFAULT_BOND TESTS ###
 
-print(f"*** Unit test: check that define_default_bond sets up a harmonic bond correctly ***")
+print("*** Unit test: check that define_default_bond sets up a harmonic bond correctly ***")
 
 # Define dummy bond
 
@@ -250,7 +250,7 @@ print("*** Unit test passed ***")
 
 pmb.setup_df()
 
-print(f"*** Unit test: check that define_dafult_bond sets up a FENE bond correctly ***")
+print("*** Unit test: check that define_dafult_bond sets up a FENE bond correctly ***")
 
 # Define dummy bond
 
@@ -273,7 +273,7 @@ print("*** Unit test passed ***")
 
 pmb.setup_df()
 
-print(f"*** Unit test: check that define_default_bond raises a ValueError if the provided bond_type differs from the two currently implemented (harmonic and FENE) ***")
+print("*** Unit test: check that define_default_bond raises a ValueError if the provided bond_type differs from the two currently implemented (harmonic and FENE) ***")
 
 # Define dummy bond
 
@@ -287,9 +287,9 @@ input_parameters={"bond_type": bond_type,
 
 np.testing.assert_raises(ValueError, pmb.define_default_bond, **input_parameters)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_default_bond raises a ValueError if the provided dictionary does not have the Equilibrium length (r_0) for setting up a harmonic bond ***")
+print("*** Unit test: check that define_default_bond raises a ValueError if the provided dictionary does not have the Equilibrium length (r_0) for setting up a harmonic bond ***")
 
 # Define dummy bond
 
@@ -302,9 +302,9 @@ input_parameters={"bond_type": bond_type,
 
 np.testing.assert_raises(ValueError, pmb.define_default_bond, **input_parameters)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_default_bond raises a ValueError if the provided dictionary does not have the Magnitud of the potential (k) for setting up a harmonic bond ***")
+print("*** Unit test: check that define_default_bond raises a ValueError if the provided dictionary does not have the Magnitud of the potential (k) for setting up a harmonic bond ***")
 
 # Define dummy bond
 
@@ -317,9 +317,9 @@ input_parameters={"bond_type": bond_type,
 
 np.testing.assert_raises(ValueError, pmb.define_default_bond, **input_parameters)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_default_bond raises a ValueError if the provided dictionary does not have the Magnitud of the potential (k) for setting up a FENE bond ***")
+print("*** Unit test: check that define_default_bond raises a ValueError if the provided dictionary does not have the Magnitud of the potential (k) for setting up a FENE bond ***")
 
 # Define dummy bond
 
@@ -333,9 +333,9 @@ input_parameters={"bond_type": bond_type,
 
 np.testing.assert_raises(ValueError, pmb.define_default_bond, **input_parameters)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_default_bond raises a ValueError if the provided dictionary does not have the Maximal stretching length (d_r_max) for setting up a FENE bond ***")
+print("*** Unit test: check that define_default_bond raises a ValueError if the provided dictionary does not have the Maximal stretching length (d_r_max) for setting up a FENE bond ***")
 
 # Define dummy bond
 
@@ -349,5 +349,4 @@ input_parameters={"bond_type": bond_type,
 
 np.testing.assert_raises(ValueError, pmb.define_default_bond, **input_parameters)
 
-print(f"*** Unit test passed ***")
-
+print("*** Unit test passed ***")

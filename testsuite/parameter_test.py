@@ -3,8 +3,7 @@ import pyMBE
 
 pmb = pyMBE.pymbe_library(SEED=42)
 
-
-print(f"*** Check that the different pKa sets are correctly formatted ***")
+print("*** Check that the different pKa sets are correctly formatted ***")
 
 pymbe_root = pathlib.Path(pyMBE.__file__).parent
 pka_root = pymbe_root / "parameters" / "pka_sets"
@@ -16,4 +15,4 @@ for path in pka_root.glob("*.json"):
     pmb.load_pka_set(path_to_pka,
                      verbose=False)
 
-print(f"*** Test passed ***")
+print("*** Test passed ***")

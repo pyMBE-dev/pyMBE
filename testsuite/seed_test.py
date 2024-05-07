@@ -51,10 +51,10 @@ def build_peptide_in_espresso(SEED):
     return np.asarray(positions)
 
 
-print(f"*** Check that the using the same SEED results in the same initial particle positions***")
+print("*** Check that the using the same SEED results in the same initial particle positions***")
 positions1 = build_peptide_in_espresso(42)
 positions2 = build_peptide_in_espresso(42)
 
 np.testing.assert_almost_equal(positions1, positions2)
 
-print(f"*** Test passed ***")
+print("*** Test passed ***")

@@ -312,6 +312,3 @@ time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
 
 if verbose:
     print("*** DONE ***")
-
-
-
