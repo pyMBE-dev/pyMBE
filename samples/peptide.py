@@ -34,7 +34,7 @@ solvent_permitivity = 78.3
 
 # Peptide parameters
 
-sequence = 'nEEEEEc'
+sequence = 'EEEEDDDD'
 model = '2beadAA'  # Model with 2 beads per each aminoacid
 pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 N_peptide_chains = 4
@@ -45,32 +45,6 @@ path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
 path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
 pmb.load_interaction_parameters (filename=path_to_interactions) 
 pmb.load_pka_set (path_to_pka)
-
-# Use a generic parametrization for the aminoacids not parametrized
-
-not_parametrized_neutral_aminoacids = ['A','N','Q','G','I','L','M','F','P','O','S','U','T','W','V','J']
-not_parametrized_acidic_aminoacids = ['C','c']
-not_parametrized_basic_aminoacids = ['R','n']
-
-already_defined_AA=[]
-
-for aminoacid_key in sequence:
-    if aminoacid_key in already_defined_AA:
-        continue
-    if aminoacid_key in not_parametrized_acidic_aminoacids:
-        pmb.define_particle(name=aminoacid_key,
-                           acidity='acidic',
-                           sigma=0.35*pmb.units.nm, 
-                           epsilon=1*pmb.units('reduced_energy'))
-    elif aminoacid_key in not_parametrized_basic_aminoacids:
-        pmb.define_particle(name=aminoacid_key, acidity='basic',sigma=0.35*pmb.units.nm,epsilon=1*pmb.units('reduced_energy'))
-        
-    elif aminoacid_key in not_parametrized_neutral_aminoacids:
-        pmb.define_particle(name=aminoacid_key,
-                           q=0,
-                           sigma=0.35*pmb.units.nm, 
-                           epsilon=1*pmb.units('reduced_energy'))
-    already_defined_AA.append(aminoacid_key)
 
 generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
