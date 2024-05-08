@@ -1,5 +1,6 @@
 import re 
 import ast
+import tempfile
 import espressomd
 import pandas as pd
 
@@ -88,12 +89,13 @@ pd.options.display.max_colwidth = 10
 # Copy the pmb.df into a new DF for the unit test 
 stored_df = pmb.df.copy()
 
-# Write the pymbe DF to a csv file 
-df_filename = 'df-example_molecule.csv'
-pmb.write_pmb_df (filename = df_filename)
+with tempfile.TemporaryDirectory() as tmp_directory:
+    # Write the pymbe DF to a csv file
+    df_filename = f'{tmp_directory}/df-example_molecule.csv'
+    pmb.write_pmb_df (filename = df_filename)
 
-# Read the same pyMBE df from a csv a load it in pyMBE
-read_df = pmb.read_pmb_df(filename = df_filename)
+    # Read the same pyMBE df from a csv a load it in pyMBE
+    read_df = pmb.read_pmb_df(filename = df_filename)
 
 # Preprocess data for the Unit Test
 # The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal

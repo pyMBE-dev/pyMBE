@@ -554,7 +554,7 @@ class pymbe_library():
         if name in self.df['name'].unique():
             current_object_type = self.df[self.df['name']==name].pmb_type.values[0]
             if current_object_type != pmb_type_to_be_defined:
-                raise ValueError ((f"The name {name} is already defined in the df with a pmb_type = {current_object_type}, pymMBE does not support objects with the same name but different pmb_types"))    
+                raise ValueError (f"The name {name} is already defined in the df with a pmb_type = {current_object_type}, pymMBE does not support objects with the same name but different pmb_types")
             return True            
         else:
             return False

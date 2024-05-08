@@ -182,4 +182,4 @@ time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
 #Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df(filename='df.csv')
+pmb.write_pmb_df(filename=f'{data_path}/df.csv')
