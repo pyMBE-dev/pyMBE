@@ -46,7 +46,6 @@ Ref_blanco=["histatin5_SoftMatter.txt"]
 Ref_torres = ["1f6s-10mM-torres.dat","1beb-10mM-torres.dat" ]
 Ref_landsgesell=["data_landsgesell.csv"]
 
-
 if filename in Refs_lunkad:
     data=pd.read_csv(ref_path)
     Z_ref = 5*-1*data['aaa']+5*data['aab']
@@ -59,7 +58,6 @@ elif filename in Ref_blanco:
     data=np.loadtxt(ref_path, delimiter=",")
     Z_ref=data[:,1]         
     Z_ref_err=data[:,2]
-
     pH_range = np.linspace(2, 12, num=21)
     
 elif filename in Ref_torres:
@@ -82,11 +80,6 @@ else:
     raise RuntimeError()
 
 
-# Store the data
-data=pd.DataFrame({"pH": pH_range,
-                  "charge": Z_ref,
-                  "charge_error": Z_ref_err})
-
 if filename in Refs_lunkad+Ref_blanco:
     pH_range = np.linspace(2, 12, num=21)
 
@@ -94,7 +87,11 @@ if filename in Refs_lunkad+Ref_blanco:
     data=pd.DataFrame({"pH": pH_range,
                       "charge": Z_ref,
                       "charge_error": Z_ref_err})
-
+if filename in Ref_torres:
+    # Store the data
+    data=pd.DataFrame({"pH": pH_range,
+                    "charge": Z_ref,
+                    "charge_error": Z_ref_err})
 
 data_path=pmb.get_resource("testsuite/data")
 data.to_csv(f"{data_path}/{output_filenames[filename]}", 
