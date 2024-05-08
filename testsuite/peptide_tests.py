@@ -1,8 +1,9 @@
 # Import pyMBE and other libraries
-import pyMBE
-from lib import analysis
+import sys
 import tempfile
 import subprocess
+import pyMBE
+from lib import analysis
 import numpy as np
 import pandas as pd
 
@@ -24,7 +25,7 @@ def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol,mode="test"):
     with tempfile.TemporaryDirectory() as time_series_path:
         for pH in test_pH_values:
             print(f"pH = {pH}")
-            run_command=["python3", script_path, "--sequence", sequence, "--pH", str(pH), "--mode", "test", "--no_verbose", "--output", time_series_path]
+            run_command=[sys.executable, script_path, "--sequence", sequence, "--pH", str(pH), "--mode", "test", "--no_verbose", "--output", time_series_path]
             print(subprocess.list2cmdline(run_command))
             subprocess.check_output(run_command)
         # Analyze all time series

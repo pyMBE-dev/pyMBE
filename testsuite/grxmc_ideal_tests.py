@@ -1,5 +1,6 @@
 # Import pyMBE and other libraries
 import pyMBE
+import sys
 import subprocess
 import numpy as np
 import pandas as pd
@@ -12,7 +13,7 @@ data_path = pmb.get_resource("samples/data_peptide_grxmc.csv")
 print("*** Grand reaction (G-RxMC) implementation tests ***\n")
 print("*** Test that our implementation of the original G-RxMC method reproduces the Henderson-Hasselbalch equation corrected with the Donnan potential (HH+Don) for an ideal mixture of peptides ***")
 
-run_command = ["python3", script_path, "--mode", "standard", "--test"]
+run_command = [sys.executable, script_path, "--mode", "standard", "--test"]
 subprocess.check_output(run_command)
 
 data = pd.read_csv(data_path)
@@ -26,7 +27,7 @@ print("*** Test passed ***\n")
 
 print("*** Test that our implementation of the G-RxMC method with unified ion types reproduces HH+Don for an ideal mixture of peptides ***")
 
-run_command = ["python3", script_path, "--mode", "unified", "--test"]
+run_command = [sys.executable, script_path, "--mode", "unified", "--test"]
 subprocess.check_output(run_command)
 
 data = pd.read_csv(data_path)

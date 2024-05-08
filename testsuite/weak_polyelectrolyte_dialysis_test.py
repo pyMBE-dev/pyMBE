@@ -1,6 +1,7 @@
 # Import pyMBE and other libraries
 import pyMBE
 from lib import analysis
+import sys
 import tempfile
 import subprocess
 import numpy as np
@@ -21,7 +22,7 @@ print("*** Running test for weak polyelectrolyte dialysis with G-RxMC (interacti
 with tempfile.TemporaryDirectory() as time_series_path:
     for pH in test_pH_values:
         print(f"pH = {pH}")
-        run_command=["python3", script_path, "--c_salt_res", str(c_salt_res), "--c_mon_sys", str(c_mon_sys), "--pKa_value", str(pKa_value), "--pH_res", str(pH), "--mode", "test", "--output", time_series_path, "--no_verbose"]
+        run_command=[sys.executable, script_path, "--c_salt_res", str(c_salt_res), "--c_mon_sys", str(c_mon_sys), "--pKa_value", str(pKa_value), "--pH_res", str(pH), "--mode", "test", "--output", time_series_path, "--no_verbose"]
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)
     # Analyze all time series

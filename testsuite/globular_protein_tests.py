@@ -1,6 +1,7 @@
 # Import pyMBE and other libraries
 import pyMBE
 from lib import analysis
+import sys
 import tempfile
 import subprocess
 import numpy as np
@@ -22,13 +23,13 @@ def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="
 
     print(f"Running tests for {protein_pdb}")
     with tempfile.TemporaryDirectory() as time_series_path:
-       
         for pH in test_pH_values:
             print(f"pH = {pH}")
-            run_command=["python3", script_path, "--pdb", protein_pdb, "--pH", str(pH), "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf"]
+            run_command=[sys.executable, script_path, "--pdb", protein_pdb, "--pH", str(pH),
+                         "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf",
+                         "--mode", "test", "--no_verbose", "--output", time_series_path]
             if protein_pdb == '1f6s':
                 run_command+=["--metal_ion_name","Ca", "--metal_ion_charge", "2"]
-            run_command+=["--mode", "test", "--no_verbose", "--output", time_series_path]
             print(subprocess.list2cmdline(run_command))
             subprocess.check_output(run_command)
         # Analyze all time series

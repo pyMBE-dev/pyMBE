@@ -1,5 +1,6 @@
 # Import pyMBE and other libraries
 import pyMBE
+import sys
 import subprocess
 import numpy as np
 import pandas as pd
@@ -13,7 +14,7 @@ data_path = pmb.get_resource("samples/data_polyampholyte_cph.csv")
 print("*** Constant pH (cpH) implementation tests ***\n")
 print("*** Test that our implementation of the cpH method reproduces the Henderson Hasselbalch equation for an ideal polyampholyte ***\n")
 
-run_command = ["python3", script_path, "--test"]
+run_command = [sys.executable, script_path, "--test"]
 subprocess.check_output(run_command)
 
 data = pd.read_csv(data_path)

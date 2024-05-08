@@ -1,13 +1,14 @@
 # Import pyMBE and other libraries
-import pyMBE
-from lib import analysis
+import sys
 import tempfile
 import subprocess
+import pyMBE
+from lib import analysis
 import numpy as np
 
 # Template of the test
 
-def gcmc_test(mode, script_path):
+def gcmc_test(script_path, mode):
     if mode == "ideal":
         print("*** Running test for GCMC of salt solution (ideal). ***")
     elif mode == "interacting":
@@ -15,7 +16,7 @@ def gcmc_test(mode, script_path):
     with tempfile.TemporaryDirectory() as time_series_path:
         for c_salt_res in salt_concentrations:
             print(f"c_salt_res = {c_salt_res}")
-            run_command=["python3", script_path, "--c_salt_res", str(c_salt_res), "--output", time_series_path, "--mode", mode, "--no_verbose"]
+            run_command=[sys.executable, script_path, "--c_salt_res", str(c_salt_res), "--output", time_series_path, "--mode", mode, "--no_verbose"]
             print(subprocess.list2cmdline(run_command))
             subprocess.check_output(run_command)
         # Analyze all time series
@@ -37,7 +38,7 @@ rtol=0.05 # relative tolerance
 atol=0.0 # absolute tolerance
 
 # Ideal test
-gcmc_test("ideal", script_path)
+gcmc_test(script_path, "ideal")
 
 # Interacting test
-gcmc_test("interacting", script_path)
+gcmc_test(script_path, "interacting")
