@@ -17,7 +17,7 @@ from lib import analysis
 from lib import handy_functions as hf
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 valid_modes=["short-run","long-run", "test"]
 parser = argparse.ArgumentParser(description='Script to run the peptide test cases for pyMBE')
@@ -51,7 +51,7 @@ verbose=args.no_verbose
 if mode not in valid_modes:
     raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
-SEED = 100
+LANGEVIN_SEED = 100
 dt = 0.01
 solvent_permitivity = 78.3
 pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
@@ -66,11 +66,10 @@ if sequence not in valid_sequences:
     raise ValueError(f"ERROR: the only valid peptide sequence for this test script are {valid_sequences}")
 
 if sequence in Lunkad_test_sequences:
-    print(sequence)
-    path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
-    path_to_pka=pmb.get_resource("parameters/pka_sets/CRC1991.txt")
+    path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
+    path_to_pka=pmb.get_resource("parameters/pka_sets/CRC1991.json")
     pmb.load_interaction_parameters(filename=path_to_interactions)
-    pmb.load_pka_set (filename=path_to_pka)
+    pmb.load_pka_set(filename=path_to_pka)
     model = '2beadAA'  # Model with 2 beads per each aminoacid
     N_peptide_chains = 4
     sigma_cation=0.35*pmb.units.nm
@@ -79,8 +78,8 @@ if sequence in Lunkad_test_sequences:
     chain_length=len(sequence)*2
 
 elif sequence in Blanco_test_sequence:
-    pmb.load_interaction_parameters (pmb.get_resource(path='parameters/peptides/Blanco2020.txt'))
-    pmb.load_pka_set (pmb.get_resource(path='parameters/pka_sets/Nozaki1967.txt'))
+    pmb.load_interaction_parameters (pmb.get_resource(path='parameters/peptides/Blanco2021.json'))
+    pmb.load_pka_set (pmb.get_resource(path='parameters/pka_sets/Nozaki1967.json'))
     model = '1beadAA'
     N_peptide_chains = 1
     c_salt = 5e-3 * pmb.units.mol/ pmb.units.L
@@ -152,8 +151,7 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                     verbose=verbose)
 
 RE, successful_reactions_labels = pmb.setup_cpH(counter_ion=cation_name,
-                                                constant_pH=pH,
-                                                SEED=SEED)
+                                                constant_pH=pH)
 
 if verbose:
     print(f"The box length of your system is {L.to('reduced_length')} = {L.to('nm')}")
@@ -184,7 +182,7 @@ hf.minimize_espresso_system_energy (espresso_system=espresso_system,
 
 hf.setup_langevin_dynamics(espresso_system=espresso_system,
                             kT = pmb.kT,
-                            SEED = SEED,
+                            SEED = LANGEVIN_SEED,
                             time_step=dt,
                             tune_skin=False)
 

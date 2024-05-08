@@ -9,6 +9,7 @@ class pymbe_library():
         e(`obj`): Elemental charge using the `pmb.units` UnitRegistry.
         df(`obj`): PandasDataframe used to bookkeep all the information stored in pyMBE. Typically refered as `pmb.df`. 
         kT(`obj`): Thermal energy using the `pmb.units` UnitRegistry. It is used as the unit of reduced energy.
+        Kw(`obj`): Ionic product of water using the `pmb.units` UnitRegistry. Used in the setup of the G-RxMC method.
     """
     import pint
     import re
@@ -22,8 +23,11 @@ class pymbe_library():
     e=1.60217662e-19 *units.C
     df=None
     kT=None
+    Kw=None
+    SEED=None
+    rng=None
 
-    def __init__(self, temperature=None, unit_length=None, unit_charge=None):
+    def __init__(self, SEED, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
         Initializes the pymbe_library by setting up the reduced unit system with `temperature` and `reduced_length` 
         and sets up  the `pmb.df` for bookkeeping.
@@ -32,12 +36,17 @@ class pymbe_library():
             temperature(`obj`,optional): Value of the temperature in the pyMBE UnitRegistry. Defaults to None.
             unit_length(`obj`, optional): Value of the unit of length in the pyMBE UnitRegistry. Defaults to None.
             unit_charge (`obj`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            Kw (`obj`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
         
         Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
             - If no `unit_length` is given, a value of 0.355 nm is assumed by default.
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
+            - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
+        # Seed and RNG
+        self.SEED=SEED
+        self.rng = self.np.random.default_rng(SEED)
         # Default definitions of reduced units
         if temperature is None:
             temperature= 298.15 * self.units.K
@@ -45,7 +54,10 @@ class pymbe_library():
             unit_length= 0.355 * self.units.nm
         if unit_charge is None:
             unit_charge=self.units.e
+        if Kw is None:
+            Kw = 1e-14
         self.kT=temperature*self.Kb
+        self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
         self.units.define(f'reduced_energy = {self.kT}')
         self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = 1*e')
@@ -129,14 +141,14 @@ class pymbe_library():
         
         return
 
-    def add_value_to_df(self,index,key,new_value, warning=True):
+    def add_value_to_df(self,index,key,new_value, verbose=True):
         """
         Adds a value to a cell in the `pmb.df` DataFrame.
 
         Args:
             index(`int`): index of the row to add the value to.
             key(`str`): the column label to add the value to.
-            warning(`bool`, optional): If true, prints a warning if a value is being overwritten in `pmb.df`. Defaults to true.
+            verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
         """
         # Make sure index is a scalar integer value
         index = int (index)
@@ -144,7 +156,7 @@ class pymbe_library():
         idx = self.pd.IndexSlice
         if self.check_if_df_cell_has_a_value(index=index,key=key):
             old_value= self.df.loc[index,idx[key]]
-            if warning:
+            if verbose:
                 if old_value != new_value:
                     name=self.df.loc[index,('name','')]
                     pmb_type=self.df.loc[index,('pmb_type','')]
@@ -186,16 +198,16 @@ class pymbe_library():
         self.add_value_to_df (key=('molecule_id',''),
                                 index=int(molecule_index),
                                 new_value=molecule_id, 
-                                warning=False)
+                                verbose=False)
 
         return molecule_id
     
     def calculate_center_of_mass_of_molecule(self, molecule_id, espresso_system):
         """
-        Calculates the center of mass of type `name`.
+        Calculates the center of the molecule with a given molecule_id.
 
         Args:
-            molecule_id(`int`): Id of the molecule to be centered.
+            molecule_id(`int`): Id of the molecule whose center of mass is to be calculated.
             espresso_system(`obj`): Instance of a system object from the espressomd library.
         
         Returns:
@@ -283,7 +295,7 @@ class pymbe_library():
         Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.
 
         Args:
-            c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
+            c_macro ('dict'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
             c_salt ('float'): Salt concentration in the reservoir.
             pH_list ('lst'): List of pH-values in the reservoir. 
             pka_set ('dict'): {"name": {"pka_value": pka, "acidity": acidity}}.
@@ -443,15 +455,16 @@ class pymbe_library():
             molecule_id(`int`): Id of the molecule to be centered.
             espresso_system(`obj`): Instance of a system object from the espressomd library.
         """
-        center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
-        box_center = [espresso_system.box_l[0]/2.0]*3
-        pmb_type = self.df.loc[self.df['molecule_id']==molecule_id].pmb_type.values[0]
-        pmb_objects = ['protein','molecule','peptide']
-        if pmb_type in pmb_objects:
-            particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
-            for pid in particle_id_list:
-                es_pos = espresso_system.part.by_id(pid).pos
-                espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
+        if len(self.df.loc[self.df['molecule_id']==molecule_id].pmb_type) == 0:
+            raise ValueError("The provided molecule_id is not present in the pyMBE dataframe.")      
+        center_of_mass = self.calculate_center_of_mass_of_molecule(molecule_id=molecule_id,espresso_system=espresso_system)
+        box_center = [espresso_system.box_l[0]/2.0,
+                      espresso_system.box_l[1]/2.0,
+                      espresso_system.box_l[2]/2.0]
+        particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+        for pid in particle_id_list:
+            es_pos = espresso_system.part.by_id(pid).pos
+            espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
         return 
 
     def check_dimensionality(self, variable, expected_dimensionality):
@@ -534,7 +547,7 @@ class pymbe_library():
             columns_keys_to_clean(`list` of `str`, optional): List with the column keys to be cleaned. Defaults to [`particle_id`, `particle_id2`, `residue_id`, `molecule_id`].
         """   
         for column_key in columns_keys_to_clean:
-            self.add_value_to_df(key=(column_key,''),index=index,new_value=self.np.nan, warning=False)
+            self.add_value_to_df(key=(column_key,''),index=index,new_value=self.np.nan, verbose=False)
         return
 
     def convert_columns_to_original_format (self, df):
@@ -788,112 +801,114 @@ class pymbe_library():
         return counterion_number
         
     def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, use_default_bond=False):
-            """
-            Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
+        """
+        Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
-            Args:
-                name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
-                espresso_system(`obj`): Instance of a system object from espressomd library.
-                number_of_molecules(`int`): Number of molecules of type `name` to be created.
-                list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default
-                use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
-            Returns:
-                molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
-            """
-            if list_of_first_residue_positions != None:
-                for item in list_of_first_residue_positions:
-                    if isinstance(item, list) == False:
-                        raise ValueError(f"The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
-                    elif len(item) != 3:
-                        raise ValueError(f"The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
+        Args:
+            name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
+            espresso_system(`obj`): Instance of a system object from espressomd library.
+            number_of_molecules(`int`): Number of molecules of type `name` to be created.
+            list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default
+            use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
+        Returns:
 
-                if len(list_of_first_residue_positions) != number_of_molecules:
-                                raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
-            if number_of_molecules <= 0:
-                return
-            if not self.check_if_name_is_defined_in_df(name=name,
-                                                        pmb_type_to_be_defined='molecule'):
-                raise ValueError(f"{name} must correspond to a label of a pmb_type='molecule' defined on df")
-            first_residue = True
-            molecule_info = []
-            residue_list = self.df[self.df['name']==name].residue_list.values [0]
+            molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
+        """
+        if list_of_first_residue_positions != None:
+            for item in list_of_first_residue_positions:
+                if isinstance(item, list) == False:
+                    raise ValueError(f"The provided input position is not a nested list. Should be a nested list with elements of 3D lists, corresponding to xyz coord.")
+                elif len(item) != 3:
+                    raise ValueError(f"The provided input position is formatted wrong. The elements in the provided list does not have 3 coordinates, corresponding to xyz coord.")
 
-            self.copy_df_entry(name=name,
-                            column_name='molecule_id',
-                            number_of_copies=number_of_molecules)
-            
-            molecules_index = self.np.where(self.df['name']==name)
-            molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
-            used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
-            pos_index = 0 
-            for molecule_index in molecule_index_list:        
-                molecule_id = self.assign_molecule_id (name=name,pmb_type='molecule',used_molecules_id=used_molecules_id,molecule_index=molecule_index)
-                for residue in residue_list:
-                    if first_residue:
-                        if list_of_first_residue_positions == None:
-                            residue_position = None
-                        else:
-                            for item in list_of_first_residue_positions:
-                                residue_position = [self.np.array(list_of_first_residue_positions[pos_index])]
-                        # Generate an arbitrary random unit vector
-                        backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0], 
-                                                                    radius=1, 
-                                                                    n_samples=1,
-                                                                    on_surface=True)[0]
-                        residues_info = self.create_residue(name=residue,
-                                                            number_of_residues=1, 
-                                                            espresso_system=espresso_system, 
-                                                            central_bead_position=residue_position,  
-                                                            use_default_bond= use_default_bond, 
-                                                            backbone_vector=backbone_vector)
-                        residue_id = next(iter(residues_info))
-                        for index in self.df[self.df['residue_id']==residue_id].index:
+            if len(list_of_first_residue_positions) != number_of_molecules:
+                            raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
+        if number_of_molecules <= 0:
+            return
+        if not self.check_if_name_is_defined_in_df(name=name,
+                                                    pmb_type_to_be_defined='molecule'):
+            raise ValueError(f"{name} must correspond to a label of a pmb_type='molecule' defined on df")
+        first_residue = True
+        molecules_info = {}
+        residue_list = self.df[self.df['name']==name].residue_list.values [0]
+
+        self.copy_df_entry(name=name,
+                        column_name='molecule_id',
+                        number_of_copies=number_of_molecules)
+        
+        molecules_index = self.np.where(self.df['name']==name)
+        molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
+        used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
+        pos_index = 0 
+        for molecule_index in molecule_index_list:        
+            molecule_id = self.assign_molecule_id(name=name,pmb_type='molecule',used_molecules_id=used_molecules_id,molecule_index=molecule_index)
+            molecules_info[molecule_id] = {}
+            for residue in residue_list:
+                if first_residue:
+                    if list_of_first_residue_positions == None:
+                        residue_position = None
+                    else:
+                        for item in list_of_first_residue_positions:
+                            residue_position = [self.np.array(list_of_first_residue_positions[pos_index])]
+                    # Generate an arbitrary random unit vector
+                    backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0], 
+                                                                radius=1, 
+                                                                n_samples=1,
+                                                                on_surface=True)[0]
+                    residues_info = self.create_residue(name=residue,
+                                                        number_of_residues=1, 
+                                                        espresso_system=espresso_system, 
+                                                        central_bead_position=residue_position,  
+                                                        use_default_bond= use_default_bond, 
+                                                        backbone_vector=backbone_vector)
+                    residue_id = next(iter(residues_info))
+                    for index in self.df[self.df['residue_id']==residue_id].index:
+                        self.add_value_to_df(key=('molecule_id',''),
+                                            index=int (index),
+                                            new_value=molecule_id)
+                    central_bead_id = residues_info[residue_id]['central_bead_id']
+                    previous_residue = residue
+                    residue_position = espresso_system.part.by_id(central_bead_id).pos
+                    previous_residue_id = central_bead_id
+                    first_residue = False          
+                else:                    
+                    previous_central_bead_name=self.df[self.df['name']==previous_residue].central_bead.values[0]
+                    new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]       
+                    bond = self.search_bond(particle_name1=previous_central_bead_name, 
+                                            particle_name2=new_central_bead_name, 
+                                            hard_check=True, 
+                                            use_default_bond=use_default_bond)                
+                    l0 = self.get_bond_length(particle_name1=previous_central_bead_name, 
+                                            particle_name2=new_central_bead_name, 
+                                            hard_check=True, 
+                                            use_default_bond=use_default_bond)                
+                    residue_position = residue_position+backbone_vector*l0
+                    residues_info = self.create_residue(name=residue, 
+                                                        number_of_residues=1, 
+                                                        espresso_system=espresso_system, 
+                                                        central_bead_position=[residue_position],
+                                                        use_default_bond= use_default_bond, 
+                                                        backbone_vector=backbone_vector)
+                    residue_id = next(iter(residues_info))      
+                    for index in self.df[self.df['residue_id']==residue_id].index:
+                        if not self.check_if_df_cell_has_a_value(index=index,key=('molecule_id','')):
+                            self.df.at[index,'molecule_id'] = molecule_id
                             self.add_value_to_df(key=('molecule_id',''),
                                                 index=int (index),
-                                                new_value=molecule_id)
-                        central_bead_id = residues_info[residue_id]['central_bead_id']
-                        previous_residue = residue
-                        residue_position = espresso_system.part.by_id(central_bead_id).pos
-                        previous_residue_id = central_bead_id
-                        first_residue = False          
-                    else:                    
-                        previous_central_bead_name=self.df[self.df['name']==previous_residue].central_bead.values[0]
-                        new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]       
-                        bond = self.search_bond(particle_name1=previous_central_bead_name, 
-                                                particle_name2=new_central_bead_name, 
-                                                hard_check=True, 
-                                                use_default_bond=use_default_bond)                
-                        l0 = self.get_bond_length(particle_name1=previous_central_bead_name, 
-                                                particle_name2=new_central_bead_name, 
-                                                hard_check=True, 
-                                                use_default_bond=use_default_bond)                
-                        residue_position = residue_position+backbone_vector*l0
-                        residues_info = self.create_residue(name=residue, 
-                                                            number_of_residues=1, 
-                                                            espresso_system=espresso_system, 
-                                                            central_bead_position=[residue_position],
-                                                            use_default_bond= use_default_bond, 
-                                                            backbone_vector=backbone_vector)
-                        residue_id = next(iter(residues_info))      
-                        for index in self.df[self.df['residue_id']==residue_id].index:
-                            if not self.check_if_df_cell_has_a_value(index=index,key=('molecule_id','')):
-                                self.df.at[index,'molecule_id'] = molecule_id
-                                self.add_value_to_df(key=('molecule_id',''),
-                                                    index=int (index),
-                                                    new_value=molecule_id,
-                                                    warning=False)            
-                        central_bead_id = residues_info[residue_id]['central_bead_id']
-                        espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
-                        self.add_bond_in_df(particle_id1=central_bead_id,
-                                            particle_id2=previous_residue_id,
-                                            use_default_bond=use_default_bond)            
-                        previous_residue_id = central_bead_id
-                        previous_residue = residue                    
-                    molecule_info.append(residues_info)
-                first_residue = True
-                pos_index+=1
-            
-            return molecule_info
+                                                new_value=molecule_id,
+                                                verbose=False)            
+                    central_bead_id = residues_info[residue_id]['central_bead_id']
+                    espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
+                    self.add_bond_in_df(particle_id1=central_bead_id,
+                                        particle_id2=previous_residue_id,
+                                        use_default_bond=use_default_bond)            
+                    previous_residue_id = central_bead_id
+                    previous_residue = residue                    
+                molecules_info[molecule_id][residue_id] = residues_info[residue_id]
+            first_residue = True
+            pos_index+=1
+        
+        return molecules_info
     
     def create_particle(self, name, espresso_system, number_of_particles, position=None, fix=False):
         """
@@ -926,7 +941,7 @@ class pymbe_library():
             df_index=int (index_list[index])
             self.clean_df_row(index=df_index)
             if position is None:
-                particle_position = self.np.random.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
+                particle_position = self.rng.random((1, 3))[0] *self.np.copy(espresso_system.box_l)
             else:
                 particle_position = position[index]
             if len(espresso_system.part.all()) == 0:
@@ -939,10 +954,10 @@ class pymbe_library():
                 espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q,fix =[fix,fix,fix])        
             else:
                 espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q)        
-            self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, warning=False)                  
+            self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, verbose=False)                  
         return created_pid_list
 
-    def create_pmb_object (self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
+    def create_pmb_object(self, name, number_of_objects, espresso_system, position=None, use_default_bond=False):
         """
         Creates all `particle`s associated to `pmb object` into  `espresso` a number of times equal to `number_of_objects`.
         
@@ -963,9 +978,9 @@ class pymbe_library():
         if pmb_type == 'particle':
             self.create_particle(name=name, number_of_particles=number_of_objects, espresso_system=espresso_system, position=position)
         elif pmb_type == 'residue':
-            self.create_residue(name=name,number_of_residues=number_of_objects, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
+            self.create_residue(name=name, number_of_residues=number_of_objects, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
         elif pmb_type == 'molecule':
-            self.create_molecule(name=name,number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, list_of_first_residue_positions=position)
+            self.create_molecule(name=name, number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, list_of_first_residue_positions=position)
         return
 
     def create_protein(self, name, number_of_proteins, espresso_system, topology_dict):
@@ -1063,7 +1078,7 @@ class pymbe_library():
                 residue_id=0
             else:
                 residue_id = self.df['residue_id'].max() + 1
-            self.add_value_to_df(key=('residue_id',''),index=int (residue_index),new_value=residue_id, warning=False)
+            self.add_value_to_df(key=('residue_id',''),index=int (residue_index),new_value=residue_id, verbose=False)
             # create the principal bead
             if self.df.loc[self.df['name']==name].central_bead.values[0] is self.np.NaN:
                 raise ValueError("central_bead must contain a particle name")        
@@ -1113,7 +1128,7 @@ class pymbe_library():
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int (index),
                                         new_value=residue_id, 
-                                        warning=False)
+                                        verbose=False)
                     side_chain_beads_ids.append(side_bead_id)
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, side_bead_id))
                     self.add_bond_in_df(particle_id1=central_bead_id,
@@ -1148,7 +1163,7 @@ class pymbe_library():
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int(index),
                                         new_value=residue_id, 
-                                        warning=False)
+                                        verbose=False)
                     # Change the residue_id of the particles in the residue in the side chain
                     side_chain_beads_ids+=[central_bead_side_chain_id]+lateral_beads_side_chain_ids
                     for particle_id in side_chain_beads_ids:
@@ -1156,7 +1171,7 @@ class pymbe_library():
                         self.add_value_to_df(key=('residue_id',''),
                                             index=int (index),
                                             new_value=residue_id, 
-                                            warning=False)
+                                            verbose=False)
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, central_bead_side_chain_id))
                     self.add_bond_in_df(particle_id1=central_bead_id,
                                         particle_id2=central_bead_side_chain_id,
@@ -1380,7 +1395,7 @@ class pymbe_library():
         self.df.at [index,('residue_list','')] = residue_list
         return
 
-    def define_particle(self, name, q=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None):
+    def define_particle(self, name, q=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None,verbose=True):
         """
         Defines the properties of a particle object.
 
@@ -1390,9 +1405,10 @@ class pymbe_library():
             acidity (`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
             pka (`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
             sigma (`pint.Quantity`, optional): Sigma parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
-            cutoff (`pint.Quantity`, optional): cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
-            offset (`pint.Quantity`, optional): offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            cutoff (`pint.Quantity`, optional): Cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            offset (`pint.Quantity`, optional): Offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
             epsilon (`pint.Quantity`, optional): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe. Defaults to None.
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - `sigma`, `cutoff` and `offset` must have a dimensitonality of `[length]` and should be defined using pmb.units.
@@ -1429,13 +1445,15 @@ class pymbe_library():
                                           expected_dimensionality=parameters_with_dimensionality[parameter_key]["dimensionality"])
                 self.add_value_to_df(key=(parameter_key,''),
                                     index=index,
-                                    new_value=parameters_with_dimensionality[parameter_key]["value"])
+                                    new_value=parameters_with_dimensionality[parameter_key]["value"],
+                                    verbose=verbose)
 
         # Define particle acid/base properties
         self.set_particle_acidity (name=name, 
                                 acidity = acidity , 
                                 default_charge=q, 
-                                pka=pka)
+                                pka=pka,
+                                verbose=verbose)
         return 
     
     def define_particles_parameter_from_dict(self, param_dict, param_name):
@@ -1607,11 +1625,10 @@ class pymbe_library():
 
         self_consistent_run = 0
         cH_res = 10**(-pH_res) * self.units.mol/self.units.l #initial guess for the concentration of H+
-        KW = 1e-14 * self.units.mol**2 / (self.units.l**2)
 
         def determine_reservoir_concentrations_selfconsistently(cH_res, c_salt_res):
             #Calculate and initial guess for the concentrations of various species based on ideal gas estimate
-            cOH_res = KW / cH_res 
+            cOH_res = self.Kw / cH_res 
             cNa_res = None
             cCl_res = None
             if (cOH_res>=cH_res):
@@ -1628,7 +1645,7 @@ class pymbe_library():
                 if(self_consistent_run<max_number_sc_runs):
                     self_consistent_run+=1
                     ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-                    cOH_res = KW / (cH_res * activity_coefficient_monovalent_pair(ionic_strength_res))
+                    cOH_res = self.Kw / (cH_res * activity_coefficient_monovalent_pair(ionic_strength_res))
                     if (cOH_res>=cH_res):
                         #adjust the concentration of sodium if there is excess OH- in the reservoir:
                         cNa_res = c_salt_res + (cOH_res-cH_res)
@@ -1752,7 +1769,7 @@ class pymbe_library():
                 counter += 1
         return coord_list
     
-    def generate_random_points_in_a_sphere(self, center, radius, n_samples, seed=None, on_surface=False):
+    def generate_random_points_in_a_sphere(self, center, radius, n_samples, on_surface=False):
         """
         Uniformly samples points from a hypersphere. If on_surface is set to True, the points are
         uniformly sampled from the surface of the hypersphere.
@@ -1761,7 +1778,6 @@ class pymbe_library():
             center(`lst`): Array with the coordinates of the center of the spheres.
             radius(`float`): Radius of the sphere.
             n_samples(`int`): Number of sample points to generate inside the sphere.
-            seed (`int`, optional): Seed for the random number generator.
             on_surface (`bool`, optional): If set to True, points will be uniformly sampled on the surface of the hypersphere.
 
         Returns:
@@ -1774,14 +1790,13 @@ class pymbe_library():
         center=self.np.array(center)
         d = center.shape[0]
         # sample n_samples points in d dimensions from a standard normal distribution
-        rng = self.np.random.default_rng(seed)
-        samples = rng.normal(size=(n_samples, d))
+        samples = self.rng.normal(size=(n_samples, d))
         # make the samples lie on the surface of the unit hypersphere
         normalize_radii = self.np.linalg.norm(samples, axis=1)[:, self.np.newaxis]
         samples /= normalize_radii
         if not on_surface:
             # make the samples lie inside the hypersphere with the correct density
-            uniform_points = rng.uniform(size=n_samples)[:, self.np.newaxis]
+            uniform_points = self.rng.uniform(size=n_samples)[:, self.np.newaxis]
             new_radii = self.np.power(uniform_points, 1/d)
             samples *= new_radii
         # scale the points to have the correct radius and center
@@ -1976,7 +1991,7 @@ class pymbe_library():
             path(`str`): Relative path to the resource
 
         Returns:
-            path(`int`): Absolute path to the resource
+            path(`str`): Absolute path to the resource
 
         '''
         import os
@@ -2003,106 +2018,107 @@ class pymbe_library():
         type_map  = self.pd.concat([state_one,state_two],axis=0).to_dict()
         return type_map
 
-    def load_interaction_parameters(self, filename, verbose=False):
+    def load_interaction_parameters(self, filename, verbose=True):
         """
         Loads the interaction parameters stored in `filename` into `pmb.df`
         
         Args:
             filename(`str`): name of the file to be read
-            verbose(`bool`): switches on/off the reading prints
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
         """
         from espressomd import interactions
         without_units = ['q','es_type','acidity']
         with_units = ['sigma','epsilon']
-        with open(filename) as f:
-            for line in f:
-                if line[0] == '#':
-                    continue
-                param_dict=self.json.loads(line)
-                object_type=param_dict['object_type']
-                if object_type == 'particle':
-                    not_requiered_attributes={}    
-                    for not_requiered_key in without_units+with_units:
-                        if not_requiered_key in param_dict.keys():
-                            if not_requiered_key in with_units:
-                                not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable=param_dict.pop(not_requiered_key))
-                            elif not_requiered_key in without_units:
-                                not_requiered_attributes[not_requiered_key]=param_dict.pop(not_requiered_key)
-                        else:
-                            if not_requiered_key == 'acidity':
-                                not_requiered_attributes[not_requiered_key] = 'inert'
-                            else:    
-                                not_requiered_attributes[not_requiered_key]=None
-                    self.define_particle(name=param_dict.pop('name'),
-                                    q=not_requiered_attributes.pop('q'),
-                                    sigma=not_requiered_attributes.pop('sigma'),
-                                    acidity=not_requiered_attributes.pop('acidity'),
-                                    epsilon=not_requiered_attributes.pop('epsilon'))
-                elif object_type == 'residue':
-                    self.define_residue (name = param_dict.pop('name'),
-                                        central_bead = param_dict.pop('central_bead_name'),
-                                        side_chains = param_dict.pop('side_chains_names'))
-                elif object_type == 'molecule':
-                    self.define_molecule(name=param_dict.pop('name'),
-                                        residue_list=param_dict.pop('residue_name_list'))
-                elif object_type == 'peptide':
-                    self.define_peptide(name=param_dict.pop('name'),
-                                        sequence=param_dict.pop('sequence'),
-                                        model=param_dict.pop('model'))
-                elif object_type == 'bond':
-                    particle_pairs = param_dict.pop('particle_pairs')
-                    bond_parameters = param_dict.pop('bond_parameters')
-                    bond_type = param_dict.pop('bond_type')
-                    if bond_type == 'harmonic':
-                        k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
-                        r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
-                        bond = {'r_0'    : r_0,
-                                'k'      : k,
-                                }
 
-                    elif bond_type == 'FENE':
-                        k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
-                        r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
-                        d_r_max = self.create_variable_with_units(variable=bond_parameters.pop('d_r_max'))
-                        bond =  {'r_0'    : r_0,
-                                 'k'      : k,
-                                 'd_r_max': d_r_max,
-                                 }
+        with open(filename, 'r') as f:
+            interaction_data = self.json.load(f)
+            interaction_parameter_set = interaction_data["data"]
+
+        for key in interaction_parameter_set:
+            param_dict=interaction_parameter_set[key]
+            object_type=param_dict['object_type']
+            if object_type == 'particle':
+                not_requiered_attributes={}    
+                for not_requiered_key in without_units+with_units:
+                    if not_requiered_key in param_dict.keys():
+                        if not_requiered_key in with_units:
+                            not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable=param_dict.pop(not_requiered_key))
+                        elif not_requiered_key in without_units:
+                            not_requiered_attributes[not_requiered_key]=param_dict.pop(not_requiered_key)
                     else:
-                        raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
-                    self.define_bond(bond_type=bond_type, bond_parameters=bond, particle_pairs=particle_pairs)
+                        if not_requiered_key == 'acidity':
+                            not_requiered_attributes[not_requiered_key] = 'inert'
+                        else:    
+                            not_requiered_attributes[not_requiered_key]=None
+                self.define_particle(name=param_dict.pop('name'),
+                                q=not_requiered_attributes.pop('q'),
+                                sigma=not_requiered_attributes.pop('sigma'),
+                                acidity=not_requiered_attributes.pop('acidity'),
+                                epsilon=not_requiered_attributes.pop('epsilon'),
+                                verbose=verbose)
+            elif object_type == 'residue':
+                self.define_residue (name = param_dict.pop('name'),
+                                    central_bead = param_dict.pop('central_bead_name'),
+                                    side_chains = param_dict.pop('side_chains_names'))
+            elif object_type == 'molecule':
+                self.define_molecule(name=param_dict.pop('name'),
+                                    residue_list=param_dict.pop('residue_name_list'))
+            elif object_type == 'peptide':
+                self.define_peptide(name=param_dict.pop('name'),
+                                    sequence=param_dict.pop('sequence'),
+                                    model=param_dict.pop('model'))
+            elif object_type == 'bond':
+                particle_pairs = param_dict.pop('particle_pairs')
+                bond_parameters = param_dict.pop('bond_parameters')
+                bond_type = param_dict.pop('bond_type')
+                if bond_type == 'harmonic':
+                    k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
+                    r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
+                    bond = {'r_0'    : r_0,
+                            'k'      : k,
+                            }
+
+                elif bond_type == 'FENE':
+                    k = self.create_variable_with_units(variable=bond_parameters.pop('k'))
+                    r_0 = self.create_variable_with_units(variable=bond_parameters.pop('r_0'))
+                    d_r_max = self.create_variable_with_units(variable=bond_parameters.pop('d_r_max'))
+                    bond =  {'r_0'    : r_0,
+                             'k'      : k,
+                             'd_r_max': d_r_max,
+                             }
                 else:
-                    raise ValueError(object_type+' is not a known pmb object type')
-                if verbose:
-                    print('Added: '+line)
+                    raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
+                self.define_bond(bond_type=bond_type, bond_parameters=bond, particle_pairs=particle_pairs)
+            else:
+                raise ValueError(object_type+' is not a known pmb object type')
+            
         return
     
-    def load_pka_set(self,filename, verbose=False):
+    def load_pka_set(self, filename, verbose=True):
         """
         Loads the pka_set stored in `filename` into `pmb.df`.
         
         Args:
             filename(`str`): name of the file with the pka set to be loaded. Expected format is {name:{"acidity": acidity, "pka_value":pka_value}}.
-            verbose(`bool`, optional): If activated, the function reports each pKa value loaded. Defaults to False
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - If `name` is already defined in the `pymbe.df`, it prints a warning.
         """
-        pKa_list=[]
-        with open(filename) as f:
-            for line in f:
-                if line[0] == '#':
-                    continue
-                param_dict=self.json.loads(line)
-                pKa_list.append(param_dict)    
-                if verbose:
-                    print('Added: '+line)
-        for pka_set in pKa_list:            
-            self.check_pka_set(pka_set=pka_set)
-            for pka_key in pka_set: 
-                acidity =   pka_set[pka_key]['acidity']        
-                pka_value = pka_set[pka_key]['pka_value']     
-                self.define_particle(name=pka_key,acidity=acidity, pka=pka_value)
+        with open(filename, 'r') as f:
+            pka_data = self.json.load(f)
+            pka_set = pka_data["data"]
+
+        self.check_pka_set(pka_set=pka_set)
+
+        for key in pka_set:
+            acidity = pka_set[key]['acidity']
+            pka_value = pka_set[key]['pka_value']
+            self.define_particle(
+                    name=key,
+                    acidity=acidity, 
+                    pka=pka_value,
+                    verbose=verbose)
         return
 
     def parse_sequence_from_file(self,sequence):
@@ -2411,7 +2427,7 @@ class pymbe_library():
 
         return list_of_particles_in_residue
 
-    def set_particle_acidity(self, name, acidity='inert', default_charge=0, pka=None):
+    def set_particle_acidity(self, name, acidity='inert', default_charge=0, pka=None, verbose=True):
         """
         Sets the particle acidity if it is acidic or basic, creates `state_one` and `state_two` with the protonated and 
         deprotonated states. In each state is set: `label`,`charge` and `es_type`. If it is inert, it will define only `state_one`.
@@ -2421,6 +2437,7 @@ class pymbe_library():
             acidity (`str`): Identifies whether the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
             default_charge (`int`): Charge of the particle. Defaults to 0.
             pka (`float`, optional):  If `particle` is an acid or a base, it defines its pka-value. Defaults to None.
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
         """
         acidity_valid_keys = ['inert','acidic', 'basic']
         if acidity not in acidity_valid_keys:
@@ -2429,28 +2446,62 @@ class pymbe_library():
             raise ValueError(f"pKa not provided for particle with name {name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
         for index in self.df[self.df['name']==name].index:       
             if pka:
-                self.add_value_to_df(key=('pka',''),index=index,new_value=pka)
-            self.add_value_to_df(key=('acidity',''),index=index,new_value=acidity) 
+                self.add_value_to_df(key=('pka',''),
+                                    index=index,
+                                    new_value=pka, 
+                                    verbose=verbose)
+            self.add_value_to_df(key=('acidity',''),
+                                 index=index,
+                                 new_value=acidity, 
+                                 verbose=verbose) 
             if not self.check_if_df_cell_has_a_value(index=index,key=('state_one','es_type')):
-                self.add_value_to_df(key=('state_one','es_type'),index=index,new_value=self.propose_unused_type())  
+                self.add_value_to_df(key=('state_one','es_type'),
+                                     index=index,
+                                     new_value=self.propose_unused_type(), 
+                                     verbose=verbose)  
             if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'inert':
-                self.add_value_to_df(key=('state_one','charge'),index=index,new_value=default_charge)
-                self.add_value_to_df(key=('state_one','label'),index=index,new_value=name)
+                self.add_value_to_df(key=('state_one','charge'),
+                                     index=index,
+                                     new_value=default_charge, 
+                                     verbose=verbose)
+                self.add_value_to_df(key=('state_one','label'),
+                                     index=index,
+                                     new_value=name, 
+                                     verbose=verbose)
             else:
                 protonated_label = f'{name}H'
-                self.add_value_to_df(key=('state_one','label'),index=index,new_value=protonated_label)
-                self.add_value_to_df(key=('state_two','label'),index=index,new_value=name)
+                self.add_value_to_df(key=('state_one','label'),
+                                     index=index,
+                                     new_value=protonated_label, 
+                                     verbose=verbose)
+                self.add_value_to_df(key=('state_two','label'),
+                                     index=index,
+                                     new_value=name, 
+                                     verbose=verbose)
                 if not self.check_if_df_cell_has_a_value(index=index,key=('state_two','es_type')):
-                    self.add_value_to_df(key=('state_two','es_type'),index=index,new_value=self.propose_unused_type())
+                    self.add_value_to_df(key=('state_two','es_type'),
+                                         index=index,
+                                         new_value=self.propose_unused_type(), 
+                                         verbose=verbose)
                 if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'acidic':        
-                    self.add_value_to_df(key=('state_one','charge'),index=index,new_value=0)
-                    self.add_value_to_df(key=('state_two','charge'),index=index,new_value=-1)
+                    self.add_value_to_df(key=('state_one','charge'),
+                                         index=index,new_value=0, 
+                                         verbose=verbose)
+                    self.add_value_to_df(key=('state_two','charge'),
+                                         index=index,
+                                         new_value=-1, 
+                                         verbose=verbose)
                 elif self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'basic':
-                    self.add_value_to_df(key=('state_one','charge'),index=index,new_value=+1)
-                    self.add_value_to_df(key=('state_two','charge'),index=index,new_value=0)   
+                    self.add_value_to_df(key=('state_one','charge'),
+                                         index=index,new_value=+1, 
+                                         verbose=verbose)
+                    self.add_value_to_df(key=('state_two','charge'),
+                                         index=index,
+                                         new_value=0, 
+                                         verbose=verbose)   
         return
     
-    def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None):
+    def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None, Kw=None, verbose=True):
         """
         Sets the set of reduced units used by pyMBE.units and it prints it.
 
@@ -2458,11 +2509,14 @@ class pymbe_library():
             unit_length (`obj`,optional): Reduced unit of length defined using the `pmb.units` UnitRegistry. Defaults to None. 
             unit_charge (`obj`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
             temperature (`obj`,optional): Temperature of the system, defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            Kw (`obj`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
             - If no `unit_length` is given, a value of 0.355 nm is assumed by default.
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
+            - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
         self.units=self.pint.UnitRegistry()
         if unit_length is None:
@@ -2471,24 +2525,27 @@ class pymbe_library():
             temperature=298.15 * self.units.K
         if unit_charge is None:
             unit_charge=self.units.e
+        if Kw is None:
+            Kw = 1e-14
         self.N_A=6.02214076e23 / self.units.mol
         self.Kb=1.38064852e-23 * self.units.J / self.units.K
         self.e=1.60217662e-19 *self.units.C
         self.kT=temperature*self.Kb
+        self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
         self.units.define(f'reduced_energy = {self.kT} ')
         self.units.define(f'reduced_length = {unit_length}')
-        self.units.define(f'reduced_charge = {unit_charge}')        
-        self.print_reduced_units()
+        self.units.define(f'reduced_charge = {unit_charge}')
+        if verbose:        
+            self.print_reduced_units()
         return
 
-    def setup_cpH (self, counter_ion, constant_pH, SEED, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_cpH (self, counter_ion, constant_pH, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up the Acid/Base reactions for acidic/basic `particles` defined in `pmb.df` to be sampled in the constant pH ensemble. 
 
         Args:
             counter_ion(`str`): `name` of the counter_ion `particle`.
             constant_pH(`float`): pH-value.
-            SEED(`int`): Seed for the random number generator.
             exclusion_range(`float`, optional): Below this value, no particles will be inserted.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
@@ -2510,7 +2567,7 @@ class pymbe_library():
         
         RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     constant_pH=constant_pH,
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
@@ -2533,7 +2590,71 @@ class pymbe_library():
             sucessfull_reactions_labels.append(name)
         return RE, sucessfull_reactions_labels
 
-    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, SEED, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, activity_coefficient=None, exclusion_range=None, use_exclusion_radius_per_type = False):
+        """
+        Sets up grand-canonical coupling to a reservoir of salt.
+        For reactive systems coupled to a reservoir, the grand-reaction method has to be used instead.
+
+        Args:
+            c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
+            salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
+            salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
+            activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
+            exclusion_range(`float`, optional): For distances shorter than this value, no particles will be inserted.
+            use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
+
+        Returns:
+            RE (`obj`): Instance of a reaction_ensemble.ReactionEnsemble object from the espressomd library.
+        """
+        from espressomd import reaction_methods
+        if exclusion_range is None:
+            exclusion_range = max(self.get_radius_map().values())*2.0
+        if use_exclusion_radius_per_type:
+            exclusion_radius_per_type = self.get_radius_map()
+        else:
+            exclusion_radius_per_type = {}
+        
+        #If no function for the activity coefficient is provided, the ideal case is assumed.
+        if activity_coefficient is None:
+            activity_coefficient = lambda x: 1.0
+        
+        RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
+                                                    exclusion_range=exclusion_range.magnitude, 
+                                                    seed=self.SEED, 
+                                                    exclusion_radius_per_type = exclusion_radius_per_type
+                                                    )
+
+        # Determine the concentrations of the various species in the reservoir and the equilibrium constants
+        determined_activity_coefficient = activity_coefficient(c_salt_res)
+        K_salt = (c_salt_res.to('1/(N_A * reduced_length**3)')**2) * determined_activity_coefficient
+
+        salt_cation_es_type = self.df.loc[self.df['name']==salt_cation_name].state_one.es_type.values[0]
+        salt_anion_es_type = self.df.loc[self.df['name']==salt_anion_name].state_one.es_type.values[0]     
+
+        salt_cation_charge = self.df.loc[self.df['name']==salt_cation_name].state_one.charge.values[0]
+        salt_anion_charge = self.df.loc[self.df['name']==salt_anion_name].state_one.charge.values[0]     
+
+        if salt_cation_charge <= 0:
+            raise ValueError('ERROR salt cation charge must be positive, charge ', salt_cation_charge)
+        if salt_anion_charge >= 0:
+            raise ValueError('ERROR salt anion charge must be negative, charge ', salt_anion_charge)
+
+        # Grand-canonical coupling to the reservoir
+        RE.add_reaction(
+            gamma = K_salt.magnitude,
+            reactant_types = [],
+            reactant_coefficients = [],
+            product_types = [ salt_cation_es_type, salt_anion_es_type ],
+            product_coefficients = [ 1, 1 ],
+            default_charges = {
+                salt_cation_es_type: salt_cation_charge, 
+                salt_anion_es_type: salt_anion_charge, 
+            }
+        )
+
+        return RE
+
+    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2548,7 +2669,6 @@ class pymbe_library():
             hydroxide_name ('str'): Name of the hydroxide (OH-) particle.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
-            SEED ('int'): Seed for the random number generator.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`float`, optional): For distances shorter than this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
@@ -2576,7 +2696,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 
@@ -2742,7 +2862,7 @@ class pymbe_library():
             sucessful_reactions_labels.append(name)
         return RE, sucessful_reactions_labels, ionic_strength_res
 
-    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, SEED, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2757,7 +2877,6 @@ class pymbe_library():
             c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             cation_name ('str'): Name of the cationic particle.
             anion_name ('str'): Name of the anionic particle.
-            SEED ('int'): Seed for the random number generator.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`float`, optional): Below this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
@@ -2785,7 +2904,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=SEED, 
+                                                    seed=self.SEED, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 

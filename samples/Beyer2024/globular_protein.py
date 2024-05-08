@@ -6,7 +6,7 @@ import pandas as pd
 
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 #Import functions from handy_functions script 
 from lib.handy_functions import setup_electrostatic_interactions
@@ -76,7 +76,7 @@ inputs={"pH": args.pH,
         "protein_pdb": args.pdb}
 
 #System Parameters 
-SEED = 77 
+LANGEVIN_SEED = 77 
 
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
 c_protein =  2e-4 * pmb.units.mol / pmb.units.L 
@@ -156,7 +156,7 @@ pmb.define_particle(name = cation_name, q = 1, sigma=0.4*pmb.units.nm, epsilon=e
 pmb.define_particle(name = anion_name,  q =-1, sigma=0.4*pmb.units.nm, epsilon=epsilon)
 
 # Here we upload the pka set from the reference_parameters folder
-path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.txt') 
+path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.json') 
 pmb.load_pka_set (filename=path_to_pka)
 
 #We create the protein in espresso 
@@ -198,8 +198,7 @@ if verbose:
 
 #Setup of the reactions in espresso 
 RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, 
-                                                constant_pH= pH_value, 
-                                                SEED = SEED )
+                                                constant_pH= pH_value)
 if verbose:
     print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
@@ -232,7 +231,7 @@ pmb.write_output_vtf_file(espresso_system=espresso_system,
 
 setup_langevin_dynamics (espresso_system=espresso_system, 
                                     kT = pmb.kT, 
-                                    SEED = SEED)
+                                    SEED = LANGEVIN_SEED)
 
 observables_df = pmb.pd.DataFrame()
 time_step = []
@@ -268,7 +267,7 @@ for amino in net_charge_residues.keys():
             net_charge_amino_save[label] = []
             time_series[label] = []
 
-for step in tqdm(range(N_samples)):      
+for step in tqdm(range(N_samples),disable=not verbose):      
     espresso_system.integrator.run (steps = integ_steps)
     RE.reaction( reaction_steps = total_ionisible_groups)
     charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 

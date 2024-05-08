@@ -13,7 +13,7 @@ from espressomd import electrostatics
 import pyMBE
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library()
+pmb = pyMBE.pymbe_library(SEED=42)
 
 # Load some functions from the handy_scripts library for convinience
 from lib.handy_functions import setup_electrostatic_interactions
@@ -33,7 +33,7 @@ MD_steps_per_sample = 1000
 steps_eq = int(Samples_per_pH/3)
 N_samples_print = 10  # Write the trajectory every 100 samples
 probability_reaction =0.5 
-SEED = 100
+LANGEVIN_SEED = 100
 dt = 0.001
 solvent_permitivity = 78.3
 
@@ -46,8 +46,8 @@ N_peptide_chains = 4
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.txt")
-path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.txt")
+path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
+path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
 pmb.load_interaction_parameters (filename=path_to_interactions) 
 pmb.load_pka_set (path_to_pka)
 
@@ -88,7 +88,7 @@ pmb.define_default_bond(bond_type = 'harmonic',
                         bond_parameters = HARMONIC_parameters)
 
 
-# Defines the peptine in the pyMBE data frame
+# Defines the peptide in the pyMBE data frame
 peptide_name = 'generic_peptide'
 pmb.define_peptide (name=peptide_name, sequence=sequence, model=model)
 
@@ -131,7 +131,7 @@ print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
 print('The ionisable groups in your peptide are ', list_ionisible_groups)
 
-RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=2, SEED=SEED)
+RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=2)
 print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
@@ -155,7 +155,7 @@ minimize_espresso_system_energy (espresso_system=espresso_system)
 
 setup_langevin_dynamics(espresso_system=espresso_system, 
                                     kT = pmb.kT, 
-                                    SEED = SEED,
+                                    SEED = LANGEVIN_SEED,
                                     time_step=dt,
                                     tune_skin=False)
 
