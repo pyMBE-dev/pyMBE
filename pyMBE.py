@@ -1883,7 +1883,7 @@ class pymbe_library():
         else:
             print("Bond not defined between particles ", particle_name1, " and ", particle_name2)    
             if hard_check:
-                raise KeyboardInterrupt
+                sys.exit(1)
             else:
                 return
 
