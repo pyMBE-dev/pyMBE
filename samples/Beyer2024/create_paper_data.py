@@ -90,7 +90,7 @@ if fig_label in labels_fig8:
 
 
 ## Weak polyelectrolyte dialysis plot (Fig. 9)
-if fig_label == "9" and not plot: 
+if fig_label == "9": 
     script_path=pmb.get_resource("samples/Beyer2024/weak_polyelectrolyte_dialysis.py")
     pH_range = np.linspace(1, 13, num=13)
     c_salt_res = 0.01 * pmb.units.mol/pmb.units.L
