@@ -67,20 +67,8 @@ class pymbe_library():
         # Seed and RNG
         self.SEED=SEED
         self.rng = np.random.default_rng(SEED)
-        # Default definitions of reduced units
-        if temperature is None:
-            temperature= 298.15 * self.units.K
-        if unit_length is None:
-            unit_length= 0.355 * self.units.nm
-        if unit_charge is None:
-            unit_charge=self.units.e
-        if Kw is None:
-            Kw = 1e-14
-        self.kT=temperature*self.Kb
-        self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
-        self.units.define(f'reduced_energy = {self.kT}')
-        self.units.define(f'reduced_length = {unit_length}')
-        self.units.define('reduced_charge = 1*e')
+        self.set_reduced_units(unit_length=unit_length, unit_charge=unit_charge,
+                               temperature=temperature, Kw=Kw, verbose=False)
         self.setup_df()
         return
     
