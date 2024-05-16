@@ -1,15 +1,17 @@
-name: run tests
+name: samples
 
 on:
-  push:
-  pull_request:
+  schedule:
+    - cron:  '20 6 5,20 * *' # biweekly at 06:20 AM UTC+00 (on the 5th and 20th of the month)
+  workflow_dispatch: # manual trigger
 
 permissions:
   contents: read # to fetch code (actions/checkout)
 
 jobs:
-  ubuntu:
+  samples:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'schedule' && github.repository == 'pyMBE-dev/pyMBE' || github.event_name != 'schedule' }}
     env:
       FI_PROVIDER: "^psm3,psm3;ofi_rxd"
       OMPI_MCA_mtl_ofi_provider_exclude: psm3
@@ -25,22 +27,9 @@ jobs:
         with:
           modules: |-
             ESPResSo/4.2.1-foss-2023a
-          extra-python-packages: |-
-            pdoc==14.3
-            pylint==3.0.3
-            coverage==7.4.4
       - name: Run testsuite
         run: |
           module restore pymbe
           source venv/bin/activate
-          make pylint
-          make tests
-          make docs
+          make functional_tests
         shell: bash
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          path: "./documentation"
-          name: documentation
-          retention-days: 2
-          if-no-files-found: error
