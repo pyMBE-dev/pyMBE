@@ -79,20 +79,13 @@ elif filename in Ref_landsgesell:
 else:
     raise RuntimeError()
 
-
-if filename in Refs_lunkad+Ref_blanco:
-    pH_range = np.linspace(2, 12, num=21)
-
-    # Store the data
+if filename in Refs_lunkad+Ref_blanco+Ref_torres:
+    # Create the pandas DataFrame
     data=pd.DataFrame({"pH": pH_range,
                       "charge": Z_ref,
                       "charge_error": Z_ref_err})
-if filename in Ref_torres:
-    # Store the data
-    data=pd.DataFrame({"pH": pH_range,
-                    "charge": Z_ref,
-                    "charge_error": Z_ref_err})
 
+# Store the data
 data_path=pmb.get_resource("testsuite/data")
 data.to_csv(f"{data_path}/{output_filenames[filename]}", 
             index=False)
