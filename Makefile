@@ -3,7 +3,17 @@
 .PHONY: visual 
 .PHONY: clean
 
+# whether to run unit tests with code coverage
+COVERAGE = 0
+
+# output directory for the code coverage HTML files
+COVERAGE_HTML = coverage
+
+# Python executable or launcher, possibly with command line arguments
 PYTHON = python3
+ifeq ($(COVERAGE),1)
+PYTHON := ${PYTHON} -m coverage run --parallel-mode --source=$(CURDIR)
+endif
 
 docs:
 	mkdir -p ./documentation
@@ -29,6 +39,15 @@ functional_tests:
 	${PYTHON} testsuite/globular_protein_tests.py
 
 tests: unit_tests functional_tests
+
+coverage_xml:
+	${PYTHON} -m coverage combine .
+	${PYTHON} -m coverage report
+	${PYTHON} -m coverage xml
+
+coverage_html:
+	${PYTHON} -m coverage combine .
+	${PYTHON} -m coverage html --directory="${COVERAGE_HTML}"
 
 sample:
 	${PYTHON} samples/peptide.py
