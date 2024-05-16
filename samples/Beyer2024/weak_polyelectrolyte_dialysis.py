@@ -3,18 +3,13 @@
 #######################################################
 
 # Load python modules
-import sys
 import os 
-import inspect
 import espressomd
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from espressomd import interactions
-from espressomd import electrostatics
 from scipy import interpolate
 import argparse
-import pickle
 
 # Import pyMBE
 import pyMBE

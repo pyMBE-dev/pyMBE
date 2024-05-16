@@ -307,9 +307,9 @@ def get_dt(data):
     warn_lines = []
     for i in range(1,imax):
         dt = time[i] - time[i-1]
-        if(np.abs((dt_init - dt)/dt) > 0.01 ):
+        if np.abs((dt_init - dt)/dt) > 0.01:
             warn_lines.append("Row {} dt = {} = {} - {} not equal to dt_init = {}")
-    if(len(warn_lines) > 20):
+    if len(warn_lines) > 20:
         print("\n")
         for line in warn_lines:
             print(line)

@@ -2,7 +2,7 @@ import os
 import argparse
 import sysconfig
 try:
-    import espressomd
+    import espressomd  # pylint: disable=unused-import
     espressomd_found = True
 except ModuleNotFoundError:
     espressomd_found = False

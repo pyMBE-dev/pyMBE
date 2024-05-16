@@ -154,7 +154,7 @@ def setup_langevin_dynamics(espresso_system, kT, SEED,time_step=1e-2, gamma=1, t
 
 def create_random_seed():
     """
-    Creates the seed for the random number generator from the system hour
+    Generates a seed for the random number generator using the system time in seconds.
     """
     import time 
     SEED=int(time.time())

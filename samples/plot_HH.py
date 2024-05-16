@@ -1,8 +1,5 @@
 # Plots the charge of a peptide with a given sequence using either a custom or reference set of pKa values
 
-import os
-import sys
-import inspect
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -29,7 +26,8 @@ pmb.define_peptide(name="example_pep",
                    model="1beadAA")
 
 if load_pka_set_from_file:
-    pka_set=pmb.load_pka_set(filename=path_to_pka)
+    pka_set=None
+    pmb.load_pka_set(filename=path_to_pka)
     print('pka_set stored in pyMBE: ', pmb.get_pka_set())
 else:
     pka_set=custom_pka_set

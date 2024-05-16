@@ -1,7 +1,8 @@
 # Import pyMBE and other libraries
 import pyMBE
 from lib import analysis
-import os 
+import os
+import sys
 import numpy as np
 import argparse 
 import subprocess
@@ -39,8 +40,8 @@ if mode not in valid_modes:
 ## Peptide plots (Fig. 7)
 labels_fig7=["7a", "7b", "7c"]
 
-if fig_label in labels_fig7 and not plot:
-    script_path=pmb.get_resource(f"samples/Beyer2024/peptide.py")
+if fig_label in labels_fig7:
+    script_path=pmb.get_resource("samples/Beyer2024/peptide.py")
     if fig_label == "7a":
         sequence="K"*5+"D"*5
     elif fig_label == "7b":
@@ -51,7 +52,7 @@ if fig_label in labels_fig7 and not plot:
         raise RuntimeError()
     pH_range = np.linspace(2, 12, num=21)
     for pH in pH_range:
-        run_command=["python3", script_path, "--sequence", sequence, "--pH", str(pH), "--mode", mode]
+        run_command=[sys.executable, script_path, "--sequence", sequence, "--pH", str(pH), "--mode", mode]
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)
 
@@ -60,17 +61,20 @@ if fig_label in labels_fig7 and not plot:
 ## Protein plots (Fig. 8)
 
 labels_fig8=["8a", "8b"]
+
 if fig_label in labels_fig8:
     
-    script_path=pmb.get_resource(f"samples/Beyer2024/globular_protein.py")
+    script_path=pmb.get_resource("samples/Beyer2024/globular_protein.py")
     pH_range = np.linspace(2, 7, num=11)
+    run_command_common=[sys.executable, script_path, "--mode", mode, "--no_verbose"]
 
     if fig_label == "8a":
+        
         protein_pdb = "1f6s"
         path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
         for pH in pH_range:
             
-            run_command=["python3", script_path, "--pdb", protein_pdb, "--pH", str(pH), "--path_to_cg", path_to_cg,  "--mode", mode, "--no_verbose", "--metal_ion_name", "Ca", "--metal_ion_charge", str(2)]
+            run_command=run_command_common + ["--pH", str(pH),"--pdb", protein_pdb, "--path_to_cg", path_to_cg, "--metal_ion_name", "Ca", "--metal_ion_charge", str(2)]
             print(subprocess.list2cmdline(run_command))
             subprocess.check_output(run_command)
 
@@ -78,7 +82,7 @@ if fig_label in labels_fig8:
         protein_pdb = "1beb"
         path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
         for pH in pH_range:
-            run_command=["python3", script_path, "--pdb", protein_pdb, "--pH", str(pH), "--path_to_cg", path_to_cg,  "--mode", mode, "--no_verbose"]
+            run_command=run_command_common + ["--pH", str(pH),"--pdb", protein_pdb, "--path_to_cg", path_to_cg]
             print(subprocess.list2cmdline(run_command))
             subprocess.check_output(run_command)
     else:
@@ -86,24 +90,24 @@ if fig_label in labels_fig8:
 
 
 ## Weak polyelectrolyte dialysis plot (Fig. 9)
-if fig_label == "9" and not plot: 
-    script_path=pmb.get_resource(f"samples/Beyer2024/weak_polyelectrolyte_dialysis.py")
+if fig_label == "9": 
+    script_path=pmb.get_resource("samples/Beyer2024/weak_polyelectrolyte_dialysis.py")
     pH_range = np.linspace(1, 13, num=13)
     c_salt_res = 0.01 * pmb.units.mol/pmb.units.L
     for pH in pH_range:
-        run_command=["python3", script_path, "--c_salt_res", str(0.01), "--c_mon_sys", str(0.435), "--pH_res", str(pH), "--pKa_value", str(4.0), "--mode", mode]
+        run_command=[sys.executable, script_path, "--c_salt_res", str(0.01), "--c_mon_sys", str(0.435), "--pH_res", str(pH), "--pKa_value", str(4.0), "--mode", mode]
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)
 
 # Analyze all time series
 if fig_label in labels_fig7:
-    time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series/peptides")
+    time_series_folder_path=pmb.get_resource("samples/Beyer2024/time_series/peptides")
     
 if fig_label in labels_fig8:    
-    time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series/globular_protein")
+    time_series_folder_path=pmb.get_resource("samples/Beyer2024/time_series/globular_protein")
     
 if fig_label == "9":
-    time_series_folder_path=pmb.get_resource(f"samples/Beyer2024/time_series/grxmc")
+    time_series_folder_path=pmb.get_resource("samples/Beyer2024/time_series/grxmc")
 
 data=analysis.analyze_time_series(path_to_datafolder=time_series_folder_path)
 
@@ -177,6 +181,7 @@ if plot:
 
     # Calculate and plot Henderson-Hasselbalch (HH)
     if fig_label in labels_fig7:
+        
         pmb.define_peptide (name=sequence, 
                             sequence=sequence,
                             model="1beadAA")
@@ -210,6 +215,7 @@ if plot:
         Z_HH = pmb.calculate_HH(molecule_name=protein_pdb,
                                 pH_list=pH_range_HH)
 
+        print (Z_HH)
          # Plot HH
         plt.plot(pH_range_HH,
                Z_HH, 

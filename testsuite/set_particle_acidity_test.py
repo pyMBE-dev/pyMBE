@@ -33,7 +33,7 @@ def check_acid_base_setup(input_parameters,acidity_setup):
 
 
 print("*** Particle acidity unit tests ***")
-print(f"*** Unit test: check that all acid/base input parameters in define_particle for an inert particle are correctly stored in pmb.df***")
+print("*** Unit test: check that all acid/base input parameters in define_particle for an inert particle are correctly stored in pmb.df***")
 # Clean pmb.df
 pmb.setup_df()
 input_parameters={"name":"I", 
@@ -48,8 +48,8 @@ acidity_setup={"state_one":{"label":f"{input_parameters['name']}",
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
 
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: check that all acid/base input parameters in define_particle for an acid are correctly stored in pmb.df***")
+print("*** Unit test passed ***")
+print("*** Unit test: check that all acid/base input parameters in define_particle for an acid are correctly stored in pmb.df***")
 # Clean pmb.df
 pmb.setup_df()
 input_parameters={"name":"A", 
@@ -62,8 +62,8 @@ acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: check that all acid/base input parameters in define_particle for a base are correctly stored in pmb.df***")
+print("*** Unit test passed ***")
+print("*** Unit test: check that all acid/base input parameters in define_particle for a base are correctly stored in pmb.df***")
 # Clean pmb.df
 pmb.setup_df()
 input_parameters={"name":"B", 
@@ -76,8 +76,8 @@ acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: check that set_particle_acidity raises a ValueError if pKa is not provided and pKa is acidic or basic  ***")
+print("*** Unit test passed ***")
+print("*** Unit test: check that set_particle_acidity raises a ValueError if pKa is not provided and pKa is acidic or basic  ***")
 input_parametersA={"name":"A", 
                    "acidity": "acidic" }
 
@@ -85,10 +85,10 @@ input_parametersB= {"name": "B",
                    "acidity": "basic"}
 np.testing.assert_raises(ValueError, pmb.set_particle_acidity,**input_parametersA)
 np.testing.assert_raises(ValueError, pmb.set_particle_acidity, **input_parametersB)
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: check that set_particle_acidity raises a ValueError if a non-supported acidity is provided  ***")
+print("*** Unit test passed ***")
+print("*** Unit test: check that set_particle_acidity raises a ValueError if a non-supported acidity is provided  ***")
 input_parametersA={"name":"A", 
                    "acidity": "random" }
 np.testing.assert_raises(ValueError, pmb.set_particle_acidity,**input_parametersA)
-print(f"*** Unit test passed ***")
-print(f"*** All unit tests passed ***")
+print("*** Unit test passed ***")
+print("*** All unit tests passed ***")

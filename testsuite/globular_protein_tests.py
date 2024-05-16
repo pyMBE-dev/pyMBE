@@ -1,6 +1,7 @@
 # Import pyMBE and other libraries
 import pyMBE
 from lib import analysis
+import sys
 import tempfile
 import subprocess
 import numpy as np
@@ -22,17 +23,13 @@ def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="
 
     print(f"Running tests for {protein_pdb}")
     with tempfile.TemporaryDirectory() as time_series_path:
-       
         for pH in test_pH_values:
             print(f"pH = {pH}")
-            
+            run_command=[sys.executable, script_path, "--pdb", protein_pdb, "--pH", str(pH),
+                         "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf",
+                         "--mode", "test", "--no_verbose", "--output", time_series_path]
             if protein_pdb == '1f6s':
-                  run_command=["python3", script_path, "--pdb", protein_pdb, "--pH", str(pH), "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf", "--metal_ion_name","Ca", "--metal_ion_charge", "2","--mode", "test", "--no_verbose", "--output", time_series_path]
-                  
-            else:
-                  run_command=["python3", script_path, "--pdb", protein_pdb, "--pH", str(pH), "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf",  "--mode", "test", "--no_verbose", "--output", time_series_path]
-                  
-                  
+                run_command+=["--metal_ion_name","Ca", "--metal_ion_charge", "2"]
             print(subprocess.list2cmdline(run_command))
             subprocess.check_output(run_command)
         # Analyze all time series
@@ -42,7 +39,7 @@ def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="
         
     if mode == "test":
         # Get reference test data
-        ref_data=pd.read_csv(data_path+f"/{protein_pdb}.csv", header=[0, 1])
+        ref_data=pd.read_csv(f"{data_path}/{protein_pdb}.csv", header=[0, 1])
         # Check charge
         test_charge=np.sort(data["mean","charge"].to_numpy())
         ref_charge=np.sort(ref_data["mean","charge"].to_numpy())
@@ -58,7 +55,7 @@ def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(SEED=42)
 
-script_path=pmb.get_resource(f"samples/Beyer2024/globular_protein.py")
+script_path=pmb.get_resource("samples/Beyer2024/globular_protein.py")
 test_pH_values=[2,5,7]
 rtol=0.1 # relative tolerance
 atol=0.5 # absolute tolerance

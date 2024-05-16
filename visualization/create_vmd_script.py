@@ -41,7 +41,7 @@ def organize_numbered_files (input_file_names):
 
     for frame in input_file_names:
         num = re.findall(r'\d+', frame)
-        if ( num == [] ):
+        if num == []:
             raise ValueError("\nfilename " + frame + " not compatible with the expected filename format filename_{number}.{extension}\n")
         files_ordered [int(num[0])]=frame
 
@@ -87,7 +87,7 @@ def read_vtf_files (input_file_names):
     frame_bond ={}   
     N_frame=0
 
-    if args.numbered_files == True:
+    if args.numbered_files:
         files_ordered = organize_numbered_files (input_file_names) 
     else: 
         
@@ -114,12 +114,12 @@ def read_vtf_files (input_file_names):
                     
                     header=line_clean[0]
 
-                    if (header == "unitcell"):
+                    if header == "unitcell":
 
                         box = line_clean[1:4]
                         unitcell[N_frame] = box
 
-                    elif (header == "atom"):
+                    elif header == "atom":
                         
                         id_atom = line_clean[1]
                         r_atom = line_clean[3]
@@ -132,12 +132,12 @@ def read_vtf_files (input_file_names):
 
                             type_list.append(type_atom)
 
-                    elif (header == "bond"):
+                    elif header == "bond":
 
                         bond_info = line_clean[1]
                         frame_bond_list.append(bond_info)
 
-                    elif (header.isnumeric()):
+                    elif header.isnumeric():
                         
                         id_part = line_clean[0]
                         coord_part = line_clean[1:]
@@ -199,7 +199,7 @@ def count_particles_types_from_vtf_frames (data_vtf_frames):
                 radius_types[atom_type]=atom[1]
             
         for type in type_list:
-            if (n_type_frame[type] > n_type[type]):
+            if n_type_frame[type] > n_type[type]:
                 n_type[type] = n_type_frame[type]
     
     n_part = sum(n_type.values())
@@ -236,7 +236,7 @@ def read_xyz_files (input_file_names, box = 20.0):
     coord_list = []
     comment=[]
 
-    if args.numbered_files == True:
+    if args.numbered_files:
         files_ordered = organize_numbered_files (input_file_names) 
     else: 
         files_ordered = not_numbered_files (input_file_names)
@@ -252,11 +252,11 @@ def read_xyz_files (input_file_names, box = 20.0):
 
             for line in file:
 
-                if (len(line) < 10):
+                if len(line) < 10:
 
                     frame_list.append(int(line))
 
-                elif (line[0] != "#"):
+                elif line[0] != "#":
 
                     type_atom.append(line.split()[0])
                     x_coord = line.split()[1]
@@ -333,7 +333,7 @@ def count_particles_types_from_xyz_file (data_xyz) :
 
         for type in type_list:
 
-            if (n_type_frame[type] > n_type[type]):
+            if n_type_frame[type] > n_type[type]:
 
                 n_type[type] = n_type_frame[type] ### maximum of each type 
 
@@ -383,7 +383,7 @@ def reorganize_xyz_data (data_xyz,particles_count) :
 
                 frame_line = nframe*frame + line 
 
-                if (type == data_xyz['type_atom'] [frame_line] ):
+                if type == data_xyz['type_atom'][frame_line]:
 
                     atom_type = data_xyz['type_atom'] [frame_line]
                     n_type_frame [atom_type] += 1  
@@ -507,7 +507,7 @@ def create_output_vtf_trajectory_for_vmd (output_trajectory,data_frames,new_part
         n_part +=1
 
         output_vmd.write (f'atom {str(hidden_id)}')
-        output_vmd.write (f' radius 1')
+        output_vmd.write (' radius 1')
         output_vmd.write (f' name {hidden_name}')
         output_vmd.write (f' typ {hidden_type} \n')
 
@@ -515,7 +515,7 @@ def create_output_vtf_trajectory_for_vmd (output_trajectory,data_frames,new_part
 
         for frame in range(data_frames['N_frame']):
            
-            output_vmd.write(f'\ntimestep indexed\n')
+            output_vmd.write('\ntimestep indexed\n')
             
             frame_atom_list  = frame_atom[frame]
             frame_coord_list = frame_coord[frame]
@@ -524,10 +524,10 @@ def create_output_vtf_trajectory_for_vmd (output_trajectory,data_frames,new_part
             
             for id_at in range(n_part ):
 
-                if (id_at < len(frame_coord_list)):
+                if id_at < len(frame_coord_list):
                     
                     at_list=frame_atom_list[id_at]
-                    at_type=(at_list[-1])
+                    at_type=at_list[-1]
                     at_coord=frame_coord_list[id_at][1]
                     poss_id=frame_ids_type[str(at_type)].copy()
                     new_id=poss_id[0]
@@ -595,16 +595,16 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
 
     with open(output_visualization, "w") as output_file:
 
-        output_file.write(f'mol delete top\n')
-        output_file.write(f'display depthcue off\n')
+        output_file.write('mol delete top\n')
+        output_file.write('display depthcue off\n')
         output_file.write(f'mol load vtf {os.path.basename(output_trajectory)}\n')
-        output_file.write(f'mol delrep 0 top\n')
-        output_file.write(f'display resetview\n')
-        output_file.write(f'mol representation CPK 1.000000 0.000000\n')
-        output_file.write(f'mol selelection all\n')
-        output_file.write(f'animate goto 0\n')
-        output_file.write(f'color Display Background white\n')
-        output_file.write(f'axes location off\n')
+        output_file.write('mol delrep 0 top\n')
+        output_file.write('display resetview\n')
+        output_file.write('mol representation CPK 1.000000 0.000000\n')
+        output_file.write('mol selelection all\n')
+        output_file.write('animate goto 0\n')
+        output_file.write('color Display Background white\n')
+        output_file.write('axes location off\n')
         output_file.write(f'pbc box_draw -color gray -width {str(width_box_line)}\n')
 
         color=0
@@ -623,9 +623,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 1 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 1 \n') 
+                    output_file.write('mol addrep top\n\n')
 
                 elif typ in basic_charged_groups:
 
@@ -634,9 +634,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 0 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 0 \n') 
+                    output_file.write('mol addrep top\n\n')
 
                 elif typ == 'CA':
 
@@ -645,9 +645,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 4 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 4 \n') 
+                    output_file.write('mol addrep top\n\n')
 
                 elif typ == 'Na':
 
@@ -656,9 +656,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 10 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 10 \n') 
+                    output_file.write('mol addrep top\n\n')
 
                 elif typ == 'Cl':
 
@@ -667,9 +667,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 9 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 9 \n') 
+                    output_file.write('mol addrep top\n\n')
 
                 else:
 
@@ -678,9 +678,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                     output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                     output_file.write(f'${var} set radius 1.0\n')
                     output_file.write(f'mol selection name {typ}\n')
-                    output_file.write(f'mol material Opaque\n')
-                    output_file.write(f'mol color ColorID 7 \n') 
-                    output_file.write(f'mol addrep top\n\n')
+                    output_file.write('mol material Opaque\n')
+                    output_file.write('mol color ColorID 7 \n') 
+                    output_file.write('mol addrep top\n\n')
 
         else:  
 
@@ -691,9 +691,9 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
                 output_file.write(f'set {var} [atomselect top "name {typ} "]\n')
                 output_file.write(f'${var} set radius 1.0\n')
                 output_file.write(f'mol selection name {typ}\n')
-                output_file.write(f'mol material Opaque\n')
+                output_file.write('mol material Opaque\n')
                 output_file.write(f'mol color ColorID {str(color)}\n')
-                output_file.write(f'mol addrep top\n\n')
+                output_file.write('mol addrep top\n\n')
                 color=color+1
 
 
@@ -701,11 +701,11 @@ def create_output_visualization_tcl (output_trajectory,output_visualization, typ
         var="typ"+hidden_type
         output_file.write(f'set {var} [atomselect top "name {hidden_type} "]\n')
         output_file.write(f'${var} set radius 1\n')
-        output_file.write(f'mol representation CPK 1.000000 16.000000\n')
+        output_file.write('mol representation CPK 1.000000 16.000000\n')
         output_file.write(f'mol selection name {hidden_type}\n')
-        output_file.write(f'mol material Goodsell\n')
+        output_file.write('mol material Goodsell\n')
         output_file.write(f'mol color ColorID {str(8)}\n')
-        output_file.write(f'mol addrep top\n\n')
+        output_file.write('mol addrep top\n\n')
 
     return 0
 
@@ -714,7 +714,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Script to create merge the trajectory frames to a single vtf trajectory for VMD and produce a tcl script for visualization of this trajectory.')
     parser.add_argument('file_names', nargs ='*',help='Expected the input files')
     parser.add_argument('--print_input_file_names', help='print the input file names on the screen while loading', default=False, action='store_true') 
-    parser.add_argument('--separator', type = str, help = 'the character that separates the base name and the frame number', default='\d+' )
+    parser.add_argument('--separator', type = str, help = 'the character that separates the base name and the frame number', default=r'\d+' )
     parser.add_argument('--numbered_files', help = 'work with numbered files', default=False, action= 'store_true')
     parser.add_argument('--color_code', type = str, help = 'for protein color_code add protein as an argument', default='' )
 
@@ -729,7 +729,7 @@ if __name__ == '__main__':
         input_file_names += glob(file_name) 
         extension = os.path.splitext((file_name))[1]
         extension_list.append(extension)
-        if count_files > 1 and args.numbered_files == False:
+        if count_files > 1 and not args.numbered_files:
             raise ValueError ('\nSeems like multiple frames have been provided. To work with multiple trajectory files add --numbered_files\n')
     
     check_files_extension_consistency (extension_list) 
@@ -738,8 +738,8 @@ if __name__ == '__main__':
         extension = os.path.splitext((file_name))[1]
         basename = re.split(f'{args.separator}',(os.path.splitext((file_name))[0].split('/'))[-1])[0]
         
-        if print_input_file_names == True:
-            print (f'Format: {extension}    Loading: {file}')
+        if print_input_file_names:
+            print (f'Format: {extension}    Loading: {args.file_names}')
 
     output_trajectory  = os.path.join(os.path.dirname(file_name), f'{basename}-frames.vtf' ) 
     output_visualization = os.path.join(os.path.dirname(file_name), 'visualization.tcl')
