@@ -2157,10 +2157,10 @@ class pymbe_library():
         unit_length=self.units.Quantity(1,'reduced_length')
         unit_energy=self.units.Quantity(1,'reduced_energy')
         unit_charge=self.units.Quantity(1,'reduced_charge')
-        print(unit_length.to('nm'), "=", unit_length)
-        print(unit_energy.to('J'), "=", unit_energy)
-        print('Temperature:', (self.kT/self.Kb).to("K"))
-        print(unit_charge.to('C'), "=", unit_charge)
+        print(f"{unit_length.to('nm'):.5g} = {unit_length}")
+        print(f"{unit_energy.to('J'):.5g} = {unit_energy}")
+        print(f"{unit_charge.to('C'):.5g} = {unit_charge}")
+        print(f"Temperature: {(self.kT/self.Kb).to('K'):.5g}")
         print()
 
     def propose_unused_type(self):

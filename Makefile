@@ -20,6 +20,7 @@ docs:
 	PDOC_ALLOW_EXEC=0 ${PYTHON} -m pdoc ./pyMBE.py -o ./documentation --docformat google
 
 unit_tests:
+	${PYTHON} testsuite/serialization_test.py
 	${PYTHON} testsuite/lj_tests.py
 	${PYTHON} testsuite/set_particle_acidity_test.py
 	${PYTHON} testsuite/bond_tests.py
