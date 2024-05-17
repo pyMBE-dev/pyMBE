@@ -1492,22 +1492,6 @@ class pymbe_library():
             parameters[particle_name]["overwrite"]=overwrite
             self.define_particle(**parameters[particle_name])
         return
-
-    def define_particles_parameter_from_dict(self, param_dict, param_name):
-        '''
-        Defines the `param_name` value of the particles in `param_dict` into the `pmb.df`.
-
-        Args:
-            param_dict(`dict`):  {'name': `param_name` value}
-        '''
-        for residue in param_dict.keys():
-            label_list = self.df[self.df['name'] == residue].index.tolist()
-            for index in label_list:
-                value = param_dict[residue]
-                self.add_value_to_df(key= (param_name,''),
-                        index=int (index),
-                        new_value=value)
-        return 
     
     def define_peptide(self, name, sequence, model):
         """
@@ -2083,13 +2067,13 @@ class pymbe_library():
         type_map  = pd.concat([state_one,state_two],axis=0).to_dict()
         return type_map
 
-    def load_interaction_parameters(self, filename, verbose=True, overwrite=False):
+    def load_interaction_parameters(self, filename, verbose=False, overwrite=False):
         """
         Loads the interaction parameters stored in `filename` into `pmb.df`
         
         Args:
             filename(`str`): name of the file to be read
-            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to False.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
         """
         without_units = ['q','es_type','acidity']

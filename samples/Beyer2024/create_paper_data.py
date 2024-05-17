@@ -56,16 +56,13 @@ if fig_label in labels_fig7:
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)
 
-
-
 ## Protein plots (Fig. 8)
-
 labels_fig8=["8a", "8b"]
 
 if fig_label in labels_fig8:
     
     script_path=pmb.get_resource("samples/Beyer2024/globular_protein.py")
-    pH_range = np.linspace(2, 7, num=11)
+    pH_range = np.linspace(2, 7, num=3)
     run_command_common=[sys.executable, script_path, "--mode", mode, "--no_verbose"]
 
     if fig_label == "8a":
@@ -156,10 +153,9 @@ if plot:
     elif fig_label in ["7c", "8a", "8b"]:
         pka_path=pmb.get_resource("parameters/pka_sets/Nozaki1967.json")
         pmb.load_pka_set (filename=pka_path)
-        # FIXME: this is only necessary due to an undesired feature in calculate_HH
-        # that forces to have all particles defined in pyMBE
-        par_path=pmb.get_resource("parameters/peptides/Blanco2021.json")
-        pmb.load_interaction_parameters(par_path)
+        if fig_label == "7c":
+            par_path=pmb.get_resource("parameters/peptides/Blanco2021.json")
+            pmb.load_interaction_parameters(par_path)
 
     # Load ref data    
     if fig_label == "7a":
@@ -209,14 +205,13 @@ if plot:
         pmb.define_protein (name=protein_pdb, 
                             topology_dict=topology_dict, 
                             model = '2beadAA')
-            
+
         pH_range_HH = np.linspace(2, 7, num=1000)
         
         Z_HH = pmb.calculate_HH(molecule_name=protein_pdb,
                                 pH_list=pH_range_HH)
 
-        print (Z_HH)
-         # Plot HH
+        # Plot HH
         plt.plot(pH_range_HH,
                Z_HH, 
                label=r"HH", 
