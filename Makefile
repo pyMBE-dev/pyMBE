@@ -30,6 +30,7 @@ unit_tests:
 	${PYTHON} testsuite/read-write-df_test.py
 	${PYTHON} testsuite/parameter_test.py
 	${PYTHON} testsuite/henderson_hasselbalch_tests.py
+	${PYTHON} testsuite/analysis_tests.py
 
 functional_tests:
 	${PYTHON} testsuite/cph_ideal_tests.py
