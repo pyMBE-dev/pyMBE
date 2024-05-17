@@ -1,0 +1,25 @@
+name: 'dependencies'
+description: 'Install pyMBE dependencies'
+inputs:
+  extra-python-packages:
+    description: Newline-separated list of arguments for pip.
+    required: false
+  modules:
+    description: Newline-separated list of arguments for module load.
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - run: |
+        module load ${{ inputs.modules }}
+        module save pymbe
+        python3 -m venv --system-site-packages venv
+        source venv/bin/activate
+        python3 maintainer/configure_venv.py
+        echo -e "\n" >> requirements.txt
+        echo "${{ inputs.extra-python-packages }}" >> requirements.txt
+        python3 -m pip install -r requirements.txt
+        git checkout requirements.txt
+        deactivate
+        module purge
+      shell: bash

@@ -1,4 +1,4 @@
-name: run tests
+name: testsuite
 
 on:
   push:
@@ -21,22 +21,22 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@main
       - name: Install dependencies
-        run: |
-          module load ESPResSo/4.2.1-foss-2023a
-          python3 -m venv --system-site-packages venv
-          source venv/bin/activate
-          python3 maintainer/configure_venv.py
-          python3 -m pip install -r requirements.txt
-          python3 -m pip install "pdoc==14.3" "pylint==3.0.3"
-          deactivate
+        uses: ./.github/actions/dependencies
+        with:
+          modules: |-
+            ESPResSo/4.2.1-foss-2023a
+          extra-python-packages: |-
+            pdoc==14.3
+            pylint==3.0.3
+            coverage==7.4.4
       - name: Run testsuite
         run: |
-          module load ESPResSo/4.2.1-foss-2023a
+          module restore pymbe
           source venv/bin/activate
           make pylint
-          make tests
+          make unit_tests COVERAGE=1
           make docs
-          deactivate
+          make coverage_xml
         shell: bash
       - name: Upload artifact
         uses: actions/upload-artifact@v4
@@ -45,3 +45,14 @@ jobs:
           name: documentation
           retention-days: 2
           if-no-files-found: error
+      - name: Upload coverage to Codecov
+        if: ${{ github.repository == 'pyMBE-dev/pyMBE' }}
+        uses: codecov/codecov-action@v4
+        with:
+          file: "./coverage.xml"
+          disable_search: true
+          env_vars: OS,PYTHON
+          fail_ci_if_error: false
+          flags: unittests
+          token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true

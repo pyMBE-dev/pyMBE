@@ -1,5 +1,8 @@
 # pyMBE: the Python-based Molecule Builder for ESPResSo 
 
+![GitHub Actions](https://github.com/pyMBE-dev/pyMBE/actions/workflows/testsuite.yml/badge.svg)
+[![codecov](https://codecov.io/gh/pyMBE-dev/pyMBE/branch/codecov/graph/badge.svg)](https://codecov.io/gh/pyMBE-dev/pyMBE)
+
 pyMBE provides tools to facilitate building up molecules with complex architectures in the Molecular Dynamics software [ESPResSo](https://espressomd.org/wordpress/). Some examples of molecules that can be set up with pyMBE are polyelectrolytes, peptides and proteins. pyMBE bookkeeps all the information about the molecule topology, permitting to link each particle to its corresponding residue and molecule. pyMBE uses the [Pint](https://pint.readthedocs.io/en/stable/) library to enable input parameters in any arbitrary unit system, which is later transformed in the reduced unit system used in ESPResSo.
 
 ## Dependencies
@@ -47,8 +50,8 @@ git clone git@github.com:pyMBE-dev/pyMBE.git
 Please, be aware that pyMBE is intended to be a supporting tool to setup simulations with ESPResSo.
 Thus, for most of its functionalities ESPResSo must also be available. Following the NEP29 guidelines, we recommend the users of pyMBE to use Python3.10+ when using our module.
 
-The pyMBE module uses its own Python virtual enviroment to avoid incompatibility issues when loading its requierements from other libraries. 
-The Python module (`venv`)[https://docs.python.org/3/library/venv.html#module-venv] from the Python Standard Library (starting with Python 3.3)  is needed to set up pyMBE. 
+The pyMBE module uses its own Python virtual enviroment to avoid incompatibility issues when loading its requirements from other libraries.
+The Python module [`venv`](https://docs.python.org/3/library/venv.html) is needed to set up pyMBE.
 If `venv` is not in the Python distribution of the user, the user will need to first install 'venv' before setting up pyMBE.
 For Ubuntu users, this can be done as follows:
 

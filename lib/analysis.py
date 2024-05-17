@@ -136,7 +136,7 @@ def get_params_from_dir_name(name):
     entries = name.split('_')
     params = {}
     for entry in entries:
-        sp_entry = entry.split('-')
+        sp_entry = entry.split('-', 1)
         params[sp_entry[0]] = sp_entry[-1]     #float(sp_entry[-1])     # creates a dictionary of parameters and their values.
     return params
 
@@ -343,7 +343,6 @@ def get_distribution_from_df(df, key):
         distribution_list (`lst`): list stored under `key`
 
     """
-    import pandas as pd
     distribution_list=[]
     for row in df[key]:
         if pd.isnull(row):
