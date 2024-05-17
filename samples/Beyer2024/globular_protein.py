@@ -62,7 +62,7 @@ parser.add_argument('--output',
                     required= False,
                     help='output directory')
 
-parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose")
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 
 
 args = parser.parse_args ()
@@ -158,13 +158,14 @@ pmb.define_particle(name = anion_name,
 
 # Here we upload the pka set from the reference_parameters folder
 path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.json') 
-pmb.load_pka_set (filename=path_to_pka)
+pmb.load_pka_set(filename=path_to_pka)
 
 #We create the protein in espresso 
 pmb.create_protein(name=protein_name,
                     number_of_proteins=1,
                     espresso_system=espresso_system,
                     topology_dict=topology_dict)
+
 #Here we activate the motion of the protein 
 if args.move_protein:
     pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
@@ -181,10 +182,10 @@ pmb.create_counterions (object_name=protein_name,
                         anion_name=anion_name,
                         espresso_system=espresso_system)
 
-c_salt_calculated = pmb.create_added_salt (espresso_system=espresso_system,
-                                            cation_name=cation_name,
-                                            anion_name=anion_name,
-                                            c_salt=c_salt)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
+                                          cation_name=cation_name,
+                                          anion_name=anion_name,
+                                          c_salt=c_salt)
 
 #Here we calculated the ionisible groups 
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()

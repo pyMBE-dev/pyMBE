@@ -122,7 +122,7 @@ class pymbe_library():
         
         return
 
-    def add_value_to_df(self,index,key,new_value, verbose=True, non_standard_value=False):
+    def add_value_to_df(self,index,key,new_value, verbose=True, non_standard_value=False, overwrite=False):
         """
         Adds a value to a cell in the `pmb.df` DataFrame.
 
@@ -131,6 +131,7 @@ class pymbe_library():
             key(`str`): the column label to add the value to.
             verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
             non_standard_value(`bool`, optional): Switch to enable insertion of non-standard values, such as `dict` objects. Defaults to False.
+            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False.
         """
 
         token = "#protected:"
@@ -151,12 +152,16 @@ class pymbe_library():
         idx = pd.IndexSlice
         if self.check_if_df_cell_has_a_value(index=index,key=key):
             old_value= self.df.loc[index,idx[key]]
-            if verbose:
-                if protect(old_value) != protect(new_value):
+            if protect(old_value) != protect(new_value):
+                if verbose:
                     name=self.df.loc[index,('name','')]
                     pmb_type=self.df.loc[index,('pmb_type','')]
-                    print(f"WARNING: you are redefining the properties of {name} of pmb_type {pmb_type}")
-                    print(f'WARNING: overwritting the value of the entry `{key}`: old_value = {old_value} new_value = {new_value}')
+                    print(f"WARNING: you are attempting to redefine the properties of {name} of pmb_type {pmb_type}")
+                    if overwrite:
+                        print(f'WARNING: overwritting the value of the entry `{key}`: old_value = {old_value} new_value = {new_value}')
+                    else:
+                        print(f"WARNING: pyMBE has preserved the old_value = {old_value}. If you want to overwrite it with new_value = {new_value}, activate the switch overwrite = True ")
+                        return
         self.df.loc[index,idx[key]] = protect(new_value)
         if non_standard_value:
             self.df[key] = self.df[key].apply(deprotect)
@@ -1394,7 +1399,26 @@ class pymbe_library():
         self.df.at [index,('residue_list','')] = residue_list
         return
 
-    def define_particle(self, name, q=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None,verbose=True):
+    def define_particle_entry_in_df(self,name):
+        """
+        Defines a particle entry in pmb.df.
+
+        Args:
+            name(`str`): Unique label that identifies this particle type.
+
+        Returns:
+            index(`int`): Index of the particle in pmb.df  
+        """
+
+        if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='particle'):
+            index = self.df[self.df['name']==name].index[0]                                   
+        else:
+            index = len(self.df)
+            self.df.at [index, 'name'] = name
+            self.df.at [index,'pmb_type'] = 'particle'
+        return index
+
+    def define_particle(self, name, q=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None,verbose=True,overwrite=False):
         """
         Defines the properties of a particle object.
 
@@ -1408,6 +1432,7 @@ class pymbe_library():
             offset (`pint.Quantity`, optional): Offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
             epsilon (`pint.Quantity`, optional): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe. Defaults to None.
             verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
+            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False.
 
         Note:
             - `sigma`, `cutoff` and `offset` must have a dimensitonality of `[length]` and should be defined using pmb.units.
@@ -1417,16 +1442,9 @@ class pymbe_library():
             - The default setup corresponds to the Weeks−Chandler−Andersen (WCA) model, corresponding to purely steric interactions.
             - For more information on `sigma`, `epsilon`, `cutoff` and `offset` check `pmb.setup_lj_interactions()`.
         """ 
-
-        if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='particle'):
-            index = self.df[self.df['name']==name].index[0]                                   
-        else:
-            index = len(self.df)
-            self.df.at [index, 'name'] = name
-            self.df.at [index,'pmb_type'] = 'particle'
+        index=self.define_particle_entry_in_df(name=name)
         
-        # If `cutoff` and `offset` are not defined, default them to 0
-
+        # If `cutoff` and `offset` are not defined, default them to the following values
         if cutoff is None:
             cutoff=self.units.Quantity(2**(1./6.), "reduced_length")
         if offset is None:
@@ -1445,29 +1463,33 @@ class pymbe_library():
                 self.add_value_to_df(key=(parameter_key,''),
                                     index=index,
                                     new_value=parameters_with_dimensionality[parameter_key]["value"],
-                                    verbose=verbose)
+                                    verbose=verbose,
+                                    overwrite=overwrite)
 
         # Define particle acid/base properties
-        self.set_particle_acidity (name=name, 
-                                acidity = acidity , 
+        self.set_particle_acidity(name=name, 
+                                acidity=acidity, 
                                 default_charge=q, 
                                 pka=pka,
-                                verbose=verbose)
+                                verbose=verbose,
+                                overwrite=overwrite)
         return 
     
-    def define_particles(self, parameters):
+    def define_particles(self, parameters, overwrite=False):
         '''
         Defines a particle object in pyMBE for each particle name in `particle_names`
 
         Args:
-            sequence(`lst`):  Sequence of the peptide or protein. 
+            parameters(`dict`):  dictionary with the particle parameters. 
+            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
 
         Note:
-            - It assumes that the names in `sequence` correspond to amino acid names using the standard one letter code.
+            parameters = {"particle_name1: {"sigma": sigma_value, "epsilon": epsilon_value, ...}, particle_name2: {...},}
         '''
         if not parameters:
             return
         for particle_name in parameters.keys():
+            parameters[particle_name]["overwrite"]=overwrite
             self.define_particle(**parameters[particle_name])
         return
 
@@ -2015,15 +2037,15 @@ class pymbe_library():
         
         Returns:
             radius_map(`dict`): {espresso_type: radius}.
+
+        Note:
+            The radius corresponds to (sigma+offset)/2
         '''
-
-        df_state_one = self.df[[('sigma',''),('state_one','es_type')]].dropna().drop_duplicates()
-        df_state_two = self.df[[('sigma',''),('state_two','es_type')]].dropna().drop_duplicates()
-
-        state_one = pd.Series(df_state_one.sigma.values/2.0,index=df_state_one.state_one.es_type.values)
-        state_two = pd.Series(df_state_two.sigma.values/2.0,index=df_state_two.state_two.es_type.values)
-        radius_map  = pd.concat([state_one,state_two],axis=0).to_dict()
-        
+        df_state_one = self.df[[('sigma',''),('offset',''),('state_one','es_type')]].dropna().drop_duplicates()
+        df_state_two = self.df[[('sigma',''),('offset',''),('state_two','es_type')]].dropna().drop_duplicates()
+        state_one = pd.Series((df_state_one.sigma.values+df_state_one.offset.values)/2.0,index=df_state_one.state_one.es_type.values)
+        state_two = pd.Series((df_state_two.sigma.values+df_state_two.offset.values)/2.0,index=df_state_two.state_two.es_type.values)
+        radius_map  = pd.concat([state_one,state_two],axis=0).to_dict()  
         return radius_map
 
     def get_resource(self, path):
@@ -2061,13 +2083,14 @@ class pymbe_library():
         type_map  = pd.concat([state_one,state_two],axis=0).to_dict()
         return type_map
 
-    def load_interaction_parameters(self, filename, verbose=True):
+    def load_interaction_parameters(self, filename, verbose=True, overwrite=False):
         """
         Loads the interaction parameters stored in `filename` into `pmb.df`
         
         Args:
             filename(`str`): name of the file to be read
             verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
+            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
         """
         without_units = ['q','es_type','acidity']
         with_units = ['sigma','epsilon']
@@ -2097,7 +2120,8 @@ class pymbe_library():
                                 sigma=not_requiered_attributes.pop('sigma'),
                                 acidity=not_requiered_attributes.pop('acidity'),
                                 epsilon=not_requiered_attributes.pop('epsilon'),
-                                verbose=verbose)
+                                verbose=verbose,
+                                overwrite=overwrite)
             elif object_type == 'residue':
                 self.define_residue (name = param_dict.pop('name'),
                                     central_bead = param_dict.pop('central_bead_name'),
@@ -2136,16 +2160,14 @@ class pymbe_library():
             
         return
     
-    def load_pka_set(self, filename, verbose=True):
+    def load_pka_set(self, filename, verbose=False, overwrite=True):
         """
         Loads the pka_set stored in `filename` into `pmb.df`.
         
         Args:
             filename(`str`): name of the file with the pka set to be loaded. Expected format is {name:{"acidity": acidity, "pka_value":pka_value}}.
-            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
-
-        Note:
-            - If `name` is already defined in the `pymbe.df`, it prints a warning.
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to False.
+            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to True. 
         """
         with open(filename, 'r') as f:
             pka_data = json.load(f)
@@ -2156,11 +2178,11 @@ class pymbe_library():
         for key in pka_set:
             acidity = pka_set[key]['acidity']
             pka_value = pka_set[key]['pka_value']
-            self.define_particle(
-                    name=key,
-                    acidity=acidity, 
-                    pka=pka_value,
-                    verbose=verbose)
+            self.set_particle_acidity(name=key, 
+                                      acidity=acidity, 
+                                      pka=pka_value, 
+                                      verbose=verbose, 
+                                      overwrite=overwrite)
         return
 
     def parse_sequence_from_file(self,sequence):
@@ -2463,7 +2485,7 @@ class pymbe_library():
 
         return list_of_particles_in_residue
 
-    def set_particle_acidity(self, name, acidity='inert', default_charge=0, pka=None, verbose=True):
+    def set_particle_acidity(self, name, acidity='inert', default_charge=0, pka=None, verbose=True, overwrite=True):
         """
         Sets the particle acidity if it is acidic or basic, creates `state_one` and `state_two` with the protonated and 
         deprotonated states. In each state is set: `label`,`charge` and `es_type`. If it is inert, it will define only `state_one`.
@@ -2474,67 +2496,84 @@ class pymbe_library():
             default_charge (`int`): Charge of the particle. Defaults to 0.
             pka (`float`, optional):  If `particle` is an acid or a base, it defines its pka-value. Defaults to None.
             verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
+            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
         """
         acidity_valid_keys = ['inert','acidic', 'basic']
         if acidity not in acidity_valid_keys:
             raise ValueError(f"Acidity {acidity} provided for particle name  {name} is not supproted. Valid keys are: {acidity_valid_keys}")
         if acidity in ['acidic', 'basic'] and pka is None:
             raise ValueError(f"pKa not provided for particle with name {name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
+        
+        self.define_particle_entry_in_df(name=name)
+        
         for index in self.df[self.df['name']==name].index:       
             if pka:
                 self.add_value_to_df(key=('pka',''),
                                     index=index,
                                     new_value=pka, 
-                                    verbose=verbose)
+                                    verbose=verbose,
+                                    overwrite=overwrite)
+           
             self.add_value_to_df(key=('acidity',''),
                                  index=index,
                                  new_value=acidity, 
-                                 verbose=verbose) 
+                                 verbose=verbose,
+                                 overwrite=overwrite) 
             if not self.check_if_df_cell_has_a_value(index=index,key=('state_one','es_type')):
                 self.add_value_to_df(key=('state_one','es_type'),
                                      index=index,
                                      new_value=self.propose_unused_type(), 
-                                     verbose=verbose)  
+                                     verbose=verbose,
+                                     overwrite=overwrite)  
             if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'inert':
                 self.add_value_to_df(key=('state_one','charge'),
                                      index=index,
                                      new_value=default_charge, 
-                                     verbose=verbose)
+                                     verbose=verbose,
+                                     overwrite=overwrite)
                 self.add_value_to_df(key=('state_one','label'),
                                      index=index,
                                      new_value=name, 
-                                     verbose=verbose)
+                                     verbose=verbose,
+                                    overwrite=overwrite)
             else:
                 protonated_label = f'{name}H'
                 self.add_value_to_df(key=('state_one','label'),
                                      index=index,
                                      new_value=protonated_label, 
-                                     verbose=verbose)
+                                     verbose=verbose,
+                                    overwrite=overwrite)
                 self.add_value_to_df(key=('state_two','label'),
                                      index=index,
                                      new_value=name, 
-                                     verbose=verbose)
+                                     verbose=verbose,
+                                    overwrite=overwrite)
                 if not self.check_if_df_cell_has_a_value(index=index,key=('state_two','es_type')):
                     self.add_value_to_df(key=('state_two','es_type'),
                                          index=index,
                                          new_value=self.propose_unused_type(), 
-                                         verbose=verbose)
+                                         verbose=verbose,
+                                         overwrite=overwrite)
                 if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'acidic':        
                     self.add_value_to_df(key=('state_one','charge'),
                                          index=index,new_value=0, 
-                                         verbose=verbose)
+                                         verbose=verbose,
+                                         overwrite=overwrite)
                     self.add_value_to_df(key=('state_two','charge'),
                                          index=index,
                                          new_value=-1, 
-                                         verbose=verbose)
+                                         verbose=verbose,
+                                         overwrite=overwrite)
                 elif self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'basic':
                     self.add_value_to_df(key=('state_one','charge'),
                                          index=index,new_value=+1, 
-                                         verbose=verbose)
+                                         verbose=verbose,
+                                         overwrite=overwrite)
                     self.add_value_to_df(key=('state_two','charge'),
                                          index=index,
                                          new_value=0, 
-                                         verbose=verbose)   
+                                         verbose=verbose,
+                                         overwrite=overwrite)   
         return
     
     def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None, Kw=None, verbose=True):

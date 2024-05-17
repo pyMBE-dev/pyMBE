@@ -31,7 +31,7 @@ parser.add_argument('--output',
                     type=str,
                     required= False,
                     help='output directory')
-parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose")
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 args = parser.parse_args()
 
 # Inputs
@@ -66,8 +66,8 @@ if sequence in Lunkad_test_sequences:
     model = '2beadAA'  # Model with 2 beads per each aminoacid
     N_peptide_chains = 4
     sigma=1*pmb.units.Quantity("reduced_length")
-    offset_cation=0
-    offset_anion=0
+    offset_cation=0*pmb.units.Quantity("reduced_length")
+    offset_anion=0*pmb.units.Quantity("reduced_length")
     c_salt=1e-2 * pmb.units.mol/ pmb.units.L
     chain_length=len(sequence)*2
 
