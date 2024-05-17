@@ -85,6 +85,8 @@ Box_V =  1. / (pmb.N_A*c_protein)
 Box_L = Box_V**(1./3.) 
 solvent_permitivity = 78.3
 epsilon = 1*pmb.units('reduced_energy')
+sigma = 1*pmb.units("reduced_length")
+ion_size = 0.4*pmb.units.nm
 
 #Simulation Parameters
  #  in LJ units of time
@@ -126,35 +128,33 @@ espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 path_to_cg=pmb.get_resource(args.path_to_cg)
 topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
 #Defines the protein in the pmb.df
-pmb.define_protein (name=protein_name, topology_dict=topology_dict, model = '2beadAA')
-
-#Create dictionary with the value of epsilon and sigma for each residue
-clean_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
-
-epsilon_dict = {}
-
-for residue in clean_sequence:
-    if residue not in epsilon_dict.keys():
-        epsilon_dict [residue] = epsilon
-    epsilon_dict  ['CA'] = epsilon
-
-#Define epsilon for each particle into pmb.df
-pmb.define_particles_parameter_from_dict (param_dict = epsilon_dict,
-                                            param_name ='epsilon')
+pmb.define_protein (name=protein_name, 
+                    topology_dict=topology_dict, 
+                    model = '2beadAA',
+                    lj_setup_mode = "wca")
 
 #Defines the metal ion present in the protein 
 if args.metal_ion_name is not None:
     pmb.define_particle(name = args.metal_ion_name, 
                         q=args.metal_ion_charge, 
-                        sigma=0.355*pmb.units.nm, 
+                        sigma=sigma, 
                         epsilon=epsilon)
 
 # Here we define the solution particles in the pmb.df 
 cation_name = 'Na'
 anion_name = 'Cl'
 
-pmb.define_particle(name = cation_name, q = 1, sigma=0.4*pmb.units.nm, epsilon=epsilon)
-pmb.define_particle(name = anion_name,  q =-1, sigma=0.4*pmb.units.nm, epsilon=epsilon)
+pmb.define_particle(name = cation_name, 
+                    q = 1, 
+                    sigma=sigma, 
+                    epsilon=epsilon,
+                    offset=ion_size-sigma)
+
+pmb.define_particle(name = anion_name,  
+                    q =-1, 
+                    sigma=sigma, 
+                    epsilon=epsilon,
+                    offset=ion_size-sigma)
 
 # Here we upload the pka set from the reference_parameters folder
 path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.json') 
@@ -162,9 +162,9 @@ pmb.load_pka_set (filename=path_to_pka)
 
 #We create the protein in espresso 
 pmb.create_protein(name=protein_name,
-                               number_of_proteins=1,
-                               espresso_system=espresso_system,
-                               topology_dict=topology_dict)
+                    number_of_proteins=1,
+                    espresso_system=espresso_system,
+                    topology_dict=topology_dict)
 #Here we activate the motion of the protein 
 if args.move_protein:
     pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
@@ -182,9 +182,9 @@ pmb.create_counterions (object_name=protein_name,
                         espresso_system=espresso_system)
 
 c_salt_calculated = pmb.create_added_salt (espresso_system=espresso_system,
-                                                    cation_name=cation_name,
-                                                    anion_name=anion_name,
-                                                    c_salt=c_salt)
+                                            cation_name=cation_name,
+                                            anion_name=anion_name,
+                                            c_salt=c_salt)
 
 #Here we calculated the ionisible groups 
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
@@ -218,9 +218,7 @@ if verbose:
 if WCA:
     pmb.setup_lj_interactions (espresso_system=espresso_system)
     minimize_espresso_system_energy (espresso_system=espresso_system)
-
     if Electrostatics:
-
         setup_electrostatic_interactions (units=pmb.units,
                                         espresso_system=espresso_system,
                                         kT=pmb.kT)
@@ -237,7 +235,6 @@ setup_langevin_dynamics (espresso_system=espresso_system,
 observables_df = pd.DataFrame()
 time_step = []
 net_charge_list = []
-
 
 Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
