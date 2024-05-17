@@ -71,33 +71,6 @@ class pymbe_library():
                                temperature=temperature, Kw=Kw, verbose=False)
         self.setup_df()
         return
-    
-    def enable_motion_of_rigid_object(self, name, espresso_system):
-        '''
-        Enables the motion of the rigid object `name` in the `espresso_system`.
-
-        Args:
-            name(`str`): Label of the object.
-            espresso_system(`obj`): Instance of a system object from the espressomd library.
-
-        Note:
-            - It requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
-        '''
-        print ('enable_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
-        pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
-        if pmb_type != 'protein':
-            raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
-        molecule_ids_list = self.df.loc[self.df['name']==name].molecule_id.to_list()
-        for molecule_id in molecule_ids_list:    
-            particle_ids_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
-            center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
-            rigid_object_center = espresso_system.part.add(pos=center_of_mass,
-                                                           rotation=[True,True,True], 
-                                                           type=self.propose_unused_type())
-            for particle_id in particle_ids_list:
-                pid = espresso_system.part.by_id(particle_id)
-                pid.vs_auto_relate_to(rigid_object_center.id)
-        return
 
     def add_bond_in_df(self, particle_id1, particle_id2, use_default_bond=False):
         """
@@ -490,6 +463,41 @@ class pymbe_library():
             es_pos = espresso_system.part.by_id(pid).pos
             espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
         return 
+
+    def check_aminoacid_key(self, key):
+        """
+        Checks if `key` corresponds to a valid aminoacid letter code.
+
+        Args:
+            key(`str`): key to be checked.
+
+        Returns:
+            `bool`: True if `key` is a valid aminoacid letter code, False otherwise.
+        """
+        valid_AA_keys=['V', #'VAL'
+                       'I', #'ILE'
+                       'L', #'LEU'
+                       'E', #'GLU'
+                       'Q', #'GLN'
+                       'D', #'ASP'
+                       'N', #'ASN'
+                       'H', #'HIS'
+                       'W', #'TRP'
+                       'F', #'PHE'
+                       'Y', #'TYR'
+                       'R', #'ARG' 
+                       'K', #'LYS'
+                       'S', #'SER'
+                       'T', #'THR'
+                       'M', #'MET'
+                       'A', #'ALA'
+                       'G', #'GLY'
+                       'P', #'PRO'
+                       'C'] #'CYS'
+        if key in valid_AA_keys:
+            return True
+        else:
+            return False
 
     def check_dimensionality(self, variable, expected_dimensionality):
         """
@@ -1216,30 +1224,7 @@ class pymbe_library():
         
         variable_with_units=value*self.units(units)
 
-        return variable_with_units
-
-    def define_AA_particles_in_sequence(self, sequence, sigma_dict=None):
-        '''
-        Defines in `pmb.df` all the different particles in `sequence`.
-
-        Args:
-            sequence(`lst`):  Sequence of the peptide or protein. 
-
-        Note:
-            - It assumes that the names in `sequence` correspond to amino acid names using the standard one letter code.
-        '''
-
-        already_defined_AA=[]
-        
-        for residue_name in sequence:
-            if residue_name in already_defined_AA:
-                continue
-            self.define_particle (name=residue_name, q=0)
-                
-        if sigma_dict:
-            self.define_particles_parameter_from_dict(param_dict = sigma_dict, 
-                                                      param_name = 'sigma')
-        return 
+        return variable_with_units 
 
     def define_AA_residues(self, sequence, model):
         """
@@ -1470,6 +1455,22 @@ class pymbe_library():
                                 verbose=verbose)
         return 
     
+    def define_particles(self, parameters):
+        '''
+        Defines a particle object in pyMBE for each particle name in `particle_names`
+
+        Args:
+            sequence(`lst`):  Sequence of the peptide or protein. 
+
+        Note:
+            - It assumes that the names in `sequence` correspond to amino acid names using the standard one letter code.
+        '''
+        if not parameters:
+            return
+        for particle_name in parameters.keys():
+            self.define_particle(**parameters[particle_name])
+        return
+
     def define_particles_parameter_from_dict(self, param_dict, param_name):
         '''
         Defines the `param_name` value of the particles in `param_dict` into the `pmb.df`.
@@ -1499,59 +1500,60 @@ class pymbe_library():
             valid_keys = ['1beadAA','2beadAA']
             if model not in valid_keys:
                 raise ValueError('Invalid label for the peptide model, please choose between 1beadAA or 2beadAA')
-        
             clean_sequence = self.protein_sequence_parser(sequence=sequence)    
-            residue_list = self.define_AA_residues(sequence=clean_sequence,model=model)
-
+            residue_list = self.define_AA_residues(sequence=clean_sequence,
+                                                    model=model)
             self.define_molecule(name = name, residue_list=residue_list)
             index = self.df.loc[self.df['name'] == name].index.item() 
             self.df.at [index,'model'] = model
             self.df.at [index,('sequence','')] = clean_sequence
         return
     
-    def define_protein(self, name,model, topology_dict):
+    def define_protein(self, name,model, topology_dict, lj_setup_mode="wca"):
         """
         Defines a pyMBE object of type `protein` in `pymbe.df`.
 
         Args:
             name (`str`): Unique label that identifies the `protein`.
             model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
-            topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
+            topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'radius': radius_value}
+            lj_setup_mode(`str`): Key for the setup for the LJ potential. Defaults to "wca".
+
+        Note:
+            - Currently, only `lj_setup_mode="wca"` is supported. This corresponds to setting up the WCA potential.
         """
 
-        protein_seq_list = []     
-    
-        valid_keys = ['1beadAA','2beadAA']
-
-        if model not in valid_keys:
-            raise ValueError('Invalid label for the peptide model, please choose between 1beadAA or 2beadAA')
-        
-        if model == '2beadAA':
-            self.define_particle(name='CA')
-
-        sigma_dict = {}
-        
-        for residue in topology_dict.keys():
-            residue_name = re.split(r'\d+', residue)[0]
-            
-            if residue_name not in sigma_dict.keys():
-                sigma_dict [residue_name] =  topology_dict[residue]['sigma']
-            if residue_name not in ('CA', 'Ca'):
-                protein_seq_list.append(residue_name)                  
-
-        protein_sequence = ''.join(protein_seq_list)
-        clean_sequence = self.protein_sequence_parser(sequence=protein_sequence)
-
-        self.define_AA_particles_in_sequence (sequence=clean_sequence, sigma_dict = sigma_dict)
-        residue_list = self.define_AA_residues(sequence=clean_sequence, model=model)
-
+        # Sanity checks
+        valid_model_keys = ['1beadAA','2beadAA']
+        valid_lj_setups = ["wca"]
+        if model not in valid_model_keys:
+            raise ValueError('Invalid key for the protein model, supported models are {valid_model_keys}')
+        if lj_setup_mode not in valid_lj_setups:
+            raise ValueError('Invalid key for the lj setup, supported setup modes are {valid_lj_setups}')
+        if lj_setup_mode == "wca":
+            sigma = 1*self.units.Quantity("reduced_length")
+            epsilon = 1*self.units.Quantity("reduced_energy")
+        part_dict={}
+        sequence=[]
+        for particle in topology_dict.keys():
+            particle_name = re.split(r'\d+', particle)[0] 
+            if particle_name not in part_dict.keys():
+                if lj_setup_mode == "wca":
+                    part_dict[particle_name]={"sigma": sigma,
+                                        "offset": topology_dict[particle]['radius']*2-sigma,
+                                        "epsilon": epsilon,
+                                        "name": particle_name}
+            if self.check_aminoacid_key(key=particle_name):
+                sequence.append(particle_name)           
+        self.define_particles(parameters=part_dict)
+        residue_list = self.define_AA_residues(sequence=sequence, 
+                                               model=model)
         index = len(self.df)
         self.df.at [index,'name'] = name
         self.df.at [index,'pmb_type'] = 'protein'
         self.df.at [index,'model'] = model
-        self.df.at [index,('sequence','')] = clean_sequence  
+        self.df.at [index,('sequence','')] = sequence  
         self.df.at [index,('residue_list','')] = residue_list    
-
         return 
     
     def define_residue(self, name, central_bead, side_chains):
@@ -1688,6 +1690,33 @@ class pymbe_library():
             self_consistent_run=0
 
         return cH_res, cOH_res, cNa_res, cCl_res
+
+    def enable_motion_of_rigid_object(self, name, espresso_system):
+        '''
+        Enables the motion of the rigid object `name` in the `espresso_system`.
+
+        Args:
+            name(`str`): Label of the object.
+            espresso_system(`obj`): Instance of a system object from the espressomd library.
+
+        Note:
+            - It requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
+        '''
+        print ('enable_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
+        pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
+        if pmb_type != 'protein':
+            raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
+        molecule_ids_list = self.df.loc[self.df['name']==name].molecule_id.to_list()
+        for molecule_id in molecule_ids_list:    
+            particle_ids_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+            center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
+            rigid_object_center = espresso_system.part.add(pos=center_of_mass,
+                                                           rotation=[True,True,True], 
+                                                           type=self.propose_unused_type())
+            for particle_id in particle_ids_list:
+                pid = espresso_system.part.by_id(particle_id)
+                pid.vs_auto_relate_to(rigid_object_center.id)
+        return
 
     def filter_df(self, pmb_type):
         """
@@ -2363,7 +2392,7 @@ class pymbe_library():
         for i in range (0, len(numbered_label)):   
             topology_dict [numbered_label[i][0]] = {'initial_pos': coord_list[i] ,
                                                     'chain_id':numbered_label[i][1],
-                                                    'sigma':numbered_label[i][2] }
+                                                    'radius':numbered_label[i][2] }
 
         return topology_dict
 

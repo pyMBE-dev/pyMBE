@@ -48,7 +48,6 @@ if mode not in valid_modes:
 LANGEVIN_SEED = 100
 dt = 0.01
 solvent_permitivity = 78.3
-pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 
 # Sanity check
 Lunkad_test_sequences=["E"*5+"H"*5,"K"*5+"D"*5]
@@ -66,20 +65,25 @@ if sequence in Lunkad_test_sequences:
     pmb.load_pka_set(filename=path_to_pka)
     model = '2beadAA'  # Model with 2 beads per each aminoacid
     N_peptide_chains = 4
-    sigma_cation=0.35*pmb.units.nm
-    sigma_anion=0.35*pmb.units.nm
+    sigma=1*pmb.units.Quantity("reduced_length")
+    offset_cation=0
+    offset_anion=0
     c_salt=1e-2 * pmb.units.mol/ pmb.units.L
     chain_length=len(sequence)*2
 
 elif sequence in Blanco_test_sequence:
+    pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
     pmb.load_interaction_parameters (pmb.get_resource(path='parameters/peptides/Blanco2021.json'))
     pmb.load_pka_set (pmb.get_resource(path='parameters/pka_sets/Nozaki1967.json'))
     model = '1beadAA'
     N_peptide_chains = 1
     c_salt = 5e-3 * pmb.units.mol/ pmb.units.L
-    sigma_cation=0.2*pmb.units.nm
-    sigma_anion=0.36*pmb.units.nm
+    sigma=1*pmb.units.Quantity("reduced_length")
+    offset_cation=0.2*pmb.units.nm-sigma
+    offset_anion=0.36*pmb.units.nm-sigma
     chain_length=len(sequence)
+
+pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L 
 
 # Simulation parameters
 if mode == "short-run":
@@ -108,13 +112,15 @@ c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
 pmb.define_particle(name=cation_name,
                     q=1,
-                    sigma=sigma_cation,
-                    epsilon=1*pmb.units('reduced_energy'))
+                    sigma=sigma,
+                    epsilon=1*pmb.units('reduced_energy'),
+                    offset=offset_cation)
 
 pmb.define_particle(name=anion_name,
                     q=-1,
-                    sigma=sigma_anion,
-                    epsilon=1*pmb.units('reduced_energy'))
+                    sigma=sigma,
+                    epsilon=1*pmb.units('reduced_energy'),
+                    offset=offset_anion)
 
 # System parameters
 volume = N_peptide_chains/(pmb.N_A*pep_concentration)
