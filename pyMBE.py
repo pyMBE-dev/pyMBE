@@ -881,7 +881,10 @@ class pymbe_library():
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
         pos_index = 0 
         for molecule_index in molecule_index_list:        
-            molecule_id = self.assign_molecule_id(name=name,pmb_type='molecule',used_molecules_id=used_molecules_id,molecule_index=molecule_index)
+            molecule_id = self.assign_molecule_id(name=name,
+                                                pmb_type='molecule',
+                                                used_molecules_id=used_molecules_id,
+                                                molecule_index=molecule_index)
             molecules_info[molecule_id] = {}
             for residue in residue_list:
                 if first_residue:
@@ -905,7 +908,9 @@ class pymbe_library():
                     for index in self.df[self.df['residue_id']==residue_id].index:
                         self.add_value_to_df(key=('molecule_id',''),
                                             index=int (index),
-                                            new_value=molecule_id)
+                                            new_value=molecule_id,
+                                            overwrite=False,
+                                            verbose=False)
                     central_bead_id = residues_info[residue_id]['central_bead_id']
                     previous_residue = residue
                     residue_position = espresso_system.part.by_id(central_bead_id).pos
@@ -936,7 +941,8 @@ class pymbe_library():
                             self.add_value_to_df(key=('molecule_id',''),
                                                 index=int (index),
                                                 new_value=molecule_id,
-                                                verbose=False)            
+                                                verbose=False,
+                                                overwrite=False)            
                     central_bead_id = residues_info[residue_id]['central_bead_id']
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
                     self.add_bond_in_df(particle_id1=central_bead_id,
@@ -1168,7 +1174,8 @@ class pymbe_library():
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int (index),
                                         new_value=residue_id, 
-                                        verbose=False)
+                                        verbose=False,
+                                        overwrite=True)
                     side_chain_beads_ids.append(side_bead_id)
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, side_bead_id))
                     self.add_bond_in_df(particle_id1=central_bead_id,
@@ -1203,7 +1210,8 @@ class pymbe_library():
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int(index),
                                         new_value=residue_id, 
-                                        verbose=False)
+                                        verbose=False,
+                                        overwrite=True)
                     # Change the residue_id of the particles in the residue in the side chain
                     side_chain_beads_ids+=[central_bead_side_chain_id]+lateral_beads_side_chain_ids
                     for particle_id in side_chain_beads_ids:
@@ -1211,7 +1219,8 @@ class pymbe_library():
                         self.add_value_to_df(key=('residue_id',''),
                                             index=int (index),
                                             new_value=residue_id, 
-                                            verbose=False)
+                                            verbose=False,
+                                            overwrite=True)
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, central_bead_side_chain_id))
                     self.add_bond_in_df(particle_id1=central_bead_id,
                                         particle_id2=central_bead_side_chain_id,

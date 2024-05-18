@@ -63,13 +63,14 @@ espresso_system=espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
 # Add all bonds to espresso system
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
+pmb.write_pmb_df("df1.csv")
 # Create your molecules into the espresso system
 molecules = pmb.create_molecule(name=molecule_name,
                         number_of_molecules= N_molecules,
                         espresso_system=espresso_system,
                         use_default_bond=True,
                         list_of_first_residue_positions = pos_list)
-
+pmb.write_pmb_df("df2.csv")
 # Running unit test here. Use np.testing.assert_almost_equal of the input position list and the central_bead_pos list under here.
 central_bead_pos = []
 for molecule_id in molecules:
