@@ -149,15 +149,16 @@ class pymbe_library():
         if self.check_if_df_cell_has_a_value(index=index,key=key):
             old_value= self.df.loc[index,idx[key]]
             if protect(old_value) != protect(new_value):
+                name=self.df.loc[index,('name','')]
+                pmb_type=self.df.loc[index,('pmb_type','')]
                 if verbose:
-                    name=self.df.loc[index,('name','')]
-                    pmb_type=self.df.loc[index,('pmb_type','')]
-                    print(f"WARNING: you are attempting to redefine the properties of {name} of pmb_type {pmb_type}")
-                    if overwrite:
+                    print(f"WARNING: you are attempting to redefine the properties of {name} of pmb_type {pmb_type}")    
+                if overwrite and verbose:
                         print(f'WARNING: overwritting the value of the entry `{key}`: old_value = {old_value} new_value = {new_value}')
-                    else:
+                if not overwrite:
+                    if verbose:
                         print(f"WARNING: pyMBE has preserved the old_value = {old_value}. If you want to overwrite it with new_value = {new_value}, activate the switch overwrite = True ")
-                        return
+                    return
         self.df.loc[index,idx[key]] = protect(new_value)
         if non_standard_value:
             self.df[key] = self.df[key].apply(deprotect)

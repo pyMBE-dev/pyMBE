@@ -295,11 +295,8 @@ if plot:
         plt.xticks([2,4,6,8,10,12])
         
     elif fig_label in labels_fig8:   
-
         data=data.astype({("pH","value"): 'float'}).sort_values(by=("pH","value"))
         data=data[data.pdb.value == f'{protein_pdb}']
-
-
         plt.errorbar(data["pH"]["value"], 
                    data["mean","charge"], 
                    yerr=data["err_mean","charge"], 
