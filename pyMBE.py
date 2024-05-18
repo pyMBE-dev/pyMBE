@@ -1475,13 +1475,14 @@ class pymbe_library():
                                 overwrite=overwrite)
         return 
     
-    def define_particles(self, parameters, overwrite=False):
+    def define_particles(self, parameters, overwrite=False, verbose=True):
         '''
         Defines a particle object in pyMBE for each particle name in `particle_names`
 
         Args:
             parameters(`dict`):  dictionary with the particle parameters. 
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             parameters = {"particle_name1: {"sigma": sigma_value, "epsilon": epsilon_value, ...}, particle_name2: {...},}
@@ -1490,6 +1491,7 @@ class pymbe_library():
             return
         for particle_name in parameters.keys():
             parameters[particle_name]["overwrite"]=overwrite
+            parameters[particle_name]["verbose"]=verbose
             self.define_particle(**parameters[particle_name])
         return
     
@@ -1515,7 +1517,7 @@ class pymbe_library():
             self.df.at [index,('sequence','')] = clean_sequence
         return
     
-    def define_protein(self, name,model, topology_dict, lj_setup_mode="wca"):
+    def define_protein(self, name,model, topology_dict, lj_setup_mode="wca", overwrite=False, verbose=True):
         """
         Defines a pyMBE object of type `protein` in `pymbe.df`.
 
@@ -1524,6 +1526,8 @@ class pymbe_library():
             model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
             topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'radius': radius_value}
             lj_setup_mode(`str`): Key for the setup for the LJ potential. Defaults to "wca".
+            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
+            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - Currently, only `lj_setup_mode="wca"` is supported. This corresponds to setting up the WCA potential.
@@ -1551,7 +1555,9 @@ class pymbe_library():
                                         "name": particle_name}
             if self.check_aminoacid_key(key=particle_name):
                 sequence.append(particle_name)           
-        self.define_particles(parameters=part_dict)
+        self.define_particles(parameters=part_dict,
+                            overwrite=overwrite, 
+                            verbose=verbose)
         residue_list = self.define_AA_residues(sequence=sequence, 
                                                model=model)
         index = len(self.df)
@@ -2077,7 +2083,7 @@ class pymbe_library():
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
         """
         without_units = ['q','es_type','acidity']
-        with_units = ['sigma','epsilon']
+        with_units = ['sigma','epsilon','offset','cutoff']
 
         with open(filename, 'r') as f:
             interaction_data = json.load(f)
@@ -2102,6 +2108,8 @@ class pymbe_library():
                 self.define_particle(name=param_dict.pop('name'),
                                 q=not_requiered_attributes.pop('q'),
                                 sigma=not_requiered_attributes.pop('sigma'),
+                                sigma=not_requiered_attributes.pop('offset'),
+                                sigma=not_requiered_attributes.pop('cutoff'),
                                 acidity=not_requiered_attributes.pop('acidity'),
                                 epsilon=not_requiered_attributes.pop('epsilon'),
                                 verbose=verbose,
