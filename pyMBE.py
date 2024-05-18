@@ -33,19 +33,16 @@ class pymbe_library():
 
 
     class NumpyEncoder(json.JSONEncoder):
-
         """
         Custom JSON encoder that converts NumPy arrays to Python lists
         and NumPy scalars to Python scalars.
         """
-
         def default(self, obj):
             if isinstance(obj, np.ndarray):
                 return obj.tolist()
             if isinstance(obj, np.generic):
                 return obj.item()
             return super().default(obj)
-
 
     def __init__(self, SEED, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
@@ -95,7 +92,6 @@ class pymbe_library():
         #without this drop the program crashes when dropping duplicates because the 'bond' column is a dict
         used_bond_df = used_bond_df.drop([('bond_object','')],axis =1 )
         used_bond_index = used_bond_df.index.to_list()
-
         for index in index_list:
             if index not in used_bond_index:
                 self.clean_df_row(index=int(index))
@@ -720,7 +716,7 @@ class pymbe_library():
             N_ions= int((volume*c_salt.to('mol/reduced_length**3')*self.N_A).magnitude)
             c_salt_calculated=N_ions/(volume*self.N_A)
         elif c_salt.check('[length]**-3'):
-            N_ions= int((volume*c_salt.to('reduced_length**-3')*self.N_A).magnitude)
+            N_ions= int((volume*c_salt.to('reduced_length**-3')).magnitude)
             c_salt_calculated=N_ions/volume
         else:
             raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
@@ -729,7 +725,10 @@ class pymbe_library():
         self.create_particle(espresso_system=espresso_system, name=cation_name, number_of_particles=N_cation)
         self.create_particle(espresso_system=espresso_system, name=anion_name, number_of_particles=N_anion)
         if verbose:
-            print(f"\n Added salt concentration of {c_salt_calculated.to('mol/L')} given by {N_cation} cations and {N_anion} anions")
+            if c_salt_calculated.check('[substance] [length]**-3'):
+                print(f"\n Added salt concentration of {c_salt_calculated.to('mol/L')} given by {N_cation} cations and {N_anion} anions")
+            elif c_salt_calculated.check('[length]**-3'):
+                print(f"\n Added salt concentration of {c_salt_calculated.to('reduced_length**-3')} given by {N_cation} cations and {N_anion} anions")
         return c_salt_calculated
 
     def create_bond_in_espresso(self, bond_type, bond_parameters):
@@ -872,11 +871,10 @@ class pymbe_library():
         first_residue = True
         molecules_info = {}
         residue_list = self.df[self.df['name']==name].residue_list.values [0]
-
         self.copy_df_entry(name=name,
                         column_name='molecule_id',
                         number_of_copies=number_of_molecules)
-        
+
         molecules_index = np.where(self.df['name']==name)
         molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
@@ -1556,13 +1554,13 @@ class pymbe_library():
                     q=metal_ions_charge_map[particle_name]
                 else:
                     q=0
-                part_dict[particle_name]["q"]=0
+                part_dict[particle_name]["q"]=q
             
             if self.check_aminoacid_key(key=particle_name):
                 sequence.append(particle_name) 
             
         self.define_particles(parameters=part_dict,
-                            overwrite=overwrite, 
+                            overwrite=overwrite,  
                             verbose=verbose)
         residue_list = self.define_AA_residues(sequence=sequence, 
                                                model=model)
@@ -3209,24 +3207,6 @@ class pymbe_library():
             print(f'WARNING: The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.')
             
         return
-
-    def setup_particle_sigma(self, topology_dict):
-        '''
-        Sets up sigma of the particles in `topology_dict`.
-
-        Args:
-            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
-        '''
-        for residue in topology_dict.keys():
-            residue_name = re.split(r'\d+', residue)[0]
-            residue_number = re.split(r'(\d+)', residue)[1]
-            residue_sigma  = topology_dict[residue]['sigma']
-            sigma = residue_sigma*self.units.nm
-            index = self.df[(self.df['residue_id']==residue_number) & (self.df['name']==residue_name) ].index.values[0]
-            self.add_value_to_df(key= ('sigma',''),
-                        index=int (index),
-                        new_value=sigma)           
-        return 
 
     def write_pmb_df (self, filename):
         '''

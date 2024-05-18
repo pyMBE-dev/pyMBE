@@ -41,16 +41,6 @@ parser.add_argument('--move_protein',
                     required= False, 
                     default=False,  
                     help='Activates the motion of the protein')
-parser.add_argument('--metal_ion_name', 
-                    type=str, 
-                    required= False, 
-                    default=None,  
-                    help='Name of the metal ion in the protein')
-parser.add_argument('--metal_ion_charge', 
-                    type=int, 
-                    required= False, 
-                    default=None,  
-                    help='Charge of the metal ion in the protein')
 
 parser.add_argument('--mode',
                     type=str,
@@ -64,12 +54,9 @@ parser.add_argument('--output',
 
 parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 
-
 args = parser.parse_args ()
-
 mode=args.mode
 verbose=args.no_verbose
-
 protein_name = args.pdb
 pH_value = args.pH 
 

@@ -13,7 +13,6 @@ solvent_permitivity = 78.3
 N_molecules = 3
 chain_length = 5
 molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
-# Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
 pos_list = [[10,10,10], [20,20,20], [30,30,30]]
 pmb.define_particle(name='central_mon',

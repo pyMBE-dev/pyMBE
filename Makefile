@@ -30,6 +30,8 @@ unit_tests:
 	${PYTHON} testsuite/read-write-df_test.py
 	${PYTHON} testsuite/parameter_test.py
 	${PYTHON} testsuite/henderson_hasselbalch_tests.py
+	${PYTHON} testsuite/calculate_net_charge_unit_test.py
+	${PYTHON} testsuite/setup_salt_ions_unit_tests.py
 
 functional_tests:
 	${PYTHON} testsuite/cph_ideal_tests.py
