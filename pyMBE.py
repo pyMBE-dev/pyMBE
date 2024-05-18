@@ -154,7 +154,7 @@ class pymbe_library():
                 if verbose:
                     print(f"WARNING: you are attempting to redefine the properties of {name} of pmb_type {pmb_type}")    
                 if overwrite and verbose:
-                        print(f'WARNING: overwritting the value of the entry `{key}`: old_value = {old_value} new_value = {new_value}')
+                    print(f'WARNING: overwritting the value of the entry `{key}`: old_value = {old_value} new_value = {new_value}')
                 if not overwrite:
                     if verbose:
                         print(f"WARNING: pyMBE has preserved the old_value = {old_value}. If you want to overwrite it with new_value = {new_value}, activate the switch overwrite = True ")
