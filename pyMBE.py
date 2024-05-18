@@ -560,6 +560,20 @@ class pymbe_library():
         else:
             return False
 
+    def check_if_metal_ion(self,key):
+        """
+        Checks if `key` corresponds to a label of a supported metal ion.
+
+        Args:
+            key(`str`): key to be checked
+
+        Returns:
+            (`bool`): True if `key`  is a supported metal ion, False otherwise.
+        """
+        if key in self.get_metal_ions_charge_map().keys():
+            return True
+        else:
+            return False
 
     def check_pka_set(self, pka_set):
         """
@@ -1367,22 +1381,6 @@ class pymbe_library():
                             non_standard_value=True)
         return
 
-    def define_epsilon_value_of_particles(self, eps_dict):
-        '''
-        Defines the epsilon value of the particles in `eps_dict` into the `pmb.df`.
-
-        Args:
-            eps_dict(`dict`):  {'name': epsilon}
-        '''
-        for residue in eps_dict.keys():
-            label_list = self.df[self.df['name'] == residue].index.tolist()
-            for index in label_list:
-                epsilon = eps_dict[residue]
-                self.add_value_to_df(key= ('epsilon',''),
-                        index=int (index),
-                        new_value=epsilon)
-        return 
-
     def define_molecule(self, name, residue_list):
         """
         Defines a pyMBE object of type `molecule` in `pymbe.df`.
@@ -1545,6 +1543,7 @@ class pymbe_library():
             epsilon = 1*self.units.Quantity("reduced_energy")
         part_dict={}
         sequence=[]
+        metal_ions_charge_map=self.get_metal_ions_charge_map()
         for particle in topology_dict.keys():
             particle_name = re.split(r'\d+', particle)[0] 
             if particle_name not in part_dict.keys():
@@ -1553,8 +1552,15 @@ class pymbe_library():
                                         "offset": topology_dict[particle]['radius']*2-sigma,
                                         "epsilon": epsilon,
                                         "name": particle_name}
+                if self.check_if_metal_ion(key=particle_name):
+                    q=metal_ions_charge_map[particle_name]
+                else:
+                    q=0
+                part_dict[particle_name]["q"]=0
+            
             if self.check_aminoacid_key(key=particle_name):
-                sequence.append(particle_name)           
+                sequence.append(particle_name) 
+            
         self.define_particles(parameters=part_dict,
                             overwrite=overwrite, 
                             verbose=verbose)
@@ -1965,6 +1971,17 @@ class pymbe_library():
         
         return {"epsilon": np.sqrt(eps1*eps2), "sigma": (sigma1+sigma2)/2.0}
 
+    def get_metal_ions_charge_map(self):
+        """
+        Gets a map with the charge of all the metal ions supported.
+
+        Returns:
+            metal_charge_map(dict): Has the structure {"metal_name": metal_charge}
+
+        """
+        metal_charge_map = {"Ca": 2}
+        return metal_charge_map
+
     def get_particle_id_map(self, object_name):
         '''
         Gets all the ids associated with the object with name `object_name` in `pmb.df`
@@ -2108,8 +2125,8 @@ class pymbe_library():
                 self.define_particle(name=param_dict.pop('name'),
                                 q=not_requiered_attributes.pop('q'),
                                 sigma=not_requiered_attributes.pop('sigma'),
-                                sigma=not_requiered_attributes.pop('offset'),
-                                sigma=not_requiered_attributes.pop('cutoff'),
+                                offset=not_requiered_attributes.pop('offset'),
+                                cutoff=not_requiered_attributes.pop('cutoff'),
                                 acidity=not_requiered_attributes.pop('acidity'),
                                 epsilon=not_requiered_attributes.pop('epsilon'),
                                 verbose=verbose,

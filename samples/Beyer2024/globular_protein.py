@@ -133,13 +133,6 @@ pmb.define_protein (name=protein_name,
                     model = '2beadAA',
                     lj_setup_mode = "wca")
 
-#Defines the metal ion present in the protein 
-if args.metal_ion_name is not None:
-    pmb.define_particle(name = args.metal_ion_name, 
-                        q=args.metal_ion_charge, 
-                        sigma=sigma, 
-                        epsilon=epsilon)
-
 # Here we define the solution particles in the pmb.df 
 cation_name = 'Na'
 anion_name = 'Cl'

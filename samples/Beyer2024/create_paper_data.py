@@ -60,31 +60,17 @@ if fig_label in labels_fig7:
 labels_fig8=["8a", "8b"]
 
 if fig_label in labels_fig8:
-    
     script_path=pmb.get_resource("samples/Beyer2024/globular_protein.py")
-    pH_range = np.linspace(2, 7, num=3)
+    pH_range = np.linspace(2, 7, num=11)
     run_command_common=[sys.executable, script_path, "--mode", mode, "--no_verbose"]
-
-    if fig_label == "8a":
-        
-        protein_pdb = "1f6s"
-        path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
-        for pH in pH_range:
-            
-            run_command=run_command_common + ["--pH", str(pH),"--pdb", protein_pdb, "--path_to_cg", path_to_cg, "--metal_ion_name", "Ca", "--metal_ion_charge", str(2)]
-            print(subprocess.list2cmdline(run_command))
-            subprocess.check_output(run_command)
-
-    elif fig_label == "8b":
-        protein_pdb = "1beb"
-        path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
-        for pH in pH_range:
-            run_command=run_command_common + ["--pH", str(pH),"--pdb", protein_pdb, "--path_to_cg", path_to_cg]
-            print(subprocess.list2cmdline(run_command))
-            subprocess.check_output(run_command)
-    else:
-        raise RuntimeError()
-
+    pdb_codes={"8a":"1f6s",
+               "8b": "1beb"}
+    protein_pdb=pdb_codes[fig_label]
+    path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
+    for pH in pH_range:        
+        run_command=run_command_common + ["--pH", str(pH),"--pdb", protein_pdb, "--path_to_cg", path_to_cg]
+        print(subprocess.list2cmdline(run_command))
+        subprocess.check_output(run_command)   
 
 ## Weak polyelectrolyte dialysis plot (Fig. 9)
 if fig_label == "9": 
@@ -204,7 +190,8 @@ if plot:
     
         pmb.define_protein (name=protein_pdb, 
                             topology_dict=topology_dict, 
-                            model = '2beadAA')
+                            model = '2beadAA',
+                            verbose= False)
 
         pH_range_HH = np.linspace(2, 7, num=1000)
         
