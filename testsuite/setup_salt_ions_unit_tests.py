@@ -34,12 +34,12 @@ def check_salt_concentration(espresso_system,cation_name,anion_name,c_salt,N_SAL
     c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                             cation_name=cation_name,
                                             anion_name=anion_name,
-                                            c_salt=c_salt_input,
+                                            c_salt=c_salt,
                                             verbose=verbose)
 
     np.testing.assert_equal(espresso_system.number_of_particles(type_map[cation_name]),N_SALT_ION_PAIRS*abs(charge_map[type_map[anion_name]]))
     np.testing.assert_equal(espresso_system.number_of_particles(type_map[anion_name]),N_SALT_ION_PAIRS*abs(charge_map[type_map[cation_name]]))
-    np.testing.assert_almost_equal(c_salt_calculated.m_as("mol/L"), c_salt_input.m_as("mol/L"))
+    np.testing.assert_almost_equal(c_salt_calculated.m_as("mol/L"), c_salt.m_as("mol/L"))
     espresso_system.part.clear()
 print("*** Unit test: test that create_added_salt works for a 1:1 salt (NaCl-like). Should print the added salt concentration and number of ions ***")
 check_salt_concentration(espresso_system=espresso_system,
