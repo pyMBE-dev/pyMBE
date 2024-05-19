@@ -2,7 +2,6 @@
 # Import pyMBE and other libraries
 import pyMBE
 import numpy as np
-import warnings
 import espressomd
 
 # Create an instance of pyMBE library
@@ -10,28 +9,11 @@ pmb = pyMBE.pymbe_library(SEED=42)
 
 # The unit tests for define_particle are in lj_tests.py and set_particle_acidity
 
-def check_setup(input_parameters, object_name):
-    """
-    Checks if pyMBE stores in the pmb.df the input parameters  correctly.
-
-    Args:
-        input_parameters(`dict`): dictionary with the input parameters.
-    """
-    # Checks that the input parameters are stored properly
-    for index in pmb.df[pmb.df['name']==object_name].index:
-        for parameter_key in input_parameters.keys():
-            if parameter_key != "name":
-                np.testing.assert_equal(actual=pmb.df.loc[index, parameter_key].values[0].to("nm").magnitude, 
-                                        desired=input_parameters[parameter_key].to("nm").magnitude, 
-                                        verbose=True)    
-
 print("*** Unit test: check that define_particles() does not setup any particle if no parameters are provided ***")
 pmb.define_particles(parameters={})
 if not pmb.df.empty:
     RuntimeError("UNIT TEST FAILED")
 print("*** Unit test passed ***")
-
-
 
 print("*** Unit test: check that define_particles() defines a set of particles correctly ***")
 particle_parameters={"S1":{"name": "S1",
@@ -173,7 +155,7 @@ input_parameters={"name": "R2",
 np.testing.assert_raises(ValueError, pmb.create_particle, **input_parameters)
 print("*** Unit test passed ***")
 
-print("*** Unit test: check that create_residue() creates residues into the espresso_system with the properties defined in pmb.df  ***")
+print("*** Unit test: check that create_residue() creates a simple residue into the espresso_system with the properties defined in pmb.df  ***")
 
 bond_type = 'harmonic'
 bond = {'r_0'    : 0.4*pmb.units.nm,
@@ -185,35 +167,132 @@ pmb.define_default_bond(bond_type = bond_type,
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 central_bead_position=[[0,0,0]]
-backbone_vector=[1.,2.,3.]
+backbone_vector=np.array([1.,2.,3.])
 pmb.create_residue(name="R2",
                     espresso_system=espresso_system,
-                    number_of_residues=2,
                     central_bead_position=central_bead_position,
                     backbone_vector=backbone_vector,
                     use_default_bond=True)
 
 particle_ids=pmb.get_particle_id_map(object_name="R2")["all"]
-"""
-"R2":{"name": "R2",
-    "central_bead": "S1",
-    "side_chains": ["S2, S3"]}
-"""
+
 # Check that the particle properties are correct
 for pid in particle_ids:
     particle=espresso_system.part.by_id(pid)
-    particle_name = pmb.df[pmb.df['particle_id']==pid and  pmb.df['pmb_type']=="particle"]["name"]
-    print(particle_name)
+    particle_name = pmb.df[(pmb.df['particle_id']==pid) & (pmb.df['pmb_type']=="particle")]["name"].values[0]
     np.testing.assert_equal(actual=particle.type, 
-                                desired=type_map["S1"], 
+                                desired=type_map[particle_name], 
                                 verbose=True)
     np.testing.assert_equal(actual=particle.q, 
-                                desired=particle_parameters["S1"]["q"], 
+                                desired=particle_parameters[particle_name]["q"], 
                                 verbose=True)
-    np.testing.assert_equal(actual=particle.fix, 
-                                desired=[True]*3, 
+    # Check that the position are correct
+    # Central bead
+    if particle_name == "S1":
+        np.testing.assert_equal(actual=particle.pos, 
+                                desired=central_bead_position[0], 
                                 verbose=True)
-    np.testing.assert_equal(actual=particle.pos, 
-                                desired=particle_positions[pid], 
+    else: # Side chains should be in positions perpendicular to the backbone vector
+        np.testing.assert_almost_equal(actual=np.dot(particle.pos,backbone_vector), 
+                                desired=0, 
+                                verbose=True)
+    # Check that particles have the correct residue id
+    residue_id = pmb.df[(pmb.df['particle_id']==pid) & (pmb.df['pmb_type']=="particle")]["residue_id"].values[0]
+    np.testing.assert_equal(actual=residue_id, 
+                                desired=0, 
                                 verbose=True)
 
+# Check that particles are correctly bonded
+bonded_pairs=[]
+for bond_index in pmb.df[pmb.df['pmb_type']=="bond"].index:
+    particle_id1= pmb.df.loc[bond_index,"particle_id"].values[0]
+    particle_id2= pmb.df.loc[bond_index,"particle_id2"].values[0]
+    bonded_pair=[particle_id1,particle_id2]
+    bonded_pairs.append(bonded_pair)
+    bonded_in_espresso = False
+    for pid in bonded_pair:
+        for bond in espresso_system.part.by_id(pid).bonds[:]:
+            bond_object = bond[0]
+            partner_id  = bond[1]
+            if partner_id in bonded_pair:
+                bonded_in_espresso=True
+                # Test that the bond object is correctly stored in pyMBE
+                np.testing.assert_equal(actual=pmb.df.loc[bond_index,"bond_object"].values[0], 
+                            desired=bond_object, 
+                            verbose=True)
+    np.testing.assert_equal(actual=bonded_in_espresso, 
+                            desired=True, 
+                            verbose=True)
+
+np.testing.assert_equal(actual=bonded_pairs, 
+                        desired=[[2,3],[2,4]], 
+                        verbose=True)
+
+print("*** Unit test passed ***")
+
+print("*** Unit test: check that create_residue() creates a nested residue into the espresso_system with the properties defined in pmb.df  ***")
+#pmb.destroy_pmb_object_in_system(name="R2",
+#                                 espresso_system=espresso_system)
+
+pmb.create_residue(name="R3",
+                    espresso_system=espresso_system,
+                    use_default_bond=True)
+
+particle_ids=pmb.get_particle_id_map(object_name="R3")["all"]
+
+# Check that the particle properties are correct
+for pid in particle_ids:
+    particle=espresso_system.part.by_id(pid)
+    particle_name = pmb.df[(pmb.df['particle_id']==pid) & (pmb.df['pmb_type']=="particle")]["name"].values[0]
+    np.testing.assert_equal(actual=particle.type, 
+                                desired=type_map[particle_name], 
+                                verbose=True)
+    np.testing.assert_equal(actual=particle.q, 
+                                desired=particle_parameters[particle_name]["q"], 
+                                verbose=True)
+    # Check that particles have the correct residue id
+    residue_id = pmb.df[(pmb.df['particle_id']==pid) & (pmb.df['pmb_type']=="particle")]["residue_id"].values[0]
+    np.testing.assert_equal(actual=residue_id, 
+                                desired=1, 
+                                verbose=True)
+
+# Check that particles are correctly bonded
+
+#print(pmb.df[(pmb.df['pmb_type']=="bond")])
+
+"""
+bonded_pairs=[]
+
+for bond_index in pmb.df[(pmb.df['pmb_type']=="bond")].index:
+    particle_id1= pmb.df.loc[bond_index,"particle_id"].values[0]
+    particle_id2= pmb.df.loc[bond_index,"particle_id2"].values[0]
+    bonded_pair=[particle_id1,particle_id2]
+    bonded_pairs.append(bonded_pair)
+    bonded_in_espresso = False
+    for pid in bonded_pair:
+        for bond in espresso_system.part.by_id(pid).bonds[:]:
+            bond_object = bond[0]
+            partner_id  = bond[1]
+            if partner_id in bonded_pair:
+                bonded_in_espresso=True
+                # Test that the bond object is correctly stored in pyMBE
+                np.testing.assert_equal(actual=pmb.df.loc[bond_index,"bond_object"].values[0], 
+                            desired=bond_object, 
+                            verbose=True)
+    np.testing.assert_equal(actual=bonded_in_espresso, 
+                            desired=True, 
+                            verbose=True)
+
+np.testing.assert_equal(actual=bonded_pairs, 
+                        desired=[[2,3],[2,4]], 
+                        verbose=True)
+"""
+print("*** Unit test passed ***")
+
+print("*** Unit test: check that create_residue() raises a ValueError if the user provides the name of an object that is not a residue ***")
+input_parameters={"name": "S2",
+                 "espresso_system": espresso_system}
+np.testing.assert_raises(ValueError, pmb.create_residue, **input_parameters)
+print("*** Unit test passed ***")
+
+# Additional unit tests for define_molecule are in create_molecule_position_test

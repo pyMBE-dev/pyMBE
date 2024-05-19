@@ -83,6 +83,21 @@ np.testing.assert_almost_equal(pos_list, central_bead_pos)
 
 print("*** Unit test passed ***\n")
 
+print("*** Unit test: Check that create_molecule raises a ValueError if the user does not provide a nested list for list_of_first_residue_positions***")
+input_parameters={"name": "S2",
+                 "number_of_molecules": 1,
+                 "espresso_system": espresso_system,
+                 "list_of_first_residue_positions": [1,2,3]}
+np.testing.assert_raises(ValueError, pmb.create_molecule, **input_parameters)
+print("*** Unit test passed ***\n")
+
+print("*** Unit test: Check that create_molecule raises a ValueError if the user does not provide a nested list with three coordinates***")
+input_parameters={"name": "S2",
+                 "number_of_molecules": 1,
+                 "espresso_system": espresso_system,
+                 "list_of_first_residue_positions": [[1,2]]}
+np.testing.assert_raises(ValueError, pmb.create_molecule, **input_parameters)
+print("*** Unit test passed ***\n")
 
 print("*** Unit test: Check that center_molecule_in_simulation_box works correctly for cubic boxes***")
 
@@ -107,3 +122,4 @@ center_of_mass_ref = [L.to('reduced_length').magnitude/2, L.to('reduced_length')
 np.testing.assert_almost_equal(center_of_mass, center_of_mass_ref)
 
 print("*** Unit test passed ***")
+

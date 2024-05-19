@@ -25,6 +25,7 @@ unit_tests:
 	${PYTHON} testsuite/set_particle_acidity_test.py
 	${PYTHON} testsuite/bond_tests.py
 	${PYTHON} testsuite/generate_perpendicular_vectors_test.py
+	${PYTHON} testsuite/define_and_create_molecules_unit_tests.py
 	${PYTHON} testsuite/create_molecule_position_test.py
 	${PYTHON} testsuite/seed_test.py
 	${PYTHON} testsuite/read-write-df_test.py

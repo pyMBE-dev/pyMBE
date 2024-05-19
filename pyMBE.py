@@ -866,9 +866,9 @@ class pymbe_library():
                 raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
         if number_of_molecules <= 0:
             return
-        if not self.check_if_name_is_defined_in_df(name=name,
-                                                    pmb_type_to_be_defined='molecule'):
-            raise ValueError(f"{name} must correspond to a label of a pmb_type='molecule' defined on df")
+        self.check_if_name_is_defined_in_df(name=name,
+                                            pmb_type_to_be_defined='molecule')
+            
         first_residue = True
         molecules_info = {}
         residue_list = self.df[self.df['name']==name].residue_list.values [0]
@@ -899,7 +899,6 @@ class pymbe_library():
                                                                 n_samples=1,
                                                                 on_surface=True)[0]
                     residues_info = self.create_residue(name=residue,
-                                                        number_of_residues=1, 
                                                         espresso_system=espresso_system, 
                                                         central_bead_position=residue_position,  
                                                         use_default_bond= use_default_bond, 
@@ -929,7 +928,6 @@ class pymbe_library():
                                             use_default_bond=use_default_bond)                
                     residue_position = residue_position+backbone_vector*l0
                     residues_info = self.create_residue(name=residue, 
-                                                        number_of_residues=1, 
                                                         espresso_system=espresso_system, 
                                                         central_bead_position=[residue_position],
                                                         use_default_bond= use_default_bond, 
@@ -969,10 +967,12 @@ class pymbe_library():
         """       
         if number_of_particles <=0:
             return
-        if not self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='particle'):
-            raise ValueError(f"{name} must correspond to a label of a pmb_type='particle' defined on df")
+        self.check_if_name_is_defined_in_df(name=name,
+                                       pmb_type_to_be_defined='particle')
         # Copy the data of the particle `number_of_particles` times in the `df`
-        self.copy_df_entry(name=name,column_name='particle_id',number_of_copies=number_of_particles)
+        self.copy_df_entry(name=name,
+                          column_name='particle_id',
+                          number_of_copies=number_of_particles)
         # Get information from the particle type `name` from the df     
         q = self.df.loc[self.df['name']==name].state_one.charge.values[0]
         es_type = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
@@ -1020,11 +1020,21 @@ class pymbe_library():
         if pmb_type not in allowed_objects:
             raise ValueError('Object type not supported, supported types are ', allowed_objects)
         if pmb_type == 'particle':
-            self.create_particle(name=name, number_of_particles=number_of_objects, espresso_system=espresso_system, position=position)
+            self.create_particle(name=name, 
+                                number_of_particles=number_of_objects, 
+                                espresso_system=espresso_system, 
+                                position=position)
         elif pmb_type == 'residue':
-            self.create_residue(name=name, number_of_residues=number_of_objects, espresso_system=espresso_system, central_bead_position=position,use_default_bond=use_default_bond)
+            self.create_residue(name=name,  
+                                espresso_system=espresso_system, 
+                                central_bead_position=position,
+                                use_default_bond=use_default_bond)
         elif pmb_type == 'molecule':
-            self.create_molecule(name=name, number_of_molecules=number_of_objects, espresso_system=espresso_system, use_default_bond=use_default_bond, list_of_first_residue_positions=position)
+            self.create_molecule(name=name, 
+                                number_of_molecules=number_of_objects, 
+                                espresso_system=espresso_system, 
+                                use_default_bond=use_default_bond, 
+                                list_of_first_residue_positions=position)
         return
 
     def create_protein(self, name, number_of_proteins, espresso_system, topology_dict):
@@ -1040,12 +1050,11 @@ class pymbe_library():
 
         if number_of_proteins <=0:
             return
-        if not self.check_if_name_is_defined_in_df(name=name,
-                                                  pmb_type_to_be_defined='protein'):
-            raise ValueError(f"{name} must correspond to a name of a pmb_type='protein' defined on df")
-
-        self.copy_df_entry(name=name,column_name='molecule_id',number_of_copies=number_of_proteins)
-
+        self.check_if_name_is_defined_in_df(name=name,
+                                        pmb_type_to_be_defined='protein')
+        self.copy_df_entry(name=name,
+                            column_name='molecule_id',
+                            number_of_copies=number_of_proteins)
         protein_index = np.where(self.df['name']==name)
         protein_index_list =list(protein_index[0])[-number_of_proteins:]
         used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
@@ -1090,14 +1099,13 @@ class pymbe_library():
 
         return
 
-    def create_residue(self, name, espresso_system, number_of_residues, central_bead_position=None,use_default_bond=False, backbone_vector=None):
+    def create_residue(self, name, espresso_system, central_bead_position=None,use_default_bond=False, backbone_vector=None):
         """
-        Creates `number_of_residues` residues of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
+        Creates a residue of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
         Args:
             name(`str`): Label of the residue type to be created. `name` must be defined in `pmb.df`
             espresso_system(`obj`): Instance of a system object from espressomd library.
-            number_of_residue(`int`): Number of residues of type `name` to be created.
             central_bead_position(`list` of `float`): Position of the central bead.
             use_default_bond (`bool`): Switch to control if a bond of type `default` is used to bond a particle whose bonds types are not defined in `pmb.df`
             backbone_vector (`list` of `float`): Backbone vector of the molecule. All side chains are created perpendicularly to `backbone_vector`.
@@ -1105,17 +1113,15 @@ class pymbe_library():
         Returns:
             residues_info (`dict`): {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
         """
-        if number_of_residues <= 0:
-            return
-        if not self.check_if_name_is_defined_in_df(name=name,
-                                                    pmb_type_to_be_defined='residue'):
-            raise ValueError(f"{name} must correspond to a label of a pmb_type='residue' defined on df")
-        # Copy the data of a residue a `number_of_residues` times in the `df
+        self.check_if_name_is_defined_in_df(name=name,
+                                            pmb_type_to_be_defined='residue')
+            
+        # Copy the data of a residue in the `df
         self.copy_df_entry(name=name,
                             column_name='residue_id',
-                            number_of_copies=number_of_residues)
+                            number_of_copies=1)
         residues_index = np.where(self.df['name']==name)
-        residue_index_list =list(residues_index[0])[-number_of_residues:]
+        residue_index_list =list(residues_index[0])[-1:]
         # Internal bookkepping of the residue info (important for side-chain residues)
         # Dict structure {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
         residues_info={}
@@ -1127,9 +1133,7 @@ class pymbe_library():
             else:
                 residue_id = self.df['residue_id'].max() + 1
             self.add_value_to_df(key=('residue_id',''),index=int (residue_index),new_value=residue_id, verbose=False)
-            # create the principal bead
-            if self.df.loc[self.df['name']==name].central_bead.values[0] is np.NaN:
-                raise ValueError("central_bead must contain a particle name")        
+            # create the principal bead   
             central_bead_name = self.df.loc[self.df['name']==name].central_bead.values[0]            
             central_bead_id = self.create_particle(name=central_bead_name,
                                                                 espresso_system=espresso_system,
@@ -1201,8 +1205,10 @@ class pymbe_library():
                     else:
                         residue_position=central_bead_position+self.generate_trial_perpendicular_vector(vector=backbone_vector,
                                                                                                         magnitude=l0)
-                    lateral_residue_info = self.create_residue(name=side_chain_element, espresso_system=espresso_system,
-                        number_of_residues=1, central_bead_position=[residue_position],use_default_bond=use_default_bond)
+                    lateral_residue_info = self.create_residue(name=side_chain_element, 
+                                                                espresso_system=espresso_system,
+                                                                central_bead_position=[residue_position],
+                                                                use_default_bond=use_default_bond)
                     lateral_residue_dict=list(lateral_residue_info.values())[0]
                     central_bead_side_chain_id=lateral_residue_dict['central_bead_id']
                     lateral_beads_side_chain_ids=lateral_residue_dict['side_chain_ids']
