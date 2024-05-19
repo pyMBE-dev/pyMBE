@@ -47,14 +47,12 @@ espresso_system=espressomd.System(box_l = [10]*3)
 
 # Add all bonds to espresso system
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
-pmb.write_pmb_df("df1.csv")
 
 # Create your molecules into the espresso system
 molecules = pmb.create_molecule(name=molecule_name,
                         number_of_molecules= 2,
                         espresso_system=espresso_system,
                         use_default_bond=True,)
-pmb.write_pmb_df("df2.csv")
 
 charge_map=pmb.calculate_net_charge(molecule_name=molecule_name,
                                     espresso_system=espresso_system)
