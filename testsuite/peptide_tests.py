@@ -59,7 +59,7 @@ atol=0.5 # absolute tolerance
 
 # Run test for K_5-D_5 case
 sequence="K"*5+"D"*5
-"""
+
 run_peptide_test(script_path=script_path,
                     test_pH_values=test_pH_values,
                     sequence=sequence,
@@ -74,7 +74,7 @@ run_peptide_test(script_path=script_path,
                     sequence=sequence,
                     rtol=rtol,
                     atol=atol)
-"""
+                    
 # Run test for histatin-5 case
 sequence="nDSHAKRHHGYKRKFHEKHHSHRGYc"
 run_peptide_test(script_path=script_path,

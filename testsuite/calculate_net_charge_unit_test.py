@@ -59,7 +59,6 @@ pmb.write_pmb_df("df2.csv")
 charge_map=pmb.calculate_net_charge(molecule_name=molecule_name,
                                     espresso_system=espresso_system)
 
-print(charge_map)
 # Check mean charge
 np.testing.assert_equal(charge_map["mean"],2.0)
 # Check molecule charge map

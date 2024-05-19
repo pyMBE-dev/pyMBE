@@ -909,7 +909,7 @@ class pymbe_library():
                         self.add_value_to_df(key=('molecule_id',''),
                                             index=int (index),
                                             new_value=molecule_id,
-                                            overwrite=False,
+                                            overwrite=True,
                                             verbose=False)
                     central_bead_id = residues_info[residue_id]['central_bead_id']
                     previous_residue = residue
@@ -936,13 +936,11 @@ class pymbe_library():
                                                         backbone_vector=backbone_vector)
                     residue_id = next(iter(residues_info))      
                     for index in self.df[self.df['residue_id']==residue_id].index:
-                        if not self.check_if_df_cell_has_a_value(index=index,key=('molecule_id','')):
-                            self.df.at[index,'molecule_id'] = molecule_id
-                            self.add_value_to_df(key=('molecule_id',''),
-                                                index=int (index),
-                                                new_value=molecule_id,
-                                                verbose=False,
-                                                overwrite=False)            
+                        self.add_value_to_df(key=('molecule_id',''),
+                                            index=int (index),
+                                            new_value=molecule_id,
+                                            verbose=False,
+                                            overwrite=True)            
                     central_bead_id = residues_info[residue_id]['central_bead_id']
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
                     self.add_bond_in_df(particle_id1=central_bead_id,
