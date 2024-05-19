@@ -207,8 +207,8 @@ if WCA:
 #Save the initial state 
 n_frame = 0
 with open('frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as coordinates:
-                vtf.writevsf(espresso_system, coordinates)
-                vtf.writevcf(espresso_system, coordinates)
+    vtf.writevsf(espresso_system, coordinates)
+    vtf.writevcf(espresso_system, coordinates)
 
 setup_langevin_dynamics (espresso_system=espresso_system, 
                                     kT = pmb.kT, 
@@ -268,8 +268,8 @@ for step in tqdm(range(N_samples),disable=not verbose):
     if step % stride_traj == 0 :
         n_frame +=1
         with open('frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as coordinates:
-                vtf.writevsf(espresso_system, coordinates)
-                vtf.writevcf(espresso_system, coordinates)
+            vtf.writevsf(espresso_system, coordinates)
+            vtf.writevcf(espresso_system, coordinates)
 
     # Store observables
     time_series["time"].append(espresso_system.time)

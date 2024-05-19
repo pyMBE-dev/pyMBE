@@ -1078,11 +1078,15 @@ class pymbe_library():
                 
                 self.add_value_to_df(key=('residue_id',''),
                                             index=int (index),
-                                            new_value=residue_number)
+                                            new_value=residue_number,
+                                            overwrite=True,
+                                            verbose=False)
 
                 self.add_value_to_df(key=('molecule_id',''),
                                         index=int (index),
-                                        new_value=molecule_id)
+                                        new_value=molecule_id,
+                                        overwrite=True,
+                                        verbose=False)
 
         return
 
