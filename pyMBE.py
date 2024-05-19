@@ -157,7 +157,7 @@ class pymbe_library():
                     print(f'WARNING: overwritting the value of the entry `{key}`: old_value = {old_value} new_value = {new_value}')
                 if not overwrite:
                     if verbose:
-                        print(f"WARNING: pyMBE has preserved the old_value = {old_value}. If you want to overwrite it with new_value = {new_value}, activate the switch overwrite = True ")
+                        print(f"WARNING: pyMBE has preserved of the entry `{key}`: old_value = {old_value}. If you want to overwrite it with new_value = {new_value}, activate the switch overwrite = True ")
                     return
         self.df.loc[index,idx[key]] = protect(new_value)
         if non_standard_value:
@@ -3227,23 +3227,3 @@ class pymbe_library():
         self.df.to_csv(filename)
 
         return
-
-    def write_output_vtf_file(self, espresso_system, filename):
-        '''
-        Writes a snapshot of `espresso_system` on the vtf file `filename`.
-
-        Args:
-            espresso_system(`obj`): Instance of a system object from the espressomd library.
-            filename(`str`): Path to the vtf file.
-
-        '''
-        box = espresso_system.box_l[0]
-        with open(filename, mode='w+t') as coordinates:
-            coordinates.write (f'unitcell {box} {box} {box} \n')
-            for particle in espresso_system.part: 
-                type_label = self.find_value_from_es_type(es_type=particle.type, column_name='label')
-                coordinates.write (f'atom {particle.id} radius 1 name {type_label} type {type_label}\n' )
-            coordinates.write ('timestep indexed\n')
-            for particle in espresso_system.part:
-                coordinates.write (f'{particle.id} \t {particle.pos[0]} \t {particle.pos[1]} \t {particle.pos[2]}\n')
-        return 
