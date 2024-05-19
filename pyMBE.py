@@ -1527,10 +1527,10 @@ class pymbe_library():
     
     def define_protein(self, name,model, topology_dict, lj_setup_mode="wca", overwrite=False, verbose=True):
         """
-        Defines a pyMBE object of type `protein` in `pymbe.df`.
+        Defines a globular protein pyMBE object  in `pymbe.df`.
 
         Args:
-            name (`str`): Unique label that identifies the `protein`.
+            name (`str`): Unique label that identifies the protein.
             model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
             topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'radius': radius_value}
             lj_setup_mode(`str`): Key for the setup for the LJ potential. Defaults to "wca".
@@ -2393,8 +2393,7 @@ class pymbe_library():
                         atom_resname = line_split[5]
                         chain_id = line_split[9]
                         radius = float(line_split [11])*unit_length 
-                        sigma = 2*radius
-                        particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, sigma]
+                        particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, radius]
                     elif line_header.isnumeric(): 
                         atom_coord = line_split[1:] 
                         atom_coord = [(float(i)*unit_length).to('reduced_length').magnitude for i in atom_coord]
