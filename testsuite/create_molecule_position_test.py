@@ -99,17 +99,26 @@ input_parameters={"name": "S2",
 np.testing.assert_raises(ValueError, pmb.create_molecule, **input_parameters)
 print("*** Unit test passed ***\n")
 
+print("*** Unit test: Check that create_molecule raises a ValueError if the user does not provide a the same number of first_residue_positions as number_of_molecules***")
+input_parameters={"name": "S2",
+                 "number_of_molecules": 2,
+                 "espresso_system": espresso_system,
+                 "list_of_first_residue_positions": [[1,2,3]]}
+np.testing.assert_raises(ValueError, pmb.create_molecule, **input_parameters)
+print("*** Unit test passed ***\n")
+
 print("*** Unit test: Check that center_molecule_in_simulation_box works correctly for cubic boxes***")
 
 molecule_id = pmb.df.loc[pmb.df['name']==molecule_name].molecule_id.values[0]
-pmb.center_molecule_in_simulation_box(molecule_id=molecule_id, espresso_system=espresso_system)
-center_of_mass = pmb.calculate_center_of_mass_of_molecule(molecule_id=molecule_id, espresso_system=espresso_system)
+pmb.center_molecule_in_simulation_box(molecule_id=molecule_id, 
+                                      espresso_system=espresso_system)
+center_of_mass = pmb.calculate_center_of_mass_of_molecule(molecule_id=molecule_id, 
+                                                          espresso_system=espresso_system)
 center_of_mass_ref = [L.to('reduced_length').magnitude/2]*3
 
 np.testing.assert_almost_equal(center_of_mass, center_of_mass_ref)
 
 print("*** Unit test passed ***\n")
-
 
 print("*** Unit test: Check that center_molecule_in_simulation_box works correctly for non-cubic boxes***")
 

@@ -77,6 +77,9 @@ class pymbe_library():
             particle_id1 (`int`): particle_id of the type of the first particle type of the bonded particles
             particle_id2 (`int`): particle_id of the type of the second particle type of the bonded particles
             use_default_bond (`bool`, optional): Controls if a bond of type `default` is used to bond particle whose bond types are not defined in `pmb.df`. Defaults to False.
+
+        Returns:
+            index (`int`): Row index where the bond information has been added in pmb.df.
         """
         particle_name1 = self.df.loc[self.df['particle_id']==particle_id1].name.values[0]
         particle_name2 = self.df.loc[self.df['particle_id']==particle_id2].name.values[0]
@@ -98,7 +101,7 @@ class pymbe_library():
                 self.df.at[index,'particle_id'] = particle_id1
                 self.df.at[index,'particle_id2'] = particle_id2
                 break
-        return
+        return index
 
     def add_bonds_to_espresso(self, espresso_system) :
         """
@@ -212,15 +215,14 @@ class pymbe_library():
         Returns:
             center_of_mass(`lst`): Coordinates of the center of mass.
         """
-        total_beads = 0
         center_of_mass = np.zeros(3)
         axis_list = [0,1,2]
-        particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+        molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type']=="molecule")].name.values[0]
+        particle_id_list = self.get_particle_id_map(object_name=molecule_name)["all"]
         for pid in particle_id_list:
-            total_beads +=1 
             for axis in axis_list:
                 center_of_mass [axis] += espresso_system.part.by_id(pid).pos[axis]
-        center_of_mass = center_of_mass /total_beads  
+        center_of_mass = center_of_mass / len(particle_id_list)
         return center_of_mass
 
     def calculate_HH(self, molecule_name, pH_list=None, pka_set=None):
@@ -460,7 +462,8 @@ class pymbe_library():
         box_center = [espresso_system.box_l[0]/2.0,
                       espresso_system.box_l[1]/2.0,
                       espresso_system.box_l[2]/2.0]
-        particle_id_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
+        molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type']=="molecule")].name.values[0]
+        particle_id_list = self.get_particle_id_map(object_name=molecule_name)["all"]
         for pid in particle_id_list:
             es_pos = espresso_system.part.by_id(pid).pos
             espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
@@ -851,8 +854,8 @@ class pymbe_library():
             number_of_molecules(`int`): Number of molecules of type `name` to be created.
             list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default
             use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
-        Returns:
 
+        Returns:
             molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
         """
         if list_of_first_residue_positions is not None:
@@ -865,7 +868,7 @@ class pymbe_library():
             if len(list_of_first_residue_positions) != number_of_molecules:
                 raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
         if number_of_molecules <= 0:
-            return
+            return 0
         self.check_if_name_is_defined_in_df(name=name,
                                             pmb_type_to_be_defined='molecule')
             
@@ -904,6 +907,7 @@ class pymbe_library():
                                                         use_default_bond= use_default_bond, 
                                                         backbone_vector=backbone_vector)
                     residue_id = next(iter(residues_info))
+                    # Add the correct molecule_id to all particles in the residue
                     for index in self.df[self.df['residue_id']==residue_id].index:
                         self.add_value_to_df(key=('molecule_id',''),
                                             index=int (index),
@@ -941,9 +945,14 @@ class pymbe_library():
                                             overwrite=True)            
                     central_bead_id = residues_info[residue_id]['central_bead_id']
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
-                    self.add_bond_in_df(particle_id1=central_bead_id,
+                    bond_index = self.add_bond_in_df(particle_id1=central_bead_id,
                                         particle_id2=previous_residue_id,
-                                        use_default_bond=use_default_bond)            
+                                        use_default_bond=use_default_bond) 
+                    self.add_value_to_df(key=('molecule_id',''),
+                                            index=int (bond_index),
+                                            new_value=molecule_id,
+                                            verbose=False,
+                                            overwrite=True)           
                     previous_residue_id = central_bead_id
                     previous_residue = residue                    
                 molecules_info[molecule_id][residue_id] = residues_info[residue_id]
@@ -966,7 +975,7 @@ class pymbe_library():
             created_pid_list(`list` of `float`): List with the ids of the particles created into `espresso_system`.
         """       
         if number_of_particles <=0:
-            return
+            return 0
         self.check_if_name_is_defined_in_df(name=name,
                                        pmb_type_to_be_defined='particle')
         # Copy the data of the particle `number_of_particles` times in the `df`
@@ -1184,9 +1193,15 @@ class pymbe_library():
                                         overwrite=True)
                     side_chain_beads_ids.append(side_bead_id)
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, side_bead_id))
-                    self.add_bond_in_df(particle_id1=central_bead_id,
+                    index = self.add_bond_in_df(particle_id1=central_bead_id,
                                         particle_id2=side_bead_id,
                                         use_default_bond=use_default_bond)
+                    self.add_value_to_df(key=('residue_id',''),
+                                        index=int (index),
+                                        new_value=residue_id, 
+                                        verbose=False,
+                                        overwrite=True)
+
                 elif pmb_type == 'residue':
                     central_bead_side_chain = self.df[self.df['name']==side_chain_element].central_bead.values[0]
                     bond = self.search_bond(particle_name1=central_bead_name, 
@@ -1213,7 +1228,7 @@ class pymbe_library():
                     central_bead_side_chain_id=lateral_residue_dict['central_bead_id']
                     lateral_beads_side_chain_ids=lateral_residue_dict['side_chain_ids']
                     residue_id_side_chain=list(lateral_residue_info.keys())[0]
-                    # Change the residue_id of the residue in the side chain to the one of the biger residue
+                    # Change the residue_id of the residue in the side chain to the one of the bigger residue
                     index = self.df[(self.df['residue_id']==residue_id_side_chain) & (self.df['pmb_type']=='residue') ].index.values[0]
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int(index),
@@ -1230,9 +1245,21 @@ class pymbe_library():
                                             verbose=False,
                                             overwrite=True)
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, central_bead_side_chain_id))
-                    self.add_bond_in_df(particle_id1=central_bead_id,
+                    index = self.add_bond_in_df(particle_id1=central_bead_id,
                                         particle_id2=central_bead_side_chain_id,
                                         use_default_bond=use_default_bond)
+                    self.add_value_to_df(key=('residue_id',''),
+                                        index=int (index),
+                                        new_value=residue_id, 
+                                        verbose=False,
+                                        overwrite=True)
+                    # Change the residue_id of the bonds in the residues in the side chain to the one of the bigger residue
+                    for index in self.df[(self.df['residue_id']==residue_id_side_chain) & (self.df['pmb_type']=='bond') ].index:        
+                        self.add_value_to_df(key=('residue_id',''),
+                                            index=int(index),
+                                            new_value=residue_id, 
+                                            verbose=False,
+                                            overwrite=True)
             # Internal bookkeeping of the side chain beads ids
             residues_info[residue_id]['side_chain_ids']=side_chain_beads_ids
         return  residues_info
@@ -1502,7 +1529,7 @@ class pymbe_library():
             parameters = {"particle_name1: {"sigma": sigma_value, "epsilon": epsilon_value, ...}, particle_name2: {...},}
         '''
         if not parameters:
-            return
+            return 0
         for particle_name in parameters.keys():
             parameters[particle_name]["overwrite"]=overwrite
             parameters[particle_name]["verbose"]=verbose
@@ -1634,7 +1661,8 @@ class pymbe_library():
         if pmb_type == 'residue':
             residues_id = self.df.loc[self.df['name']== name].residue_id.to_list()
             for residue_id in residues_id:
-                particle_ids_list = self.df.loc[self.df['residue_id']==residue_id].particle_id.dropna().to_list()
+                molecule_name = self.df.loc[(self.df['residue_id']==molecule_id) & (self.df['pmb_type']=="residue")].name.values[0]
+                particle_ids_list = self.get_particle_id_map(object_name=molecule_name)["all"]
                 self.df = self.df.drop(self.df[self.df['residue_id'] == residue_id].index)
                 for particle_id in particle_ids_list:
                     espresso_system.part.by_id(particle_id).remove()
@@ -1642,8 +1670,8 @@ class pymbe_library():
         if pmb_type == 'molecule':
             molecules_id = self.df.loc[self.df['name']== name].molecule_id.to_list()
             for molecule_id in molecules_id:
-                particle_ids_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
-                
+                molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type']=="molecule")].name.values[0]
+                particle_ids_list = self.get_particle_id_map(object_name=molecule_name)["all"]
                 self.df = self.df.drop(self.df[self.df['molecule_id'] == molecule_id].index)
                 for particle_id in particle_ids_list:
                     espresso_system.part.by_id(particle_id).remove()   
@@ -2017,15 +2045,15 @@ class pymbe_library():
         res_map = {}
         def do_res_map(res_ids):
             for res_id in res_ids:
-                res_list=self.df.loc[self.df['residue_id']== res_id].particle_id.dropna().tolist()
+                res_list=self.df.loc[(self.df['residue_id']== res_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
                 res_map[res_id]=res_list
             return res_map
         if object_type in ['molecule', 'protein']:
             mol_ids = self.df.loc[self.df['name']== object_name].molecule_id.dropna().tolist()
             for mol_id in mol_ids:
-                res_ids = set(self.df.loc[self.df['molecule_id']== mol_id].residue_id.dropna().tolist())
+                res_ids = set(self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle") ].residue_id.dropna().tolist())
                 res_map=do_res_map(res_ids=res_ids)    
-                mol_list=self.df.loc[self.df['molecule_id']== mol_id].particle_id.dropna().tolist()
+                mol_list=self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
                 id_list+=mol_list
                 mol_map[mol_id]=mol_list
         elif object_type == 'residue':     
