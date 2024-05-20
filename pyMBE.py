@@ -376,7 +376,7 @@ class pymbe_library():
 
         return {"charges_dict": Z_HH_Donnan, "pH_system_list": pH_system_list, "partition_coefficients": partition_coefficients_list}
 
-    def calculate_initial_bond_length(self, bond_object, bond_type, epsilon, sigma, cutoff):
+    def calculate_initial_bond_length(self, bond_object, bond_type, epsilon, sigma, cutoff, offset):
         """
         Calculates the initial bond length that is used when setting up molecules,
         based on the minimum of the sum of bonded and short-range (LJ) interactions.
@@ -387,26 +387,28 @@ class pymbe_library():
             epsilon (`float`): LJ epsilon of the interaction between the particles
             sigma (`float`): LJ sigma of the interaction between the particles
             cutoff (`float`): cutoff-radius of the LJ interaction 
+            offset (`float`): offset of the LJ interaction
         """    
-        def truncated_lj_potential(x, epsilon, sigma, cutoff):
+        def truncated_lj_potential(x, epsilon, sigma, cutoff,offset):
             if x>cutoff:
                 return 0.0
             else:
-                return 4*epsilon*((sigma/x)**12-(sigma/x)**6) - 4*epsilon*((sigma/cutoff)**12-(sigma/cutoff)**6)
+                return 4*epsilon*((sigma/(x-offset))**12-(sigma/(x-offset))**6) - 4*epsilon*((sigma/cutoff)**12-(sigma/cutoff)**6)
 
         epsilon_red=epsilon.to('reduced_energy').magnitude
         sigma_red=sigma.to('reduced_length').magnitude
         cutoff_red=cutoff.to('reduced_length').magnitude
+        offset_red=offset.to('reduced_length').magnitude
 
         if bond_type == "harmonic":
             r_0 = bond_object.params.get('r_0')
             k = bond_object.params.get('k')
-            l0 = scipy.optimize.minimize(lambda x: 0.5*k*(x-r_0)**2 + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red), x0=r_0).x
+            l0 = scipy.optimize.minimize(lambda x: 0.5*k*(x-r_0)**2 + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red, offset_red), x0=r_0).x
         elif bond_type == "FENE":
             r_0 = bond_object.params.get('r_0')
             k = bond_object.params.get('k')
             d_r_max = bond_object.params.get('d_r_max')
-            l0 = scipy.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red), x0=1.0).x
+            l0 = scipy.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red,offset_red), x0=1.0).x
         return l0
 
     def calculate_net_charge (self, espresso_system, molecule_name):
@@ -1124,13 +1126,17 @@ class pymbe_library():
         """
         self.check_if_name_is_defined_in_df(name=name,
                                             pmb_type_to_be_defined='residue')
-            
         # Copy the data of a residue in the `df
         self.copy_df_entry(name=name,
                             column_name='residue_id',
                             number_of_copies=1)
         residues_index = np.where(self.df['name']==name)
         residue_index_list =list(residues_index[0])[-1:]
+        for residue_index in residue_index_list:  
+            side_chain_list = self.df.loc[self.df.index[residue_index]].side_chains.values[0]
+            for side_chain_element in side_chain_list:
+                if side_chain_element not in self.df.values:              
+                    raise ValueError (side_chain_element +'is not defined')
         # Internal bookkepping of the residue info (important for side-chain residues)
         # Dict structure {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
         residues_info={}
@@ -1159,8 +1165,7 @@ class pymbe_library():
             side_chain_list = self.df.loc[self.df.index[residue_index]].side_chains.values[0]
             side_chain_beads_ids = []
             for side_chain_element in side_chain_list:
-                if side_chain_element not in self.df.values:              
-                    raise ValueError (side_chain_element +'is not defined')
+                
                 pmb_type = self.df[self.df['name']==side_chain_element].pmb_type.values[0] 
                 if pmb_type == 'particle':
                     bond = self.search_bond(particle_name1=central_bead_name, 
@@ -1352,13 +1357,12 @@ class pymbe_library():
                                                  particle_name2 = particle_name2,
                                                  combining_rule = 'Lorentz-Berthelot')
 
-            cutoff = 2**(1.0/6.0) * lj_parameters["sigma"]
-
             l0 = self.calculate_initial_bond_length(bond_object = bond_object,
                                                     bond_type   = bond_type,
                                                     epsilon     = lj_parameters["epsilon"],
                                                     sigma       = lj_parameters["sigma"],
-                                                    cutoff      = cutoff)
+                                                    cutoff      = lj_parameters["cutoff"],
+                                                    offset      = lj_parameters["offset"],)
             index = len(self.df)
             for label in [particle_name1+'-'+particle_name2,particle_name2+'-'+particle_name1]:
                 self.check_if_name_is_defined_in_df(name=label, pmb_type_to_be_defined="bond")
@@ -1376,7 +1380,7 @@ class pymbe_library():
         return
 
     
-    def define_default_bond(self, bond_type, bond_parameters, epsilon=None, sigma=None, cutoff=None):
+    def define_default_bond(self, bond_type, bond_parameters, epsilon=None, sigma=None, cutoff=None, offset=None):
         """
         Asigns `bond` in `pmb.df` as the default bond.
         The LJ parameters can be optionally provided to calculate the initial bond length
@@ -1384,9 +1388,10 @@ class pymbe_library():
         Args:
             bond_type (`str`)          : label to identify the potential to model the bond.
             bond_parameters (`dict`)   : parameters of the potential of the bond.
-            sigma (`float`, optional)  : LJ sigma of the interaction between the particles
-            epsilon (`float`, optional): LJ epsilon for the interaction between the particles
-            cutoff (`float`, optional) : cutoff-radius of the LJ interaction
+            sigma (`float`, optional)  : LJ sigma of the interaction between the particles.
+            epsilon (`float`, optional): LJ epsilon for the interaction between the particles.
+            cutoff (`float`, optional) : cutoff-radius of the LJ interaction.
+            offset (`float`, optional) : offset of the LJ interaction.
 
         Note:
             - Currently, only harmonic and FENE bonds are supported. 
@@ -1400,11 +1405,14 @@ class pymbe_library():
             sigma=1*self.units('reduced_length')
         if cutoff is None:
             cutoff=2**(1.0/6.0)*self.units('reduced_length')
+        if offset is None:
+            offset=0*self.units('reduced_length')
         l0 = self.calculate_initial_bond_length(bond_object = bond_object, 
                                                 bond_type   = bond_type, 
                                                 epsilon     = epsilon,
                                                 sigma       = sigma,
-                                                cutoff      = cutoff)
+                                                cutoff      = cutoff,
+                                                offset      = offset)
 
         if self.check_if_name_is_defined_in_df(name='default',pmb_type_to_be_defined='bond'):
             return
@@ -1998,22 +2006,33 @@ class pymbe_library():
             combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
 
         Returns:
-            {"epsilon": LJ epsilon, "sigma": LJ sigma}
+            {"epsilon": epsilon_value, "sigma": sigma_value, "offset": offset_value, "cutoff": cutoff_value}
 
         Note:
-            Currently, the only `combining_rule` supported is Lorentz-Berthelot.
+            - Currently, the only `combining_rule` supported is Lorentz-Berthelot.
+            - If the sigma value of `particle_name1` or `particle_name2` is 0, the function will return an empty dictionary. No LJ interactions are set up for particles with sigma = 0.
         """
         supported_combining_rules=["Lorentz-Berthelot"]
-
+        lj_parameters_keys=["sigma","epsilon","offset","cutoff"]
         if combining_rule not in supported_combining_rules:
             raise ValueError(f"Combining_rule {combining_rule} currently not implemented in pyMBE, valid keys are {supported_combining_rules}")
-
-        eps1 = self.df.loc[self.df["name"]==particle_name1].epsilon.iloc[0]
-        sigma1 = self.df.loc[self.df["name"]==particle_name1].sigma.iloc[0]
-        eps2 = self.df.loc[self.df["name"]==particle_name2].epsilon.iloc[0]
-        sigma2 = self.df.loc[self.df["name"]==particle_name2].sigma.iloc[0]
-        
-        return {"epsilon": np.sqrt(eps1*eps2), "sigma": (sigma1+sigma2)/2.0}
+        lj_parameters={}
+        for key in lj_parameters_keys:
+            lj_parameters[key]=[]
+        # Search the LJ parameters of the type pair
+        for name in [particle_name1,particle_name2]:
+            for key in lj_parameters_keys:
+                lj_parameters[key].append(self.df[self.df.name == name][key].values[0])
+        # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
+        if not all(sigma_value.magnitude for sigma_value in lj_parameters["sigma"]):
+            return {}
+        # Apply combining rule
+        if combining_rule == 'Lorentz-Berthelot':
+            lj_parameters["sigma"]=(lj_parameters["sigma"][0]+lj_parameters["sigma"][1])/2
+            lj_parameters["cutoff"]=(lj_parameters["cutoff"][0]+lj_parameters["cutoff"][1])/2
+            lj_parameters["offset"]=(lj_parameters["offset"][0]+lj_parameters["offset"][1])/2
+            lj_parameters["epsilon"]=np.sqrt(lj_parameters["epsilon"][0]*lj_parameters["epsilon"][1])
+        return lj_parameters
 
     def get_metal_ions_charge_map(self):
         """
@@ -3212,32 +3231,28 @@ class pymbe_library():
                                                                             column_name='label'))
             else:
                 particles_types_with_LJ_parameters.append(particle_type)
-        lj_parameters_keys=["label","sigma","epsilon","offset","cutoff"]
         # Set up LJ interactions between all particle types
-        for type_pair in combinations_with_replacement(particles_types_with_LJ_parameters, 2):
-            lj_parameters={}
-            for key in lj_parameters_keys:
-                lj_parameters[key]=[]
-            # Search the LJ parameters of the type pair
-            for ptype in type_pair:
-                for key in lj_parameters_keys:
-                    lj_parameters[key].append(self.find_value_from_es_type(es_type=ptype, column_name=key))
+        for type_pair in combinations_with_replacement(particles_types_with_LJ_parameters, 2): 
+            particle_name1 = self.find_value_from_es_type(es_type=type_pair[0],
+                                                        column_name="name")
+            particle_name2 = self.find_value_from_es_type(es_type=type_pair[1],
+                                                        column_name="name")
+            lj_parameters= self.get_lj_parameters(particle_name1 = particle_name1,
+                                                 particle_name2 = particle_name2,
+                                                 combining_rule = combining_rule)
+            
             # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
-            if not all(sigma_value.magnitude for sigma_value in lj_parameters["sigma"]):
+            if not lj_parameters:
                 continue
-            # Apply combining rule
-            if combining_rule == 'Lorentz-Berthelot':
-                sigma=(lj_parameters["sigma"][0]+lj_parameters["sigma"][1])/2
-                cutoff=(lj_parameters["cutoff"][0]+lj_parameters["cutoff"][1])/2
-                offset=(lj_parameters["offset"][0]+lj_parameters["offset"][1])/2
-                epsilon=np.sqrt(lj_parameters["epsilon"][0]*lj_parameters["epsilon"][1])
-            espresso_system.non_bonded_inter[type_pair[0],type_pair[1]].lennard_jones.set_params(epsilon = epsilon.to('reduced_energy').magnitude, 
-                                                                                    sigma = sigma.to('reduced_length').magnitude, 
-                                                                                    cutoff = cutoff.to('reduced_length').magnitude,
-                                                                                    offset = offset.to("reduced_length").magnitude, 
+            espresso_system.non_bonded_inter[type_pair[0],type_pair[1]].lennard_jones.set_params(epsilon = lj_parameters["epsilon"].to('reduced_energy').magnitude, 
+                                                                                    sigma = lj_parameters["sigma"].to('reduced_length').magnitude, 
+                                                                                    cutoff = lj_parameters["cutoff"].to('reduced_length').magnitude,
+                                                                                    offset = lj_parameters["offset"].to("reduced_length").magnitude, 
                                                                                     shift = shift)                                                                                          
             index = len(self.df)
-            self.df.at [index, 'name'] = f'LJ: {lj_parameters["label"][0]}-{lj_parameters["label"][1]}'
+            label1 = self.find_value_from_es_type(es_type=type_pair[0], column_name="label")
+            label2 = self.find_value_from_es_type(es_type=type_pair[1], column_name="label")
+            self.df.at [index, 'name'] = f'LJ: {label1}-{label2}'
             lj_params=espresso_system.non_bonded_inter[type_pair[0], type_pair[1]].lennard_jones.get_params()
 
             self.add_value_to_df(index=index,
