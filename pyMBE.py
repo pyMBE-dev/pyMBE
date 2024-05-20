@@ -81,8 +81,9 @@ class pymbe_library():
         Returns:
             index (`int`): Row index where the bond information has been added in pmb.df.
         """
-        particle_name1 = self.df.loc[self.df['particle_id']==particle_id1].name.values[0]
-        particle_name2 = self.df.loc[self.df['particle_id']==particle_id2].name.values[0]
+        particle_name1 = self.df.loc[(self.df['particle_id']==particle_id1) & (self.df['pmb_type']=="particle")].name.values[0]
+        particle_name2 = self.df.loc[(self.df['particle_id']==particle_id2) & (self.df['pmb_type']=="particle")].name.values[0]
+        
         bond_key = self.find_bond_key(particle_name1=particle_name1,
                                     particle_name2=particle_name2, 
                                     use_default_bond=use_default_bond)
