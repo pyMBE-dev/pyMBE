@@ -77,14 +77,10 @@ if args.test:
 path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
 path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
 
-
-
-
 pmb.load_interaction_parameters(filename=path_to_interactions) 
 with warnings.catch_warnings():
     warnings.simplefilter('error')
     pmb.load_pka_set(path_to_pka)
-
 
 # Defines the bonds
 
@@ -200,8 +196,6 @@ err_Z_pH=[] # List of the error of the global charge at each pH
 xi_plus=[] # List of the average partition coefficient of positive ions
 err_xi_plus=[] # List of the error of the partition coefficient of positive ions
 
-particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
-
 #Save the pyMBE dataframe in a CSV file
 pmb.write_pmb_df (filename='df.csv')
 
@@ -230,16 +224,17 @@ for pH_value in pH_range:
             RE.reaction(reaction_steps = total_ionisible_groups)
 
         if step > steps_eq:
-            # Get peptide net charge      
-            z_one_object=0
-            for pid in particle_id_list:
-                z_one_object +=espresso_system.part.by_id(pid).q
-
+            # Get the net charge of the peptides
+            charge_dict_peptide_1=pmb.calculate_net_charge(espresso_system=espresso_system,
+                                                            molecule_name=peptide1)
+            charge_dict_peptide_2=pmb.calculate_net_charge(espresso_system=espresso_system,
+                                                            molecule_name=peptide2)
+            mean_charge=np.mean(np.array([charge_dict_peptide_1["mean"],charge_dict_peptide_2["mean"]]))
             if args.test:
                 time_series["time"].append(step)
             else:
                 time_series["time"].append(espresso_system.time)
-            time_series["charge"].append(np.mean((z_one_object)))
+            time_series["charge"].append(mean_charge)
 
             if args.mode == 'standard':
                 time_series["num_plus"].append(espresso_system.number_of_particles(type=type_map["Na"])+espresso_system.number_of_particles(type=type_map["Hplus"]))
