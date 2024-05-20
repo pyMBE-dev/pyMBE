@@ -218,7 +218,7 @@ class pymbe_library():
         """
         center_of_mass = np.zeros(3)
         axis_list = [0,1,2]
-        molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type']=="molecule")].name.values[0]
+        molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type'].isin(["molecule","protein"]))].name.values[0]
         particle_id_list = self.get_particle_id_map(object_name=molecule_name)["all"]
         for pid in particle_id_list:
             for axis in axis_list:
@@ -465,7 +465,7 @@ class pymbe_library():
         box_center = [espresso_system.box_l[0]/2.0,
                       espresso_system.box_l[1]/2.0,
                       espresso_system.box_l[2]/2.0]
-        molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type']=="molecule")].name.values[0]
+        molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type'].isin(["molecule","protein"]))].name.values[0]
         particle_id_list = self.get_particle_id_map(object_name=molecule_name)["all"]
         for pid in particle_id_list:
             es_pos = espresso_system.part.by_id(pid).pos
@@ -2197,11 +2197,11 @@ class pymbe_library():
                                 overwrite=overwrite)
             elif object_type == 'residue':
                 self.define_residue (name = param_dict.pop('name'),
-                                    central_bead = param_dict.pop('central_bead_name'),
-                                    side_chains = param_dict.pop('side_chains_names'))
+                                    central_bead = param_dict.pop('central_bead'),
+                                    side_chains = param_dict.pop('side_chains'))
             elif object_type == 'molecule':
                 self.define_molecule(name=param_dict.pop('name'),
-                                    residue_list=param_dict.pop('residue_name_list'))
+                                    residue_list=param_dict.pop('residue_list'))
             elif object_type == 'peptide':
                 self.define_peptide(name=param_dict.pop('name'),
                                     sequence=param_dict.pop('sequence'),
@@ -2227,7 +2227,9 @@ class pymbe_library():
                              }
                 else:
                     raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
-                self.define_bond(bond_type=bond_type, bond_parameters=bond, particle_pairs=particle_pairs)
+                self.define_bond(bond_type=bond_type, 
+                                bond_parameters=bond, 
+                                particle_pairs=particle_pairs)
             else:
                 raise ValueError(object_type+' is not a known pmb object type')
             
