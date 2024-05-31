@@ -1,12 +1,14 @@
 pyMBE is maintained and developed by several authors from different institutions in collaboration.
 The following people have contributed to pyMBE:
 
-## Core developers
-- David Beyer (University of Stuttgart, Germany)
+## Admins
 - Pablo M. Blanco (Norwegian University of Science and Tecnology, Norway)
 - Jean-Noël Grad (University of Stuttgart, Germany)
-- Sebastian P. Pineda (Charles University, Czech Republic)
 - Peter Košovan (Charles University, Czech Republic)
+
+## Core developers
+- David Beyer (University of Stuttgart, Germany)
+- Sebastian P. Pineda (Charles University, Czech Republic)
 - Paola B. Torres (Universidad Tecnologica Nacional, Argentina)
 
 ## Contributors
