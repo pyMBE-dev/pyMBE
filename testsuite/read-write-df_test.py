@@ -43,12 +43,16 @@ pmb.define_particle(
 pmb.define_particle(
     name = "A",
     acidity = "acidic",
-    pka = 4)
+    pka = 4,
+    sigma = 0.3*pmb.units.nm,
+    epsilon = 1*pmb.units('reduced_energy'),)
     
 pmb.define_particle(
     name = "B",
     acidity = "basic",
-    pka = 9)
+    pka = 9,
+    sigma = 0.3*pmb.units.nm,
+    epsilon = 1*pmb.units('reduced_energy'),)
 
 #Define the residues
 pmb.define_residue(
@@ -111,7 +115,6 @@ with tempfile.TemporaryDirectory() as tmp_directory:
     # Write the pymbe DF to a csv file
     df_filename = f'{tmp_directory}/df-example_molecule.csv'
     pmb.write_pmb_df (filename = df_filename)
-
     # Read the same pyMBE df from a csv a load it in pyMBE
     read_df = pmb.read_pmb_df(filename = df_filename)
 
