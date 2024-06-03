@@ -25,11 +25,15 @@ unit_tests:
 	${PYTHON} testsuite/set_particle_acidity_test.py
 	${PYTHON} testsuite/bond_tests.py
 	${PYTHON} testsuite/generate_perpendicular_vectors_test.py
+	${PYTHON} testsuite/define_and_create_molecules_unit_tests.py
 	${PYTHON} testsuite/create_molecule_position_test.py
 	${PYTHON} testsuite/seed_test.py
 	${PYTHON} testsuite/read-write-df_test.py
 	${PYTHON} testsuite/parameter_test.py
 	${PYTHON} testsuite/henderson_hasselbalch_tests.py
+	${PYTHON} testsuite/calculate_net_charge_unit_test.py
+	${PYTHON} testsuite/setup_salt_ions_unit_tests.py
+	${PYTHON} testsuite/globular_protein_unit_tests.py
 
 functional_tests:
 	${PYTHON} testsuite/cph_ideal_tests.py
