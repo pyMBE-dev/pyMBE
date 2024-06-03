@@ -297,10 +297,10 @@ def create_sidechain_beads  (pdb_df) :
     pdb_df = pdb_df.loc[(pdb_df.atom_name != 'O') & (pdb_df.atom_name != 'C') & \
                 (pdb_df.atom_name != 'N') & (pdb_df.atom_name != 'CA') & (pdb_df.residue_name != 'GLY') & (pdb_df.atom_name != 'ca')  ]
 
-    pdb_df['sum_x_cm'] = pdb_df.groupby(['residue_number'])['x_cm'].transform(sum)
-    pdb_df['sum_y_cm'] = pdb_df.groupby(['residue_number'])['y_cm'].transform(sum)
-    pdb_df['sum_z_cm'] = pdb_df.groupby(['residue_number'])['z_cm'].transform(sum)
-    pdb_df['sum_mass'] = pdb_df.groupby(['residue_number'])['mass'].transform(sum)
+    pdb_df['sum_x_cm'] = pdb_df.groupby(['residue_number'])['x_cm'].transform("sum")
+    pdb_df['sum_y_cm'] = pdb_df.groupby(['residue_number'])['y_cm'].transform("sum")
+    pdb_df['sum_z_cm'] = pdb_df.groupby(['residue_number'])['z_cm'].transform("sum")
+    pdb_df['sum_mass'] = pdb_df.groupby(['residue_number'])['mass'].transform("sum")
     pdb_df['sum_res'] = pdb_df.groupby('residue_number')['residue_number'].transform('count')
 
     pdb_df['x_pos'] = pdb_df ['sum_x_cm']/ pdb_df['sum_mass']
@@ -316,7 +316,7 @@ def create_sidechain_beads  (pdb_df) :
     cols_to_sum = ['delta_x','delta_y','delta_z']
 
     pdb_df['sum_rg'] = pdb_df[cols_to_sum].sum(axis=1)
-    pdb_df['sum_rg'] = pdb_df.groupby(['residue_number'])['sum_rg'].transform(sum)
+    pdb_df['sum_rg'] = pdb_df.groupby(['residue_number'])['sum_rg'].transform("sum")
     pdb_df['radius_r'] = np.sqrt(pdb_df['sum_rg']/pdb_df['sum_res'],dtype='float').round(4)
 
     pdb_df = pdb_df.drop_duplicates(subset='residue_number')
@@ -328,7 +328,7 @@ def create_sidechain_beads  (pdb_df) :
     y_coord_r = pdb_df['y_pos']
     z_coord_r = pdb_df['z_pos']
 
-    pdb_df['radius_mean'] = pdb_df.groupby(['residue_name'])['radius_r'].transform (np.mean).round(4)
+    pdb_df['radius_mean'] = pdb_df.groupby(['residue_name'])['radius_r'].transform ("mean").round(4)
 
     atom_number_pdb_r = pd.Series(pdb_df.residue_number)
     resname_r = pd.Series(pdb_df.residue_name)
@@ -350,14 +350,12 @@ def check_sidechain_radius (pdb_df):
     Args:
         pdb_df (cls): pandas df with the protein information.
     """
-
-    for bead in pdb_df.residue_name.keys():
-        if pdb_df.sum_res[bead] == 1:
-            if pdb_df.residue_name[bead] == 'ALA':
-                pdb_df.radius_r [bead] = 1.0
-            else:
-                verbose_print (message=f'{pdb_df.residue_name[bead]} from chain {pdb_df.chain_id[bead]} has missing atoms.', verbose=args.verbose)
-                pdb_df.radius_r [bead] = 1.0
+    for index in pdb_df[pdb_df['sum_res']==1].index:
+        if pdb_df.loc[index, "residue_name"] == "ALA":
+            pdb_df.loc[index, "radius_r"] = 1
+        else:
+            verbose_print (message=f'{pdb_df.loc[index, "residue_name"]} from chain {pdb_df.loc[index, "chain_id"]} has missing atoms.', verbose=args.verbose)
+            pdb_df.loc[index, "radius_r"] = 1
     return 0
 
 def merge_alpha_carbon_and_sidechain (alpha_carbons_and_terminals,residues_bead):

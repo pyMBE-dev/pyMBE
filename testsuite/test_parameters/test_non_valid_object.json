@@ -1,0 +1,9 @@
+{
+	"metadata": {
+		"summary": "Parameters for testing"
+	},
+	"data": {
+		"pep": {"object_type":"unknown", "name": "P1", "sequence":   "KKKKKDDDDD", "model": "1beadAA" }
+		
+		}
+}

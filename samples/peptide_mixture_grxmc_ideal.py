@@ -95,9 +95,6 @@ if args.test:
 path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
 path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
 
-
-
-
 pmb.load_interaction_parameters(filename=path_to_interactions) 
 with warnings.catch_warnings():
     warnings.simplefilter('error')
@@ -218,7 +215,7 @@ err_Z_pH=[] # List of the error of the global charge at each pH
 xi_plus=[] # List of the average partition coefficient of positive ions
 err_xi_plus=[] # List of the error of the partition coefficient of positive ions
 
-particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
+particle_id_list = pmb.get_particle_id_map(peptide1)["all"]+pmb.get_particle_id_map(peptide2)["all"]
 
 #Save the pyMBE dataframe in a CSV file
 pmb.write_pmb_df (filename='df.csv')

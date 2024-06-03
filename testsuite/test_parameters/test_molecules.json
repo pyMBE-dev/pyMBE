@@ -1,0 +1,11 @@
+{
+	"metadata": {
+		"summary": "Parameters for testing"
+	},
+	"data": {
+		"res": {"object_type":"residue", "name": "R1", "central_bead":  "A", "side_chains": ["B","C"] },
+		"mol": {"object_type":"molecule", "name": "M1", "residue_list":   ["R1","R1", "R1"] },
+		"pep": {"object_type":"peptide", "name": "P1", "sequence":   "KKKKKDDDDD", "model": "1beadAA" }
+		
+		}
+}
