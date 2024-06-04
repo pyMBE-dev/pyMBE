@@ -24,15 +24,16 @@ def add_data_to_df(df, data_dict, index):
                          index=index)])
     return updated_df
 
-def analyze_time_series(path_to_datafolder):
+def analyze_time_series(path_to_datafolder, filename_extension= ".csv"):
     """
     Analyzes all time series stored in `path_to_datafolder` using the block binning method.
 
     Args:
         path_to_datafolder(`str`): path to the folder with the files with the time series
+        filename_extension(`str`): extension of the file. Defaults to ".csv"
 
     Returns:
-        (`obj`): pandas dataframe with
+        (`Pandas.Dataframe`): pandas dataframe with the time averages of all the time series in the datafolder.
 
     """
     data=pd.DataFrame()
@@ -42,7 +43,8 @@ def analyze_time_series(path_to_datafolder):
             if subitem.is_file():
                 if 'time_series' in subitem.name:
                     # Get parameters from the file name
-                    data_dict=get_params_from_dir_name(subitem.name.replace('_time_series.csv', ''))
+                    data_dict=get_params_from_file_name(file_name=subitem.name,
+                                                        filename_extension=filename_extension)
                     # Get the observables for binning analysis
                     time_series_data=read_csv_file(path=f"{path_to_datafolder}/{subitem.name}")
                     analyzed_data=block_analyze(full_data=time_series_data)
@@ -130,7 +132,7 @@ def built_output_name(input_dict):
         output_name (`str`): name used for the output files
 
     Note:
-        The standard formatting rule is parametername1-parametervalue1_parametername2-parametervalue2
+        The standard formatting rule is parametername1_parametervalue1_parametername2_parametervalue2
     """
     output_name=""
     for label in input_dict:
@@ -138,7 +140,7 @@ def built_output_name(input_dict):
             formatted_variable=f"{input_dict[label]:}"
         else:
             formatted_variable=f"{input_dict[label]:.3g}"
-        output_name+=f"{label}-{formatted_variable}_"
+        output_name+=f"{label}_{formatted_variable}_"
     return output_name[:-1]
 
 def get_dt(data, time_col = "time", relative_tolerance = 0.01, verbose = False):
@@ -178,22 +180,43 @@ def get_dt(data, time_col = "time", relative_tolerance = 0.01, verbose = False):
         print(warn_lines)
     return dt, len(warn_lines)
 
-def get_params_from_dir_name(name):
+def get_params_from_file_name(file_name, minus_separator = False, filename_extension=".csv"):
     """
-    Gets the parameters from name assuming a structure 
-    name=obsname1-value1_obsname2-value2...
+    Gets the parameters from `file_name`. By default, it assumes the standard formating rule  `file_name=obsname1_value1_obsname2_value2...`
     
     Args:
-        name(`str`): name of the directory
+        file_name(`str`): name of the file
+        minus_separator(`bool`): switch to enable the minus as a separator, see Notes. Defaults to False.
+        filename_extension(`str`): extension of the file. Defaults to ".csv"
     
     Returns:
-        params(`dict`): dictionary with the labels and values of the parameters
+        params(`dict`): dictionary with the labels and values of the parameters.
+
+    Notes:
+        If `minus_separator = True`, then the data is parsed assuming the following formating rule  `file_name=obsname1-value1_obsname2-value2...`. 
+        This is functionality is kept for backwards compatibility.
     """
-    entries = name.split('_')
+    file_name = os.path.basename(file_name)
     params = {}
-    for entry in entries:
-        sp_entry = entry.split('-', 1)
-        params[sp_entry[0]] = sp_entry[-1]     #float(sp_entry[-1])     # creates a dictionary of parameters and their values.
+    if minus_separator == True:
+        system_name = file_name.replace('_observables.csv', '')
+        entries = system_name.split('_')
+        for entry in entries:
+            splitted_entry = entry.split('-')
+            if( splitted_entry[0]=='N' ):
+                params[splitted_entry[0]] = int(splitted_entry[-1])
+            else:
+                params[splitted_entry[0]] = splitted_entry[-1]           
+    else:
+        if filename_extension in file_name:
+            system_name = file_name.replace(f"{filename_extension}", '')
+        else:
+            system_name = file_name
+        entries = system_name.split('_')
+        if len(entries) % 2:
+            raise ValueError("Wrong file name format. Need even number of entries separated by underscores, got: " + str(entries) + str( len(entries)) )
+        for i in range( len(entries)//2 ):
+                params[ entries[2*i] ] = entries[2*i+1]
     return params
 
 def read_csv_file(path):

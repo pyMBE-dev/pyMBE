@@ -26,7 +26,8 @@ with tempfile.TemporaryDirectory() as time_series_path:
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)
     # Analyze all time series
-    data=analysis.analyze_time_series(path_to_datafolder=time_series_path)
+    data=analysis.analyze_time_series(path_to_datafolder=time_series_path,
+                                      filename_extension="_time_series.csv")
     data_path=pmb.get_resource(path="testsuite/weak_polyelectrolyte_dialysis_test_data")
 
 # Get reference test data

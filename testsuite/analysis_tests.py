@@ -34,6 +34,38 @@ class Serialization(ut.TestCase):
         
         print("*** Unit passed ***")
 
+    def test_get_params_from_file_name(self):
+        print("*** Unit test: test that get_params_from_file_name parses a filename without minus separtor ***")
+        filename = 'density_0.001_N_1000_T_2.00.csv'
+        correct_params = {'density': '0.001', 'N': '1000', 'T': '2.00'}
+        params = ana.get_params_from_file_name(filename, 
+                                                minus_separator = False)
+        self.assertEqual(correct_params,params)
+        print("*** Unit passed ***")
+
+        print("*** Unit test: test that get_params_from_file_name parses a filename with minus separtor ***")
+        filename = 'N-064_Solvent-good_Init-coil_observables.csv'
+        correct_params = {'N': 64, 'Solvent': 'good', 'Init': 'coil'}
+        params = ana.get_params_from_file_name(filename, 
+                                                minus_separator = True)
+        self.assertEqual(correct_params,params)
+        print("*** Unit passed ***")
+
+        print("*** Unit test: test that get_params_from_file_name parses a filename with a different extension ***")
+        filename = 'density_0.001_N_1000_T_2.00_observables.txt'
+        correct_params = {'density': '0.001', 'N': '1000', 'T': '2.00'}
+        params = ana.get_params_from_file_name(filename, 
+                                                minus_separator = False,
+                                                filename_extension="_observables.txt")
+        self.assertEqual(correct_params,params)
+        print("*** Unit passed ***")
+
+        print("*** Unit test: test that get_params_from_file_name raises a ValueError if a filename with a wrong formating is provided ***")
+        inputs = {"file_name": 'density_0.001_N_1000_T_f_2.00_observables.txt',
+                  "filename_extension": "_observables.txt"}
+        self.assertRaises(ValueError, ana.get_params_from_file_name, **inputs)
+        print("*** Unit passed ***")
+
 if __name__ == "__main__":
     print("*** lib.analysis unit tests ***")
     ut.main()

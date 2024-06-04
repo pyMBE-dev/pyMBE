@@ -31,7 +31,8 @@ def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="
             print(subprocess.list2cmdline(run_command))
             subprocess.check_output(run_command)
         # Analyze all time series
-        data=analysis.analyze_time_series(path_to_datafolder=time_series_path)
+        data=analysis.analyze_time_series(path_to_datafolder=time_series_path,
+                                          filename_extension="_time_series.csv")
 
         data_path=pmb.get_resource(path="testsuite/globular_protein_tests_data")
         
