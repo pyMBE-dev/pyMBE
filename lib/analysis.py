@@ -118,7 +118,7 @@ def block_analyze(full_data, n_blocks=16, time_col = "time", equil=0.1,  columns
 
     # concatenate the observables and atribute a key for each (unique index)
     result = pd.concat( [ mean, err_mean, n_eff, tau_int], keys= [ "mean", "err_mean", "n_eff", "tau_int" ], join="inner")
-    result = pd.concat( [ pd.Series([n_blocks,block_size], index=[('n_blocks',),('block_size',)]), result])
+    
     return result
 
 def built_output_name(input_dict):
@@ -218,23 +218,6 @@ def get_params_from_file_name(file_name, minus_separator = False, filename_exten
         for i in range( len(entries)//2 ):
             params[ entries[2*i] ] = entries[2*i+1]
     return params
-
-def read_csv_file(path):
-    """
-    Reads the csv file in path.
-
-    Args:
-        - path (`str`): path to the csv file
-    
-    Returns:
-        - `obj`: pandas dataframe with the information stored in the csv file
-
-    """
-    if os.path.exists(path):
-        return pd.read_csv(filepath_or_buffer=path)
-    else:
-        return None
-
 
 def split_dataframe(df,n_blocks):
     """
