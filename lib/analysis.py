@@ -57,71 +57,6 @@ def analyze_time_series(path_to_datafolder):
                                         index=[len(data)])   
     return data
 
-def do_binning_analysis(list_time_series_df, frac_data_to_discard=0.3):
-    """
-    Does a binning analysis of all Pandas DataFrame objects in `list_time_series_df`.
-    
-    Args:
-        list_time_series_df(`lst`): List of Pandas DataFrame objects
-        frac_data_to_discard(`float`, optional): Fraction of data to be discarted in each Pandas DataFrame. Defaults to 0.3.
-        
-    Returns:
-        mean_series(`obj`): PandasSeries object with the mean, error of the mean, number of effective samples and correlation time.
-
-    Note:
-        - All Pandas DataFrame objects in `list_time_series_df` are merged into a single Pandas DataFrame object for the binning analysis.
-        - All Pandas DataFrame objects in `list_time_series_df` are assumed to have the same observables.
-        - The fraction of data to be discarted as equilibration is discarted in each of the Pandas DataFrame objects.
-    """
-    # Estimate the time interval in which the data was stored
-    gathered_binning_df=merge_time_series_dfs(list_time_series_df=list_time_series_df,
-                         frac_data_to_discard=frac_data_to_discard)
-    # Clean up the dataframe 
-    if "Unnamed: 0" in gathered_binning_df.columns:
-        gathered_binning_df=gathered_binning_df.drop(['Unnamed: 0'], axis=1)
-    # Do the binning analysis
-    mean_series=block_analyze(gathered_binning_df)
-    return mean_series
-
-def merge_time_series_dfs(list_time_series_df,frac_data_to_discard=0,rescale_time=False):
-    """
-    Merges all Pandas DataFrame objects in `list_time_series_df` and rescales the time.
-    
-    Args:
-        list_time_series_df(`lst`): List of Pandas DataFrame objects
-        frac_data_to_discard(`float`, optional): Fraction of data to be discarted in each Pandas DataFrame. Defaults to 0.
-        
-    Returns:
-        gathered_binning_df(`obj`): DataFrame object with all data.
-
-    Note:
-        - All Pandas DataFrame objects in `list_time_series_df` are assumed to have the same observables.
-        - The fraction of data to be discarted as equilibration is discarted in each of the Pandas DataFrame objects.
-    """
-    # Estimate the time interval in which the data was stored
-    dt = get_dt(list_time_series_df[0])
-    for index in range(len(list_time_series_df)):
-        binning_df=list_time_series_df[index]
-        # Drop the data corresponding to equilibration
-        drop_rows = int(binning_df.shape[0]*frac_data_to_discard)
-        binning_df  = binning_df.drop(range(0,drop_rows))
-        if rescale_time:         
-            # Make a continous time evolution
-            binning_df["time"]+=index*binning_df.shape[0]*dt
-        list_time_series_df[index]=binning_df
-
-    # Join all the dataframes for binning analysis
-    gathered_binning_df=pd.concat(list_time_series_df)
-    
-    if 'Unnamed: 0' in gathered_binning_df.columns:
-    # Clean up the dataframe 
-        gathered_binning_df=gathered_binning_df.drop(['Unnamed: 0'], axis=1)
-    
-    # Clean up the dataframe 
-    gathered_binning_df.reset_index(drop=True, inplace=True)
-    return gathered_binning_df
-
-
 def get_params_from_dir_name(name):
     """
     Gets the parameters from name assuming a structure 
@@ -190,43 +125,6 @@ def split_dataframe(df,n_blocks):
                                            end_row=df.shape[0],
                                            block_size=block_size_s2)
     return blocks
-
-def get_time_series_from_average_df(pd_series, label):
-    """
-    Gets the time series from a PandasSeries object
-    
-    Args:
-        pd_series (`obj`): PandasSeries object
-        label (`str`): column name where the time series are stored
-    
-    Returns:
-        (`obj`): PandasDataFrame with the time series and their statistical error
-    """
-    import numpy as np
-    dist_dict={}
-    expected_labels=["mean", "errmean", "nsamples"]
-    for data_str in pd_series[label]:
-        clean_data_str=data_str.strip("{").strip("}")
-        for data_set in clean_data_str.split("]"):
-            data_list=data_set.split(":")
-            if len(data_list) == 1:
-                continue            
-            # Parse data and label
-            data=list(data_list[1][2:].split(","))
-            data=np.array([float(x) for x in data])
-            clean_label=data_list[0].strip("'").strip(",").strip()
-            label_sts=clean_label.split("_")[-1]
-            label_qty=clean_label[:-len(label_sts)-1].strip("'")            
-            if label_sts not in expected_labels:
-                raise ValueError(f"Error while parsing the df, found label for stats {label_sts}")
-
-            if label_qty in dist_dict.keys():
-                dist_dict[label_qty][label_sts]=data
-            else:
-                dist_dict[label_qty]={}
-                dist_dict[label_qty][label_sts]=data 
-    return pd.DataFrame.from_dict(dist_dict)
-
 
 def block_analyze(full_data, n_blocks=16, time_col = "time", equil=0.1,  columns_to_analyze = "all", verbose = False):
     """
@@ -330,73 +228,6 @@ def read_csv_file(path):
         return pd.read_csv(filepath_or_buffer=path)
     else:
         return None
-
-def get_distribution_from_df(df, key):
-    """
-    Gets a list stored in a pandas dataframe `df`.
-
-    Args:
-        - df (`obj`): pandas dataframe
-        - key (`str`): column name where the list is stored
-
-    Returns:
-        distribution_list (`lst`): list stored under `key`
-
-    """
-    distribution_list=[]
-    for row in df[key]:
-        if pd.isnull(row):
-            continue
-        clean_row=row.strip("[").strip("]")
-        row_list=[]
-        for element in clean_row.split():
-            row_list.append(float(element))
-        distribution_list.append(row_list)
-    return distribution_list
-
-def create_histogram_df_from_distribution_list(distribution_list, start, end, nbins):
-    """
-    Does a histogram from the data stored in `distribution_list` and stores it into a pandas dataframe.
-
-    Args:
-        start (`float`): start point of the histogram
-        end (`float`): end point of the histogram
-        nbins (`int`): number of bins in the histogram
-
-    Returns:
-        `obj`: Pandas dataframe with the histogram counts
-    """
-
-    counts, x_bins = np.histogram(distribution_list[0], bins=nbins, range=(start,end))
-    dict_hist={}
-    for index in range(len(counts)):
-        dict_hist[x_bins[index]]=[]
-    dict_hist["time"]=[]
-    cnt=1
-    for data_set in distribution_list:
-        counts, _  = np.histogram(data_set, bins=nbins, range=(start,end))
-        norm=sum(counts)
-        for index in range(len(counts)):
-            dict_hist[x_bins[index]].append(counts[index]/norm)
-        dict_hist["time"].append(cnt)
-        cnt+=5000
-    return  pd.DataFrame.from_dict(dict_hist)
-
-def find_index_with_value_in_df(df,column_name, value, tol=0.01):
-    """
-    Finds the index in the pandas DataFrame `df` with a column `column_name` and a row `value`.
-
-    Args:
-        df (`obj`): Pandas DataFrame.
-        column_name (`str`): Label of the column.
-        value (`any`): Value to be found in `df[column_name]`.
-        tol (`float`): Tolerance in value.
-
-    Returns:
-        index (int): Index found.
-    """
-    index = np.where(abs(df[column_name]-value)/value < tol)
-    return index[0]
 
 def built_output_name(input_dict):
     """
