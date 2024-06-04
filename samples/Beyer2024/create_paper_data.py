@@ -56,38 +56,21 @@ if fig_label in labels_fig7:
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)
 
-
-
 ## Protein plots (Fig. 8)
-
 labels_fig8=["8a", "8b"]
 
 if fig_label in labels_fig8:
-    
     script_path=pmb.get_resource("samples/Beyer2024/globular_protein.py")
     pH_range = np.linspace(2, 7, num=11)
     run_command_common=[sys.executable, script_path, "--mode", mode, "--no_verbose"]
-
-    if fig_label == "8a":
-        
-        protein_pdb = "1f6s"
-        path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
-        for pH in pH_range:
-            
-            run_command=run_command_common + ["--pH", str(pH),"--pdb", protein_pdb, "--path_to_cg", path_to_cg, "--metal_ion_name", "Ca", "--metal_ion_charge", str(2)]
-            print(subprocess.list2cmdline(run_command))
-            subprocess.check_output(run_command)
-
-    elif fig_label == "8b":
-        protein_pdb = "1beb"
-        path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
-        for pH in pH_range:
-            run_command=run_command_common + ["--pH", str(pH),"--pdb", protein_pdb, "--path_to_cg", path_to_cg]
-            print(subprocess.list2cmdline(run_command))
-            subprocess.check_output(run_command)
-    else:
-        raise RuntimeError()
-
+    pdb_codes={"8a":"1f6s",
+               "8b": "1beb"}
+    protein_pdb=pdb_codes[fig_label]
+    path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
+    for pH in pH_range:        
+        run_command=run_command_common + ["--pH", str(pH),"--pdb", protein_pdb, "--path_to_cg", path_to_cg]
+        print(subprocess.list2cmdline(run_command))
+        subprocess.check_output(run_command)   
 
 ## Weak polyelectrolyte dialysis plot (Fig. 9)
 if fig_label == "9": 
@@ -156,10 +139,9 @@ if plot:
     elif fig_label in ["7c", "8a", "8b"]:
         pka_path=pmb.get_resource("parameters/pka_sets/Nozaki1967.json")
         pmb.load_pka_set (filename=pka_path)
-        # FIXME: this is only necessary due to an undesired feature in calculate_HH
-        # that forces to have all particles defined in pyMBE
-        par_path=pmb.get_resource("parameters/peptides/Blanco2021.json")
-        pmb.load_interaction_parameters(par_path)
+        if fig_label == "7c":
+            par_path=pmb.get_resource("parameters/peptides/Blanco2021.json")
+            pmb.load_interaction_parameters(par_path)
 
     # Load ref data    
     if fig_label == "7a":
@@ -208,15 +190,15 @@ if plot:
     
         pmb.define_protein (name=protein_pdb, 
                             topology_dict=topology_dict, 
-                            model = '2beadAA')
-            
+                            model = '2beadAA',
+                            verbose= False)
+
         pH_range_HH = np.linspace(2, 7, num=1000)
         
         Z_HH = pmb.calculate_HH(molecule_name=protein_pdb,
                                 pH_list=pH_range_HH)
 
-        print (Z_HH)
-         # Plot HH
+        # Plot HH
         plt.plot(pH_range_HH,
                Z_HH, 
                label=r"HH", 
@@ -313,11 +295,8 @@ if plot:
         plt.xticks([2,4,6,8,10,12])
         
     elif fig_label in labels_fig8:   
-
         data=data.astype({("pH","value"): 'float'}).sort_values(by=("pH","value"))
         data=data[data.pdb.value == f'{protein_pdb}']
-
-
         plt.errorbar(data["pH"]["value"], 
                    data["mean","charge"], 
                    yerr=data["err_mean","charge"], 
