@@ -198,12 +198,12 @@ def get_params_from_file_name(file_name, minus_separator = False, filename_exten
     """
     file_name = os.path.basename(file_name)
     params = {}
-    if minus_separator == True:
+    if minus_separator:
         system_name = file_name.replace('_observables.csv', '')
         entries = system_name.split('_')
         for entry in entries:
             splitted_entry = entry.split('-')
-            if( splitted_entry[0]=='N' ):
+            if splitted_entry[0] == 'N':
                 params[splitted_entry[0]] = int(splitted_entry[-1])
             else:
                 params[splitted_entry[0]] = splitted_entry[-1]           
@@ -216,7 +216,7 @@ def get_params_from_file_name(file_name, minus_separator = False, filename_exten
         if len(entries) % 2:
             raise ValueError("Wrong file name format. Need even number of entries separated by underscores, got: " + str(entries) + str( len(entries)) )
         for i in range( len(entries)//2 ):
-                params[ entries[2*i] ] = entries[2*i+1]
+            params[ entries[2*i] ] = entries[2*i+1]
     return params
 
 def read_csv_file(path):
