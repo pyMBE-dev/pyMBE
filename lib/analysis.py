@@ -46,7 +46,7 @@ def analyze_time_series(path_to_datafolder, filename_extension= ".csv"):
                     data_dict=get_params_from_file_name(file_name=subitem.name,
                                                         filename_extension=filename_extension)
                     # Get the observables for binning analysis
-                    time_series_data=read_csv_file(path=f"{path_to_datafolder}/{subitem.name}")
+                    time_series_data=pd.read_csv(f"{path_to_datafolder}/{subitem.name}")
                     analyzed_data=block_analyze(full_data=time_series_data)
                     value_list=[]
                     index_list=[]
