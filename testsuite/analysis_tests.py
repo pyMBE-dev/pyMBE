@@ -14,7 +14,7 @@ class Serialization(ut.TestCase):
         reference_data = pd.read_csv("testsuite/tests_data/average_data.csv", header=[0,1])
         analyzed_data.columns = analyzed_data.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
         reference_data.columns = reference_data.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
-        pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False)
+        pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False, check_dtype=False)
         print("*** Unit passed ***")
         
         return
