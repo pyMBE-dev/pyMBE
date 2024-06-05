@@ -5,6 +5,20 @@ import lib.analysis as ana
 
 class Serialization(ut.TestCase):
 
+    def test_analyze_time_series(self):
+        print("*** Unit test: test that analysis.analyze_time_series analyzes all data in a folder correctly ***")
+        analyzed_data = ana.analyze_time_series(path_to_datafolder="testsuite/tests_data",
+                                       filename_extension="_time_series.csv",
+                                       minus_separator=True)
+        analyzed_data.to_csv("testsuite/tests_data/average_data.csv", index=False)
+        analyzed_data[["Dens","eps"]] = analyzed_data[["Dens","eps"]].apply(pd.to_numeric)
+        reference_data = pd.read_csv("testsuite/tests_data/average_data.csv", header=[0,1])
+        pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False)
+        print("*** Unit passed ***")
+        
+        return
+    
+    
     def test_get_dt(self):
         print("*** Unit test: test that analysis.get_dt returns the right time step ***")
         data = pd.DataFrame.from_dict( {'time': [0, 1, 2,], 'obs': ['1.0', '2.0', '4.0']} )
@@ -34,6 +48,27 @@ class Serialization(ut.TestCase):
         
         print("*** Unit passed ***")
 
+    def test_add_data_to_df(self):
+        print("*** Unit test: test that analysis.add_data_to_df creates a Pandas Dataframe from a dictionary correctly ***")
+        data = {'A': [2], 
+                'B': ['1.0']}
+        reference_df = pd.DataFrame(data, 
+                                    index=[0])
+        
+        analysis_df = ana.add_data_to_df(df=pd.DataFrame(),
+                                         data_dict=data,
+                                         index=[0])
+        pd.testing.assert_frame_equal(reference_df,analysis_df)
+        print("*** Unit passed ***")
+        print("*** Unit test: test that analysis.add_data_to_df updates a Pandas Dataframe with new data from dictionary correctly ***")
+        data ["C"] = False
+        reference_df =  pd.concat([reference_df, pd.DataFrame(data,index=[len(analysis_df)])])
+        analysis_df = ana.add_data_to_df(df=analysis_df,
+                                         data_dict=data,
+                                         index=[len(analysis_df)])
+        print("*** Unit passed ***")
+
+
     def test_get_params_from_file_name(self):
         print("*** Unit test: test that get_params_from_file_name parses a filename without minus separator ***")
         filename = 'density_0.001_N_1000_T_2.00.csv'
@@ -44,36 +79,37 @@ class Serialization(ut.TestCase):
         print("*** Unit passed ***")
 
         print("*** Unit test: test that get_params_from_file_name parses a filename with minus separator ***")
-        filename = 'N-064_Solvent-good_Init-coil_observables.csv'
+        filename = 'N-064_Solvent-good_Init-coil_time_series.csv'
         correct_params = {'N': 64, 'Solvent': 'good', 'Init': 'coil'}
         params = ana.get_params_from_file_name(filename, 
-                                                minus_separator = True)
+                                                minus_separator = True,
+                                                filename_extension="_time_series.csv")
         self.assertEqual(correct_params,params)
         print("*** Unit passed ***")
 
         print("*** Unit test: test that get_params_from_file_name parses a filename with a different extension ***")
-        filename = 'density_0.001_N_1000_T_2.00_observables.txt'
+        filename = 'density_0.001_N_1000_T_2.00_time_series.txt'
         correct_params = {'density': '0.001', 'N': '1000', 'T': '2.00'}
         params = ana.get_params_from_file_name(filename, 
                                                 minus_separator = False,
-                                                filename_extension="_observables.txt")
+                                                filename_extension="_time_series.txt")
         self.assertEqual(correct_params,params)
         print("*** Unit passed ***")
 
         print("*** Unit test: test that get_params_from_file_name raises a ValueError if a filename with a wrong formating is provided ***")
-        inputs = {"file_name": 'density_0.001_N_1000_T_f_2.00_observables.txt',
-                  "filename_extension": "_observables.txt"}
+        inputs = {"file_name": 'density_0.001_N_1000_T_f_2.00_time_series.txt',
+                  "filename_extension": "_time_series.txt"}
         self.assertRaises(ValueError, ana.get_params_from_file_name, **inputs)
         print("*** Unit passed ***")
         
     def test_block_analyze(self):
         print("*** Unit test: test that block_analyze yields the expected outputs and reports the number of blocks and the block size. It should print that it encountered repeated time values 6 times. ***")
-        data = pd.read_csv("testsuite/tests_data/N-064_Solvent-good_Init-coil_observables.csv")
+        data = pd.read_csv("testsuite/tests_data/N-064_Solvent-good_Init-coil_time_series.csv")
         analyzed_data = ana.block_analyze(full_data=data, verbose=True)
         analyzed_data = ana.add_data_to_df(df=pd.DataFrame(),
                             data_dict=analyzed_data.to_dict(),
                             index=[0])
-        reference_data = pd.read_csv("testsuite/tests_data/N-064_Solvent-good_Init-coil_observables_analyzed.csv", header=[0,1])
+        reference_data = pd.read_csv("testsuite/tests_data/N-064_Solvent-good_Init-coil_time_series_analyzed.csv", header=[0,1])
         pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False)
         print("*** Unit passed ***")
         
@@ -82,7 +118,7 @@ class Serialization(ut.TestCase):
         analyzed_data = ana.add_data_to_df(df=pd.DataFrame(),
                             data_dict=analyzed_data.to_dict(),
                             index=[0])
-        reference_data = pd.read_csv("testsuite/tests_data/N-064_Solvent-good_Init-coil_observables_analyzed.csv", header=[0,1])
+        reference_data = pd.read_csv("testsuite/tests_data/N-064_Solvent-good_Init-coil_time_series_analyzed.csv", header=[0,1])
         reference_data = reference_data[[("mean","Rg"),("err_mean","Rg"),("n_eff","Rg"),("tau_int","Rg")]]
         pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False)
         print("*** Unit passed ***")

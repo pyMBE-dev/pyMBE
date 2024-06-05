@@ -24,16 +24,20 @@ def add_data_to_df(df, data_dict, index):
                          index=index)])
     return updated_df
 
-def analyze_time_series(path_to_datafolder, filename_extension= ".csv"):
+def analyze_time_series(path_to_datafolder, filename_extension= ".csv", minus_separator = False,):
     """
     Analyzes all time series stored in `path_to_datafolder` using the block binning method.
 
     Args:
         path_to_datafolder(`str`): path to the folder with the files with the time series
         filename_extension(`str`): extension of the file. Defaults to ".csv"
+        minus_separator(`bool`): switch to enable the minus as a separator. Defaults to False.
 
     Returns:
         (`Pandas.Dataframe`): pandas dataframe with the time averages of all the time series in the datafolder.
+
+    Notes:
+        - For more information about `minus_separator`, please check the documentation of `get_params_from_file_name`
 
     """
     data=pd.DataFrame()
@@ -41,10 +45,11 @@ def analyze_time_series(path_to_datafolder, filename_extension= ".csv"):
         # Gather all data
         for subitem in subdirectory:
             if subitem.is_file():
-                if 'time_series' in subitem.name:
+                if filename_extension in subitem.name:
                     # Get parameters from the file name
                     data_dict=get_params_from_file_name(file_name=subitem.name,
-                                                        filename_extension=filename_extension)
+                                                        filename_extension=filename_extension,
+                                                        minus_separator=minus_separator)
                     # Get the observables for binning analysis
                     time_series_data=pd.read_csv(f"{path_to_datafolder}/{subitem.name}")
                     analyzed_data=block_analyze(full_data=time_series_data)
@@ -198,8 +203,11 @@ def get_params_from_file_name(file_name, minus_separator = False, filename_exten
     """
     file_name = os.path.basename(file_name)
     params = {}
+    if filename_extension in file_name:
+        system_name = file_name.replace(f"{filename_extension}", '')
+    else:
+        system_name = file_name
     if minus_separator:
-        system_name = file_name.replace('_observables.csv', '')
         entries = system_name.split('_')
         for entry in entries:
             splitted_entry = entry.split('-')
@@ -208,10 +216,6 @@ def get_params_from_file_name(file_name, minus_separator = False, filename_exten
             else:
                 params[splitted_entry[0]] = splitted_entry[-1]           
     else:
-        if filename_extension in file_name:
-            system_name = file_name.replace(f"{filename_extension}", '')
-        else:
-            system_name = file_name
         entries = system_name.split('_')
         if len(entries) % 2:
             raise ValueError("Wrong file name format. Need even number of entries separated by underscores, got: " + str(entries) + str( len(entries)) )
