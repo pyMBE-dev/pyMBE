@@ -10,7 +10,6 @@ class Serialization(ut.TestCase):
         analyzed_data = ana.analyze_time_series(path_to_datafolder="testsuite/tests_data",
                                        filename_extension="_time_series.csv",
                                        minus_separator=True)
-        analyzed_data.to_csv("testsuite/tests_data/average_data.csv", index=False)
         analyzed_data[["Dens","eps"]] = analyzed_data[["Dens","eps"]].apply(pd.to_numeric)
         reference_data = pd.read_csv("testsuite/tests_data/average_data.csv", header=[0,1])
         pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False)
@@ -103,7 +102,7 @@ class Serialization(ut.TestCase):
         print("*** Unit passed ***")
         
     def test_block_analyze(self):
-        print("*** Unit test: test that block_analyze yields the expected outputs and reports the number of blocks and the block size. It should print that it encountered repeated time values 6 times. ***")
+        print("*** Unit test: test that block_analyze yields the expected outputs and reports the number of blocks and the block size. It should print that it encountered 1 repeated time value. ***")
         data = pd.read_csv("testsuite/tests_data/N-064_Solvent-good_Init-coil_time_series.csv")
         analyzed_data = ana.block_analyze(full_data=data, verbose=True)
         analyzed_data = ana.add_data_to_df(df=pd.DataFrame(),
