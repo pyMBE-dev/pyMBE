@@ -25,11 +25,11 @@ def add_data_to_df(df, data_dict, index):
     Adds the data in data_dict in the df pandas dataframe
     
     Args:
-        df(`obj`): pandas dataframe
+        df(`Pandas.Dataframe`): pandas dataframe
         data_dict(`dict`): dictionary with the data to be added
         index(`lst`): index of the df where the data should be added
     Returns:
-        updated_df(`obj`): pandas dataframe updated with data_dict
+        updated_df(`Pandas.Dataframe`): pandas dataframe updated with data_dict
 
     """
     if df.empty:
@@ -52,9 +52,9 @@ def analyze_time_series(path_to_datafolder, filename_extension= ".csv", minus_se
         minus_separator(`bool`): switch to enable the minus as a separator. Defaults to False.
 
     Returns:
-        (`Pandas.Dataframe`): pandas dataframe with the time averages of all the time series in the datafolder.
+        data(`Pandas.Dataframe`): Dataframe with the time averages of all the time series in the datafolder.
 
-    Notes:
+    Note:
         - For more information about `minus_separator`, please check the documentation of `get_params_from_file_name`
 
     """
@@ -87,16 +87,16 @@ def block_analyze(full_data, n_blocks=16, time_col = "time", equil=0.1,  columns
     Analyzes the data in `full_data` using a binning procedure.
 
     Args:
-        - full_data(`obj`): pandas dataframe with the observables time series
-        - n_blocks(`int`): number of blocks used in the binning procedure.
-        - time_col(`str`): column name where the time is stored in `full_data`. Defaults to `time`.
-        - equil(`float`,opt): fraction of the data discarded as part of the equilibration. Defaults to 0.1.
-        - columns_to_analyze(`list`): array of column names to be analyzed. Defaults to "all".
-        - verbose(`bool`): switch to activate/deactivate printing the block size. Defaults to False.
-        - dt(`float`): time step in which the data was stored. If no value is provided, is calculated from the time series. Defaults to None.
+        full_data(`Pandas.Dataframe`): dataframe with the observables time series
+        n_blocks(`int`): number of blocks used in the binning procedure.
+        time_col(`str`): column name where the time is stored in `full_data`. Defaults to `time`.
+        equil(`float`,opt): fraction of the data discarded as part of the equilibration. Defaults to 0.1.
+        columns_to_analyze(`list`): array of column names to be analyzed. Defaults to "all".
+        verbose(`bool`): switch to activate/deactivate printing the block size. Defaults to False.
+        dt(`float`): time step in which the data was stored. If no value is provided, is calculated from the time series. Defaults to None.
 
     Returns:
-        `result`: pandas dataframe with the mean (mean), statistical error (err_mean), number of effective samples (n_eff) and correlation time (tau_int) of each observable.
+        `result`(`Pandas.Series`): Series the mean (mean), statistical error (err_mean), number of effective samples (n_eff) and correlation time (tau_int) of each observable.
     """
     if dt is None:
         dt, n_warnings = get_dt(full_data, time_col, verbose = verbose) # check that the data was stored with the same time interval dt
@@ -149,13 +149,13 @@ def built_output_name(input_dict):
     Builts the output name for a given set of input parameters.
 
     Args:
-        input_dict (`dict`): dictionary with all terminal inputs.
+        input_dict(`dict`): dictionary with all terminal inputs.
 
     Returns:
-        output_name (`str`): name used for the output files
+        output_name(`str`): name used for the output files
 
     Note:
-        The standard formatting rule is parametername1_parametervalue1_parametername2_parametervalue2
+        - The standard formatting rule is parametername1_parametervalue1_parametername2_parametervalue2
     """
     output_name=""
     for label in input_dict:
@@ -171,18 +171,18 @@ def get_dt(data, time_col = "time", relative_tolerance = 0.01, verbose = False):
     Calculate the time difference between the lines of the time series
 
     Args:
-        - data (`obj`): PandasDataFrame containing the time series
-        - time_col (`str`): string denoting the name of the column which contains the time data
-        - relative_toleranace (`float`): threshold up to which an inconsistency between consecutive dt values is considered acceptable (see Notes below for more details)
-        - verbose (`bool`): Switch to activate/deactivate printing of warning messages.
+        data(`obj`): PandasDataFrame containing the time series
+        time_col(`str`): string denoting the name of the column which contains the time data
+        relative_toleranace(`float`): threshold up to which an inconsistency between consecutive dt values is considered acceptable (see Notes below for more details)
+        verbose(`bool`): Switch to activate/deactivate printing of warning messages.
 
     Returns:
-        - (`float`, `int`) 1. value of time difference between consecutive lines, 2. number of repeated time values
+        (`float`, `int`) 1. value of time difference between consecutive lines, 2. number of repeated time values
 
-    Notes:
-        relative_tolerance is used in two ways to check for irregularities in time intervals of between consecutive lines:
-        1. Sometimes, small inconsistencies in time intervals may occur due to rounding errors or because we run a short tuning of cells or Ewald parameters. These inconsistencies are considered negligible, as long as they do not exceed dt * relative_tolerance
-        2. Sometimes, consecutive values may have identical times, e.g. if only reactions are performed but there no MD evolution in beteen. In this case, dt is ill-defined. As of May 2024, we only produce warnings but do not raise an error in order to retain backward compatibility. We deprecate such use and plan to remove this compatibility in the future. If necessary, the user can always override get_dt() by providing a custom value on the input.
+    Note:
+        - `relative_tolerance` is used in two ways to check for irregularities in time intervals of between consecutive lines:
+            - Sometimes, small inconsistencies in time intervals may occur due to rounding errors or because we run a short tuning of cells or Ewald parameters. These inconsistencies are considered negligible, as long as they do not exceed dt * relative_tolerance
+            - Sometimes, consecutive values may have identical times, e.g. if only reactions are performed but there no MD evolution in beteen. In this case, dt is ill-defined. As of May 2024, we only produce warnings but do not raise an error in order to retain backward compatibility. We deprecate such use and plan to remove this compatibility in the future. If necessary, the user can always override get_dt() by providing a custom value on the input.
     """
     if time_col in data.columns.to_list():
         time = data[ time_col ]
@@ -215,9 +215,9 @@ def get_params_from_file_name(file_name, minus_separator = False, filename_exten
     Returns:
         params(`dict`): dictionary with the labels and values of the parameters.
 
-    Notes:
-        If `minus_separator = True`, then the data is parsed assuming the following formating rule  `file_name=obsname1-value1_obsname2-value2...`. 
-        This is functionality is kept for backwards compatibility.
+    Note:
+        - If `minus_separator = True`, then the data is parsed assuming the following formating rule  `file_name=obsname1-value1_obsname2-value2...`. 
+        - This is functionality is kept for backwards compatibility.
     """
     file_name = os.path.basename(file_name)
     params = {}
@@ -246,13 +246,13 @@ def split_dataframe(df,n_blocks):
     Splits a Pandas Dataframe in n_blocks of approximately the same size.
 
     Args:
-        - df (`obj`): PandasDataframe
-        - n_blocks (`int`): Number of blocks
+        df(`Pandas.Dataframe`): Dataframe to be split
+        n_blocks(`int`): Number of blocks
 
     Returns:
-        - (`list`): array of PandasDataframe 
+        (`lst` of `Pandas.Dataframe`): array with the splitted dataframes.
 
-    Notes:
+    Note:
         - For a `df` of length `l` that should be split into n_blocks, it returns l % n_blocks sub-arrays of size l//n_blocks + 1 and the rest of size l//n_blocks.
         - The behaviour of this function is the same as numpy.array_split for backwards compatibility, see [docs](https://numpy.org/doc/stable/reference/generated/numpy.array_split.html)
 
@@ -281,13 +281,13 @@ def split_dataframe_in_equal_blocks(df, start_row, end_row, block_size):
     Splits a Pandas dataframe in equally spaced blocks.
 
     Args:
-        - df (`obj`): PandasDataframe
-        - start_row (`int`): index of the first row
-        - end_row (`int`): index of the last row
-        - block_size (`int`): number of rows per block
+        df(`Pandas.Dataframe`): Dataframe to be splitted.
+        start_row(`int`): index of the first row.
+        end_row(`int`): index of the last row.
+        block_size(`int`): number of rows per block.
 
     Returns:
-        - (`list`): array of PandasDataframe of equal size
+        (`lst`): array of dataframes of equal size.
     """
     return [df[row:row+block_size] for row in range(start_row,end_row,block_size)]
 
