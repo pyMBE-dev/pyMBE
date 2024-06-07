@@ -1,0 +1,35 @@
+name: samples
+
+on:
+  schedule:
+    - cron:  '20 6 5,20 * *' # biweekly at 06:20 AM UTC+00 (on the 5th and 20th of the month)
+  workflow_dispatch: # manual trigger
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  samples:
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'schedule' && github.repository == 'pyMBE-dev/pyMBE' || github.event_name != 'schedule' }}
+    env:
+      FI_PROVIDER: "^psm3,psm3;ofi_rxd"
+      OMPI_MCA_mtl_ofi_provider_exclude: psm3
+    steps:
+      - name: Setup EESSI
+        uses: eessi/github-action-eessi@v3
+        with:
+          eessi_stack_version: "2023.06"
+      - name: Checkout repository
+        uses: actions/checkout@main
+      - name: Install dependencies
+        uses: ./.github/actions/dependencies
+        with:
+          modules: |-
+            ESPResSo/4.2.1-foss-2023a
+      - name: Run testsuite
+        run: |
+          module restore pymbe
+          source venv/bin/activate
+          make functional_tests
+        shell: bash

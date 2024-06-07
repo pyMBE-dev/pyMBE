@@ -1,7 +1,23 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import numpy as np 
 import espressomd
-import warnings
-from espressomd import interactions
 import pyMBE
 
 espresso_system = espressomd.System(box_l = [100]*3)
@@ -28,10 +44,10 @@ def build_peptide_in_espresso(SEED):
     pmb.define_peptide(name=peptide_name, sequence=sequence, model=model)
 
     # Bond parameters
-    generic_bond_lenght=0.4 * pmb.units.nm
+    generic_bond_length=0.4 * pmb.units.nm
     generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-    HARMONIC_parameters = {'r_0'    : generic_bond_lenght,
+    HARMONIC_parameters = {'r_0'    : generic_bond_length,
                            'k'      : generic_harmonic_constant}
 
     pmb.define_default_bond(bond_type = 'harmonic',
@@ -53,10 +69,10 @@ def build_peptide_in_espresso(SEED):
     return np.asarray(positions)
 
 
-print(f"*** Check that the using the same SEED results in the same initial particle positions***")
+print("*** Check that the using the same SEED results in the same initial particle positions***")
 positions1 = build_peptide_in_espresso(42)
 positions2 = build_peptide_in_espresso(42)
 
 np.testing.assert_almost_equal(positions1, positions2)
 
-print(f"*** Test passed ***")
+print("*** Test passed ***")

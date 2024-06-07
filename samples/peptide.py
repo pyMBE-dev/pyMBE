@@ -1,15 +1,28 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Load espresso, pyMBE and other necessary libraries
-import sys
 import os 
-import inspect
-from matplotlib.style import use
 import espressomd
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from espressomd.io.writer import vtf
-from espressomd import interactions
-from espressomd import electrostatics
 import pyMBE
 
 # Create an instance of pyMBE library
@@ -39,7 +52,7 @@ solvent_permitivity = 78.3
 
 # Peptide parameters
 
-sequence = 'nEEEEEc'
+sequence = 'EEEEDDDD'
 model = '2beadAA'  # Model with 2 beads per each aminoacid
 pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 N_peptide_chains = 4
@@ -51,36 +64,10 @@ path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
 pmb.load_interaction_parameters (filename=path_to_interactions) 
 pmb.load_pka_set (path_to_pka)
 
-# Use a generic parametrization for the aminoacids not parametrized
-
-not_parametrized_neutral_aminoacids = ['A','N','Q','G','I','L','M','F','P','O','S','U','T','W','V','J']
-not_parametrized_acidic_aminoacids = ['C','c']
-not_parametrized_basic_aminoacids = ['R','n']
-
-already_defined_AA=[]
-
-for aminoacid_key in sequence:
-    if aminoacid_key in already_defined_AA:
-        continue
-    if aminoacid_key in not_parametrized_acidic_aminoacids:
-        pmb.define_particle(name=aminoacid_key,
-                           acidity='acidic',
-                           sigma=0.35*pmb.units.nm, 
-                           epsilon=1*pmb.units('reduced_energy'))
-    elif aminoacid_key in not_parametrized_basic_aminoacids:
-        pmb.define_particle(name=aminoacid_key, acidity='basic',sigma=0.35*pmb.units.nm,epsilon=1*pmb.units('reduced_energy'))
-        
-    elif aminoacid_key in not_parametrized_neutral_aminoacids:
-        pmb.define_particle(name=aminoacid_key,
-                           q=0,
-                           sigma=0.35*pmb.units.nm, 
-                           epsilon=1*pmb.units('reduced_energy'))
-    already_defined_AA.append(aminoacid_key)
-
-generic_bond_lenght=0.4 * pmb.units.nm
+generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-HARMONIC_parameters = {'r_0'    : generic_bond_lenght,
+HARMONIC_parameters = {'r_0'    : generic_bond_length,
                        'k'      : generic_harmonic_constant,
                       }
 
@@ -186,25 +173,25 @@ for index in tqdm(range(len(pH_range))):
         else:
             RE.reaction( reaction_steps = total_ionisible_groups)
 
-        if ( step > steps_eq):
+        if step > steps_eq:
             # Get peptide net charge
             charge_dict=pmb.calculate_net_charge (  espresso_system=espresso_system, 
                                                     molecule_name=peptide_name)      
             Z_sim.append(charge_dict["mean"])
 
-        if (step % N_samples_print == 0) :
+        if step % N_samples_print == 0:
             N_frame+=1
             with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
                 vtf.writevsf(espresso_system, coordinates)
                 vtf.writevcf(espresso_system, coordinates)
 
     Z_pH.append(Z_sim)
-    print("pH = {:6.4g} done".format(pH_value))
+    print(f"pH = {pH_value:6.4g} done")
    
 # Estimate the statistical error and the autocorrelation time of the data
 
 print("Net charge analysis")
-av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(input_data=Z_pH)
+av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(full_data=Z_pH)
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 Z_HH = pmb.calculate_HH(molecule_name=peptide_name, 
@@ -216,6 +203,6 @@ ax.plot(pH_range, Z_HH, "-k", label='Henderson-Hasselbach')
 plt.legend()
 plt.xlabel('pH')
 plt.ylabel('Charge of the peptide / e')
-plt.title('Peptide sequence: '+ sequence)
+plt.title(f'Peptide sequence: {sequence}')
 
 plt.show()

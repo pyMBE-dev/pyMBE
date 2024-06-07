@@ -1,3 +1,21 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Import pyMBE and other libraries
 import pyMBE
 import numpy as np
@@ -7,7 +25,7 @@ import warnings
 pmb = pyMBE.pymbe_library(SEED=42)
 
 print("*** LJ unit tests ***")
-print(f"*** Unit test: check that all LJ input parameters in define_particle are correctly stored in pmb.df***")
+print("*** Unit test: check that all LJ input parameters in define_particle are correctly stored in pmb.df***")
 
 input_parameters={"name":"A", 
                     "sigma":1*pmb.units.nm, 
@@ -23,7 +41,7 @@ for parameter_key in input_parameters.keys():
                                 desired=input_parameters[parameter_key], 
                                 verbose=True)
 print("*** Unit test passed ***")
-print(f"*** Unit test: check that `offset` defaults to 0***")
+print("*** Unit test: check that `offset` defaults to 0***")
 # Clean pmb.df
 pmb.setup_df()
 # Define dummy particle
@@ -35,7 +53,7 @@ with warnings.catch_warnings():
                         verbose=True)
 print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that `cutoff` defaults to `2**(1./6.) reduced_length` ***")
+print("*** Unit test: check that `cutoff` defaults to `2**(1./6.) reduced_length` ***")
 # Clean pmb.df
 pmb.setup_df()
 # Define dummy particle
@@ -47,31 +65,31 @@ with warnings.catch_warnings():
                         verbose=True)
 print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_particle raises a ValueError if sigma is provided with the wrong dimensionality ***")
+print("*** Unit test: check that define_particle raises a ValueError if sigma is provided with the wrong dimensionality ***")
 input_parameters={"name":"B", 
                    "sigma":1*pmb.units.ns }
 np.testing.assert_raises(ValueError, pmb.define_particle, **input_parameters)
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_particle raises a ValueError if offset is provided with the wrong dimensionality ***")
+print("*** Unit test: check that define_particle raises a ValueError if offset is provided with the wrong dimensionality ***")
 input_parameters={"name":"B", 
                    "offset":1*pmb.units.ns }
 np.testing.assert_raises(ValueError, pmb.define_particle, **input_parameters)
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_particle raises a ValueError if cutoff is provided with the wrong dimensionality ***")
+print("*** Unit test: check that define_particle raises a ValueError if cutoff is provided with the wrong dimensionality ***")
 input_parameters={"name":"B", 
                    "cutoff":1*pmb.units.ns }
 np.testing.assert_raises(ValueError, pmb.define_particle, **input_parameters)
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: check that define_particle raises a ValueError if epsilon is provided with the wrong dimensionality ***")
+print("*** Unit test: check that define_particle raises a ValueError if epsilon is provided with the wrong dimensionality ***")
 input_parameters={"name":"B", 
                    "epsilon":1*pmb.units.ns }
 np.testing.assert_raises(ValueError, pmb.define_particle, **input_parameters)
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: test that setup_lj_interactions sets up inert particles correctly ***")
+print("*** Unit test: test that setup_lj_interactions sets up inert particles correctly ***")
 
 # Clean pmb.df
 pmb.setup_df()
@@ -116,8 +134,8 @@ np.testing.assert_equal(actual=setup_AA_lj_parameters["epsilon"],
                             desired=A_input_parameters["epsilon"].to("reduced_energy").magnitude, 
                             verbose=True)
 
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: test that setup_lj_interactions sets up acid/base particles correctly ***")
+print("*** Unit test passed ***")
+print("*** Unit test: test that setup_lj_interactions sets up acid/base particles correctly ***")
 
 
 # Check B-B, B-BH, BH-BH setup
@@ -133,8 +151,8 @@ for label in labels:
                                 desired=B_input_parameters["epsilon"].to("reduced_energy").magnitude, 
                                 verbose=True)
 
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: test that setup_lj_interactions sets up LJ interaction between different particles correctly ***")
+print("*** Unit test passed ***")
+print("*** Unit test: test that setup_lj_interactions sets up LJ interaction between different particles correctly ***")
 
 
 # Calculate the reference parameters
@@ -157,9 +175,9 @@ for label in labels:
     np.testing.assert_equal(actual=setup_lj_parameters["epsilon"], 
                                 desired=ref_lj_parameters["epsilon"].to("reduced_energy").magnitude, 
                                 verbose=True)
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
 
-print(f"*** Unit test: test that setup_lj_interactions does not set up any LJ interactions for particles with sigma = 0 ***")
+print("*** Unit test: test that setup_lj_interactions does not set up any LJ interactions for particles with sigma = 0 ***")
 
 lj_labels=pmb.filter_df("LennardJones")["name"].values
 # Check that no interaction between particle C and any other particle has been set up
@@ -169,5 +187,5 @@ for label in lj_labels:
     if "C" in label:
         raise Exception("*** Unit Test failed ***")
 
-print(f"*** Unit test passed ***")
-print(f"*** All unit tests passed ***")
+print("*** Unit test passed ***")
+print("*** All unit tests passed ***")

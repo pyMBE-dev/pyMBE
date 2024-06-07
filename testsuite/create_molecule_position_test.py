@@ -1,12 +1,29 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import numpy as np 
 import espressomd
-from espressomd import interactions
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library(SEED=42)
 
-print(f"***create_molecule with input position list unit test ***")
-print(f"*** Unit test: Check that the positions of the central bead of the first residue in the generated molecules are equal to the input positions***")
+print("***create_molecule with input position list unit test ***")
+print("*** Unit test: Check that the positions of the central bead of the first residue in the generated molecules are equal to the input positions ***")
 # Simulation parameters
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm,
                       verbose=False)
@@ -14,7 +31,6 @@ solvent_permitivity = 78.3
 N_molecules = 3
 chain_length = 5
 molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
-# Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
 pos_list = [[10,10,10], [20,20,20], [30,30,30]]
 pmb.define_particle(name='central_mon',
@@ -33,10 +49,10 @@ pmb.define_residue(
     )
 
 bond_type = 'harmonic'
-generic_bond_lenght=0.4 * pmb.units.nm
+generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-harmonic_bond = {'r_0'    : generic_bond_lenght,
+harmonic_bond = {'r_0'    : generic_bond_length,
                  'k'      : generic_harmonic_constant,
                  }
 
@@ -65,13 +81,14 @@ espresso_system=espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
 # Add all bonds to espresso system
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
+pmb.write_pmb_df("df1.csv")
 # Create your molecules into the espresso system
 molecules = pmb.create_molecule(name=molecule_name,
                         number_of_molecules= N_molecules,
                         espresso_system=espresso_system,
                         use_default_bond=True,
                         list_of_first_residue_positions = pos_list)
-
+pmb.write_pmb_df("df2.csv")
 # Running unit test here. Use np.testing.assert_almost_equal of the input position list and the central_bead_pos list under here.
 central_bead_pos = []
 for molecule_id in molecules:
@@ -82,22 +99,46 @@ for molecule_id in molecules:
 
 np.testing.assert_almost_equal(pos_list, central_bead_pos)
 
-print(f"*** Unit test passed ***\n")
+print("*** Unit test passed ***\n")
 
+print("*** Unit test: Check that create_molecule raises a ValueError if the user does not provide a nested list for list_of_first_residue_positions***")
+input_parameters={"name": "S2",
+                 "number_of_molecules": 1,
+                 "espresso_system": espresso_system,
+                 "list_of_first_residue_positions": [1,2,3]}
+np.testing.assert_raises(ValueError, pmb.create_molecule, **input_parameters)
+print("*** Unit test passed ***\n")
 
-print(f"*** Unit test: Check that center_molecule_in_simulation_box works correctly for cubic boxes***")
+print("*** Unit test: Check that create_molecule raises a ValueError if the user does not provide a nested list with three coordinates***")
+input_parameters={"name": "S2",
+                 "number_of_molecules": 1,
+                 "espresso_system": espresso_system,
+                 "list_of_first_residue_positions": [[1,2]]}
+np.testing.assert_raises(ValueError, pmb.create_molecule, **input_parameters)
+print("*** Unit test passed ***\n")
+
+print("*** Unit test: Check that create_molecule raises a ValueError if the user does not provide a the same number of first_residue_positions as number_of_molecules***")
+input_parameters={"name": "S2",
+                 "number_of_molecules": 2,
+                 "espresso_system": espresso_system,
+                 "list_of_first_residue_positions": [[1,2,3]]}
+np.testing.assert_raises(ValueError, pmb.create_molecule, **input_parameters)
+print("*** Unit test passed ***\n")
+
+print("*** Unit test: Check that center_molecule_in_simulation_box works correctly for cubic boxes***")
 
 molecule_id = pmb.df.loc[pmb.df['name']==molecule_name].molecule_id.values[0]
-pmb.center_molecule_in_simulation_box(molecule_id=molecule_id, espresso_system=espresso_system)
-center_of_mass = pmb.calculate_center_of_mass_of_molecule(molecule_id=molecule_id, espresso_system=espresso_system)
+pmb.center_molecule_in_simulation_box(molecule_id=molecule_id, 
+                                      espresso_system=espresso_system)
+center_of_mass = pmb.calculate_center_of_mass_of_molecule(molecule_id=molecule_id, 
+                                                          espresso_system=espresso_system)
 center_of_mass_ref = [L.to('reduced_length').magnitude/2]*3
 
 np.testing.assert_almost_equal(center_of_mass, center_of_mass_ref)
 
-print(f"*** Unit test passed ***\n")
+print("*** Unit test passed ***\n")
 
-
-print(f"*** Unit test: Check that center_molecule_in_simulation_box works correctly for non-cubic boxes***")
+print("*** Unit test: Check that center_molecule_in_simulation_box works correctly for non-cubic boxes***")
 
 espresso_system.change_volume_and_rescale_particles(d_new=3*L.to('reduced_length').magnitude, dir="z")
 molecule_id = pmb.df.loc[pmb.df['name']==molecule_name].molecule_id.values[2]
@@ -107,4 +148,5 @@ center_of_mass_ref = [L.to('reduced_length').magnitude/2, L.to('reduced_length')
 
 np.testing.assert_almost_equal(center_of_mass, center_of_mass_ref)
 
-print(f"*** Unit test passed ***")
+print("*** Unit test passed ***")
+

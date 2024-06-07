@@ -1,3 +1,21 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Import pyMBE and other libraries
 import numpy as np
 import pyMBE
@@ -33,7 +51,7 @@ def check_acid_base_setup(input_parameters,acidity_setup):
 
 
 print("*** Particle acidity unit tests ***")
-print(f"*** Unit test: check that all acid/base input parameters in define_particle for an inert particle are correctly stored in pmb.df***")
+print("*** Unit test: check that all acid/base input parameters in define_particle for an inert particle are correctly stored in pmb.df***")
 # Clean pmb.df
 pmb.setup_df()
 input_parameters={"name":"I", 
@@ -48,8 +66,8 @@ acidity_setup={"state_one":{"label":f"{input_parameters['name']}",
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
 
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: check that all acid/base input parameters in define_particle for an acid are correctly stored in pmb.df***")
+print("*** Unit test passed ***")
+print("*** Unit test: check that all acid/base input parameters in define_particle for an acid are correctly stored in pmb.df***")
 # Clean pmb.df
 pmb.setup_df()
 input_parameters={"name":"A", 
@@ -62,8 +80,8 @@ acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: check that all acid/base input parameters in define_particle for a base are correctly stored in pmb.df***")
+print("*** Unit test passed ***")
+print("*** Unit test: check that all acid/base input parameters in define_particle for a base are correctly stored in pmb.df***")
 # Clean pmb.df
 pmb.setup_df()
 input_parameters={"name":"B", 
@@ -76,8 +94,8 @@ acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: check that set_particle_acidity raises a ValueError if pKa is not provided and pKa is acidic or basic  ***")
+print("*** Unit test passed ***")
+print("*** Unit test: check that set_particle_acidity raises a ValueError if pKa is not provided and pKa is acidic or basic  ***")
 input_parametersA={"name":"A", 
                    "acidity": "acidic" }
 
@@ -85,10 +103,10 @@ input_parametersB= {"name": "B",
                    "acidity": "basic"}
 np.testing.assert_raises(ValueError, pmb.set_particle_acidity,**input_parametersA)
 np.testing.assert_raises(ValueError, pmb.set_particle_acidity, **input_parametersB)
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: check that set_particle_acidity raises a ValueError if a non-supported acidity is provided  ***")
+print("*** Unit test passed ***")
+print("*** Unit test: check that set_particle_acidity raises a ValueError if a non-supported acidity is provided  ***")
 input_parametersA={"name":"A", 
                    "acidity": "random" }
 np.testing.assert_raises(ValueError, pmb.set_particle_acidity,**input_parametersA)
-print(f"*** Unit test passed ***")
-print(f"*** All unit tests passed ***")
+print("*** Unit test passed ***")
+print("*** All unit tests passed ***")

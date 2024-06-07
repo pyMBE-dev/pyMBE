@@ -1,8 +1,26 @@
-import espressomd
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import re 
-from ast import literal_eval
-from espressomd import interactions
-from pandas.testing import assert_frame_equal
+import ast
+import tempfile
+import espressomd
+import pandas as pd
 
 # Create an instance of pyMBE library
 import pyMBE
@@ -25,12 +43,16 @@ pmb.define_particle(
 pmb.define_particle(
     name = "A",
     acidity = "acidic",
-    pka = 4)
+    pka = 4,
+    sigma = 0.3*pmb.units.nm,
+    epsilon = 1*pmb.units('reduced_energy'),)
     
 pmb.define_particle(
     name = "B",
     acidity = "basic",
-    pka = 9)
+    pka = 9,
+    sigma = 0.3*pmb.units.nm,
+    epsilon = 1*pmb.units('reduced_energy'),)
 
 #Define the residues
 pmb.define_residue(
@@ -57,10 +79,10 @@ pmb.define_molecule(
 
 
 bond_type = 'harmonic'
-generic_bond_lenght=0.4 * pmb.units.nm
+generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-harmonic_bond = {'r_0'    : generic_bond_lenght,
+harmonic_bond = {'r_0'    : generic_bond_length,
                  'k'      : generic_harmonic_constant,
                  }
 
@@ -84,25 +106,24 @@ espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 # Setup potential energy
 
 pmb.setup_lj_interactions (espresso_system=espresso_system)
-pmb.pd.options.display.max_colwidth = 10
+pd.options.display.max_colwidth = 10
 
 # Copy the pmb.df into a new DF for the unit test 
 stored_df = pmb.df.copy()
 
-# Write the pymbe DF to a csv file 
-df_filename = 'df-example_molecule.csv'
-pmb.write_pmb_df (filename = df_filename)
-
-# Read the same pyMBE df from a csv a load it in pyMBE
-read_df = pmb.read_pmb_df(filename = df_filename)
+with tempfile.TemporaryDirectory() as tmp_directory:
+    # Write the pymbe DF to a csv file
+    df_filename = f'{tmp_directory}/df-example_molecule.csv'
+    pmb.write_pmb_df (filename = df_filename)
+    # Read the same pyMBE df from a csv a load it in pyMBE
+    read_df = pmb.read_pmb_df(filename = df_filename)
 
 # Preprocess data for the Unit Test
 # The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal
-stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
-read_df['bond_object']  = read_df['bond_object'].apply(lambda x: literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pmb.pd.notnull(x) else x)
+stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: ast.literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pd.notnull(x) else x)
+read_df['bond_object']  = read_df['bond_object'].apply(lambda x: ast.literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pd.notnull(x) else x)
 
-print(f"*** Unit test: check that the dataframe stored by pyMBE to file is the same as the one read from the file (same values and variable types) ***")
+print("*** Unit test: check that the dataframe stored by pyMBE to file is the same as the one read from the file (same values and variable types) ***")
 
-assert_frame_equal (stored_df, read_df, check_exact= True)
-print (f"*** Unit test passed***")
-    
+pd.testing.assert_frame_equal (stored_df, read_df, check_exact= True)
+print("*** Unit test passed***")

@@ -1,16 +1,29 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #Load espresso, pyMBE and other necessary libraries
-import sys
 import os 
-import inspect
-from matplotlib.style import use
 import espressomd
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 import argparse
 from espressomd.io.writer import vtf
-from espressomd import interactions
-from espressomd import electrostatics
 import pyMBE
 
 # Create an instance of pyMBE library
@@ -36,14 +49,13 @@ parser.add_argument('--test',
 args = parser.parse_args()
 
 if args.mode not in valid_modes:
-    raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
+    raise ValueError(f"Mode {args.mode} is not currently supported, valid modes are {valid_modes}")
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 if not os.path.exists('./frames'):
     os.makedirs('./frames')
 
 #Import functions from handy_functions script 
-from lib.handy_functions import minimize_espresso_system_energy
 from lib.analysis import block_analyze
 
 # Simulation parameters
@@ -83,9 +95,6 @@ if args.test:
 path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
 path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
 
-
-
-
 pmb.load_interaction_parameters(filename=path_to_interactions) 
 with warnings.catch_warnings():
     warnings.simplefilter('error')
@@ -95,10 +104,10 @@ with warnings.catch_warnings():
 # Defines the bonds
 
 bond_type = 'harmonic'
-generic_bond_lenght=0.4 * pmb.units.nm
+generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-harmonic_bond = {'r_0'    : generic_bond_lenght,
+harmonic_bond = {'r_0'    : generic_bond_length,
                  'k'      : generic_harmonic_constant,
                  }
 
@@ -206,7 +215,7 @@ err_Z_pH=[] # List of the error of the global charge at each pH
 xi_plus=[] # List of the average partition coefficient of positive ions
 err_xi_plus=[] # List of the error of the partition coefficient of positive ions
 
-particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
+particle_id_list = pmb.get_particle_id_map(peptide1)["all"]+pmb.get_particle_id_map(peptide2)["all"]
 
 #Save the pyMBE dataframe in a CSV file
 pmb.write_pmb_df (filename='df.csv')
@@ -214,10 +223,8 @@ pmb.write_pmb_df (filename='df.csv')
 # Main loop for performing simulations at different pH-values
 labels_obs=["time","charge","num_plus"]
 
-for index in range(len(pH_range)):
+for pH_value in pH_range:
     
-    pH_value=pH_range[index]
-
     time_series={}
 
     for label in labels_obs:
@@ -237,7 +244,7 @@ for index in range(len(pH_range)):
         else:
             RE.reaction(reaction_steps = total_ionisible_groups)
 
-        if (step > steps_eq):
+        if step > steps_eq:
             # Get peptide net charge      
             z_one_object=0
             for pid in particle_id_list:
@@ -254,9 +261,9 @@ for index in range(len(pH_range)):
             elif args.mode == 'unified':
                 time_series["num_plus"].append(espresso_system.number_of_particles(type=type_map["Na"]))
             
-        if (step % N_samples_print == 0) :
+        if step % N_samples_print == 0:
             N_frame+=1
-            with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
+            with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
                 vtf.writevsf(espresso_system, coordinates)
                 vtf.writevcf(espresso_system, coordinates)
 
@@ -269,7 +276,7 @@ for index in range(len(pH_range)):
     err_concentration_plus = (processed_data["err_mean", "num_plus"]/(pmb.N_A * L**3)).to('mol/L')
     xi_plus.append((concentration_plus/ionic_strength_res).magnitude)
     err_xi_plus.append(err_concentration_plus/ionic_strength_res)
-    print("pH = {:6.4g} done".format(pH_value))
+    print(f"pH = {pH_value:6.4g} done")
    
 
 if args.test:

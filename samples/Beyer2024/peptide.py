@@ -1,15 +1,27 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Load espresso, sugar and other necessary libraries
-import sys
 import os
-import inspect
 import espressomd
-import numpy as np
 import pandas as pd
 import argparse
 import tqdm
-from espressomd.io.writer import vtf
-from espressomd import interactions
-from espressomd import electrostatics
 
 # Import pyMBE
 import pyMBE
@@ -37,7 +49,7 @@ parser.add_argument('--output',
                     type=str,
                     required= False,
                     help='output directory')
-parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose")
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 args = parser.parse_args()
 
 # Inputs
@@ -54,7 +66,6 @@ if mode not in valid_modes:
 LANGEVIN_SEED = 100
 dt = 0.01
 solvent_permitivity = 78.3
-pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 
 # Sanity check
 Lunkad_test_sequences=["E"*5+"H"*5,"K"*5+"D"*5]
@@ -72,20 +83,25 @@ if sequence in Lunkad_test_sequences:
     pmb.load_pka_set(filename=path_to_pka)
     model = '2beadAA'  # Model with 2 beads per each aminoacid
     N_peptide_chains = 4
-    sigma_cation=0.35*pmb.units.nm
-    sigma_anion=0.35*pmb.units.nm
+    sigma=1*pmb.units.Quantity("reduced_length")
+    offset_cation=0*pmb.units.Quantity("reduced_length")
+    offset_anion=0*pmb.units.Quantity("reduced_length")
     c_salt=1e-2 * pmb.units.mol/ pmb.units.L
     chain_length=len(sequence)*2
 
 elif sequence in Blanco_test_sequence:
+    pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
     pmb.load_interaction_parameters (pmb.get_resource(path='parameters/peptides/Blanco2021.json'))
     pmb.load_pka_set (pmb.get_resource(path='parameters/pka_sets/Nozaki1967.json'))
     model = '1beadAA'
     N_peptide_chains = 1
     c_salt = 5e-3 * pmb.units.mol/ pmb.units.L
-    sigma_cation=0.2*pmb.units.nm
-    sigma_anion=0.36*pmb.units.nm
+    sigma=1*pmb.units.Quantity("reduced_length")
+    offset_cation=0.2*pmb.units.nm-sigma
+    offset_anion=0.36*pmb.units.nm-sigma
     chain_length=len(sequence)
+
+pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L 
 
 # Simulation parameters
 if mode == "short-run":
@@ -114,13 +130,15 @@ c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
 pmb.define_particle(name=cation_name,
                     q=1,
-                    sigma=sigma_cation,
-                    epsilon=1*pmb.units('reduced_energy'))
+                    sigma=sigma,
+                    epsilon=1*pmb.units('reduced_energy'),
+                    offset=offset_cation)
 
 pmb.define_particle(name=anion_name,
                     q=-1,
-                    sigma=sigma_anion,
-                    epsilon=1*pmb.units('reduced_energy'))
+                    sigma=sigma,
+                    epsilon=1*pmb.units('reduced_energy'),
+                    offset=offset_anion)
 
 # System parameters
 volume = N_peptide_chains/(pmb.N_A*pep_concentration)
@@ -227,4 +245,3 @@ time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
 
 if verbose:
     print("*** DONE ***")
-   

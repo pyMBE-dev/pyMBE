@@ -1,18 +1,29 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Load python modules
-import sys
 import os 
-import inspect
-from matplotlib.style import use
 import espressomd
 import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from scipy import interpolate
 import argparse
 from tqdm import tqdm
-from espressomd.io.writer import vtf
-from espressomd import interactions
-from espressomd import electrostatics
 
 # Import pyMBE
 import pyMBE
@@ -21,7 +32,6 @@ from lib import analysis
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(SEED=42)
 
-import warnings
 
 
 # Command line arguments
@@ -55,7 +65,6 @@ if args.mode not in valid_modes:
 
 #Import functions from handy_functions script 
 from lib.handy_functions import minimize_espresso_system_energy
-from lib.analysis import block_analyze
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import setup_langevin_dynamics
 
@@ -191,4 +200,4 @@ time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
 #Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df(filename='df.csv')
+pmb.write_pmb_df(filename=f'{data_path}/df.csv')

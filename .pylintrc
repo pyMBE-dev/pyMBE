@@ -1,0 +1,45 @@
+[MESSAGES CONTROL]
+
+# Only show warnings with the listed confidence levels. Leave empty to show
+# all. Valid levels: HIGH, INFERENCE, INFERENCE_FAILURE, UNDEFINED.
+confidence=
+
+# Disable the message, report, category or checker with the given id(s). You
+# can either give multiple identifiers separated by comma (,) or put this
+# option multiple times (only on the command line, not in the configuration
+# file where it should appear only once). You can also use "--disable=all" to
+# disable everything first and then reenable specific checks. For example, if
+# you want to run only the similarities checker, you can use "--disable=all
+# --enable=similarities". If you want to run only the classes checker, but have
+# no Warning level messages displayed, use "--disable=all --enable=classes
+# --disable=W".
+disable=all
+
+# Enable the message, report, category or checker with the given id(s). You can
+# either give multiple identifier separated by comma (,) or put this option
+# multiple time (only on the command line, not in the configuration file where
+# it should appear only once). See also the "--disable" option for examples.
+enable=dangerous-default-value,        # W0102
+       duplicate-key,                  # W0109
+       eval-used,                      # W0123
+       assert-on-tuple,                # W0199
+       bad-indentation,                # W0311
+       wildcard-import,                # W0401
+       unused-import,                  # W0611
+       unused-variable,                # W0612
+       unused-argument,                # W0613
+       unused-wildcard-import,         # W0614
+       f-string-without-interpolation, # W1309
+       anomalous-backslash-in-string,  # W1401
+       deprecated-method,              # W1505
+       comparison-with-itself,         # R0124
+       cyclic-import,                  # R0401
+       trailing-comma-tuple,           # R1707
+       consider-using-in,              # R1714
+       consider-using-sys-exit,        # R1722
+       singleton-comparison,           # C0121
+       unidiomatic-typecheck,          # C0123
+       bad-classmethod-argument,       # C0202
+       superfluous-parens,             # C0325
+       undefined-variable,             # E0602
+       no-value-for-parameter,         # E1120

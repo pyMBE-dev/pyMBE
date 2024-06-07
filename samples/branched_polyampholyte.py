@@ -1,15 +1,29 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Load espresso, pyMBE and other necessary libraries
-import sys
 import os 
-import inspect
-from matplotlib.style import use
 import espressomd
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import pandas as pd
 from espressomd.io.writer import vtf
-from espressomd import interactions
 import pyMBE
 
 # Create an instance of pyMBE library
@@ -98,10 +112,10 @@ pmb.define_molecule(
 
 # Define bonds
 bond_type = 'harmonic'
-generic_bond_lenght=0.4 * pmb.units.nm
+generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
-harmonic_bond = {'r_0'    : generic_bond_lenght,
+harmonic_bond = {'r_0'    : generic_bond_length,
                  'k'      : generic_harmonic_constant,
                  }
 
@@ -176,10 +190,8 @@ pmb.write_pmb_df (filename='df.csv')
 # Main loop for performing simulations at different pH-values
 labels_obs=["time","charge"]
 
-for index in range(len(pH_range)):
+for pH_value in pH_range:
     
-    pH_value=pH_range[index]
-
     time_series={}
 
     for label in labels_obs:
@@ -196,7 +208,7 @@ for index in range(len(pH_range)):
         else:
             RE.reaction( reaction_steps = total_ionisible_groups)
 
-        if ( step > steps_eq):
+        if step > steps_eq:
             # Get polyampholyte net charge
             charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
                     molecule_name="polyampholyte")      
@@ -206,9 +218,9 @@ for index in range(len(pH_range)):
                 time_series["time"].append(espresso_system.time)
             time_series["charge"].append(charge_dict["mean"])
 
-        if (step % N_samples_print == 0) :
+        if step % N_samples_print == 0:
             N_frame+=1
-            with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
+            with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
                 vtf.writevsf(espresso_system, coordinates)
                 vtf.writevcf(espresso_system, coordinates)
 
@@ -216,7 +228,7 @@ for index in range(len(pH_range)):
     processed_data = block_analyze(full_data=pd.DataFrame(time_series, columns=labels_obs))
     Z_pH.append(processed_data["mean", "charge"])
     err_Z_pH.append(processed_data["err_mean", "charge"])
-    print("pH = {:6.4g} done".format(pH_value))
+    print(f"pH = {pH_value:6.4g} done")
    
 
 if args.test:

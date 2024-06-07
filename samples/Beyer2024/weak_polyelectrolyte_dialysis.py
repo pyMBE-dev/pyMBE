@@ -1,20 +1,33 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 #######################################################
 # Loading modules 
 #######################################################
 
 # Load python modules
-import sys
 import os 
-import inspect
 import espressomd
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from espressomd import interactions
-from espressomd import electrostatics
 from scipy import interpolate
 import argparse
-import pickle
 
 # Import pyMBE
 import pyMBE
@@ -57,7 +70,8 @@ parser.add_argument('--output',
                     help='output directory')
 parser.add_argument('--no_verbose', 
                     action='store_false', 
-                    help="Switch to deactivate verbose")
+                    help="Switch to deactivate verbose",
+                    default=True)
 args = parser.parse_args()
 
 # Inputs

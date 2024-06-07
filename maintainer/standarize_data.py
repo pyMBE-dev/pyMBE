@@ -1,3 +1,21 @@
+#
+# Copyright (C) 2023-2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 # Import pyMBE and other libraries
 import pyMBE
 import numpy as np
@@ -46,7 +64,6 @@ Ref_blanco=["histatin5_SoftMatter.txt"]
 Ref_torres = ["1f6s-10mM-torres.dat","1beb-10mM-torres.dat" ]
 Ref_landsgesell=["data_landsgesell.csv"]
 
-
 if filename in Refs_lunkad:
     data=pd.read_csv(ref_path)
     Z_ref = 5*-1*data['aaa']+5*data['aab']
@@ -59,7 +76,6 @@ elif filename in Ref_blanco:
     data=np.loadtxt(ref_path, delimiter=",")
     Z_ref=data[:,1]         
     Z_ref_err=data[:,2]
-
     pH_range = np.linspace(2, 12, num=21)
     
 elif filename in Ref_torres:
@@ -81,21 +97,13 @@ elif filename in Ref_landsgesell:
 else:
     raise RuntimeError()
 
-
-# Store the data
-data=pd.DataFrame({"pH": pH_range,
-                  "charge": Z_ref,
-                  "charge_error": Z_ref_err})
-
-if filename in Refs_lunkad+Ref_blanco:
-    pH_range = np.linspace(2, 12, num=21)
-
-    # Store the data
+if filename in Refs_lunkad+Ref_blanco+Ref_torres:
+    # Create the pandas DataFrame
     data=pd.DataFrame({"pH": pH_range,
                       "charge": Z_ref,
                       "charge_error": Z_ref_err})
 
-
-data_path=pmb.get_resource(f"testsuite/data")
+# Store the data
+data_path=pmb.get_resource("testsuite/data")
 data.to_csv(f"{data_path}/{output_filenames[filename]}", 
             index=False)

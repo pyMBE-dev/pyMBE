@@ -1,9 +1,28 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import os
 from tqdm import tqdm
 import espressomd
 import argparse
+import numpy as np
 import pandas as pd 
-
+from espressomd.io.writer import vtf
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library(SEED=42)
@@ -14,10 +33,10 @@ from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_langevin_dynamics
 from lib import analysis
 # Here you can adjust the width of the panda columns displayed when running the code 
-pmb.pd.options.display.max_colwidth = 10
+pd.options.display.max_colwidth = 10
 
 #This line allows you to see the complete amount of rows in the dataframe
-pmb.pd.set_option('display.max_rows', None)
+pd.set_option('display.max_rows', None)
 
 valid_modes=["short-run","long-run", "test"]
 
@@ -40,16 +59,6 @@ parser.add_argument('--move_protein',
                     required= False, 
                     default=False,  
                     help='Activates the motion of the protein')
-parser.add_argument('--metal_ion_name', 
-                    type=str, 
-                    required= False, 
-                    default=None,  
-                    help='Name of the metal ion in the protein')
-parser.add_argument('--metal_ion_charge', 
-                    type=int, 
-                    required= False, 
-                    default=None,  
-                    help='Charge of the metal ion in the protein')
 
 parser.add_argument('--mode',
                     type=str,
@@ -61,19 +70,16 @@ parser.add_argument('--output',
                     required= False,
                     help='output directory')
 
-parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose")
-
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 
 args = parser.parse_args ()
-
 mode=args.mode
 verbose=args.no_verbose
-
 protein_name = args.pdb
 pH_value = args.pH 
 
 inputs={"pH": args.pH,
-        "protein_pdb": args.pdb}
+        "pdb": args.pdb}
 
 #System Parameters 
 LANGEVIN_SEED = 77 
@@ -84,6 +90,8 @@ Box_V =  1. / (pmb.N_A*c_protein)
 Box_L = Box_V**(1./3.) 
 solvent_permitivity = 78.3
 epsilon = 1*pmb.units('reduced_energy')
+sigma = 1*pmb.units("reduced_length")
+ion_size = 0.4*pmb.units.nm
 
 #Simulation Parameters
  #  in LJ units of time
@@ -125,45 +133,37 @@ espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 path_to_cg=pmb.get_resource(args.path_to_cg)
 topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
 #Defines the protein in the pmb.df
-pmb.define_protein (name=protein_name, topology_dict=topology_dict, model = '2beadAA')
-
-#Create dictionary with the value of epsilon and sigma for each residue
-clean_sequence = pmb.df.loc[pmb.df['name']== protein_name].sequence.values[0]
-
-epsilon_dict = {}
-
-for residue in clean_sequence:
-    if residue not in epsilon_dict.keys():
-        epsilon_dict [residue] = epsilon
-    epsilon_dict  ['CA'] = epsilon
-
-#Define epsilon for each particle into pmb.df
-pmb.define_particles_parameter_from_dict (param_dict = epsilon_dict,
-                                            param_name ='epsilon')
-
-#Defines the metal ion present in the protein 
-if args.metal_ion_name is not None:
-    pmb.define_particle(name = args.metal_ion_name, 
-                        q=args.metal_ion_charge, 
-                        sigma=0.355*pmb.units.nm, 
-                        epsilon=epsilon)
+pmb.define_protein (name=protein_name, 
+                    topology_dict=topology_dict, 
+                    model = '2beadAA',
+                    lj_setup_mode = "wca")
 
 # Here we define the solution particles in the pmb.df 
 cation_name = 'Na'
 anion_name = 'Cl'
 
-pmb.define_particle(name = cation_name, q = 1, sigma=0.4*pmb.units.nm, epsilon=epsilon)
-pmb.define_particle(name = anion_name,  q =-1, sigma=0.4*pmb.units.nm, epsilon=epsilon)
+pmb.define_particle(name = cation_name, 
+                    q = 1, 
+                    sigma=sigma, 
+                    epsilon=epsilon,
+                    offset=ion_size-sigma)
+
+pmb.define_particle(name = anion_name,  
+                    q =-1, 
+                    sigma=sigma, 
+                    epsilon=epsilon,
+                    offset=ion_size-sigma)
 
 # Here we upload the pka set from the reference_parameters folder
 path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.json') 
-pmb.load_pka_set (filename=path_to_pka)
+pmb.load_pka_set(filename=path_to_pka)
 
 #We create the protein in espresso 
 pmb.create_protein(name=protein_name,
-                               number_of_proteins=1,
-                               espresso_system=espresso_system,
-                               topology_dict=topology_dict)
+                    number_of_proteins=1,
+                    espresso_system=espresso_system,
+                    topology_dict=topology_dict)
+
 #Here we activate the motion of the protein 
 if args.move_protein:
     pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
@@ -180,10 +180,10 @@ pmb.create_counterions (object_name=protein_name,
                         anion_name=anion_name,
                         espresso_system=espresso_system)
 
-c_salt_calculated = pmb.create_added_salt (espresso_system=espresso_system,
-                                                    cation_name=cation_name,
-                                                    anion_name=anion_name,
-                                                    c_salt=c_salt)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
+                                          cation_name=cation_name,
+                                          anion_name=anion_name,
+                                          c_salt=c_salt)
 
 #Here we calculated the ionisible groups 
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
@@ -214,29 +214,27 @@ if verbose:
 
 # Setup the potential energy
 
-if (WCA):
+if WCA:
     pmb.setup_lj_interactions (espresso_system=espresso_system)
     minimize_espresso_system_energy (espresso_system=espresso_system)
-
-    if (Electrostatics):
-
+    if Electrostatics:
         setup_electrostatic_interactions (units=pmb.units,
                                         espresso_system=espresso_system,
                                         kT=pmb.kT)
 
 #Save the initial state 
 n_frame = 0
-pmb.write_output_vtf_file(espresso_system=espresso_system,
-                        filename=f"frames/trajectory{n_frame}.vtf")
+with open('frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as coordinates:
+    vtf.writevsf(espresso_system, coordinates)
+    vtf.writevcf(espresso_system, coordinates)
 
 setup_langevin_dynamics (espresso_system=espresso_system, 
                                     kT = pmb.kT, 
                                     SEED = LANGEVIN_SEED)
 
-observables_df = pmb.pd.DataFrame()
+observables_df = pd.DataFrame()
 time_step = []
 net_charge_list = []
-
 
 Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
@@ -285,17 +283,18 @@ for step in tqdm(range(N_samples),disable=not verbose):
             if label in AA_label_list:
                 charge_residues_per_type[label].append(charge_residues[amino])
 
-    if (step % stride_traj == 0  ):
+    if step % stride_traj == 0 :
         n_frame +=1
-        pmb.write_output_vtf_file(espresso_system=espresso_system,
-                                    filename=f"frames/trajectory{n_frame}.vtf")
+        with open('frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as coordinates:
+            vtf.writevsf(espresso_system, coordinates)
+            vtf.writevcf(espresso_system, coordinates)
 
     # Store observables
     time_series["time"].append(espresso_system.time)
     time_series["charge"].append(charge_dict["mean"])
     
     for label in AA_label_list:
-        charge_amino = pmb.np.mean(charge_residues_per_type[label])
+        charge_amino = np.mean(charge_residues_per_type[label])
         time_series[label].append(charge_amino)
 
 data_path = args.output
@@ -312,6 +311,3 @@ time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
 
 if verbose:
     print("*** DONE ***")
-
-
-

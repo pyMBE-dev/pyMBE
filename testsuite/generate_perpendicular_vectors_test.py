@@ -1,7 +1,26 @@
+#
+# Copyright (C) 2024 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import numpy as np
 import pyMBE
 from itertools import combinations
 pmb = pyMBE.pymbe_library(SEED=42)
+
 
 def check_if_different_perpendicular_vectors_are_generated(vector,magnitude,n=50):
     """
@@ -33,31 +52,31 @@ def check_if_different_perpendicular_vectors_are_generated(vector,magnitude,n=50
                                         desired = magnitude, 
                                         decimal = 5, 
                                         verbose = True)
-    return
 
-print(f"*** generate_trial_perpendicular_vector unit tests ***")
-print(f"*** Unit test: Check that the function creates perpendicular vectors to an arbitrary vector of the same magnitude  ***")
+
+print("*** generate_trial_perpendicular_vector unit tests ***")
+print("*** Unit test: Check that the function creates perpendicular vectors to an arbitrary vector of the same magnitude  ***")
 vector = pmb.generate_random_points_in_a_sphere(center=[0,0,0],
                                                 radius=1, 
                                                 n_samples=1, 
                                                 on_surface=True)[0]
 check_if_different_perpendicular_vectors_are_generated(vector=vector,
                                                     magnitude=1)
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: Check that the function creates perpendicular vectors to a vector with an arbitrary origin ***")
+print("*** Unit test passed ***")
+print("*** Unit test: Check that the function creates perpendicular vectors to a vector with an arbitrary origin ***")
 vector = pmb.generate_random_points_in_a_sphere(center=[1,2,3],
                                                 radius=1, 
                                                 n_samples=1, 
                                                 on_surface=True)[0]
 check_if_different_perpendicular_vectors_are_generated(vector=vector,
                                                     magnitude=1)
-print(f"*** Unit test passed ***")
-print(f"*** Unit test: Check that the function creates perpendicular vectors with a different magnitude  ***")
+print("*** Unit test passed ***")
+print("*** Unit test: Check that the function creates perpendicular vectors with a different magnitude  ***")
 vector = pmb.generate_random_points_in_a_sphere(center=[1,2,3],
                                                 radius=2, 
                                                 n_samples=1, 
                                                 on_surface=True)[0]
 check_if_different_perpendicular_vectors_are_generated(vector=vector,
                                                         magnitude=3)
-print(f"*** Unit test passed ***")
-print(f"*** All unit tests passed ***")
+print("*** Unit test passed ***")
+print("*** All unit tests passed ***")
