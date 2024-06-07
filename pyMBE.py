@@ -68,10 +68,10 @@ class pymbe_library():
         and sets up  the `pmb.df` for bookkeeping.
 
         Args:
-            temperature(`obj`,optional): Value of the temperature in the pyMBE UnitRegistry. Defaults to None.
-            unit_length(`obj`, optional): Value of the unit of length in the pyMBE UnitRegistry. Defaults to None.
-            unit_charge (`obj`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
-            Kw (`obj`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
+            temperature(`pint.Quantity`,optional): Value of the temperature in the pyMBE UnitRegistry. Defaults to None.
+            unit_length(`pint.Quantity`, optional): Value of the unit of length in the pyMBE UnitRegistry. Defaults to None.
+            unit_charge (`pint.Quantity`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            Kw (`pint.Quantity`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
         
         Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
@@ -92,12 +92,12 @@ class pymbe_library():
         Adds a bond entry on the `pymbe.df` storing the particle_ids of the two bonded particles.
 
         Args:
-            particle_id1 (`int`): particle_id of the type of the first particle type of the bonded particles
-            particle_id2 (`int`): particle_id of the type of the second particle type of the bonded particles
-            use_default_bond (`bool`, optional): Controls if a bond of type `default` is used to bond particle whose bond types are not defined in `pmb.df`. Defaults to False.
+            particle_id1(`int`): particle_id of the type of the first particle type of the bonded particles
+            particle_id2(`int`): particle_id of the type of the second particle type of the bonded particles
+            use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle whose bond types are not defined in `pmb.df`. Defaults to False.
 
         Returns:
-            index (`int`): Row index where the bond information has been added in pmb.df.
+            index(`int`): Row index where the bond information has been added in pmb.df.
         """
         particle_name1 = self.df.loc[(self.df['particle_id']==particle_id1) & (self.df['pmb_type']=="particle")].name.values[0]
         particle_name2 = self.df.loc[(self.df['particle_id']==particle_id2) & (self.df['pmb_type']=="particle")].name.values[0]
@@ -127,7 +127,7 @@ class pymbe_library():
         Adds all bonds defined in `pmb.df` to `espresso_system`.
 
         Args:
-            espresso_system (str): system object of espressomd library
+            espresso_system(`espressomd.system.System`): system object of espressomd library
         """
 
         if 'bond' in self.df.values:
@@ -193,8 +193,8 @@ class pymbe_library():
         Args:
             name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
             pmb_type(`str`): pmb_object_type to assign the `molecule_id` 
-            molecule_index (`int`): index of the current `pmb_object_type` to assign the `molecule_id`
-            used_molecules_id (`lst`): list with the `molecule_id` values already used.
+            molecule_index(`int`): index of the current `pmb_object_type` to assign the `molecule_id`
+            used_molecules_id(`lst`): list with the `molecule_id` values already used.
         
         Returns:
             molecule_id(`int`): Id of the molecule
@@ -229,7 +229,7 @@ class pymbe_library():
 
         Args:
             molecule_id(`int`): Id of the molecule whose center of mass is to be calculated.
-            espresso_system(`obj`): Instance of a system object from the espressomd library.
+            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
         
         Returns:
             center_of_mass(`lst`): Coordinates of the center of mass.
@@ -250,12 +250,12 @@ class pymbe_library():
         for molecules with the name `molecule_name`.
 
         Args:
-            molecule_name (`str`): name of the molecule to calculate the ideal charge for
+            molecule_name(`str`): name of the molecule to calculate the ideal charge for
             pH_list(`lst`): pH-values to calculate. 
             pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}
 
         Returns:
-            Z_HH (`lst`): Henderson-Hasselbalch prediction of the charge of `sequence` in `pH_list`
+            Z_HH(`lst`): Henderson-Hasselbalch prediction of the charge of `sequence` in `pH_list`
 
         Note:
             - This function supports objects with pmb types: "molecule", "peptide" and "protein".
@@ -315,10 +315,10 @@ class pymbe_library():
         Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.
 
         Args:
-            c_macro ('dict'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
-            c_salt ('float'): Salt concentration in the reservoir.
-            pH_list ('lst'): List of pH-values in the reservoir. 
-            pka_set ('dict'): {"name": {"pka_value": pka, "acidity": acidity}}.
+            c_macro('dict'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
+            c_salt('float'): Salt concentration in the reservoir.
+            pH_list('lst'): List of pH-values in the reservoir. 
+            pka_set('dict'): {"name": {"pka_value": pka, "acidity": acidity}}.
 
         Returns:
             {"charges_dict": {"name": charges}, "pH_system_list": pH_system_list, "partition_coefficients": partition_coefficients_list}
@@ -347,11 +347,11 @@ class pymbe_library():
             Calculates the charges of the different kinds of molecules according to the Henderson-Hasselbalch equation.
 
             Args:
-                c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
-                pH ('float'): pH-value that is used in the HH equation.
+                c_macro('dic'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
+                pH('float'): pH-value that is used in the HH equation.
 
             Returns:
-                charge ('dict'): {"molecule_name": charge}
+                charge('dict'): {"molecule_name": charge}
             """
             charge = {}
             for name in c_macro:
@@ -363,8 +363,8 @@ class pymbe_library():
             Calculates the partition coefficients of positive ions according to the ideal Donnan theory.
 
             Args:
-                charge ('dict'): {"molecule_name": charge}
-                c_macro ('dic'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
+                charge('dict'): {"molecule_name": charge}
+                c_macro('dict'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
             """
             nonlocal ionic_strength_res
             charge_density = 0.0
@@ -401,12 +401,12 @@ class pymbe_library():
         based on the minimum of the sum of bonded and short-range (LJ) interactions.
         
         Args:
-            bond_object (`cls`): instance of a bond object from espressomd library
-            bond_type (`str`): label identifying the used bonded potential
-            epsilon (`float`): LJ epsilon of the interaction between the particles
-            sigma (`float`): LJ sigma of the interaction between the particles
-            cutoff (`float`): cutoff-radius of the LJ interaction 
-            offset (`float`): offset of the LJ interaction
+            bond_object(`espressomd.interactions.BondedInteractions`): instance of a bond object from espressomd library
+            bond_type(`str`): label identifying the used bonded potential
+            epsilon(`pint.Quantity`): LJ epsilon of the interaction between the particles
+            sigma(`pint.Quantity`): LJ sigma of the interaction between the particles
+            cutoff(`pint.Quantity`): cutoff-radius of the LJ interaction 
+            offset(`pint.Quantity`): offset of the LJ interaction
         """    
         def truncated_lj_potential(x, epsilon, sigma, cutoff,offset):
             if x>cutoff:
@@ -436,11 +436,11 @@ class pymbe_library():
         Returns the net charge per molecule and a maps with the net charge per residue and molecule.
 
         Args:
-            espresso_system: system information 
-            molecule_name (str): name of the molecule to calculate the net charge
+            espresso_system(`espressomd.system.System`): system information 
+            molecule_name(`str`): name of the molecule to calculate the net charge
 
         Returns:
-            {"mean": mean_net_charge, "molecules": {mol_id: net_charge_of_mol_id, }, "residues": {res_id: net_charge_of_res_id, }}
+            (`dict`): {"mean": mean_net_charge, "molecules": {mol_id: net_charge_of_mol_id, }, "residues": {res_id: net_charge_of_res_id, }}
 
         Note:
             - The net charge of the molecule is averaged over all molecules of type `name` 
@@ -475,7 +475,7 @@ class pymbe_library():
         
         Args:
             molecule_id(`int`): Id of the molecule to be centered.
-            espresso_system(`obj`): Instance of a system object from the espressomd library.
+            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
         """
         if len(self.df.loc[self.df['molecule_id']==molecule_id].pmb_type) == 0:
             raise ValueError("The provided molecule_id is not present in the pyMBE dataframe.")      
@@ -530,11 +530,11 @@ class pymbe_library():
         Checks if the dimensionality of `variable` matches `expected_dimensionality`.
 
         Args:
-            `variable`(`pint.Quantity`): Quantity to be checked.
-            `expected_dimensionality(`str`): Expected dimension of the variable.
+            variable(`pint.Quantity`): Quantity to be checked.
+            expected_dimensionality(`str`): Expected dimension of the variable.
 
         Returns:
-            `bool`: `True` if the variable if of the expected dimensionality, `False` otherwise.
+            (`bool`): `True` if the variable if of the expected dimensionality, `False` otherwise.
 
         Note:
             - `expected_dimensionality` takes dimensionality following the Pint standards [docs](https://pint.readthedocs.io/en/0.10.1/wrapping.html?highlight=dimensionality#checking-dimensionality).
@@ -601,7 +601,7 @@ class pymbe_library():
         Checks that `pka_set` has the formatting expected by the pyMBE library.
        
         Args:
-            pka_set (dict): {"name" : {"pka_value": pka, "acidity": acidity}}
+            pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}
         """
         required_keys=['pka_value','acidity']
         for required_key in required_keys:
@@ -659,7 +659,7 @@ class pymbe_library():
         Convert a row read as a `str` to the corresponding bond object. There are two supported bonds: HarmonicBond and FeneBond
 
         Args:
-            bond_str (`str`): string with the information of a bond object
+            bond_str(`str`): string with the information of a bond object
 
         Returns:
             bond_object(`obj`): EsPRESSo bond object 
@@ -720,14 +720,14 @@ class pymbe_library():
         Creates a `c_salt` concentration of `cation_name` and `anion_name` ions into the `espresso_system`.
 
         Args:
-            espresso_system (`obj`): instance of an espresso system object.
+            espresso_system(`espressomd.system.System`): instance of an espresso system object.
             cation_name(`str`): `name` of a particle with a positive charge.
             anion_name(`str`): `name` of a particle with a negative charge.
             c_salt(`float`): Salt concentration.
             verbose(`bool`): switch to activate/deactivate verbose. Defaults to True.
             
         Returns:
-            c_salt_calculated (float): Calculated salt concentration added to `espresso_system`.
+            c_salt_calculated(`float`): Calculated salt concentration added to `espresso_system`.
         """
         cation_name_charge = self.df.loc[self.df['name']==cation_name].state_one.charge.values[0]
         anion_name_charge = self.df.loc[self.df['name']==anion_name].state_one.charge.values[0]     
@@ -761,8 +761,8 @@ class pymbe_library():
         Creates either a harmonic or a FENE bond in ESPREesSo
 
         Args:
-            bond_type (`str`)        : label to identify the potential to model the bond.
-            bond_parameters (`dict`) : parameters of the potential of the bond.
+            bond_type(`str`): label to identify the potential to model the bond.
+            bond_parameters(`dict`): parameters of the potential of the bond.
 
         Note:
             Currently, only HARMONIC and FENE bonds are supported.
@@ -823,13 +823,13 @@ class pymbe_library():
         
         Args:
             object_name(`str`): `name` of a pymbe object.
-            espresso_system(`obj`): Instance of a system object from the espressomd library.
+            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
             cation_name(`str`): `name` of a particle with a positive charge.
             anion_name(`str`): `name` of a particle with a negative charge.
             verbose(`bool`): switch to activate/deactivate verbose. Defaults to True.
 
         Returns: 
-            counterion_number (dict): {"name": number}
+            counterion_number(`dict`): {"name": number}
         """
         cation_charge = self.df.loc[self.df['name']==cation_name].state_one.charge.iloc[0]
         anion_charge = self.df.loc[self.df['name']==anion_name].state_one.charge.iloc[0]
@@ -871,13 +871,13 @@ class pymbe_library():
 
         Args:
             name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
-            espresso_system(`obj`): Instance of a system object from espressomd library.
+            espresso_system(`espressomd.system.System`): Instance of a system object from espressomd library.
             number_of_molecules(`int`): Number of molecules of type `name` to be created.
             list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default
             use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
 
         Returns:
-            molecules_info (`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
+            molecules_info(`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
         """
         if list_of_first_residue_positions is not None:
             for item in list_of_first_residue_positions:
@@ -987,10 +987,10 @@ class pymbe_library():
         Creates `number_of_particles` particles of type `name` into `espresso_system` and bookkeeps them into `pymbe.df`.
         
         Args:
-            name (`str`): Label of the particle type to be created. `name` must be a `particle` defined in `pmb_df`. 
-            espresso_system (`cls`): Instance of a system object from the espressomd library.
-            number_of_particles (`int`): Number of particles to be created.
-            position (list of [`float`,`float`,`float`], optional): Initial positions of the particles. If not given, particles are created in random positions. Defaults to None.
+            name(`str`): Label of the particle type to be created. `name` must be a `particle` defined in `pmb_df`. 
+            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
+            number_of_particles(`int`): Number of particles to be created.
+            position(list of [`float`,`float`,`float`], optional): Initial positions of the particles. If not given, particles are created in random positions. Defaults to None.
             fix(`bool`, optional): Controls if the particle motion is frozen in the integrator, it is used to create rigid objects. Defaults to False.
         Returns:
             created_pid_list(`list` of `float`): List with the ids of the particles created into `espresso_system`.
@@ -1038,7 +1038,7 @@ class pymbe_library():
         Args:
             name(`str`): Unique label of the `pmb object` to be created. 
             number_of_objects(`int`): Number of `pmb object`s to be created.
-            espresso_system(`obj`): Instance of an espresso system object from espressomd library.
+            espresso_system(`espressomd.system.System`): Instance of an espresso system object from espressomd library.
             position(`list`): Coordinates where the particles should be created.
             use_default_bond(`bool`,optional): Controls if a `default` bond is used to bond particles with undefined bonds in `pmb.df`. Defaults to `False`.
 
@@ -1073,7 +1073,7 @@ class pymbe_library():
 
         Args:
             name(`str`): Label of the protein to be created. 
-            espresso_system(`obj`): Instance of a system object from the espressomd library.
+            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
             number_of_proteins(`int`): Number of proteins to be created.
             positions(`dict`): {'ResidueNumber': {'initial_pos': [], 'chain_id': ''}}
         """
@@ -1135,13 +1135,13 @@ class pymbe_library():
 
         Args:
             name(`str`): Label of the residue type to be created. `name` must be defined in `pmb.df`
-            espresso_system(`obj`): Instance of a system object from espressomd library.
+            espresso_system(`espressomd.system.System`): Instance of a system object from espressomd library.
             central_bead_position(`list` of `float`): Position of the central bead.
-            use_default_bond (`bool`): Switch to control if a bond of type `default` is used to bond a particle whose bonds types are not defined in `pmb.df`
-            backbone_vector (`list` of `float`): Backbone vector of the molecule. All side chains are created perpendicularly to `backbone_vector`.
+            use_default_bond(`bool`): Switch to control if a bond of type `default` is used to bond a particle whose bonds types are not defined in `pmb.df`
+            backbone_vector(`list` of `float`): Backbone vector of the molecule. All side chains are created perpendicularly to `backbone_vector`.
 
         Returns:
-            residues_info (`dict`): {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
+            residues_info(`dict`): {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
         """
         self.check_if_name_is_defined_in_df(name=name,
                                             pmb_type_to_be_defined='residue')
@@ -1318,10 +1318,10 @@ class pymbe_library():
 
         Args:
             sequence(`lst`):  Sequence of the peptide or protein.
-            model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
+            model(`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
 
         Returns:
-            residue_list (`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.             
+            residue_list(`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.             
         """
         residue_list = []
         for residue_name in sequence:
@@ -1348,9 +1348,9 @@ class pymbe_library():
         Defines a pmb object of type `bond` in `pymbe.df`.
 
         Args:
-            bond_type (`str`)        : label to identify the potential to model the bond.
-            bond_parameters (`dict`) : parameters of the potential of the bond.
-            particle_pairs (`lst`)   : list of the `names` of the `particles` to be bonded.
+            bond_type(`str`): label to identify the potential to model the bond.
+            bond_parameters(`dict`): parameters of the potential of the bond.
+            particle_pairs(`lst`): list of the `names` of the `particles` to be bonded.
 
         Note:
             Currently, only HARMONIC and FENE bonds are supported.
@@ -1405,12 +1405,12 @@ class pymbe_library():
         The LJ parameters can be optionally provided to calculate the initial bond length
 
         Args:
-            bond_type (`str`)          : label to identify the potential to model the bond.
-            bond_parameters (`dict`)   : parameters of the potential of the bond.
-            sigma (`float`, optional)  : LJ sigma of the interaction between the particles.
-            epsilon (`float`, optional): LJ epsilon for the interaction between the particles.
-            cutoff (`float`, optional) : cutoff-radius of the LJ interaction.
-            offset (`float`, optional) : offset of the LJ interaction.
+            bond_type(`str`): label to identify the potential to model the bond.
+            bond_parameters(`dict`): parameters of the potential of the bond.
+            sigma(`float`, optional): LJ sigma of the interaction between the particles.
+            epsilon(`float`, optional): LJ epsilon for the interaction between the particles.
+            cutoff(`float`, optional): cutoff-radius of the LJ interaction.
+            offset(`float`, optional): offset of the LJ interaction.
 
         Note:
             - Currently, only harmonic and FENE bonds are supported. 
@@ -1456,8 +1456,8 @@ class pymbe_library():
         Defines a pyMBE object of type `molecule` in `pymbe.df`.
 
         Args:
-            name (`str`): Unique label that identifies the `molecule`.
-            residue_list (`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.  
+            name(`str`): Unique label that identifies the `molecule`.
+            residue_list(`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.  
         """
         if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='molecule'):
             return
@@ -1491,15 +1491,15 @@ class pymbe_library():
         Defines the properties of a particle object.
 
         Args:
-            name (`str`): Unique label that identifies this particle type.  
-            q (`int`, optional): Permanent charge of this particle type. Defaults to 0.
-            acidity (`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
-            pka (`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
-            sigma (`pint.Quantity`, optional): Sigma parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
-            cutoff (`pint.Quantity`, optional): Cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
-            offset (`pint.Quantity`, optional): Offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
-            epsilon (`pint.Quantity`, optional): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe. Defaults to None.
-            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
+            name(`str`): Unique label that identifies this particle type.  
+            q(`int`, optional): Permanent charge of this particle type. Defaults to 0.
+            acidity(`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
+            pka(`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
+            sigma(`pint.Quantity`, optional): Sigma parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            cutoff(`pint.Quantity`, optional): Cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            offset(`pint.Quantity`, optional): Offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
+            epsilon(`pint.Quantity`, optional): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe. Defaults to None.
+            verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False.
 
         Note:
@@ -1553,7 +1553,7 @@ class pymbe_library():
             verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
-            parameters = {"particle_name1: {"sigma": sigma_value, "epsilon": epsilon_value, ...}, particle_name2: {...},}
+            - parameters = {"particle_name1: {"sigma": sigma_value, "epsilon": epsilon_value, ...}, particle_name2: {...},}
         '''
         if not parameters:
             return 0
@@ -1649,9 +1649,9 @@ class pymbe_library():
         Defines a pyMBE object of type `residue` in `pymbe.df`.
 
         Args:
-            name (`str`): Unique label that identifies the `residue`.
-            central_bead (`str`): `name` of the `particle` to be placed as central_bead of the `residue`.
-            side_chains (`list` of `str`): List of `name`s of the pmb_objects to be placed as side_chains of the `residue`. Currently, only pmb_objects of type `particle`s or `residue`s are supported.
+            name(`str`): Unique label that identifies the `residue`.
+            central_bead(`str`): `name` of the `particle` to be placed as central_bead of the `residue`.
+            side_chains(`list` of `str`): List of `name`s of the pmb_objects to be placed as side_chains of the `residue`. Currently, only pmb_objects of type `particle`s or `residue`s are supported.
         """
         if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='residue'):
             return
@@ -1667,8 +1667,8 @@ class pymbe_library():
         Destroys all particles associated with `name` in `espresso_system` amd removes the destroyed pmb_objects from `pmb.df` 
 
         Args:
-            name (str): Label of the pmb object to be destroyed. The pmb object must be defined in `pymbe.df`.
-            espresso_system (cls): Instance of a system class from espressomd library.
+            name(`str`): Label of the pmb object to be destroyed. The pmb object must be defined in `pymbe.df`.
+            espresso_system(`espressomd.system.System`): Instance of a system class from espressomd library.
 
         Note:
             - If `name`  is a object_type=`particle`, only the matching particles that are not part of bigger objects (e.g. `residue`, `molecule`) will be destroyed. To destroy particles in such objects, destroy the bigger object instead.
@@ -1717,15 +1717,15 @@ class pymbe_library():
         This is a modified version of the code by Landsgesell et al. (doi.org/10.18419/darus-2237).
 
         Args:
-            pH_res ('float'): pH-value in the reservoir.
-            c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
-            activity_coefficient_monovalent_pair ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
+            pH_res('float'): pH-value in the reservoir.
+            c_salt_res('pint.Quantity'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
+            activity_coefficient_monovalent_pair('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
 
         Returns:
-            cH_res ('float'): Concentration of H+ ions.
-            cOH_res ('float'): Concentration of OH- ions.
-            cNa_res ('float'): Concentration of Na+ ions.
-            cCl_res ('float'): Concentration of Cl- ions.
+            cH_res('pint.Quantity'): Concentration of H+ ions.
+            cOH_res('pint.Quantity'): Concentration of OH- ions.
+            cNa_res('pint.Quantity'): Concentration of Na+ ions.
+            cCl_res('pint.Quantity'): Concentration of Cl- ions.
         """
 
         self_consistent_run = 0
@@ -1786,7 +1786,7 @@ class pymbe_library():
 
         Args:
             name(`str`): Label of the object.
-            espresso_system(`obj`): Instance of a system object from the espressomd library.
+            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
 
         Note:
             - It requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
@@ -1815,7 +1815,7 @@ class pymbe_library():
             pmb_type(`str`): pmb_object_type to filter in `pmb.df`.
 
         Returns:
-            pmb_type_df(`obj`): filtered `pmb.df`.
+            pmb_type_df(`Pandas.Dataframe`): filtered `pmb.df`.
         """
         pmb_type_df = self.df.loc[self.df['pmb_type']== pmb_type]
         pmb_type_df = pmb_type_df.dropna( axis=1, thresh=1)
@@ -1969,13 +1969,13 @@ class pymbe_library():
         If no bond is found, it prints a message and it does not return anything. If `hard_check` is activated, the code stops if no bond is found.
 
         Args:
-            particle_name1 (str): label of the type of the first particle type of the bonded particles.
-            particle_name2 (str): label of the type of the second particle type of the bonded particles.
-            hard_check (bool, optional): If it is activated, the code stops if no bond is found. Defaults to False. 
-            use_default_bond (bool, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
+            particle_name1(str): label of the type of the first particle type of the bonded particles.
+            particle_name2(str): label of the type of the second particle type of the bonded particles.
+            hard_check(bool, optional): If it is activated, the code stops if no bond is found. Defaults to False. 
+            use_default_bond(bool, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
 
         Returns:
-            l0 (`float`): bond length
+            l0(`pint.Quantity`): bond length
         
         Note:
             - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
@@ -2415,7 +2415,7 @@ class pymbe_library():
         Reads a pyMBE's Dataframe stored in `filename` and stores the information into pyMBE.
 
         Args:
-            filename(str): path to file.
+            filename(`str`): path to file.
 
         Note:
             This function only accepts files with CSV format. 
@@ -2517,13 +2517,13 @@ class pymbe_library():
         If no bond is found, it prints a message and it does not return anything. If `hard_check` is activated, the code stops if no bond is found.
 
         Args:
-            particle_name1 (str): label of the type of the first particle type of the bonded particles.
-            particle_name2 (str): label of the type of the second particle type of the bonded particles.
-            hard_check (bool, optional): If it is activated, the code stops if no bond is found. Defaults to False. 
-            use_default_bond (bool, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
+            particle_name1(`str`): label of the type of the first particle type of the bonded particles.
+            particle_name2(`str`): label of the type of the second particle type of the bonded particles.
+            hard_check(`bool`, optional): If it is activated, the code stops if no bond is found. Defaults to False. 
+            use_default_bond(`bool`, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
 
         Returns:
-            bond (cls): bond object from the espressomd library.
+            bond(`espressomd.interactions.BondedInteractions`): bond object from the espressomd library.
         
         Note:
             - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
@@ -2583,11 +2583,11 @@ class pymbe_library():
         deprotonated states. In each state is set: `label`,`charge` and `es_type`. If it is inert, it will define only `state_one`.
 
         Args:
-            name (`str`): Unique label that identifies the `particle`. 
-            acidity (`str`): Identifies whether the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
+            name(`str`): Unique label that identifies the `particle`. 
+            acidity(`str`): Identifies whether the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
             default_charge (`int`): Charge of the particle. Defaults to 0.
-            pka (`float`, optional):  If `particle` is an acid or a base, it defines its pka-value. Defaults to None.
-            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
+            pka(`float`, optional):  If `particle` is an acid or a base, it defines its pka-value. Defaults to None.
+            verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
         """
         acidity_valid_keys = ['inert','acidic', 'basic']
@@ -2673,11 +2673,11 @@ class pymbe_library():
         Sets the set of reduced units used by pyMBE.units and it prints it.
 
         Args:
-            unit_length (`obj`,optional): Reduced unit of length defined using the `pmb.units` UnitRegistry. Defaults to None. 
-            unit_charge (`obj`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
-            temperature (`obj`,optional): Temperature of the system, defined using the `pmb.units` UnitRegistry. Defaults to None. 
-            Kw (`obj`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
-            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
+            unit_length(`pint.Quantity`,optional): Reduced unit of length defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            unit_charge(`pint.Quantity`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            temperature(`pint.Quantity`,optional): Temperature of the system, defined using the `pmb.units` UnitRegistry. Defaults to None. 
+            Kw(`pint.Quantity`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
+            verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
@@ -2713,12 +2713,12 @@ class pymbe_library():
         Args:
             counter_ion(`str`): `name` of the counter_ion `particle`.
             constant_pH(`float`): pH-value.
-            exclusion_range(`float`, optional): Below this value, no particles will be inserted.
+            exclusion_range(`pint.Quantity`, optional): Below this value, no particles will be inserted.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
 
         Returns:
-            RE (`obj`): Instance of a reaction_ensemble.ConstantpHEnsemble object from the espressomd library.
+            RE(`reaction_methods.ConstantpHEnsemble`): Instance of a reaction_methods.ConstantpHEnsemble object from the espressomd library.
             sucessfull_reactions_labels(`lst`): Labels of the reactions set up by pyMBE.
         """
         from espressomd import reaction_methods
@@ -2763,15 +2763,15 @@ class pymbe_library():
         For reactive systems coupled to a reservoir, the grand-reaction method has to be used instead.
 
         Args:
-            c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
+            c_salt_res ('pint.Quantity'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
-            exclusion_range(`float`, optional): For distances shorter than this value, no particles will be inserted.
+            exclusion_range(`pint.Quantity`, optional): For distances shorter than this value, no particles will be inserted.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
 
         Returns:
-            RE (`obj`): Instance of a reaction_ensemble.ReactionEnsemble object from the espressomd library.
+            RE (`reaction_methods.ReactionEnsemble`): Instance of a reaction_methods.ReactionEnsemble object from the espressomd library.
         """
         from espressomd import reaction_methods
         if exclusion_range is None:
@@ -2831,20 +2831,20 @@ class pymbe_library():
 
         Args:
             pH_res ('float): pH-value in the reservoir.
-            c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
+            c_salt_res ('pint.Quantity'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             proton_name ('str'): Name of the proton (H+) particle.
             hydroxide_name ('str'): Name of the hydroxide (OH-) particle.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
-            exclusion_range(`float`, optional): For distances shorter than this value, no particles will be inserted.
+            exclusion_range(`pint.Quantity`, optional): For distances shorter than this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
 
         Returns:
             RE (`obj`): Instance of a reaction_ensemble.ReactionEnsemble object from the espressomd library.
             sucessful_reactions_labels(`lst`): Labels of the reactions set up by pyMBE.
-            ionic_strength_res ('float'): Ionic strength of the reservoir (useful for calculating partition coefficients).
+            ionic_strength_res ('pint.Quantity'): Ionic strength of the reservoir (useful for calculating partition coefficients).
         """
         from espressomd import reaction_methods
         if exclusion_range is None:
@@ -3041,16 +3041,16 @@ class pymbe_library():
 
         Args:
             pH_res ('float'): pH-value in the reservoir.
-            c_salt_res ('float'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
+            c_salt_res ('pint.Quantity'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             cation_name ('str'): Name of the cationic particle.
             anion_name ('str'): Name of the anionic particle.
             activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
-            exclusion_range(`float`, optional): Below this value, no particles will be inserted.
+            exclusion_range(`pint.Quantity`, optional): Below this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius per each espresso_type. Defaults to `False`.
 
         Returns:
-            RE (`obj`): Instance of a reaction_ensemble.ReactionEnsemble object from the espressomd library.
+            RE (`reaction_ensemble.ReactionEnsemble`): Instance of a reaction_ensemble.ReactionEnsemble object from the espressomd library.
             sucessful_reactions_labels(`lst`): Labels of the reactions set up by pyMBE.
             ionic_strength_res ('float'): Ionic strength of the reservoir (useful for calculating partition coefficients).
         """
@@ -3217,7 +3217,7 @@ class pymbe_library():
         Sets up the Lennard-Jones (LJ) potential between all pairs of particle types with values for `sigma`, `offset`, and `epsilon` stored in `pymbe.df`.
 
         Args:
-            espresso_system(`obj`): Instance of a system object from the espressomd library.
+            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
             shift_potential(`bool`, optional): If True, a shift will be automatically computed such that the potential is continuous at the cutoff radius. Otherwise, no shift will be applied. Defaults to True.
             combining_rule(`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential between a pair of particles. Defaults to 'Lorentz-Berthelot'.
             warning(`bool`, optional): switch to activate/deactivate warning messages. Defaults to True.
@@ -3294,7 +3294,7 @@ class pymbe_library():
         Writes the pyMBE dataframe into a csv file
         
         Args:
-            filename (`str`): Path to the csv file 
+            filename(`str`): Path to the csv file 
         '''
 
         self.df.to_csv(filename)

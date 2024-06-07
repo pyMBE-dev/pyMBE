@@ -38,8 +38,10 @@ def gcmc_test(script_path, mode):
             print(subprocess.list2cmdline(run_command))
             subprocess.check_output(run_command)
         # Analyze all time series
-        data=analysis.analyze_time_series(path_to_datafolder=time_series_path)
+        data=analysis.analyze_time_series(path_to_datafolder=time_series_path,
+                                          filename_extension="_time_series.csv")
 
+    print(data["csalt","value"])
     # Check concentration
     test_concentration=np.sort(data["csalt","value"].to_numpy(dtype=float))
     ref_concentration=np.sort(data["mean","c_salt"].to_numpy())

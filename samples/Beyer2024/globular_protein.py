@@ -79,7 +79,7 @@ protein_name = args.pdb
 pH_value = args.pH 
 
 inputs={"pH": args.pH,
-        "protein_pdb": args.pdb}
+        "pdb": args.pdb}
 
 #System Parameters 
 LANGEVIN_SEED = 77 
