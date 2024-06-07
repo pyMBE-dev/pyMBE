@@ -255,7 +255,7 @@ class pymbe_library():
             pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}
 
         Returns:
-            Z_HH (`lst`): Henderson-Hasselbalch prediction of the charge of `sequence` in `pH_list`
+            Z_HH(`lst`): Henderson-Hasselbalch prediction of the charge of `sequence` in `pH_list`
 
         Note:
             - This function supports objects with pmb types: "molecule", "peptide" and "protein".
@@ -440,7 +440,7 @@ class pymbe_library():
             molecule_name(`str`): name of the molecule to calculate the net charge
 
         Returns:
-            {"mean": mean_net_charge, "molecules": {mol_id: net_charge_of_mol_id, }, "residues": {res_id: net_charge_of_res_id, }}
+            (`dict`): {"mean": mean_net_charge, "molecules": {mol_id: net_charge_of_mol_id, }, "residues": {res_id: net_charge_of_res_id, }}
 
         Note:
             - The net charge of the molecule is averaged over all molecules of type `name` 
