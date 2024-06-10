@@ -34,11 +34,9 @@ molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 
 pos_list = [[10,10,10], [20,20,20], [30,30,30]]
 pmb.define_particle(name='central_mon',
-                        acidity='inert',
                         sigma=0.35*pmb.units.nm, 
                         epsilon=1*pmb.units('reduced_energy'))
 pmb.define_particle(name='side_mon',
-                        acidity='inert',
                         sigma=0.35*pmb.units.nm, 
                         epsilon=1*pmb.units('reduced_energy'))
 

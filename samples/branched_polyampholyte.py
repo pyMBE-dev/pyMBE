@@ -73,7 +73,6 @@ if args.test:
 # Inert particle 
 pmb.define_particle(
     name = "I",
-    acidity = "inert",
     q = 0,
     sigma = 1*pmb.units('reduced_length'),
     epsilon = 1*pmb.units('reduced_energy'))

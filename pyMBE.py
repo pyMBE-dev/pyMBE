@@ -1486,14 +1486,14 @@ class pymbe_library():
             self.df.at [index,'pmb_type'] = 'particle'
         return index
 
-    def define_particle(self, name, q=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None,verbose=True,overwrite=False):
+    def define_particle(self, name, q=0, acidity=None, pka=None, sigma=None, epsilon=None, cutoff=None, offset=None,verbose=True,overwrite=False):
         """
         Defines the properties of a particle object.
 
         Args:
             name(`str`): Unique label that identifies this particle type.  
             q(`int`, optional): Permanent charge of this particle type. Defaults to 0.
-            acidity(`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
+            acidity(`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to None.
             pka(`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
             sigma(`pint.Quantity`, optional): Sigma parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
             cutoff(`pint.Quantity`, optional): Cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
@@ -2200,10 +2200,7 @@ class pymbe_library():
                         elif not_requiered_key in without_units:
                             not_requiered_attributes[not_requiered_key]=param_dict.pop(not_requiered_key)
                     else:
-                        if not_requiered_key == 'acidity':
-                            not_requiered_attributes[not_requiered_key] = 'inert'
-                        else:    
-                            not_requiered_attributes[not_requiered_key]=None
+                        not_requiered_attributes[not_requiered_key]=None
                 self.define_particle(name=param_dict.pop('name'),
                                 q=not_requiered_attributes.pop('q'),
                                 sigma=not_requiered_attributes.pop('sigma'),
@@ -2577,25 +2574,34 @@ class pymbe_library():
 
         return list_of_particles_in_residue
 
-    def set_particle_acidity(self, name, acidity='inert', default_charge=0, pka=None, verbose=True, overwrite=True):
+    def set_particle_acidity(self, name, acidity=None, default_charge=0, pka=None, verbose=True, overwrite=True):
         """
-        Sets the particle acidity if it is acidic or basic, creates `state_one` and `state_two` with the protonated and 
-        deprotonated states. In each state is set: `label`,`charge` and `es_type`. If it is inert, it will define only `state_one`.
+        Sets the particle acidity including the charges in each of its possible states. 
 
         Args:
             name(`str`): Unique label that identifies the `particle`. 
-            acidity(`str`): Identifies whether the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
+            acidity(`str`): Identifies whether the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to None.
             default_charge (`int`): Charge of the particle. Defaults to 0.
             pka(`float`, optional):  If `particle` is an acid or a base, it defines its pka-value. Defaults to None.
             verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
+     
+        Note:
+            - For particles with  `acidity = acidic` or `acidity = basic`, `state_one` and `state_two` correspond to the protonated and 
+        deprotonated states, respectively. 
+            - For particles without an acidity `acidity = None`, only `state_one` is defined.
+            - Each state has the following properties as sub-indexes: `label`,`charge` and `es_type`. 
         """
         acidity_valid_keys = ['inert','acidic', 'basic']
-        if acidity not in acidity_valid_keys:
-            raise ValueError(f"Acidity {acidity} provided for particle name  {name} is not supproted. Valid keys are: {acidity_valid_keys}")
-        if acidity in ['acidic', 'basic'] and pka is None:
-            raise ValueError(f"pKa not provided for particle with name {name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
-        
+        if acidity is not None:
+            if acidity not in acidity_valid_keys:
+                raise ValueError(f"Acidity {acidity} provided for particle name  {name} is not supproted. Valid keys are: {acidity_valid_keys}")
+            if acidity in ['acidic', 'basic'] and pka is None:
+                raise ValueError(f"pKa not provided for particle with name {name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
+        if acidity == "inert":
+            acidity = None
+            print("Deprecation warning: the keyword 'inert' for acidity has been replaced by setting acidity = None. For backwards compatibility, acidity has been set to None. Support for `acidity = 'inert'` may be deprecated in future releases of pyMBE")
+
         self.define_particle_entry_in_df(name=name)
         
         for index in self.df[self.df['name']==name].index:       
@@ -2617,7 +2623,7 @@ class pymbe_library():
                                      new_value=self.propose_unused_type(), 
                                      verbose=verbose,
                                      overwrite=overwrite)  
-            if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'inert':
+            if pd.isna(self.df.loc [self.df['name']  == name].acidity.iloc[0]):
                 self.add_value_to_df(key=('state_one','charge'),
                                      index=index,
                                      new_value=default_charge, 

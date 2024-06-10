@@ -257,7 +257,7 @@ net_charge_residues = charge_dict ['residues']
 net_charge_amino_save = {}
 AA_label_list=[]    
 for amino in net_charge_residues.keys():
-    amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & (pmb.df['acidity'] != "inert")]
+    amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & ((pmb.df['acidity'] == "acidic") | (pmb.df['acidity'] == "basic"))]
     if not amino_part_row.empty:
         label = f'charge_{amino_part_row["name"].values[0]}'
         if label not in AA_label_list:
@@ -277,7 +277,7 @@ for step in tqdm(range(N_samples),disable=not verbose):
         charge_residues_per_type[label]=[]
 
     for amino in charge_residues.keys():
-        amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & (pmb.df['acidity'] != "inert")]
+        amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & ((pmb.df['acidity'] == "acidic") | (pmb.df['acidity'] == "basic"))]
         if not amino_part_row.empty:
             label = f'charge_{amino_part_row["name"].values[0]}'
             if label in AA_label_list:
