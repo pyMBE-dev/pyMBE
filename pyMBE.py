@@ -2137,6 +2137,25 @@ class pymbe_library():
         radius_map  = pd.concat([state_one,state_two],axis=0).to_dict()  
         return radius_map
 
+    def get_reduced_units(self):
+        """
+        Returns the  current set of reduced units defined in pyMBE.
+
+        Returns:
+            reduced_units_text(`str`): text with information about the current set of reduced units.
+
+        """
+        unit_length=self.units.Quantity(1,'reduced_length')
+        unit_energy=self.units.Quantity(1,'reduced_energy')
+        unit_charge=self.units.Quantity(1,'reduced_charge')
+        reduced_units_text = "\n".join(["Current set of reduced units:",
+                                       f"{unit_length.to('nm'):.5g} = {unit_length}",
+                                       f"{unit_energy.to('J'):.5g} = {unit_energy}",
+                                       f"{unit_charge.to('C'):.5g} = {unit_charge}",
+                                       f"Temperature: {(self.kT/self.Kb).to('K'):.5g}"
+                                        ])   
+        return reduced_units_text
+
     def get_resource(self, path):
         '''
         Locate a file resource of the pyMBE package.
@@ -2293,19 +2312,7 @@ class pymbe_library():
         sequence = sequence.split(",")[1:-1]
         return sequence
 
-    def print_reduced_units(self):
-        """
-        Prints the  current set of reduced units defined in pyMBE.units.
-        """
-        print("\nCurrent set of reduced units:")
-        unit_length=self.units.Quantity(1,'reduced_length')
-        unit_energy=self.units.Quantity(1,'reduced_energy')
-        unit_charge=self.units.Quantity(1,'reduced_charge')
-        print(f"{unit_length.to('nm'):.5g} = {unit_length}")
-        print(f"{unit_energy.to('J'):.5g} = {unit_energy}")
-        print(f"{unit_charge.to('C'):.5g} = {unit_charge}")
-        print(f"Temperature: {(self.kT/self.Kb).to('K'):.5g}")
-        print()
+    
 
     def propose_unused_type(self):
         """
@@ -2703,7 +2710,7 @@ class pymbe_library():
         self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = {unit_charge}')
         if verbose:        
-            self.print_reduced_units()
+            print(self.get_reduced_units())
         return
 
     def setup_cpH (self, counter_ion, constant_pH, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
