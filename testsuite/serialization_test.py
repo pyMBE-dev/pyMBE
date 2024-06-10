@@ -16,9 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import io
 import json
-import contextlib
 import unittest as ut
 import numpy as np
 import pandas as pd
@@ -53,7 +51,7 @@ class Serialization(ut.TestCase):
         self.assertEqual(params_out, params_ref)
 
     def test_pint_units(self):
-        ref_output = f"""Current set of reduced units:
+        ref_output =  """Current set of reduced units:
                             0.355 nanometer = 1 reduced_length 
                             4.1164e-21 joule = 1 reduced_energy 
                             1.6022e-19 coulomb = 1 reduced_charge 
