@@ -51,11 +51,12 @@ class Serialization(ut.TestCase):
         self.assertEqual(params_out, params_ref)
 
     def test_pint_units(self):
-        ref_output =  """Current set of reduced units:
-                            0.355 nanometer = 1 reduced_length 
-                            4.1164e-21 joule = 1 reduced_energy 
-                            1.6022e-19 coulomb = 1 reduced_charge 
-                            Temperature: 298.15 kelvin"""
+        ref_output =  "\n".join(["Current set of reduced units:",
+                                 "0.355 nanometer = 1 reduced_length",
+                                 "4.1164e-21 joule = 1 reduced_energy",
+                                 "1.6022e-19 coulomb = 1 reduced_charge",
+                                 "Temperature: 298.15 kelvin"
+                                ]) 
         pmb = pyMBE.pymbe_library(SEED=42)
         reduced_units = pmb.get_reduced_units()
         self.assertEqual(reduced_units, ref_output)

@@ -2148,11 +2148,12 @@ class pymbe_library():
         unit_length=self.units.Quantity(1,'reduced_length')
         unit_energy=self.units.Quantity(1,'reduced_energy')
         unit_charge=self.units.Quantity(1,'reduced_charge')
-        reduced_units_text=f"""Current set of reduced units:
-                            {unit_length.to('nm'):.5g} = {unit_length} 
-                            {unit_energy.to('J'):.5g} = {unit_energy} 
-                            {unit_charge.to('C'):.5g} = {unit_charge} 
-                            Temperature: {(self.kT/self.Kb).to('K'):.5g}"""
+        reduced_units_text = "\n".join(["Current set of reduced units:",
+                                       f"{unit_length.to('nm'):.5g} = {unit_length}",
+                                       f"{unit_energy.to('J'):.5g} = {unit_energy}",
+                                       f"{unit_charge.to('C'):.5g} = {unit_charge}",
+                                       f"Temperature: {(self.kT/self.Kb).to('K'):.5g}"
+                                        ])   
         return reduced_units_text
 
     def get_resource(self, path):
