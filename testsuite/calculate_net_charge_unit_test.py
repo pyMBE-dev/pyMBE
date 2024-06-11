@@ -20,7 +20,7 @@ import numpy as np
 import espressomd
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 print("*** Unit test: check that calculate_net_charge calculates the charge in a molecule properly ***")
 

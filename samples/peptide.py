@@ -26,7 +26,7 @@ from espressomd.io.writer import vtf
 import pyMBE
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convinience
 from lib.handy_functions import setup_electrostatic_interactions

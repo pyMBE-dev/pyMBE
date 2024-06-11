@@ -22,8 +22,8 @@ import pyMBE
 
 espresso_system = espressomd.System(box_l = [100]*3)
 
-def build_peptide_in_espresso(SEED):
-    pmb = pyMBE.pymbe_library(SEED=SEED)
+def build_peptide_in_espresso(seed):
+    pmb = pyMBE.pymbe_library(seed=seed)
 
     # Simulation parameters
     pmb.set_reduced_units(unit_length=0.4*pmb.units.nm,
@@ -69,7 +69,7 @@ def build_peptide_in_espresso(SEED):
     return np.asarray(positions)
 
 
-print("*** Check that the using the same SEED results in the same initial particle positions***")
+print("*** Check that the using the same seed results in the same initial particle positions***")
 positions1 = build_peptide_in_espresso(42)
 positions2 = build_peptide_in_espresso(42)
 

@@ -23,7 +23,7 @@ import pandas as pd
 import argparse 
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 # Expected inputs
 supported_filenames=["data_landsgesell.csv",

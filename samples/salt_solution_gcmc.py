@@ -30,7 +30,7 @@ import pyMBE
 from lib import analysis
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 
 

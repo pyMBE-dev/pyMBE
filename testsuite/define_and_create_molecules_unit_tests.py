@@ -22,7 +22,7 @@ import numpy as np
 import espressomd
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 # The unit tests for define_particle are in lj_tests.py and set_particle_acidity
 

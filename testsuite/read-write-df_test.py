@@ -24,7 +24,7 @@ import pandas as pd
 
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 print ('*** Unit tests: read and write from pyMBE dataframe ***')
 

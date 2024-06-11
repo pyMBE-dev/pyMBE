@@ -18,7 +18,7 @@
 
 import numpy as np
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 print("*** Running HH tests ***\n")
 

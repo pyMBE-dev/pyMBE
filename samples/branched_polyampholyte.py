@@ -28,7 +28,7 @@ import pyMBE
 
 # Create an instance of pyMBE library
 
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 # Command line arguments
 parser = argparse.ArgumentParser(description='Script that runs a Monte Carlo simulation of an ideal branched polyampholyte using pyMBE and ESPResSo.')

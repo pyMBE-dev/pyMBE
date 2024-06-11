@@ -19,7 +19,7 @@
 import numpy as np 
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 print("*** Unit test: Check  that check_aminoacid_key returns True for any latter valid in the one letter amino acid code***")
 valid_AA_keys=['V', 'I', 'L', 'E', 'Q', 'D', 'N', 'H', 'W', 'F', 'Y', 'R', 'K', 'S', 'T', 'M', 'A', 'G', 'P', 'C']

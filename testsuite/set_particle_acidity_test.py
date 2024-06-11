@@ -21,7 +21,7 @@ import numpy as np
 import pyMBE
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 def check_acid_base_setup(input_parameters,acidity_setup):
     """

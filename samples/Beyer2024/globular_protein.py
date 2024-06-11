@@ -25,7 +25,7 @@ import pandas as pd
 from espressomd.io.writer import vtf
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 #Import functions from handy_functions script 
 from lib.handy_functions import setup_electrostatic_interactions

@@ -49,7 +49,7 @@ def gcmc_test(script_path, mode):
     print("*** Test was successful ***")
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 script_path=pmb.get_resource("samples/salt_solution_gcmc.py")
 salt_concentrations=[0.0001, 0.001, 0.01, 0.1]

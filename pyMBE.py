@@ -46,7 +46,7 @@ class pymbe_library():
     df=None
     kT=None
     Kw=None
-    SEED=None
+    seed=None
     rng=None
 
 
@@ -62,7 +62,7 @@ class pymbe_library():
                 return obj.item()
             return super().default(obj)
 
-    def __init__(self, SEED, temperature=None, unit_length=None, unit_charge=None, Kw=None):
+    def __init__(self, seed, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
         Initializes the pymbe_library by setting up the reduced unit system with `temperature` and `reduced_length` 
         and sets up  the `pmb.df` for bookkeeping.
@@ -80,8 +80,8 @@ class pymbe_library():
             - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
         # Seed and RNG
-        self.SEED=SEED
-        self.rng = np.random.default_rng(SEED)
+        self.seed=seed
+        self.rng = np.random.default_rng(seed)
         self.set_reduced_units(unit_length=unit_length, unit_charge=unit_charge,
                                temperature=temperature, Kw=Kw, verbose=False)
         self.setup_df()
@@ -2741,7 +2741,7 @@ class pymbe_library():
         
         RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=self.SEED, 
+                                                    seed=self.seed, 
                                                     constant_pH=constant_pH,
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
@@ -2794,7 +2794,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=self.SEED, 
+                                                    seed=self.seed, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 
@@ -2870,7 +2870,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=self.SEED, 
+                                                    seed=self.seed, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 
@@ -3078,7 +3078,7 @@ class pymbe_library():
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=self.SEED, 
+                                                    seed=self.seed, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 

@@ -20,7 +20,7 @@ import numpy as np
 import espressomd
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 # Define a set of ions
 pmb.define_particle(name="Na", 

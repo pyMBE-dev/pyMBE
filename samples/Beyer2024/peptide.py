@@ -29,7 +29,7 @@ from lib import analysis
 from lib import handy_functions as hf
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 valid_modes=["short-run","long-run", "test"]
 parser = argparse.ArgumentParser(description='Script to run the peptide test cases for pyMBE')
