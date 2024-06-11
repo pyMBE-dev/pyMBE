@@ -168,12 +168,12 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                      c_salt=c_salt,
                     verbose=verbose)
 
-RE, successful_reactions_labels = pmb.setup_cpH(counter_ion=cation_name,
+cpH, labels = pmb.setup_cpH(counter_ion=cation_name,
                                                 constant_pH=pH)
 
 if verbose:
     print(f"The box length of your system is {L.to('reduced_length')} = {L.to('nm')}")
-    print(f"The acid-base reaction has been successfully setup for {successful_reactions_labels}")
+    print(f"The acid-base reaction has been successfully setup for {labels}")
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 type_map =pmb.get_type_map()
@@ -181,7 +181,7 @@ espresso_system.setup_type_map(type_list = list(type_map.values()))
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
-RE.set_non_interacting_type (type=non_interacting_type)
+cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
     print(f"The non-interacting type is set to {non_interacting_type}")
 
@@ -218,7 +218,7 @@ for sample in tqdm.trange(Nsamples,disable=not verbose):
     # Run LD
     espresso_system.integrator.run(steps=MD_steps_per_sample)
     # Run MC
-    RE.reaction(reaction_steps=len(sequence))
+    cpH.reaction(reaction_steps=len(sequence))
     # Sample observables
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system,
                                             molecule_name=sequence)

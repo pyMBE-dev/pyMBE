@@ -118,8 +118,8 @@ print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
 print('The ionisable groups in your peptide are ', list_ionisible_groups)
 
-RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=2)
-print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
+cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=2)
+print('The acid-base reaction has been sucessfully setup for ', labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 type_map =pmb.get_type_map()
@@ -128,7 +128,7 @@ espresso_system.setup_type_map( type_list = types)
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
-RE.set_non_interacting_type (type=non_interacting_type)
+cpH.set_non_interacting_type (type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
 #Setup the potential energy
@@ -162,7 +162,7 @@ for index in tqdm(range(len(pH_range))):
     pH_value=pH_range[index]
     # Sample list inicialization
     Z_sim=[]
-    RE.constant_pH = pH_value
+    cpH.constant_pH = pH_value
 
     # Inner loop for sampling each pH value
 
@@ -171,7 +171,7 @@ for index in tqdm(range(len(pH_range))):
         if np.random.random() > probability_reaction:
             espresso_system.integrator.run(steps=MD_steps_per_sample)        
         else:
-            RE.reaction( reaction_steps = total_ionisible_groups)
+            cpH.reaction( reaction_steps = total_ionisible_groups)
 
         if step > steps_eq:
             # Get peptide net charge

@@ -197,10 +197,10 @@ if verbose:
     print ('The total amount of ionizable groups are:',total_ionisible_groups)
 
 #Setup of the reactions in espresso 
-RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, 
-                                                constant_pH= pH_value)
+cpH, labels = pmb.setup_cpH(counter_ion=cation_name, 
+                            constant_pH= pH_value)
 if verbose:
-    print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
+    print('The acid-base reaction has been sucessfully setup for ', labels)
 
 type_map = pmb.get_type_map()
 types = list (type_map.values())
@@ -208,7 +208,7 @@ espresso_system.setup_type_map( type_list = types)
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
-RE.set_non_interacting_type (type=non_interacting_type)
+cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
     print('The non interacting type is set to ', non_interacting_type)
 
@@ -267,7 +267,7 @@ for amino in net_charge_residues.keys():
 
 for step in tqdm(range(N_samples),disable=not verbose):      
     espresso_system.integrator.run (steps = integ_steps)
-    RE.reaction( reaction_steps = total_ionisible_groups)
+    cpH.reaction(reaction_steps = total_ionisible_groups)
     charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
                                             molecule_name=protein_name)
     charge_residues = charge_dict['residues']
