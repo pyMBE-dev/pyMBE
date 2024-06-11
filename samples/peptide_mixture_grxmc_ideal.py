@@ -182,9 +182,9 @@ total_ionisible_groups = len (list_ionisible_groups)
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 
 if args.mode == 'standard':
-    grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name)
+    grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, activity_coefficient=lambda x: 1.0)
 elif args.mode == 'unified':
-    grxmc, labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=2, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name)
+    grxmc, labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=2, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name, activity_coefficient=lambda x: 1.0)
 print('The acid-base reaction has been sucessfully setup for ', labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
@@ -231,9 +231,9 @@ for pH_value in pH_range:
         time_series[label]=[]
 
     if args.mode == 'standard':
-        grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name)
+        grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, activity_coefficient=lambda x: 1.0)
     elif args.mode == 'unified':
-        grxmc, labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name)
+        grxmc, labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name, activity_coefficient=lambda x: 1.0)
 
     # Inner loop for sampling each pH value
 

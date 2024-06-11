@@ -108,7 +108,7 @@ if args.mode == "interacting":
     activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
     RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, activity_coefficient=activity_coefficient_monovalent_pair)
 elif args.mode == "ideal":
-    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name)
+    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, activity_coefficient=lambda x: 1.0)
 if verbose:
     print("Set up GCMC...")
 

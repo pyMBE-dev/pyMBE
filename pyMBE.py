@@ -2764,7 +2764,7 @@ class pymbe_library():
             sucessfull_reactions_labels.append(name)
         return RE, sucessfull_reactions_labels
 
-    def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, activity_coefficient=None, exclusion_range=None, use_exclusion_radius_per_type = False):
+    def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, activity_coefficient, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
         Sets up grand-canonical coupling to a reservoir of salt.
         For reactive systems coupled to a reservoir, the grand-reaction method has to be used instead.
@@ -2773,7 +2773,7 @@ class pymbe_library():
             c_salt_res ('pint.Quantity'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
-            activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
+            activity_coefficient ('callable'): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`pint.Quantity`, optional): For distances shorter than this value, no particles will be inserted.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
 
@@ -2787,10 +2787,6 @@ class pymbe_library():
             exclusion_radius_per_type = self.get_radius_map()
         else:
             exclusion_radius_per_type = {}
-        
-        #If no function for the activity coefficient is provided, the ideal case is assumed.
-        if activity_coefficient is None:
-            activity_coefficient = lambda x: 1.0
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
@@ -2828,7 +2824,7 @@ class pymbe_library():
 
         return RE
 
-    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, activity_coefficient, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2843,7 +2839,7 @@ class pymbe_library():
             hydroxide_name ('str'): Name of the hydroxide (OH-) particle.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
-            activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
+            activity_coefficient ('callable'): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`pint.Quantity`, optional): For distances shorter than this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
@@ -2863,10 +2859,6 @@ class pymbe_library():
             exclusion_radius_per_type = self.get_radius_map()
         else:
             exclusion_radius_per_type = {}
-        
-        #If no function for the activity coefficient is provided, the ideal case is assumed.
-        if activity_coefficient is None:
-            activity_coefficient = lambda x: 1.0
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
@@ -3036,7 +3028,7 @@ class pymbe_library():
             sucessful_reactions_labels.append(name)
         return RE, sucessful_reactions_labels, ionic_strength_res
 
-    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_unified(self, pH_res, c_salt_res, cation_name, anion_name, activity_coefficient, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -3051,7 +3043,7 @@ class pymbe_library():
             c_salt_res ('pint.Quantity'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             cation_name ('str'): Name of the cationic particle.
             anion_name ('str'): Name of the anionic particle.
-            activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
+            activity_coefficient ('callable'): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`pint.Quantity`, optional): Below this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius per each espresso_type. Defaults to `False`.
@@ -3071,10 +3063,6 @@ class pymbe_library():
             exclusion_radius_per_type = self.get_radius_map()
         else:
             exclusion_radius_per_type = {}
-        
-        #If no function for the activity coefficient is provided, the ideal case is assumed.
-        if activity_coefficient is None:
-            activity_coefficient = lambda x: 1.0
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
