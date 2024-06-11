@@ -2211,25 +2211,25 @@ class pymbe_library():
             param_dict=interaction_parameter_set[key]
             object_type=param_dict['object_type']
             if object_type == 'particle':
-                not_requiered_attributes={}    
-                for not_requiered_key in without_units+with_units:
-                    if not_requiered_key in param_dict.keys():
-                        if not_requiered_key in with_units:
-                            not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable=param_dict.pop(not_requiered_key))
-                        elif not_requiered_key in without_units:
-                            not_requiered_attributes[not_requiered_key]=param_dict.pop(not_requiered_key)
+                not_required_attributes={}    
+                for not_required_key in without_units+with_units:
+                    if not_required_key in param_dict.keys():
+                        if not_required_key in with_units:
+                            not_required_attributes[not_required_key]=self.create_variable_with_units(variable=param_dict.pop(not_required_key))
+                        elif not_required_key in without_units:
+                            not_required_attributes[not_required_key]=param_dict.pop(not_required_key)
                     else:
-                        if not_requiered_key == 'acidity':
-                            not_requiered_attributes[not_requiered_key] = 'inert'
+                        if not_required_key == 'acidity':
+                            not_required_attributes[not_required_key] = 'inert'
                         else:    
-                            not_requiered_attributes[not_requiered_key]=None
+                            not_required_attributes[not_required_key]=None
                 self.define_particle(name=param_dict.pop('name'),
-                                q=not_requiered_attributes.pop('q'),
-                                sigma=not_requiered_attributes.pop('sigma'),
-                                offset=not_requiered_attributes.pop('offset'),
-                                cutoff=not_requiered_attributes.pop('cutoff'),
-                                acidity=not_requiered_attributes.pop('acidity'),
-                                epsilon=not_requiered_attributes.pop('epsilon'),
+                                q=not_required_attributes.pop('q'),
+                                sigma=not_required_attributes.pop('sigma'),
+                                offset=not_required_attributes.pop('offset'),
+                                cutoff=not_required_attributes.pop('cutoff'),
+                                acidity=not_required_attributes.pop('acidity'),
+                                epsilon=not_required_attributes.pop('epsilon'),
                                 verbose=verbose,
                                 overwrite=overwrite)
             elif object_type == 'residue':
