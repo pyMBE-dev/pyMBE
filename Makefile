@@ -53,6 +53,7 @@ unit_tests:
 	${PYTHON} testsuite/setup_salt_ions_unit_tests.py
 	${PYTHON} testsuite/globular_protein_unit_tests.py
 	${PYTHON} testsuite/analysis_tests.py
+	${PYTHON} testsuite/charge_number_map_tests.py
 
 functional_tests:
 	${PYTHON} testsuite/cph_ideal_tests.py

@@ -29,7 +29,7 @@ def check_acid_base_setup(input_parameters,acidity_setup):
 
     Args:
         input_parameters(`dict`): dictionary with the input parameters for define_particle.
-        acidity_setup(`dict`): dictionary with the expected setup that pyMBE should do in the pmb.df foor acid/base particles.
+        acidity_setup(`dict`): dictionary with the expected setup that pyMBE should do in the pmb.df for acid/base particles.
 
     """
     pmb.define_particle(**input_parameters)
