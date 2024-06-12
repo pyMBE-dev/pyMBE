@@ -42,7 +42,7 @@ def check_acid_base_setup(input_parameters,acidity_setup):
                                     verbose=True)
     # Checks that the setup of the acid base properties is done correctly
     for state in ["state_one","state_two"]:
-        for state_atribute in ["label","charge"]:
+        for state_atribute in ["label","z"]:
             np.testing.assert_equal(actual=pmb.df[state][state_atribute].values[0], 
                                     desired=acidity_setup[state][state_atribute], 
                                     verbose=True)
@@ -59,9 +59,9 @@ input_parameters={"name":"I",
                   "pka": np.nan,
                   "z":2}
 acidity_setup={"state_one":{"label":f"{input_parameters['name']}",
-                         "charge":2},
+                         "z":2},
             "state_two":{"label": np.nan,
-                         "charge":np.nan},}
+                         "z":np.nan},}
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
@@ -74,9 +74,9 @@ input_parameters={"name":"A",
                   "acidity": "acidic",
                   "pka":4}
 acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
-                         "charge":0},
+                         "z":0},
             "state_two":{"label":f"{input_parameters['name']}",
-                         "charge":-1},}
+                         "z":-1},}
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
@@ -88,9 +88,9 @@ input_parameters={"name":"B",
                   "acidity": "basic",
                   "pka":9}
 acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
-                         "charge":1},
+                         "z":1},
             "state_two":{"label":f"{input_parameters['name']}",
-                         "charge":0},}
+                         "z":0},}
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)

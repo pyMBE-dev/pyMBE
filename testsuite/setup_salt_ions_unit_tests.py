@@ -46,7 +46,7 @@ espresso_system.setup_type_map(type_map.values())
 #### Unit tests for the added salt
 
 def check_salt_concentration(espresso_system,cation_name,anion_name,c_salt,N_SALT_ION_PAIRS, verbose=False):
-    charge_map=pmb.get_charge_map()
+    charge_number_map=pmb.get_charge_number_map()
     type_map=pmb.get_type_map()
     espresso_system.setup_type_map(type_map.values())
     c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
@@ -55,8 +55,8 @@ def check_salt_concentration(espresso_system,cation_name,anion_name,c_salt,N_SAL
                                             c_salt=c_salt,
                                             verbose=verbose)
 
-    np.testing.assert_equal(espresso_system.number_of_particles(type_map[cation_name]),N_SALT_ION_PAIRS*abs(charge_map[type_map[anion_name]]))
-    np.testing.assert_equal(espresso_system.number_of_particles(type_map[anion_name]),N_SALT_ION_PAIRS*abs(charge_map[type_map[cation_name]]))
+    np.testing.assert_equal(espresso_system.number_of_particles(type_map[cation_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[anion_name]]))
+    np.testing.assert_equal(espresso_system.number_of_particles(type_map[anion_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[cation_name]]))
     np.testing.assert_almost_equal(c_salt_calculated.m_as("mol/L"), c_salt.m_as("mol/L"))
     espresso_system.part.clear()
 print("*** Unit test: test that create_added_salt works for a 1:1 salt (NaCl-like). Should print the added salt concentration and number of ions ***")
