@@ -35,13 +35,13 @@ np.testing.assert_equal(actual=output,
 print("*** Unit test: check that define_particles() defines a set of particles correctly ***")
 particle_parameters={"S1":{"name": "S1",
                             "sigma":1*pmb.units.nm,
-                            "q":0},
+                            "z":0},
                     "S2":{"name": "S2",
                             "sigma":2*pmb.units.nm,
-                            "q": 1},
+                            "z": 1},
                     "S3":{"name": "S3",
                             "sigma":3*pmb.units.nm,
-                            "q":2}}
+                            "z":2}}
 pmb.define_particles(parameters=particle_parameters)
 
 for particle_name in particle_parameters.keys():
@@ -140,7 +140,7 @@ for pid in particle_ids:
                                 desired=type_map["S1"], 
                                 verbose=True)
     np.testing.assert_equal(actual=particle.q, 
-                                desired=particle_parameters["S1"]["q"], 
+                                desired=particle_parameters["S1"]["z"], 
                                 verbose=True)
     np.testing.assert_equal(actual=particle.fix, 
                                 desired=[True]*3, 
@@ -201,7 +201,7 @@ for pid in particle_ids:
                                 desired=type_map[particle_name], 
                                 verbose=True)
     np.testing.assert_equal(actual=particle.q, 
-                                desired=particle_parameters[particle_name]["q"], 
+                                desired=particle_parameters[particle_name]["z"], 
                                 verbose=True)
     # Check that the position are correct
     # Central bead
@@ -266,7 +266,7 @@ for pid in particle_ids:
                                 desired=type_map[particle_name], 
                                 verbose=True)
     np.testing.assert_equal(actual=particle.q, 
-                                desired=particle_parameters[particle_name]["q"], 
+                                desired=particle_parameters[particle_name]["z"], 
                                 verbose=True)
     # Check that particles have the correct residue id
     residue_id = pmb.df[(pmb.df['particle_id']==pid) & (pmb.df['pmb_type']=="particle")]["residue_id"].values[0]
@@ -346,7 +346,7 @@ for pid in particle_ids:
                                 desired=type_map[particle_name], 
                                 verbose=True)
     np.testing.assert_equal(actual=particle.q, 
-                                desired=particle_parameters[particle_name]["q"], 
+                                desired=particle_parameters[particle_name]["z"], 
                                 verbose=True)
     # Check that particles have the correct residue id
     residue_id = pmb.df[(pmb.df['particle_id']==pid) & (pmb.df['pmb_type']=="particle")]["residue_id"].values[0]

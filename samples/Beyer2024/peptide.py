@@ -129,13 +129,13 @@ anion_name = 'Cl'
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
 pmb.define_particle(name=cation_name,
-                    q=1,
+                    z=1,
                     sigma=sigma,
                     epsilon=1*pmb.units('reduced_energy'),
                     offset=offset_cation)
 
 pmb.define_particle(name=anion_name,
-                    q=-1,
+                    z=-1,
                     sigma=sigma,
                     epsilon=1*pmb.units('reduced_energy'),
                     offset=offset_anion)

@@ -1004,7 +1004,7 @@ class pymbe_library():
                           column_name='particle_id',
                           number_of_copies=number_of_particles)
         # Get information from the particle type `name` from the df     
-        q = self.df.loc[self.df['name']==name].state_one.charge.values[0]
+        z = self.df.loc[self.df['name']==name].state_one.charge.values[0]
         es_type = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
         # Get a list of the index in `df` corresponding to the new particles to be created
         index = np.where(self.df['name']==name)
@@ -1025,9 +1025,9 @@ class pymbe_library():
             created_pid_list.append(bead_id)
             
             if fix:
-                espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q,fix =[fix,fix,fix])        
+                espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = z,fix =[fix,fix,fix])        
             else:
-                espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q)        
+                espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = z)        
             self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, verbose=False)                  
         return created_pid_list
 
@@ -1486,13 +1486,13 @@ class pymbe_library():
             self.df.at [index,'pmb_type'] = 'particle'
         return index
 
-    def define_particle(self, name, q=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None,verbose=True,overwrite=False):
+    def define_particle(self, name, z=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None,verbose=True,overwrite=False):
         """
         Defines the properties of a particle object.
 
         Args:
             name(`str`): Unique label that identifies this particle type.  
-            q(`int`, optional): Permanent charge of this particle type. Defaults to 0.
+            z(`int`, optional): Permanent charge number of this particle type. Defaults to 0.
             acidity(`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
             pka(`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
             sigma(`pint.Quantity`, optional): Sigma parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
@@ -1537,7 +1537,7 @@ class pymbe_library():
         # Define particle acid/base properties
         self.set_particle_acidity(name=name, 
                                 acidity=acidity, 
-                                default_charge=q, 
+                                default_charge=z, 
                                 pka=pka,
                                 verbose=verbose,
                                 overwrite=overwrite)
@@ -1623,10 +1623,10 @@ class pymbe_library():
                                         "epsilon": epsilon,
                                         "name": particle_name}
                 if self.check_if_metal_ion(key=particle_name):
-                    q=metal_ions_charge_map[particle_name]
+                    z=metal_ions_charge_map[particle_name]
                 else:
-                    q=0
-                part_dict[particle_name]["q"]=q
+                    z=0
+                part_dict[particle_name]["z"]=z
             
             if self.check_aminoacid_key(key=particle_name):
                 sequence.append(particle_name) 
@@ -2200,7 +2200,7 @@ class pymbe_library():
             verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to False.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
         """
-        without_units = ['q','es_type','acidity']
+        without_units = ['z','es_type','acidity']
         with_units = ['sigma','epsilon','offset','cutoff']
 
         with open(filename, 'r') as f:
@@ -2224,7 +2224,7 @@ class pymbe_library():
                         else:    
                             not_required_attributes[not_required_key]=None
                 self.define_particle(name=param_dict.pop('name'),
-                                q=not_required_attributes.pop('q'),
+                                z=not_required_attributes.pop('z'),
                                 sigma=not_required_attributes.pop('sigma'),
                                 offset=not_required_attributes.pop('offset'),
                                 cutoff=not_required_attributes.pop('cutoff'),

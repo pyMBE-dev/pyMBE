@@ -143,13 +143,13 @@ cation_name = 'Na'
 anion_name = 'Cl'
 
 pmb.define_particle(name = cation_name, 
-                    q = 1, 
+                    z = 1, 
                     sigma=sigma, 
                     epsilon=epsilon,
                     offset=ion_size-sigma)
 
 pmb.define_particle(name = anion_name,  
-                    q =-1, 
+                    z =-1, 
                     sigma=sigma, 
                     epsilon=epsilon,
                     offset=ion_size-sigma)

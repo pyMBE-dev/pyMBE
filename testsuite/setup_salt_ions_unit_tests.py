@@ -24,13 +24,13 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 # Define a set of ions
 pmb.define_particle(name="Na", 
-                    q=1)
+                    z=1)
 pmb.define_particle(name="Ca", 
-                    q=2)
+                    z=2)
 pmb.define_particle(name="Cl", 
-                    q=-1)
+                    z=-1)
 pmb.define_particle(name="SO4", 
-                    q=-2)
+                    z=-2)
 
 type_map=pmb.get_type_map()
 # System parameters
@@ -129,11 +129,11 @@ print("*** Unit test passed ***")
 
 def setup_molecules():
     pmb.define_particle(name='0P',
-                            q=0)
+                            z=0)
     pmb.define_particle(name='+1P',
-                        q=+1)
+                        z=+1)
     pmb.define_particle(name='-1P',
-                        q=-1)
+                        z=-1)
     pmb.define_residue(
         name = 'R1',
         central_bead = '0P',
@@ -258,7 +258,7 @@ pmb.destroy_pmb_object_in_system(espresso_system=espresso_system,
 print("*** Unit test passed ***")
 print("*** Unit test: check that no create_counterions does not create counterions for molecules with no charge")
 pmb.define_particle(name='0P',
-                        q=0)
+                        z=0)
 pmb.define_residue(
     name = 'R0',
     central_bead = '0P',

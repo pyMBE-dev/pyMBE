@@ -52,7 +52,7 @@ print("*** Unit test: check that define_bond sets up a harmonic bond correctly *
 
 # Define dummy particle
 
-pmb.define_particle(name='A', q=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
 # Define dummy bond
 
@@ -77,7 +77,7 @@ print("*** Unit test: check that define_bond sets up a FENE bond correctly ***")
 
 # Define dummy particle
 
-pmb.define_particle(name='A', q=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
 # Define dummy bond
 
@@ -106,8 +106,8 @@ print("*** Unit test: check that define_bond sets up a harmonic and a FENE bonds
 
 # Define dummy particle
 
-pmb.define_particle(name='A', q=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name='B', q=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name='B', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
 # Define dummy bond
 
@@ -146,7 +146,7 @@ print("*** Unit test: check that define_bond raises a ValueError if the provided
 
 # Define dummy particle
 
-pmb.define_particle(name='A', q=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
 # Define dummy bond
 
@@ -167,7 +167,7 @@ print("*** Unit test: check that define_bond raises a ValueError if the provided
 
 # Define dummy particle
 
-pmb.define_particle(name='A', q=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
 # Define dummy bond
 
@@ -187,7 +187,7 @@ print("*** Unit test: check that define_bond raises a ValueError if the provided
 
 # Define dummy particle
 
-pmb.define_particle(name='A', q=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
 # Define dummy bond
 
@@ -207,7 +207,7 @@ print("*** Unit test: check that define_bond raises a ValueError if the provided
 
 # Define dummy particle
 
-pmb.define_particle(name='A', q=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
 # Define dummy bond
 
@@ -228,7 +228,7 @@ print("*** Unit test: check that define_bond raises a ValueError if the provided
 
 # Define dummy particle
 
-pmb.define_particle(name='A', q=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
 # Define dummy bond
 

@@ -34,7 +34,7 @@ def check_acid_base_setup(input_parameters,acidity_setup):
     """
     pmb.define_particle(**input_parameters)
     if input_parameters["acidity"] == "inert":
-        input_parameters.pop("q")
+        input_parameters.pop("z")
     # Checks that the input parameters are stored properly
     for parameter_key in input_parameters.keys():
         np.testing.assert_equal(actual=pmb.df[parameter_key].values[0], 
@@ -57,7 +57,7 @@ pmb.setup_df()
 input_parameters={"name":"I", 
                   "acidity": "inert",
                   "pka": np.nan,
-                  "q":2}
+                  "z":2}
 acidity_setup={"state_one":{"label":f"{input_parameters['name']}",
                          "charge":2},
             "state_two":{"label": np.nan,

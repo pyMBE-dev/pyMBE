@@ -125,10 +125,10 @@ hydroxide_name = 'OHminus'
 sodium_name = 'Na'
 chloride_name = 'Cl'
 
-pmb.define_particle(name=proton_name, q=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=hydroxide_name,  q=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=sodium_name, q=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=chloride_name,  q=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=proton_name, z=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=hydroxide_name,  z=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=sodium_name, z=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=chloride_name, z=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters (some are read from the command line)
 c_mon_sys = args.c_mon_sys * pmb.units.mol/ pmb.units.L

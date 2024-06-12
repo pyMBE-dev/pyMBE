@@ -81,8 +81,8 @@ LANGEVIN_SEED = 42
 # Define salt
 cation_name = 'Na'
 anion_name = 'Cl'
-pmb.define_particle(name=cation_name, q=1, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name,  q=-1, sigma=0.355*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, z=1, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name, z=-1, sigma=0.355*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters
 c_salt_res = args.c_salt_res * pmb.units.mol/ pmb.units.L

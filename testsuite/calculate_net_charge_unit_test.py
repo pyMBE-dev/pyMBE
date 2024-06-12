@@ -25,13 +25,13 @@ pmb = pyMBE.pymbe_library(seed=42)
 print("*** Unit test: check that calculate_net_charge calculates the charge in a molecule properly ***")
 
 pmb.define_particle(name='0P',
-                        q=0)
+                        z=0)
 
 pmb.define_particle(name='+1p',
-                    q=+1)
+                    z=+1)
 
 pmb.define_particle(name='-1p',
-                    q=-1)
+                    z=-1)
 
 pmb.define_residue(
     name = 'R1',

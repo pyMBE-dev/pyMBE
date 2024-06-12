@@ -74,7 +74,7 @@ if args.test:
 pmb.define_particle(
     name = "I",
     acidity = "inert",
-    q = 0,
+    z = 0,
     sigma = 1*pmb.units('reduced_length'),
     epsilon = 1*pmb.units('reduced_energy'))
     
@@ -127,8 +127,8 @@ cation_name = 'Na'
 anion_name = 'Cl'
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
-pmb.define_particle(name=cation_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, z=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name, z=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters
 
