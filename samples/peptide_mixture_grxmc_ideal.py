@@ -76,6 +76,7 @@ N_peptide1_chains = 10
 sequence2 = 'nEEHHc'
 pep2_concentration = 1e-2 *pmb.units.mol/pmb.units.L
 N_peptide2_chains = 10
+verbose=True
 
 if args.test:
     Samples_per_pH = 1000
@@ -84,6 +85,7 @@ if args.test:
     N_peptide1_chains = 5
     N_peptide2_chains = 5
     pH_range = np.linspace(2, 12, num=10)
+    verbose = False
 
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
@@ -323,7 +325,8 @@ for pH_value in pH_range:
                 vtf.writevcf(espresso_system, coordinates)
 
     # Estimate the statistical error and the autocorrelation time of the data
-    processed_data = block_analyze(full_data=pd.DataFrame(time_series, columns=labels_obs))
+    processed_data = block_analyze(full_data=pd.DataFrame(time_series, columns=labels_obs),
+                                   verbose=verbose)
 
     Z_pH.append(processed_data["mean", "charge"])
     err_Z_pH.append(processed_data["err_mean", "charge"])
