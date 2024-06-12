@@ -32,12 +32,12 @@ class pymbe_library():
     The library for the Molecular Builder for ESPResSo (pyMBE)
 
     Attributes:
-        N_A(`obj`): Avogadro number using the `pmb.units` UnitRegistry.
-        Kb(`obj`): Boltzmann constant using the `pmb.units` UnitRegistry.
-        e(`obj`): Elemental charge using the `pmb.units` UnitRegistry.
-        df(`obj`): PandasDataframe used to bookkeep all the information stored in pyMBE. Typically refered as `pmb.df`. 
-        kT(`obj`): Thermal energy using the `pmb.units` UnitRegistry. It is used as the unit of reduced energy.
-        Kw(`obj`): Ionic product of water using the `pmb.units` UnitRegistry. Used in the setup of the G-RxMC method.
+        N_A(`pint.Quantity`): Avogadro number.
+        Kb(`pint.Quantity`): Boltzmann constant.
+        e(`pint.Quantity`): Elementary charge.
+        df(`Pandas.Dataframe`): Dataframe used to bookkeep all the information stored in pyMBE. Typically refered as `pmb.df`. 
+        kT(`pint.Quantity`): Thermal energy.
+        Kw(`pint.Quantity`): Ionic product of water. Used in the setup of the G-RxMC method.
     """
     units = pint.UnitRegistry()
     N_A=6.02214076e23    / units.mol
