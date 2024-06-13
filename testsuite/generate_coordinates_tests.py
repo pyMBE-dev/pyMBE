@@ -18,7 +18,6 @@
 
 import numpy as np
 import pyMBE
-from itertools import combinations
 pmb = pyMBE.pymbe_library(seed=42)
 
 def test_arrays_less_equal(arr1, arr2, rtol=1e-7, atol=1e-7):
