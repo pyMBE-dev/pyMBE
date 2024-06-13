@@ -111,4 +111,21 @@ samples = pmb.generate_coordinates_outside_sphere(center=center,
 test_arrays_less_equal(np.linalg.norm(samples-np.asarray(center), axis=1), outer_radius)
 test_arrays_less_equal(inner_radius, np.linalg.norm(samples-np.asarray(center), axis=1))
 print("*** Unit test passed ***")
+print("*** Check that the function raises a ValueError if the user provides a negative radius ***")
+np.testing.assert_raises(ValueError, 
+                         pmb.generate_coordinates_outside_sphere,
+                         center=center,
+                         radius=-1.0,
+                         max_dist=5.0,
+                         n_samples=1)
+print("*** Unit test passed ***")
+print("*** Check that the function raises a ValueError if the user provides a larger inner radius than outer radius ***")
+np.testing.assert_raises(ValueError, 
+                         pmb.generate_coordinates_outside_sphere,
+                         center=center,
+                         radius=10.0,
+                         max_dist=5.0,
+                         n_samples=1)
+print("*** Unit test passed ***")
+
 print("*** All unit tests passed ***\n")

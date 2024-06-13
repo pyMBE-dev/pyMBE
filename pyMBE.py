@@ -1924,9 +1924,6 @@ class pymbe_library():
 
         Returns:
             samples(`list`): Coordinates of the sample points inside the hypersphere.
-
-        Note:
-            - Algorithm from: https://baezortega.github.io/2018/10/14/hypersphere-sampling/
         """
         # initial values
         center=np.array(center)
