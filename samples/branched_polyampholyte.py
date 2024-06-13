@@ -211,7 +211,8 @@ for pH_value in pH_range:
         if step > steps_eq:
             # Get polyampholyte net charge
             charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
-                    molecule_name="polyampholyte")      
+                    molecule_name="polyampholyte",
+                    dimensionless=True)
             if args.test:
                 time_series["time"].append(step)
             else:

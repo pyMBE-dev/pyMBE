@@ -242,7 +242,7 @@ for i in tqdm(range(N_production_loops),disable=not verbose):
     time_series["time"].append(espresso_system.time)
 
     # Measure degree of ionization
-    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, molecule_name=polyacid_name)      
+    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, molecule_name=polyacid_name, dimensionless=True)
     time_series["alpha"].append(np.abs(charge_dict["mean"])/Chain_length)
 
 data_path = args.output

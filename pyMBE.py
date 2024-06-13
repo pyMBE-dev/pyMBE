@@ -430,7 +430,7 @@ class pymbe_library():
             l0 = scipy.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red,offset_red), x0=1.0).x
         return l0
 
-    def calculate_net_charge (self, espresso_system, molecule_name):
+    def calculate_net_charge(self, espresso_system, molecule_name, dimensionless=False):
         '''
         Calculates the net charge per molecule of molecules with `name` = molecule_name. 
         Returns the net charge per molecule and a maps with the net charge per residue and molecule.
@@ -438,6 +438,7 @@ class pymbe_library():
         Args:
             espresso_system(`espressomd.system.System`): system information 
             molecule_name(`str`): name of the molecule to calculate the net charge
+            dimensionless(`bool'): sets if the charge is returned with a dimension or not
 
         Returns:
             (`dict`): {"mean": mean_net_charge, "molecules": {mol_id: net_charge_of_mol_id, }, "residues": {res_id: net_charge_of_res_id, }}
@@ -452,21 +453,30 @@ class pymbe_library():
             raise ValueError("The pyMBE object with name {molecule_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
 
         id_map = self.get_particle_id_map(object_name=molecule_name)
-        def create_charge_number_map(espresso_system,id_map,label):
+        def create_charge_map(espresso_system,id_map,label):
             charge_number_map={}
             for super_id in id_map[label].keys():
-                net_charge=0
+                if dimensionless:
+                    net_charge=0
+                else:
+                    net_charge=0 * self.units.Quantity(1,'reduced_charge')
                 for pid in id_map[label][super_id]:
-                    net_charge+=espresso_system.part.by_id(pid).q
+                    if dimensionless:
+                        net_charge+=espresso_system.part.by_id(pid).q
+                    else:
+                        net_charge+=espresso_system.part.by_id(pid).q * self.units.Quantity(1,'reduced_charge')
                 charge_number_map[super_id]=net_charge
             return charge_number_map
-        net_charge_molecules=create_charge_number_map(label="molecule_map",
+        net_charge_molecules=create_charge_map(label="molecule_map",
                                                 espresso_system=espresso_system,
                                                 id_map=id_map)
-        net_charge_residues=create_charge_number_map(label="residue_map",
+        net_charge_residues=create_charge_map(label="residue_map",
                                                 espresso_system=espresso_system,
                                                 id_map=id_map)       
-        mean_charge=np.mean(np.array(list(net_charge_molecules.values())))
+        if dimensionless:
+            mean_charge=np.mean(np.array(list(net_charge_molecules.values())))
+        else:
+            mean_charge=np.mean(np.array([value.magnitude for value in net_charge_molecules.values()]))*self.units.Quantity(1,'reduced_charge')
         return {"mean": mean_charge, "molecules": net_charge_molecules, "residues": net_charge_residues}
 
     def center_molecule_in_simulation_box(self, molecule_id, espresso_system):

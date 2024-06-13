@@ -251,7 +251,8 @@ for label in labels_obs:
     time_series[label]=[]
 
 charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
-                                            molecule_name=protein_name)
+                                            molecule_name=protein_name,
+                                            dimensionless=True)
     
 net_charge_residues = charge_dict ['residues']
 net_charge_amino_save = {}
@@ -269,7 +270,8 @@ for step in tqdm(range(N_samples),disable=not verbose):
     espresso_system.integrator.run (steps = integ_steps)
     cpH.reaction(reaction_steps = total_ionisible_groups)
     charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
-                                            molecule_name=protein_name)
+                                            molecule_name=protein_name,
+                                            dimensionless=True)
     charge_residues = charge_dict['residues']
     charge_residues_per_type={}
 

@@ -32,7 +32,6 @@ def check_charge_number_map(input_parameters):
 
     """
     pmb.define_particle(**input_parameters)
-    print(pmb.get_charge_number_map())
 
     if input_parameters["acidity"] == "inert":
         np.testing.assert_equal(actual=pmb.get_charge_number_map(),

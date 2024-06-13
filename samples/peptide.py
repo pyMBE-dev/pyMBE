@@ -176,7 +176,8 @@ for index in tqdm(range(len(pH_range))):
         if step > steps_eq:
             # Get peptide net charge
             charge_dict=pmb.calculate_net_charge (  espresso_system=espresso_system, 
-                                                    molecule_name=peptide_name)      
+                                                    molecule_name=peptide_name,
+                                                    dimensionless=True)
             Z_sim.append(charge_dict["mean"])
 
         if step % N_samples_print == 0:

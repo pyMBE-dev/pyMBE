@@ -76,11 +76,20 @@ charge_map=pmb.calculate_net_charge(molecule_name=molecule_name,
                                     espresso_system=espresso_system)
 
 # Check mean charge
-np.testing.assert_equal(charge_map["mean"],2.0)
+np.testing.assert_equal(charge_map["mean"], 2.0*pmb.units.Quantity(1,'reduced_charge'))
 # Check molecule charge map
-np.testing.assert_equal(charge_map["molecules"],{0: 2.0, 1: 2.0})
+np.testing.assert_equal(charge_map["molecules"],{0: 2.0*pmb.units.Quantity(1,'reduced_charge'), 1: 2.0*pmb.units.Quantity(1,'reduced_charge')})
 # Check residue charge map
-np.testing.assert_equal(charge_map["residues"],{0: 1.0, 1: 1.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 1.0, 6: 1.0, 7: 0.0, 8: 0.0, 9: 0.0})
+np.testing.assert_equal(charge_map["residues"],{0: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                1: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                2: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                3: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                4: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                5: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                6: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                7: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                8: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                9: 0.0*pmb.units.Quantity(1,'reduced_charge')})
 
 print("*** Unit test passed ***")
 print("*** Unit test: check that calculate_net_charge raises a ValueError if one provides the name of an object that is not a molecule ***")

@@ -221,7 +221,8 @@ for sample in tqdm.trange(Nsamples,disable=not verbose):
     cpH.reaction(reaction_steps=len(sequence))
     # Sample observables
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system,
-                                            molecule_name=sequence)
+                                            molecule_name=sequence,
+                                            dimensionless=True)
 
     Rg = espresso_system.analysis.calc_rg(chain_start=0,
                                         number_of_chains=N_peptide_chains,
