@@ -46,7 +46,7 @@ class pymbe_library():
     df=None
     kT=None
     Kw=None
-    SEED=None
+    seed=None
     rng=None
 
 
@@ -62,7 +62,7 @@ class pymbe_library():
                 return obj.item()
             return super().default(obj)
 
-    def __init__(self, SEED, temperature=None, unit_length=None, unit_charge=None, Kw=None):
+    def __init__(self, seed, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
         Initializes the pymbe_library by setting up the reduced unit system with `temperature` and `reduced_length` 
         and sets up  the `pmb.df` for bookkeeping.
@@ -80,8 +80,8 @@ class pymbe_library():
             - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
         # Seed and RNG
-        self.SEED=SEED
-        self.rng = np.random.default_rng(SEED)
+        self.seed=seed
+        self.rng = np.random.default_rng(seed)
         self.set_reduced_units(unit_length=unit_length, unit_charge=unit_charge,
                                temperature=temperature, Kw=Kw, verbose=False)
         self.setup_df()
@@ -268,7 +268,7 @@ class pymbe_library():
         if pka_set is None:
             pka_set=self.get_pka_set() 
         self.check_pka_set(pka_set=pka_set)
-        charge_map = self.get_charge_map()
+        charge_number_map = self.get_charge_number_map()
         Z_HH=[]
         for pH_value in pH_list:    
             Z=0
@@ -305,7 +305,7 @@ class pymbe_library():
                         Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))
                     else:
                         state_one_type = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
-                        Z+=charge_map[state_one_type]
+                        Z+=charge_number_map[state_one_type]
                 Z_HH.append(Z)
 
         return Z_HH
@@ -430,7 +430,7 @@ class pymbe_library():
             l0 = scipy.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red,offset_red), x0=1.0).x
         return l0
 
-    def calculate_net_charge (self, espresso_system, molecule_name):
+    def calculate_net_charge(self, espresso_system, molecule_name, dimensionless=False):
         '''
         Calculates the net charge per molecule of molecules with `name` = molecule_name. 
         Returns the net charge per molecule and a maps with the net charge per residue and molecule.
@@ -438,6 +438,7 @@ class pymbe_library():
         Args:
             espresso_system(`espressomd.system.System`): system information 
             molecule_name(`str`): name of the molecule to calculate the net charge
+            dimensionless(`bool'): sets if the charge is returned with a dimension or not
 
         Returns:
             (`dict`): {"mean": mean_net_charge, "molecules": {mol_id: net_charge_of_mol_id, }, "residues": {res_id: net_charge_of_res_id, }}
@@ -453,20 +454,29 @@ class pymbe_library():
 
         id_map = self.get_particle_id_map(object_name=molecule_name)
         def create_charge_map(espresso_system,id_map,label):
-            charge_map={}
+            charge_number_map={}
             for super_id in id_map[label].keys():
-                net_charge=0
+                if dimensionless:
+                    net_charge=0
+                else:
+                    net_charge=0 * self.units.Quantity(1,'reduced_charge')
                 for pid in id_map[label][super_id]:
-                    net_charge+=espresso_system.part.by_id(pid).q
-                charge_map[super_id]=net_charge
-            return charge_map
+                    if dimensionless:
+                        net_charge+=espresso_system.part.by_id(pid).q
+                    else:
+                        net_charge+=espresso_system.part.by_id(pid).q * self.units.Quantity(1,'reduced_charge')
+                charge_number_map[super_id]=net_charge
+            return charge_number_map
         net_charge_molecules=create_charge_map(label="molecule_map",
                                                 espresso_system=espresso_system,
                                                 id_map=id_map)
         net_charge_residues=create_charge_map(label="residue_map",
                                                 espresso_system=espresso_system,
                                                 id_map=id_map)       
-        mean_charge=np.mean(np.array(list(net_charge_molecules.values())))
+        if dimensionless:
+            mean_charge=np.mean(np.array(list(net_charge_molecules.values())))
+        else:
+            mean_charge=np.mean(np.array([value.magnitude for value in net_charge_molecules.values()]))*self.units.Quantity(1,'reduced_charge')
         return {"mean": mean_charge, "molecules": net_charge_molecules, "residues": net_charge_residues}
 
     def center_molecule_in_simulation_box(self, molecule_id, espresso_system):
@@ -591,7 +601,7 @@ class pymbe_library():
         Returns:
             (`bool`): True if `key`  is a supported metal ion, False otherwise.
         """
-        if key in self.get_metal_ions_charge_map().keys():
+        if key in self.get_metal_ions_charge_number_map().keys():
             return True
         else:
             return False
@@ -631,7 +641,7 @@ class pymbe_library():
         
         """
 
-        columns_dtype_int = ['particle_id','particle_id2', 'residue_id','molecule_id', 'model',('state_one','es_type'),('state_two','es_type'),('state_one','charge'),('state_two','charge') ]  
+        columns_dtype_int = ['particle_id','particle_id2', 'residue_id','molecule_id', 'model',('state_one','es_type'),('state_two','es_type'),('state_one','z'),('state_two','z') ]  
 
         columns_with_units = ['sigma', 'epsilon', 'cutoff', 'offset']
 
@@ -729,8 +739,8 @@ class pymbe_library():
         Returns:
             c_salt_calculated(`float`): Calculated salt concentration added to `espresso_system`.
         """
-        cation_name_charge = self.df.loc[self.df['name']==cation_name].state_one.charge.values[0]
-        anion_name_charge = self.df.loc[self.df['name']==anion_name].state_one.charge.values[0]     
+        cation_name_charge = self.df.loc[self.df['name']==cation_name].state_one.z.values[0]
+        anion_name_charge = self.df.loc[self.df['name']==anion_name].state_one.z.values[0]     
         if cation_name_charge <= 0:
             raise ValueError('ERROR cation charge must be positive, charge ',cation_name_charge)
         if anion_name_charge >= 0:
@@ -831,8 +841,8 @@ class pymbe_library():
         Returns: 
             counterion_number(`dict`): {"name": number}
         """
-        cation_charge = self.df.loc[self.df['name']==cation_name].state_one.charge.iloc[0]
-        anion_charge = self.df.loc[self.df['name']==anion_name].state_one.charge.iloc[0]
+        cation_charge = self.df.loc[self.df['name']==cation_name].state_one.z.iloc[0]
+        anion_charge = self.df.loc[self.df['name']==anion_name].state_one.z.iloc[0]
         object_ids = self.get_particle_id_map(object_name=object_name)["all"]
         counterion_number={}
         object_charge={}
@@ -1004,7 +1014,7 @@ class pymbe_library():
                           column_name='particle_id',
                           number_of_copies=number_of_particles)
         # Get information from the particle type `name` from the df     
-        q = self.df.loc[self.df['name']==name].state_one.charge.values[0]
+        z = self.df.loc[self.df['name']==name].state_one.z.values[0]
         es_type = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
         # Get a list of the index in `df` corresponding to the new particles to be created
         index = np.where(self.df['name']==name)
@@ -1025,9 +1035,9 @@ class pymbe_library():
             created_pid_list.append(bead_id)
             
             if fix:
-                espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q,fix =[fix,fix,fix])        
+                espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = z,fix =[fix,fix,fix])        
             else:
-                espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = q)        
+                espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = z)        
             self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, verbose=False)                  
         return created_pid_list
 
@@ -1486,13 +1496,13 @@ class pymbe_library():
             self.df.at [index,'pmb_type'] = 'particle'
         return index
 
-    def define_particle(self, name, q=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None,verbose=True,overwrite=False):
+    def define_particle(self, name, z=0, acidity='inert', pka=None, sigma=None, epsilon=None, cutoff=None, offset=None,verbose=True,overwrite=False):
         """
         Defines the properties of a particle object.
 
         Args:
             name(`str`): Unique label that identifies this particle type.  
-            q(`int`, optional): Permanent charge of this particle type. Defaults to 0.
+            z(`int`, optional): Permanent charge number of this particle type. Defaults to 0.
             acidity(`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
             pka(`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to None.
             sigma(`pint.Quantity`, optional): Sigma parameter used to set up Lennard-Jones interactions for this particle type. Defaults to None.
@@ -1537,7 +1547,7 @@ class pymbe_library():
         # Define particle acid/base properties
         self.set_particle_acidity(name=name, 
                                 acidity=acidity, 
-                                default_charge=q, 
+                                default_charge_number=z, 
                                 pka=pka,
                                 verbose=verbose,
                                 overwrite=overwrite)
@@ -1613,7 +1623,7 @@ class pymbe_library():
             epsilon = 1*self.units.Quantity("reduced_energy")
         part_dict={}
         sequence=[]
-        metal_ions_charge_map=self.get_metal_ions_charge_map()
+        metal_ions_charge_number_map=self.get_metal_ions_charge_number_map()
         for particle in topology_dict.keys():
             particle_name = re.split(r'\d+', particle)[0] 
             if particle_name not in part_dict.keys():
@@ -1623,10 +1633,10 @@ class pymbe_library():
                                         "epsilon": epsilon,
                                         "name": particle_name}
                 if self.check_if_metal_ion(key=particle_name):
-                    q=metal_ions_charge_map[particle_name]
+                    z=metal_ions_charge_number_map[particle_name]
                 else:
-                    q=0
-                part_dict[particle_name]["q"]=q
+                    z=0
+                part_dict[particle_name]["z"]=z
             
             if self.check_aminoacid_key(key=particle_name):
                 sequence.append(particle_name) 
@@ -1914,9 +1924,6 @@ class pymbe_library():
 
         Returns:
             samples(`list`): Coordinates of the sample points inside the hypersphere.
-
-        Note:
-            - Algorithm from: https://baezortega.github.io/2018/10/14/hypersphere-sampling/
         """
         # initial values
         center=np.array(center)
@@ -1993,12 +2000,12 @@ class pymbe_library():
             else:
                 return
 
-    def get_charge_map(self):
+    def get_charge_number_map(self):
         '''
-        Gets the charge of each `espresso_type` in `pymbe.df`.
+        Gets the charge number of each `espresso_type` in `pymbe.df`.
         
         Returns:
-            charge_map(`dict`): {espresso_type: charge}.
+            charge_number_map(`dict`): {espresso_type: z}.
         '''
         if self.df.state_one['es_type'].isnull().values.any():         
             df_state_one = self.df.state_one.dropna()     
@@ -2009,10 +2016,10 @@ class pymbe_library():
                 df_state_two = self.df.state_two.dropna()   
             else:
                 df_state_two = self.df.state_two
-        state_one = pd.Series (df_state_one.charge.values,index=df_state_one.es_type.values)
-        state_two = pd.Series (df_state_two.charge.values,index=df_state_two.es_type.values)
-        charge_map  = pd.concat([state_one,state_two],axis=0).to_dict()
-        return charge_map
+        state_one = pd.Series (df_state_one.z.values,index=df_state_one.es_type.values)
+        state_two = pd.Series (df_state_two.z.values,index=df_state_two.es_type.values)
+        charge_number_map  = pd.concat([state_one,state_two],axis=0).to_dict()
+        return charge_number_map
 
     def get_lj_parameters(self, particle_name1, particle_name2, combining_rule='Lorentz-Berthelot'):
         """
@@ -2053,16 +2060,16 @@ class pymbe_library():
             lj_parameters["epsilon"]=np.sqrt(lj_parameters["epsilon"][0]*lj_parameters["epsilon"][1])
         return lj_parameters
 
-    def get_metal_ions_charge_map(self):
+    def get_metal_ions_charge_number_map(self):
         """
-        Gets a map with the charge of all the metal ions supported.
+        Gets a map with the charge numbers of all the metal ions supported.
 
         Returns:
-            metal_charge_map(dict): Has the structure {"metal_name": metal_charge}
+            metal_charge_number_map(dict): Has the structure {"metal_name": metal_charge_number}
 
         """
-        metal_charge_map = {"Ca": 2}
-        return metal_charge_map
+        metal_charge_number_map = {"Ca": 2}
+        return metal_charge_number_map
 
     def get_particle_id_map(self, object_name):
         '''
@@ -2200,7 +2207,7 @@ class pymbe_library():
             verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to False.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
         """
-        without_units = ['q','es_type','acidity']
+        without_units = ['z','es_type','acidity']
         with_units = ['sigma','epsilon','offset','cutoff']
 
         with open(filename, 'r') as f:
@@ -2211,25 +2218,25 @@ class pymbe_library():
             param_dict=interaction_parameter_set[key]
             object_type=param_dict['object_type']
             if object_type == 'particle':
-                not_requiered_attributes={}    
-                for not_requiered_key in without_units+with_units:
-                    if not_requiered_key in param_dict.keys():
-                        if not_requiered_key in with_units:
-                            not_requiered_attributes[not_requiered_key]=self.create_variable_with_units(variable=param_dict.pop(not_requiered_key))
-                        elif not_requiered_key in without_units:
-                            not_requiered_attributes[not_requiered_key]=param_dict.pop(not_requiered_key)
+                not_required_attributes={}    
+                for not_required_key in without_units+with_units:
+                    if not_required_key in param_dict.keys():
+                        if not_required_key in with_units:
+                            not_required_attributes[not_required_key]=self.create_variable_with_units(variable=param_dict.pop(not_required_key))
+                        elif not_required_key in without_units:
+                            not_required_attributes[not_required_key]=param_dict.pop(not_required_key)
                     else:
-                        if not_requiered_key == 'acidity':
-                            not_requiered_attributes[not_requiered_key] = 'inert'
+                        if not_required_key == 'acidity':
+                            not_required_attributes[not_required_key] = 'inert'
                         else:    
-                            not_requiered_attributes[not_requiered_key]=None
+                            not_required_attributes[not_required_key]=None
                 self.define_particle(name=param_dict.pop('name'),
-                                q=not_requiered_attributes.pop('q'),
-                                sigma=not_requiered_attributes.pop('sigma'),
-                                offset=not_requiered_attributes.pop('offset'),
-                                cutoff=not_requiered_attributes.pop('cutoff'),
-                                acidity=not_requiered_attributes.pop('acidity'),
-                                epsilon=not_requiered_attributes.pop('epsilon'),
+                                z=not_required_attributes.pop('z'),
+                                sigma=not_required_attributes.pop('sigma'),
+                                offset=not_required_attributes.pop('offset'),
+                                cutoff=not_required_attributes.pop('cutoff'),
+                                acidity=not_required_attributes.pop('acidity'),
+                                epsilon=not_required_attributes.pop('epsilon'),
                                 verbose=verbose,
                                 overwrite=overwrite)
             elif object_type == 'residue':
@@ -2584,7 +2591,7 @@ class pymbe_library():
 
         return list_of_particles_in_residue
 
-    def set_particle_acidity(self, name, acidity='inert', default_charge=0, pka=None, verbose=True, overwrite=True):
+    def set_particle_acidity(self, name, acidity='inert', default_charge_number=0, pka=None, verbose=True, overwrite=True):
         """
         Sets the particle acidity if it is acidic or basic, creates `state_one` and `state_two` with the protonated and 
         deprotonated states. In each state is set: `label`,`charge` and `es_type`. If it is inert, it will define only `state_one`.
@@ -2592,7 +2599,7 @@ class pymbe_library():
         Args:
             name(`str`): Unique label that identifies the `particle`. 
             acidity(`str`): Identifies whether the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to `inert`.
-            default_charge (`int`): Charge of the particle. Defaults to 0.
+            default_charge_number (`int`): Charge number of the particle. Defaults to 0.
             pka(`float`, optional):  If `particle` is an acid or a base, it defines its pka-value. Defaults to None.
             verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
@@ -2625,9 +2632,9 @@ class pymbe_library():
                                      verbose=verbose,
                                      overwrite=overwrite)  
             if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'inert':
-                self.add_value_to_df(key=('state_one','charge'),
+                self.add_value_to_df(key=('state_one','z'),
                                      index=index,
-                                     new_value=default_charge, 
+                                     new_value=default_charge_number, 
                                      verbose=verbose,
                                      overwrite=overwrite)
                 self.add_value_to_df(key=('state_one','label'),
@@ -2654,21 +2661,21 @@ class pymbe_library():
                                          verbose=verbose,
                                          overwrite=overwrite)
                 if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'acidic':        
-                    self.add_value_to_df(key=('state_one','charge'),
+                    self.add_value_to_df(key=('state_one','z'),
                                          index=index,new_value=0, 
                                          verbose=verbose,
                                          overwrite=overwrite)
-                    self.add_value_to_df(key=('state_two','charge'),
+                    self.add_value_to_df(key=('state_two','z'),
                                          index=index,
                                          new_value=-1, 
                                          verbose=verbose,
                                          overwrite=overwrite)
                 elif self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'basic':
-                    self.add_value_to_df(key=('state_one','charge'),
+                    self.add_value_to_df(key=('state_one','z'),
                                          index=index,new_value=+1, 
                                          verbose=verbose,
                                          overwrite=overwrite)
-                    self.add_value_to_df(key=('state_two','charge'),
+                    self.add_value_to_df(key=('state_two','z'),
                                          index=index,
                                          new_value=0, 
                                          verbose=verbose,
@@ -2741,12 +2748,12 @@ class pymbe_library():
         
         RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=self.SEED, 
+                                                    seed=self.seed, 
                                                     constant_pH=constant_pH,
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
         sucessfull_reactions_labels=[]
-        charge_map = self.get_charge_map()
+        charge_number_map = self.get_charge_number_map()
         for name in pka_set.keys():
             if self.check_if_name_is_defined_in_df(name,pmb_type_to_be_defined='particle') is False :
                 print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in sg.type_map')
@@ -2758,13 +2765,13 @@ class pymbe_library():
             RE.add_reaction(gamma=gamma,
                             reactant_types=[state_one_type],
                             product_types=[state_two_type, counter_ion_type],
-                            default_charges={state_one_type: charge_map[state_one_type],
-                            state_two_type: charge_map[state_two_type],
-                            counter_ion_type: charge_map[counter_ion_type]})
+                            default_charges={state_one_type: charge_number_map[state_one_type],
+                            state_two_type: charge_number_map[state_two_type],
+                            counter_ion_type: charge_number_map[counter_ion_type]})
             sucessfull_reactions_labels.append(name)
         return RE, sucessfull_reactions_labels
 
-    def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, activity_coefficient=None, exclusion_range=None, use_exclusion_radius_per_type = False):
+    def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, activity_coefficient, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
         Sets up grand-canonical coupling to a reservoir of salt.
         For reactive systems coupled to a reservoir, the grand-reaction method has to be used instead.
@@ -2773,7 +2780,7 @@ class pymbe_library():
             c_salt_res ('pint.Quantity'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
-            activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
+            activity_coefficient ('callable'): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`pint.Quantity`, optional): For distances shorter than this value, no particles will be inserted.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
 
@@ -2788,13 +2795,9 @@ class pymbe_library():
         else:
             exclusion_radius_per_type = {}
         
-        #If no function for the activity coefficient is provided, the ideal case is assumed.
-        if activity_coefficient is None:
-            activity_coefficient = lambda x: 1.0
-        
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=self.SEED, 
+                                                    seed=self.seed, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 
@@ -2805,8 +2808,8 @@ class pymbe_library():
         salt_cation_es_type = self.df.loc[self.df['name']==salt_cation_name].state_one.es_type.values[0]
         salt_anion_es_type = self.df.loc[self.df['name']==salt_anion_name].state_one.es_type.values[0]     
 
-        salt_cation_charge = self.df.loc[self.df['name']==salt_cation_name].state_one.charge.values[0]
-        salt_anion_charge = self.df.loc[self.df['name']==salt_anion_name].state_one.charge.values[0]     
+        salt_cation_charge = self.df.loc[self.df['name']==salt_cation_name].state_one.z.values[0]
+        salt_anion_charge = self.df.loc[self.df['name']==salt_anion_name].state_one.z.values[0]     
 
         if salt_cation_charge <= 0:
             raise ValueError('ERROR salt cation charge must be positive, charge ', salt_cation_charge)
@@ -2828,7 +2831,7 @@ class pymbe_library():
 
         return RE
 
-    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_reactions(self, pH_res, c_salt_res, proton_name, hydroxide_name, salt_cation_name, salt_anion_name, activity_coefficient, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -2843,7 +2846,7 @@ class pymbe_library():
             hydroxide_name ('str'): Name of the hydroxide (OH-) particle.
             salt_cation_name ('str'): Name of the salt cation (e.g. Na+) particle.
             salt_anion_name ('str'): Name of the salt anion (e.g. Cl-) particle.
-            activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
+            activity_coefficient ('callable'): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`pint.Quantity`, optional): For distances shorter than this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
@@ -2864,13 +2867,9 @@ class pymbe_library():
         else:
             exclusion_radius_per_type = {}
         
-        #If no function for the activity coefficient is provided, the ideal case is assumed.
-        if activity_coefficient is None:
-            activity_coefficient = lambda x: 1.0
-        
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=self.SEED, 
+                                                    seed=self.seed, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 
@@ -2887,10 +2886,10 @@ class pymbe_library():
         salt_cation_es_type = self.df.loc[self.df['name']==salt_cation_name].state_one.es_type.values[0]
         salt_anion_es_type = self.df.loc[self.df['name']==salt_anion_name].state_one.es_type.values[0]     
 
-        proton_charge = self.df.loc[self.df['name']==proton_name].state_one.charge.values[0]
-        hydroxide_charge = self.df.loc[self.df['name']==hydroxide_name].state_one.charge.values[0]     
-        salt_cation_charge = self.df.loc[self.df['name']==salt_cation_name].state_one.charge.values[0]
-        salt_anion_charge = self.df.loc[self.df['name']==salt_anion_name].state_one.charge.values[0]     
+        proton_charge = self.df.loc[self.df['name']==proton_name].state_one.z.values[0]
+        hydroxide_charge = self.df.loc[self.df['name']==hydroxide_name].state_one.z.values[0]     
+        salt_cation_charge = self.df.loc[self.df['name']==salt_cation_name].state_one.z.values[0]
+        salt_anion_charge = self.df.loc[self.df['name']==salt_anion_name].state_one.z.values[0]     
 
         if proton_charge <= 0:
             raise ValueError('ERROR proton charge must be positive, charge ', proton_charge)
@@ -2982,7 +2981,7 @@ class pymbe_library():
         )
 
         sucessful_reactions_labels=[]
-        charge_map = self.get_charge_map()
+        charge_number_map = self.get_charge_number_map()
         for name in pka_set.keys():
             if self.check_if_name_is_defined_in_df(name,pmb_type_to_be_defined='particle') is False :
                 print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in the type map.')
@@ -2999,8 +2998,8 @@ class pymbe_library():
                             reactant_coefficients=[1],
                             product_types=[state_two_type, proton_es_type],
                             product_coefficients=[1, 1],
-                            default_charges={state_one_type: charge_map[state_one_type],
-                            state_two_type: charge_map[state_two_type],
+                            default_charges={state_one_type: charge_number_map[state_one_type],
+                            state_two_type: charge_number_map[state_two_type],
                             proton_es_type: proton_charge})
 
             # Reaction in terms of salt cation: HA = A + Na+
@@ -3009,8 +3008,8 @@ class pymbe_library():
                             reactant_coefficients=[1],
                             product_types=[state_two_type, salt_cation_es_type],
                             product_coefficients=[1, 1],
-                            default_charges={state_one_type: charge_map[state_one_type],
-                            state_two_type: charge_map[state_two_type],
+                            default_charges={state_one_type: charge_number_map[state_one_type],
+                            state_two_type: charge_number_map[state_two_type],
                             salt_cation_es_type: salt_cation_charge})
 
             # Reaction in terms of hydroxide: OH- + HA = A
@@ -3019,8 +3018,8 @@ class pymbe_library():
                             reactant_coefficients=[1, 1],
                             product_types=[state_two_type],
                             product_coefficients=[1],
-                            default_charges={state_one_type: charge_map[state_one_type],
-                            state_two_type: charge_map[state_two_type],
+                            default_charges={state_one_type: charge_number_map[state_one_type],
+                            state_two_type: charge_number_map[state_two_type],
                             hydroxide_es_type: hydroxide_charge})
 
             # Reaction in terms of salt anion: Cl- + HA = A
@@ -3029,14 +3028,14 @@ class pymbe_library():
                             reactant_coefficients=[1, 1],
                             product_types=[state_two_type],
                             product_coefficients=[1],
-                            default_charges={state_one_type: charge_map[state_one_type],
-                            state_two_type: charge_map[state_two_type],
+                            default_charges={state_one_type: charge_number_map[state_one_type],
+                            state_two_type: charge_number_map[state_two_type],
                             salt_anion_es_type: salt_anion_charge})
 
             sucessful_reactions_labels.append(name)
         return RE, sucessful_reactions_labels, ionic_strength_res
 
-    def setup_grxmc_unified (self, pH_res, c_salt_res, cation_name, anion_name, activity_coefficient=None, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_grxmc_unified(self, pH_res, c_salt_res, cation_name, anion_name, activity_coefficient, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
         """
         Sets up Acid/Base reactions for acidic/basic 'particles' defined in 'pmb.df', as well as a grand-canonical coupling to a 
         reservoir of small ions. 
@@ -3051,7 +3050,7 @@ class pymbe_library():
             c_salt_res ('pint.Quantity'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
             cation_name ('str'): Name of the cationic particle.
             anion_name ('str'): Name of the anionic particle.
-            activity_coefficient ('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
+            activity_coefficient ('callable'): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
             exclusion_range(`pint.Quantity`, optional): Below this value, no particles will be inserted.
             pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius per each espresso_type. Defaults to `False`.
@@ -3072,13 +3071,9 @@ class pymbe_library():
         else:
             exclusion_radius_per_type = {}
         
-        #If no function for the activity coefficient is provided, the ideal case is assumed.
-        if activity_coefficient is None:
-            activity_coefficient = lambda x: 1.0
-        
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                     exclusion_range=exclusion_range.magnitude, 
-                                                    seed=self.SEED, 
+                                                    seed=self.seed, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
 
@@ -3093,8 +3088,8 @@ class pymbe_library():
 
         cation_es_type = self.df.loc[self.df['name']==cation_name].state_one.es_type.values[0]
         anion_es_type = self.df.loc[self.df['name']==anion_name].state_one.es_type.values[0]     
-        cation_charge = self.df.loc[self.df['name']==cation_name].state_one.charge.values[0]
-        anion_charge = self.df.loc[self.df['name']==anion_name].state_one.charge.values[0]     
+        cation_charge = self.df.loc[self.df['name']==cation_name].state_one.z.values[0]
+        anion_charge = self.df.loc[self.df['name']==anion_name].state_one.z.values[0]     
         if cation_charge <= 0:
             raise ValueError('ERROR cation charge must be positive, charge ', cation_charge)
         if anion_charge >= 0:
@@ -3114,7 +3109,7 @@ class pymbe_library():
         )
 
         sucessful_reactions_labels=[]
-        charge_map = self.get_charge_map()
+        charge_number_map = self.get_charge_number_map()
         for name in pka_set.keys():
             if self.check_if_name_is_defined_in_df(name,pmb_type_to_be_defined='particle') is False :
                 print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in sg.type_map')
@@ -3132,8 +3127,8 @@ class pymbe_library():
                             reactant_coefficients=[1],
                             product_types=[state_two_type, cation_es_type],
                             product_coefficients=[1, 1],
-                            default_charges={state_one_type: charge_map[state_one_type],
-                            state_two_type: charge_map[state_two_type],
+                            default_charges={state_one_type: charge_number_map[state_one_type],
+                            state_two_type: charge_number_map[state_two_type],
                             cation_es_type: cation_charge})
 
             # Reaction in terms of small anion: X- + HA = A
@@ -3142,8 +3137,8 @@ class pymbe_library():
                             reactant_coefficients=[1, 1],
                             product_types=[state_two_type],
                             product_coefficients=[1],
-                            default_charges={state_one_type: charge_map[state_one_type],
-                            state_two_type: charge_map[state_two_type],
+                            default_charges={state_one_type: charge_number_map[state_one_type],
+                            state_two_type: charge_number_map[state_two_type],
                             anion_es_type: anion_charge})
 
             sucessful_reactions_labels.append(name)
@@ -3193,11 +3188,11 @@ class pymbe_library():
             'state_one': {
                 'label': str,
                 'es_type': object,
-                'charge': object },
+                'z': object },
             'state_two': {
                 'label': str,
                 'es_type': object,
-                'charge': object },
+                'z': object },
             'sequence': {
                 '': object},
             'bond_object': {

@@ -30,7 +30,7 @@ import pyMBE
 from lib import analysis
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 
 
@@ -81,8 +81,8 @@ LANGEVIN_SEED = 42
 # Define salt
 cation_name = 'Na'
 anion_name = 'Cl'
-pmb.define_particle(name=cation_name, q=1, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name,  q=-1, sigma=0.355*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, z=1, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name, z=-1, sigma=0.355*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters
 c_salt_res = args.c_salt_res * pmb.units.mol/ pmb.units.L
@@ -108,7 +108,7 @@ if args.mode == "interacting":
     activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
     RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, activity_coefficient=activity_coefficient_monovalent_pair)
 elif args.mode == "ideal":
-    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name)
+    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, activity_coefficient=lambda x: 1.0)
 if verbose:
     print("Set up GCMC...")
 

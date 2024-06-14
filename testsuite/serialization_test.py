@@ -57,7 +57,7 @@ class Serialization(ut.TestCase):
                                  "1.6022e-19 coulomb = 1 reduced_charge",
                                  "Temperature: 298.15 kelvin"
                                 ]) 
-        pmb = pyMBE.pymbe_library(SEED=42)
+        pmb = pyMBE.pymbe_library(seed=42)
         reduced_units = pmb.get_reduced_units()
         self.assertEqual(reduced_units, ref_output)
 

@@ -22,7 +22,7 @@ import numpy as np
 import warnings
         
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 print("*** LJ unit tests ***")
 print("*** Unit test: check that all LJ input parameters in define_particle are correctly stored in pmb.df***")

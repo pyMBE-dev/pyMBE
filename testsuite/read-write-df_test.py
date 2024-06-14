@@ -24,7 +24,7 @@ import pandas as pd
 
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 print ('*** Unit tests: read and write from pyMBE dataframe ***')
 
@@ -37,7 +37,7 @@ pmb.define_particle(
     name = "I",
     sigma = 0.3*pmb.units.nm,
     epsilon = 1*pmb.units('reduced_energy'),
-    q = 0,
+    z = 0,
     acidity = "inert")
 
 pmb.define_particle(
@@ -94,8 +94,8 @@ cation_name = 'Na'
 anion_name = 'Cl'
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
-pmb.define_particle(name=cation_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, z=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name,  z=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters
 molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L

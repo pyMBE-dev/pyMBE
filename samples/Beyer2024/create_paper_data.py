@@ -26,7 +26,7 @@ import argparse
 import subprocess
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 valid_fig_labels=["7a", "7b", "7c", "8a", "8b", "9"]
 valid_modes=["short-run","long-run", "test"]
