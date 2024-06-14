@@ -73,7 +73,7 @@ pmb.setup_df()
 input_parameters={"name":"I", 
                   "acidity": "inert",
                   "pka": np.nan,
-                  "q":2}
+                  "z":2}
 pmb.define_particle(**input_parameters)
 print("*** Unit test passed ***")
 print("*** Unit test: check that all acid/base input parameters in define_particle for an acid are correctly stored in pmb.df***")
