@@ -33,7 +33,7 @@ def check_acid_base_setup(input_parameters,acidity_setup):
 
     """
     pmb.define_particle(**input_parameters)
-    if input_parameters["acidity"] == "inert":
+    if input_parameters["acidity"] is None:
         input_parameters.pop("z")
     # Checks that the input parameters are stored properly
     for parameter_key in input_parameters.keys():
@@ -55,7 +55,7 @@ print("*** Unit test: check that all acid/base input parameters in define_partic
 # Clean pmb.df
 pmb.setup_df()
 input_parameters={"name":"I", 
-                  "acidity": "inert",
+                  "acidity": None,
                   "pka": np.nan,
                   "z":2}
 acidity_setup={"state_one":{"label":f"{input_parameters['name']}",
@@ -66,6 +66,15 @@ acidity_setup={"state_one":{"label":f"{input_parameters['name']}",
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
 
+print("*** Unit test passed ***")
+print("*** Unit test: check that a deprecation warning is raised if the keyword 'inert' is used for acidity ***")
+# Clean pmb.df
+pmb.setup_df()
+input_parameters={"name":"I", 
+                  "acidity": "inert",
+                  "pka": np.nan,
+                  "z":2}
+pmb.define_particle(**input_parameters)
 print("*** Unit test passed ***")
 print("*** Unit test: check that all acid/base input parameters in define_particle for an acid are correctly stored in pmb.df***")
 # Clean pmb.df
@@ -95,6 +104,7 @@ acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
 print("*** Unit test passed ***")
+
 print("*** Unit test: check that set_particle_acidity raises a ValueError if pKa is not provided and pKa is acidic or basic  ***")
 input_parametersA={"name":"A", 
                    "acidity": "acidic" }

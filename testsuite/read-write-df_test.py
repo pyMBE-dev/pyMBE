@@ -37,8 +37,7 @@ pmb.define_particle(
     name = "I",
     sigma = 0.3*pmb.units.nm,
     epsilon = 1*pmb.units('reduced_energy'),
-    z = 0,
-    acidity = "inert")
+    z = 0)
 
 pmb.define_particle(
     name = "A",
