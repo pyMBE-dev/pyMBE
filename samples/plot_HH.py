@@ -23,7 +23,7 @@ import matplotlib.pyplot as plt
 
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 # Input parameters
 

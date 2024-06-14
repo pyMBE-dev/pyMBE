@@ -70,7 +70,7 @@ def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="
         raise RuntimeError
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 script_path=pmb.get_resource("samples/Beyer2024/globular_protein.py")
 test_pH_values=[2,5,7]

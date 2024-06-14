@@ -21,7 +21,7 @@ import pyMBE
 import pandas as pd
 import numpy as np
 
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 print("*** Unit test: check that the different pKa sets are correctly formatted ***")
 

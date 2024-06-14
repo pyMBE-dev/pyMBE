@@ -27,7 +27,7 @@ from espressomd.io.writer import vtf
 import pyMBE
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 # Command line arguments
 
@@ -132,19 +132,19 @@ if args.mode == 'standard':
     chloride_name = 'Cl'
 
     pmb.define_particle(name=proton_name, 
-                        q=1, 
+                        z=1, 
                         sigma=0.35*pmb.units.nm, 
                         epsilon=1*pmb.units('reduced_energy'))
     pmb.define_particle(name=hydroxide_name,  
-                        q=-1, 
+                        z=-1, 
                         sigma=0.35*pmb.units.nm,  
                         epsilon=1*pmb.units('reduced_energy'))
     pmb.define_particle(name=sodium_name, 
-                        q=1, 
+                        z=1, 
                         sigma=0.35*pmb.units.nm, 
                         epsilon=1*pmb.units('reduced_energy'))
     pmb.define_particle(name=chloride_name,  
-                        q=-1, 
+                        z=-1, 
                         sigma=0.35*pmb.units.nm,  
                         epsilon=1*pmb.units('reduced_energy'))
 
@@ -152,6 +152,7 @@ elif args.mode == 'unified':
     cation_name = 'Na'
     anion_name = 'Cl'
 
+<<<<<<< HEAD
     pmb.define_particle(name=cation_name, 
                         q=1, 
                         sigma=0.35*pmb.units.nm, 
@@ -160,6 +161,10 @@ elif args.mode == 'unified':
                         q=-1, 
                         sigma=0.35*pmb.units.nm,  
                         epsilon=1*pmb.units('reduced_energy'))
+=======
+    pmb.define_particle(name=cation_name, z=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+    pmb.define_particle(name=anion_name, z=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+>>>>>>> main
 
 
 # System parameters
@@ -223,6 +228,7 @@ total_ionisible_groups = len (list_ionisible_groups)
 print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 
 if args.mode == 'standard':
+<<<<<<< HEAD
     RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, 
                                                                                    c_salt_res=c_salt, 
                                                                                    proton_name=proton_name, 
@@ -235,6 +241,12 @@ elif args.mode == 'unified':
                                                                                  cation_name=cation_name, 
                                                                                  anion_name=anion_name)
 print('The acid-base reaction has been sucessfully setup for ', sucessful_reactions_labels)
+=======
+    grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, activity_coefficient=lambda x: 1.0)
+elif args.mode == 'unified':
+    grxmc, labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=2, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name, activity_coefficient=lambda x: 1.0)
+print('The acid-base reaction has been sucessfully setup for ', labels)
+>>>>>>> main
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 type_map =pmb.get_type_map()
@@ -243,7 +255,7 @@ espresso_system.setup_type_map(type_list = types)
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
-RE.set_non_interacting_type (type=non_interacting_type)
+grxmc.set_non_interacting_type (type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
 espresso_system.time_step = dt
@@ -280,6 +292,7 @@ for pH_value in pH_range:
         time_series[label]=[]
 
     if args.mode == 'standard':
+<<<<<<< HEAD
         RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, 
                                                                                        c_salt_res=c_salt, 
                                                                                        proton_name=proton_name, 
@@ -291,6 +304,11 @@ for pH_value in pH_range:
                                                                                      c_salt_res=c_salt, 
                                                                                      cation_name=cation_name, 
                                                                                      anion_name=anion_name)
+=======
+        grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, c_salt_res=c_salt, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, activity_coefficient=lambda x: 1.0)
+    elif args.mode == 'unified':
+        grxmc, labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, c_salt_res=c_salt, cation_name=cation_name, anion_name=anion_name, activity_coefficient=lambda x: 1.0)
+>>>>>>> main
 
     # Inner loop for sampling each pH value
 
@@ -299,7 +317,7 @@ for pH_value in pH_range:
         if np.random.random() > probability_reaction:
             espresso_system.integrator.run(steps=MD_steps_per_sample)        
         else:
-            RE.reaction(reaction_steps = total_ionisible_groups)
+            grxmc.reaction(reaction_steps = total_ionisible_groups)
 
         if step > steps_eq:
             # Get peptide net charge      

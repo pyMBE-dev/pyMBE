@@ -20,17 +20,17 @@ import numpy as np
 import espressomd
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 # Define a set of ions
 pmb.define_particle(name="Na", 
-                    q=1)
+                    z=1)
 pmb.define_particle(name="Ca", 
-                    q=2)
+                    z=2)
 pmb.define_particle(name="Cl", 
-                    q=-1)
+                    z=-1)
 pmb.define_particle(name="SO4", 
-                    q=-2)
+                    z=-2)
 
 type_map=pmb.get_type_map()
 # System parameters
@@ -46,7 +46,7 @@ espresso_system.setup_type_map(type_map.values())
 #### Unit tests for the added salt
 
 def check_salt_concentration(espresso_system,cation_name,anion_name,c_salt,N_SALT_ION_PAIRS, verbose=False):
-    charge_map=pmb.get_charge_map()
+    charge_number_map=pmb.get_charge_number_map()
     type_map=pmb.get_type_map()
     espresso_system.setup_type_map(type_map.values())
     c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
@@ -55,8 +55,8 @@ def check_salt_concentration(espresso_system,cation_name,anion_name,c_salt,N_SAL
                                             c_salt=c_salt,
                                             verbose=verbose)
 
-    np.testing.assert_equal(espresso_system.number_of_particles(type_map[cation_name]),N_SALT_ION_PAIRS*abs(charge_map[type_map[anion_name]]))
-    np.testing.assert_equal(espresso_system.number_of_particles(type_map[anion_name]),N_SALT_ION_PAIRS*abs(charge_map[type_map[cation_name]]))
+    np.testing.assert_equal(espresso_system.number_of_particles(type_map[cation_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[anion_name]]))
+    np.testing.assert_equal(espresso_system.number_of_particles(type_map[anion_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[cation_name]]))
     np.testing.assert_almost_equal(c_salt_calculated.m_as("mol/L"), c_salt.m_as("mol/L"))
     espresso_system.part.clear()
 print("*** Unit test: test that create_added_salt works for a 1:1 salt (NaCl-like). Should print the added salt concentration and number of ions ***")
@@ -129,11 +129,11 @@ print("*** Unit test passed ***")
 
 def setup_molecules():
     pmb.define_particle(name='0P',
-                            q=0)
+                            z=0)
     pmb.define_particle(name='+1P',
-                        q=+1)
+                        z=+1)
     pmb.define_particle(name='-1P',
-                        q=-1)
+                        z=-1)
     pmb.define_residue(
         name = 'R1',
         central_bead = '0P',
@@ -258,7 +258,7 @@ pmb.destroy_pmb_object_in_system(espresso_system=espresso_system,
 print("*** Unit test passed ***")
 print("*** Unit test: check that no create_counterions does not create counterions for molecules with no charge")
 pmb.define_particle(name='0P',
-                        q=0)
+                        z=0)
 pmb.define_residue(
     name = 'R0',
     central_bead = '0P',

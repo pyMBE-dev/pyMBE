@@ -24,7 +24,7 @@ import numpy as np
 import pandas as pd
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 script_path = pmb.get_resource("samples/peptide_mixture_grxmc_ideal.py")
 data_path = pmb.get_resource("samples/data_peptide_grxmc.csv")
 
