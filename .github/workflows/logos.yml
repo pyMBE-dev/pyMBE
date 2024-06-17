@@ -1,0 +1,51 @@
+name: logos
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read # to fetch code (actions/checkout)
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends inkscape fonts-dejavu make sed
+      - name: Create logos
+        run: |
+          make all
+          mkdir -p github_artifacts
+          mv $(make list) ./github_artifacts/
+          echo -e "# pyMBE logos\n\nOfficial pyMBE logos and banners.\n\nThese files are automatically regenerated after each push to branch \`corporate-design\`." > ./github_artifacts/Readme.md
+        shell: bash
+      - name: Upload logos as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: logo_files
+          path: ./github_artifacts/*
+  deploy:
+    needs: [build]
+    runs-on: ubuntu-latest
+    environment: deploy-logos
+    if: ${{ github.ref == 'refs/heads/corporate-design' }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: github_artifacts
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          deploy_key: ${{ secrets.ACTIONS_DEPLOY_KEY }}
+          publish_dir: ./github_artifacts/logo_files
+          commit_message: "Generated logos"
+          user_name: "github-actions[bot]"
+          user_email: "41898282+github-actions[bot]@users.noreply.github.com"
+          enable_jekyll: true
+          publish_branch: logos
+          force_orphan: true
