@@ -1,3 +1,9 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/pyMBE-dev/pyMBE/blob/logos/logo_banner_dark_mode.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/pyMBE-dev/pyMBE/blob/logos/logo_banner.png">
+  <img alt="pyMBE logo" src="https://github.com/pyMBE-dev/pyMBE/blob/logos/logo_banner.png">
+</picture>
+
 # pyMBE: the Python-based Molecule Builder for ESPResSo 
 
 ![GitHub Actions](https://github.com/pyMBE-dev/pyMBE/actions/workflows/testsuite.yml/badge.svg)
