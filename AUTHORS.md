@@ -9,11 +9,11 @@ The following people have contributed to pyMBE:
 ## Core developers
 - David Beyer (University of Stuttgart, Germany)
 - Sebastian P. Pineda (Charles University, Czech Republic)
-- Paola B. Torres (Universidad Tecnologica Nacional, Argentina)
+- Paola B. Torres (Universidad Tecnológica Nacional, Argentina)
 
 ## Contributors
 - Marius Aarsten (Norwegian University of Science and Tecnology, Norway)
-- Claudio F. Narambuena (Universidad Tecnologica Nacional, Argentina)
+- Claudio F. Narambuena (Universidad Tecnológica Nacional, Argentina)
 
 ## Early testers of the library
 - Corinna Dannert (Norwegian University of Science and Technology, Norway)
