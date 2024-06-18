@@ -13,13 +13,16 @@ jobs:
     env:
       FI_PROVIDER: "^psm3,psm3;ofi_rxd"
       OMPI_MCA_mtl_ofi_provider_exclude: psm3
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
+      - name: Validate CITATION.cff
+        uses: dieghernan/cff-validator@v3
       - name: Setup EESSI
         uses: eessi/github-action-eessi@v3
         with:
           eessi_stack_version: "2023.06"
-      - name: Checkout repository
-        uses: actions/checkout@main
       - name: Install dependencies
         uses: ./.github/actions/dependencies
         with:

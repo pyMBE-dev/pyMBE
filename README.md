@@ -21,16 +21,10 @@ pyMBE provides tools to facilitate building up molecules with complex architectu
 - [SciPy](https://scipy.org/) 
 - [pdoc](https://pdoc.dev/) (for building the docs)
 
-## Branches
-
-A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the historical name of pyMBE, Sugar)  can be found in the branch `sugar_espresso4.1.4`. Note that further development of pyMBE will only be carried out for ESPResSo v4.2.1 and its forthcoming releases, and no further support for that branch is planned.
-
 ## Contents
 
-- `docs/`: folder with the API documentation of pyMBE.
 - `figs/`: folder with various images used in the tutorials of pyMBE.
-- `libs/`: folder with various libraries.
-- `logo/`: folder with the logo of pyMBE.
+- `lib/`: folder with various libraries.
 - `maintainer/`: folder with various scripts used by the maintainers.
 - `parameters/`: folder with various sets of parameters from previous works.
 - `samples/`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
@@ -38,8 +32,8 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 - `tutorials/`: folder with the available tutorials on pyMBE.
 - `visualization/`: folder with helper scripts to aid the visualization of vtf trajectories from constant pH and Grand reaction simulations with [VMD](https://www.ks.uiuc.edu/Research/vmd/).
 - `AUTHORS.md`: list of authors and contributors of pyMBE.
-- `CONTRIBUTING`: rules on how to contribute to pyMBE.
-- `LICENSE.md`: license of pyMBE.
+- `CONTRIBUTING.md`: rules on how to contribute to pyMBE.
+- `LICENSE.txt`: license of pyMBE.
 - `pyMBE.py`: source code of pyMBE
 - `requirements.txt`: list of required libraries to use pyMBE.
 
@@ -186,3 +180,15 @@ If you use pyMBE in your research, please cite our preprint:
 
 Please also make sure to properly cite the original authors if you use the resources provided in the `parameters/` folder.
 The relevant references are provided as comments in the corresponding files.
+
+## License
+
+Copyright (C) 2023-2024 pyMBE-dev team
+
+pyMBE is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License,
+or (at your option) any later version.
+
+You should have received a [copy](LICENSE.txt) of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.

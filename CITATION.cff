@@ -1,0 +1,93 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using the metadata from this file."
+title: pyMBE
+type: software
+version: 0.8.0
+authors:
+  - given-names: David
+    family-names: Beyer
+    affiliation: Institute for Computational Physics, University of Stuttgart, Stuttgart, Germany
+    orcid: "https://orcid.org/0000-0001-6066-8043"
+  - given-names: Paola B.
+    family-names: Torres
+    affiliation: Grupo de Bionanotecnologia y Sistemas Complejos. Infap-CONICET & Facultad Regional San Rafael, Universidad Tecnológica Nacional, San Rafael, Argentina
+    orcid: "https://orcid.org/0000-0001-9335-8367"
+  - given-names: Sebastian P.
+    family-names: Pineda
+    affiliation: Department of Physical and Macromolecular Chemistry, Charles University, Prague, Czech Republic
+    orcid: "https://orcid.org/0000-0001-8270-2476"
+  - given-names: Claudio F.
+    family-names: Narambuena
+    affiliation: Grupo de Bionanotecnologia y Sistemas Complejos. Infap-CONICET & Facultad Regional San Rafael, Universidad Tecnológica Nacional, San Rafael, Argentina
+    orcid: "https://orcid.org/0000-0003-3862-6642"
+  - given-names: Jean-Noël
+    family-names: Grad
+    affiliation: Institute for Computational Physics, University of Stuttgart, Stuttgart, Germany
+    orcid: "https://orcid.org/0000-0002-5821-4912"
+  - given-names: Peter
+    family-names: Košovan
+    affiliation: Department of Physical and Macromolecular Chemistry, Charles University, Prague, Czech Republic
+    orcid: "https://orcid.org/0000-0002-6708-3344"
+  - given-names: Pablo M.
+    family-names: Blanco
+    affiliation: Department of Physics, NTNU - Norwegian University of Science and Technology, Trondheim, Norway
+    orcid: "https://orcid.org/0000-0002-7603-8617"
+identifiers:
+  - type: doi
+    value: 10.48550/arXiv.2401.14954
+    description: The arXiv preprint
+repository-code: "https://github.com/pyMBE-dev/pyMBE"
+keywords:
+  - molecule builder
+  - coarse-grained molecular modelling
+  - constant pH simulation
+  - Reaction ensemble Monte Carlo
+  - charge regulation
+  - pKa
+  - protein
+  - peptide
+license: GPL-3.0-or-later
+preferred-citation:
+  authors:
+    - given-names: David
+      family-names: Beyer
+    - given-names: Paola B.
+      family-names: Torres
+    - given-names: Sebastian P.
+      family-names: Pineda
+    - given-names: Claudio F.
+      family-names: Narambuena
+    - given-names: Jean-Noël
+      family-names: Grad
+    - given-names: Peter
+      family-names: Košovan
+    - given-names: Pablo M.
+      family-names: Blanco
+  doi: 10.48550/arXiv.2401.14954
+  status: preprint
+  type: article
+  journal: "arXiv preprint arXiv:2401.14954"
+  title: "pyMBE: the Python-based Molecule Builder for ESPResSo"
+  year: 2024
+references:
+  - authors:
+      - given-names: David
+        family-names: Beyer
+      - given-names: Paola B.
+        family-names: Torres
+      - given-names: Sebastian P.
+        family-names: Pineda
+      - given-names: Claudio F.
+        family-names: Narambuena
+      - given-names: Jean-Noël
+        family-names: Grad
+      - given-names: Peter
+        family-names: Košovan
+      - given-names: Pablo M.
+        family-names: Blanco
+    doi: 10.48550/arXiv.2401.14954
+    status: preprint
+    type: article
+    journal: "arXiv preprint arXiv:2401.14954"
+    title: "pyMBE: the Python-based Molecule Builder for ESPResSo"
+    year: 2024
