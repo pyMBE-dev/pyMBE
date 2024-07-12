@@ -165,21 +165,33 @@ and the [EESSI GitHub Action](https://github.com/marketplace/actions/eessi).
 
 ## References
 
-Check out the corresponding [preprint](https://doi.org/10.48550/arXiv.2401.14954) to learn more about pyMBE.
-If you use pyMBE in your research, please cite our preprint:
+Check out the corresponding [paper](https://doi.org/10.1063/5.0216389) to learn more about pyMBE.
+If you use pyMBE in your research, please cite our paper:
 
 ```bibtex
 @article{beyer2024pymbe,
-  title={pyMBE: the Python-based Molecule Builder for ESPResSo},
-  author={Beyer, David and Torres, Paola B and Pineda, Sebastian P and Narambuena, Claudio F and Grad, Jean-No{\"e}l and Ko{\v{s}}ovan, Peter and Blanco, Pablo M},
-  journal={arXiv preprint arXiv:2401.14954},
-  year={2024},
-  doi={10.48550/arXiv.2401.14954}
+  author = {Beyer, David and Torres, Paola B. and Pineda, Sebastian P. and
+            Narambuena, Claudio F. and Grad, Jean-No{\"e}l and Ko{\v{s}}ovan,
+            Peter and Blanco, Pablo M.},
+  title = {{pyMBE}: The {P}ython-based molecule builder for {ESPResSo}},
+  journal = {The Journal of Chemical Physics},
+  volume = {161},
+  number = {2},
+  pages = {022502},
+  year = {2024},
+  month = jul,
+  issn = {0021-9606},
+  doi = {10.1063/5.0216389},
 }
 ```
 
+When using a released version of pyMBE, we recommend citing the corresponding
+[Zenodo record](https://doi.org/10.5281/zenodo.12102634) in addition to the pyMBE paper,
+for example: "We set up our coarse-grained models using pyMBE v0.8.0
+[\@beyer2024pymbe; \@zenodo2024pymbe]".
+
 Please also make sure to properly cite the original authors if you use the resources provided in the `parameters/` folder.
-The relevant references are provided as comments in the corresponding files.
+The relevant references are provided as metadata in the corresponding files.
 
 ## License
 
