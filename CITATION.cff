@@ -34,8 +34,8 @@ authors:
     orcid: "https://orcid.org/0000-0002-7603-8617"
 identifiers:
   - type: doi
-    value: 10.48550/arXiv.2401.14954
-    description: The arXiv preprint
+    value: 10.1063/5.0216389
+    description: The software paper
 repository-code: "https://github.com/pyMBE-dev/pyMBE"
 keywords:
   - molecule builder
@@ -63,31 +63,79 @@ preferred-citation:
       family-names: Košovan
     - given-names: Pablo M.
       family-names: Blanco
-  doi: 10.48550/arXiv.2401.14954
-  status: preprint
+  doi: 10.1063/5.0216389
   type: article
-  journal: "arXiv preprint arXiv:2401.14954"
-  title: "pyMBE: the Python-based Molecule Builder for ESPResSo"
+  journal: "The Journal of Chemical Physics"
+  title: "pyMBE: The Python-based molecule builder for ESPResSo"
   year: 2024
+  month: 7
+  volume: 161
+  issue: 2
+  issue-title: "Special Collection: Modular and Interoperable Software for Chemical Physics"
+  pages: 022502
+  publisher:
+    name: "AIP Publishing"
 references:
   - authors:
-      - given-names: David
-        family-names: Beyer
-      - given-names: Paola B.
-        family-names: Torres
-      - given-names: Sebastian P.
-        family-names: Pineda
-      - given-names: Claudio F.
-        family-names: Narambuena
-      - given-names: Jean-Noël
-        family-names: Grad
-      - given-names: Peter
-        family-names: Košovan
-      - given-names: Pablo M.
-        family-names: Blanco
-    doi: 10.48550/arXiv.2401.14954
-    status: preprint
+      - family-names: Beyer
+        given-names: David
+        orcid: "https://orcid.org/0000-0001-6066-8043"
+      - family-names: Torres
+        given-names: Paola B.
+        orcid: "https://orcid.org/0000-0001-9335-8367"
+      - family-names: Pineda
+        given-names: Sebastian P.
+        orcid: "https://orcid.org/0000-0001-8270-2476"
+      - family-names: Narambuena
+        given-names: Claudio F.
+        orcid: "https://orcid.org/0000-0003-3862-6642"
+      - family-names: Grad
+        given-names: Jean-Noël
+        orcid: "https://orcid.org/0000-0002-5821-4912"
+      - family-names: Košovan
+        given-names: Peter
+        orcid: "https://orcid.org/0000-0002-6708-3344"
+      - family-names: Blanco
+        given-names: Pablo M.
+        orcid: "https://orcid.org/0000-0002-7603-8617"
+    doi: 10.1063/5.0216389
     type: article
-    journal: "arXiv preprint arXiv:2401.14954"
-    title: "pyMBE: the Python-based Molecule Builder for ESPResSo"
+    journal: "The Journal of Chemical Physics"
+    title: "pyMBE: The Python-based molecule builder for ESPResSo"
     year: 2024
+    month: 7
+    volume: 161
+    issue: 2
+    issue-title: "Special Collection: Modular and Interoperable Software for Chemical Physics"
+    pages: 022502
+    publisher:
+      name: "AIP Publishing"
+  - authors:
+      - family-names: Beyer
+        given-names: David
+        orcid: "https://orcid.org/0000-0001-6066-8043"
+      - family-names: Torres
+        given-names: Paola B.
+        orcid: "https://orcid.org/0000-0001-9335-8367"
+      - family-names: Pineda
+        given-names: Sebastian P.
+        orcid: "https://orcid.org/0000-0001-8270-2476"
+      - family-names: Narambuena
+        given-names: Claudio F.
+        orcid: "https://orcid.org/0000-0003-3862-6642"
+      - family-names: Grad
+        given-names: Jean-Noël
+        orcid: "https://orcid.org/0000-0002-5821-4912"
+      - family-names: Košovan
+        given-names: Peter
+        orcid: "https://orcid.org/0000-0002-6708-3344"
+      - family-names: Blanco
+        given-names: Pablo M.
+        orcid: "https://orcid.org/0000-0002-7603-8617"
+    doi: 10.5281/zenodo.12102635
+    type: software
+    version: 0.8.0
+    title: pyMBE
+    date-released: "2024-06-18"
+    license:
+    - GPL-3.0-or-later
