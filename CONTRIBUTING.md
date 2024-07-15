@@ -15,7 +15,7 @@ We acknowledge as valid contributions to the module:
 - Bugfixes and code enhancements that improve the quality of the module.
 - Development of tutorials and other documentation of the module.
 - Scripts for samples on how to use pyMBE, testing of the library or as handy tools to extend the features fo the library.
-- Ideas on the software design and carpentry. This includes ideas on how to improve the code quality, ideas on how to improve the existing features of the module, ideas for adding new features to the module and other conceptual contributions that have an impact on the positive development of pyMBE.
+- Ideas on the software design and architecture. This includes ideas on how to improve the code quality, ideas on how to improve the existing features of the module, ideas for adding new features to the module and other conceptual contributions that have an impact on the positive development of pyMBE.
 
 In the pyMBE community, we use a tier system to select how to reward our contributors: 
 
