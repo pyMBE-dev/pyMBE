@@ -714,14 +714,14 @@ class pymbe_library():
             else:
                 df_by_name = df_by_name[df_by_name.index == df_by_name.index.min()] 
                 df_by_name_repeated = pd.concat ([df_by_name]*(number_of_copies), ignore_index=True)
-                df_by_name_repeated[column_name] =np.NaN
+                df_by_name_repeated[column_name] =np.nan
             # Concatenate the new particle rows to  `df`
             self.df = pd.concat ([self.df,df_by_name_repeated], ignore_index=True)
         else:
             if not df_by_name[column_name].isnull().values.any():     
                 df_by_name = df_by_name[df_by_name.index == df_by_name.index.min()] 
                 df_by_name_repeated = pd.concat ([df_by_name]*(number_of_copies), ignore_index=True)
-                df_by_name_repeated[column_name] =np.NaN
+                df_by_name_repeated[column_name] =np.nan
                 self.df = pd.concat ([self.df,df_by_name_repeated], ignore_index=True)
         return
 
