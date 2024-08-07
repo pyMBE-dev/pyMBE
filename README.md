@@ -130,7 +130,7 @@ that uses the virtual environment.
 
 ```sh
 source pymbe/bin/activate
-python3 sample_scripts/peptide.py
+python3 samples/peptide.py
 deactivate
 ```
 
