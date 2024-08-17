@@ -1,8 +1,8 @@
-numpy>=1.23
+numpy>=1.23,<2.0
 pandas>=1.5.3
 pint>=0.20.01
 pint-pandas>=0.3
 biopandas==0.5.1.dev0
-scipy
-matplotlib
-tqdm
+scipy>=1.8.0
+matplotlib>=3.5.1
+tqdm>=4.57.0
