@@ -71,7 +71,7 @@ def reaction_method_test_template(parameters):
     
     if parameters["method"] == "cpH":
         # Add the reactions using pyMBE
-        cpH, labels = pmb.setup_cpH(counter_ion="H", constant_pH=parameters["pH"])
+        cpH, _ = pmb.setup_cpH(counter_ion="H", constant_pH=parameters["pH"])
 
         # Check the number of reactions
         np.testing.assert_equal(len(cpH.reactions), 4)
@@ -101,7 +101,7 @@ def reaction_method_test_template(parameters):
         np.testing.assert_allclose(gcmc.reactions[1].gamma, 1/K_NaCl)
 
     elif parameters["method"] == "grxmc": 
-        grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(
+        grxmc, *_ = pmb.setup_grxmc_reactions(
                 pH_res=parameters["pH_res"], 
                 c_salt_res=parameters["c_salt_res"] * pmb.units.mol/ pmb.units.L, 
                 proton_name="H", 
@@ -156,7 +156,7 @@ def reaction_method_test_template(parameters):
         np.testing.assert_allclose(grxmc.reactions[27].gamma, cH_res*cCl_res/Ka_base)
 
     elif parameters["method"] == "grxmc_unified": 
-        grxmc, labels, ionic_strength_res = pmb.setup_grxmc_unified(
+        grxmc, *_ = pmb.setup_grxmc_unified(
                 pH_res=parameters["pH_res"], 
                 c_salt_res=parameters["c_salt_res"] * pmb.units.mol/ pmb.units.L, 
                 cation_name="H", 
