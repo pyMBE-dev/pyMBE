@@ -1,4 +1,4 @@
-#
+
 # Copyright (C) 2024 pyMBE-dev team
 #
 # This file is part of pyMBE.
@@ -47,31 +47,40 @@ def reaction_method_test_template(parameters):
     # Define the ions
     pmb.define_particle(
             name="Na", 
-            z=1,
+            z=parameters["z_Na"],
             sigma = 1*pmb.units('reduced_length'),
             epsilon = 1*pmb.units('reduced_energy'))
-
+    
     pmb.define_particle(
             name="Cl", 
-            z=-1,
+            z=parameters["z_Cl"],
             sigma = 1*pmb.units('reduced_length'),
             epsilon = 1*pmb.units('reduced_energy'))
 
     pmb.define_particle(
             name="H", 
-            z=1,
+            z=parameters["z_H"],
             sigma = 1*pmb.units('reduced_length'),
             epsilon = 1*pmb.units('reduced_energy'))
 
     pmb.define_particle(
             name="OH", 
-            z=-1,
+            z=parameters["z_OH"],
             sigma = 1*pmb.units('reduced_length'),
             epsilon = 1*pmb.units('reduced_energy'))
     
     if parameters["method"] == "cpH":
         # Add the reactions using pyMBE
-        cpH, _ = pmb.setup_cpH(counter_ion="H", constant_pH=parameters["pH"])
+        if "pka_set" in  parameters:
+            cpH, _ = pmb.setup_cpH(counter_ion="H", 
+                    constant_pH=parameters["pH"], 
+                    use_exclusion_radius_per_type=parameters["use_exclusion_radius_per_type"], 
+                    pka_set=parameters["pka_set"])
+        else:
+            cpH, _ = pmb.setup_cpH(counter_ion="H", 
+                    constant_pH=parameters["pH"], 
+                    use_exclusion_radius_per_type=parameters["use_exclusion_radius_per_type"])
+
 
         # Check the number of reactions
         np.testing.assert_equal(len(cpH.reactions), 4)
@@ -85,12 +94,23 @@ def reaction_method_test_template(parameters):
 
 
     elif parameters["method"] == "gcmc": 
+        input_parameters = {
+                "c_salt_res": parameters["c_salt_res"] * pmb.units.mol/ pmb.units.L, 
+                "salt_cation_name": "Na", 
+                "salt_anion_name": "Cl", 
+                "activity_coefficient": lambda x: 1.0,
+                "use_exclusion_radius_per_type": parameters["use_exclusion_radius_per_type"]}
+
+        # Check that pyMBE raises an error if wrong charge signs are provided 
+        if parameters["z_Na"]<0:
+            np.testing.assert_raises(ValueError, pmb.setup_gcmc, **input_parameters)
+            return
+        if parameters["z_Cl"]>0:
+            np.testing.assert_raises(ValueError, pmb.setup_gcmc, **input_parameters)
+            return
+
         # Add the reactions using pyMBE
-        gcmc = pmb.setup_gcmc(
-                c_salt_res=parameters["c_salt_res"] * pmb.units.mol/ pmb.units.L, 
-                salt_cation_name="Na", 
-                salt_anion_name="Cl", 
-                activity_coefficient=lambda x: 1.0)
+        gcmc = pmb.setup_gcmc(**input_parameters)
 
         # Check the number of reactions
         np.testing.assert_equal(len(gcmc.reactions), 2)
@@ -101,14 +121,35 @@ def reaction_method_test_template(parameters):
         np.testing.assert_allclose(gcmc.reactions[1].gamma, 1/K_NaCl)
 
     elif parameters["method"] == "grxmc": 
-        grxmc, *_ = pmb.setup_grxmc_reactions(
-                pH_res=parameters["pH_res"], 
-                c_salt_res=parameters["c_salt_res"] * pmb.units.mol/ pmb.units.L, 
-                proton_name="H", 
-                hydroxide_name="OH", 
-                salt_cation_name="Na", 
-                salt_anion_name="Cl", 
-                activity_coefficient=lambda x: 1.0)
+        input_parameters = {
+                "pH_res": parameters["pH_res"], 
+                "c_salt_res": parameters["c_salt_res"] * pmb.units.mol/ pmb.units.L, 
+                "proton_name": "H", 
+                "hydroxide_name": "OH", 
+                "salt_cation_name": "Na", 
+                "salt_anion_name": "Cl", 
+                "activity_coefficient": lambda x: 1.0,
+                "use_exclusion_radius_per_type": parameters["use_exclusion_radius_per_type"]}
+ 
+        # Check that pyMBE raises an error if wrong charge signs are provided 
+        if parameters["z_H"]<0:
+            np.testing.assert_raises(ValueError, pmb.setup_grxmc_reactions, **input_parameters)
+            return
+        if parameters["z_Na"]<0:
+            np.testing.assert_raises(ValueError, pmb.setup_grxmc_reactions, **input_parameters)
+            return
+        if parameters["z_OH"]>0:
+            np.testing.assert_raises(ValueError, pmb.setup_grxmc_reactions, **input_parameters)
+            return
+        if parameters["z_Cl"]>0:
+            np.testing.assert_raises(ValueError, pmb.setup_grxmc_reactions, **input_parameters)
+            return
+
+        if "pka_set" in  parameters:
+            input_parameters["pka_set"] = parameters["pka_set"]
+            grxmc, *_ = pmb.setup_grxmc_reactions(**input_parameters)
+        else:
+            grxmc, *_ = pmb.setup_grxmc_reactions(**input_parameters)
 
         # Check the number of reactions
         np.testing.assert_equal(len(grxmc.reactions), 28)
@@ -156,12 +197,27 @@ def reaction_method_test_template(parameters):
         np.testing.assert_allclose(grxmc.reactions[27].gamma, cH_res*cCl_res/Ka_base)
 
     elif parameters["method"] == "grxmc_unified": 
-        grxmc, *_ = pmb.setup_grxmc_unified(
-                pH_res=parameters["pH_res"], 
-                c_salt_res=parameters["c_salt_res"] * pmb.units.mol/ pmb.units.L, 
-                cation_name="H", 
-                anion_name="OH", 
-                activity_coefficient=lambda x: 1.0)
+        input_parameters = {
+                "pH_res": parameters["pH_res"], 
+                "c_salt_res": parameters["c_salt_res"] * pmb.units.mol/ pmb.units.L, 
+                "cation_name": "H", 
+                "anion_name": "OH", 
+                "activity_coefficient": lambda x: 1.0,
+                "use_exclusion_radius_per_type": parameters["use_exclusion_radius_per_type"]}
+
+        # Check that pyMBE raises an error if wrong charge signs are provided 
+        if parameters["z_H"]<0:
+            np.testing.assert_raises(ValueError, pmb.setup_grxmc_unified, **input_parameters)
+            return
+        if parameters["z_OH"]>0:
+            np.testing.assert_raises(ValueError, pmb.setup_grxmc_unified, **input_parameters)
+            return
+
+        if "pka_set" in  parameters:
+            input_parameters["pka_set"] = parameters["pka_set"]
+            grxmc, *_ = pmb.setup_grxmc_unified(**input_parameters)
+        else:
+            grxmc, *_ = pmb.setup_grxmc_unified(**input_parameters)
 
         # Check the number of reactions
         np.testing.assert_equal(len(grxmc.reactions), 10)
@@ -197,44 +253,110 @@ espresso_system=espressomd.System(box_l = [10.0]*3)
 
 # cpH test
 print("*** Unit test: check that reactions are correctly set up in the cpH method. ***")
-parameters = {
-        "method": "cpH",
-        "pK_acid": 4.0,
-        "pK_base": 8.0,
-        "pH": 7.0
-        }
-reaction_method_test_template(parameters)
+for use_exclusion_radius_per_type in [False, True]:
+    parameters = {
+            "method": "cpH",
+            "pK_acid": 4.0,
+            "pK_base": 8.0,
+            "pH": 7.0,
+            "z_Na": 1,
+            "z_Cl": -1,
+            "z_H": 1,
+            "z_OH": -1,
+            "use_exclusion_radius_per_type": use_exclusion_radius_per_type
+            }
+    reaction_method_test_template(parameters)
+
+    parameters["pka_set"] = {
+            "A": {"pka_value": 4.0, "acidity": "acidic"},
+            "B": {"pka_value": 8.0, "acidity": "basic"},
+            "C": {"pka_value": 7.0, "acidity": "acidi"}}
+    reaction_method_test_template(parameters)
 print("*** Unit test passed ***")
 
 # gcmc test
 print("*** Unit test: check that reactions are correctly set up in the GCMC method. ***")
-parameters = {
-        "method": "gcmc",
-        "c_salt_res": 1,
-        }
-reaction_method_test_template(parameters)
+for use_exclusion_radius_per_type in [False, True]:
+    parameters = {
+            "method": "gcmc",
+            "c_salt_res": 1,
+            "z_Na": 1,
+            "z_Cl": -1,
+            "z_H": 1,
+            "z_OH": -1,
+            "use_exclusion_radius_per_type": use_exclusion_radius_per_type
+            }
+    reaction_method_test_template(parameters)
+
+    parameters["z_Cl"] = 1
+    reaction_method_test_template(parameters)
+
+    parameters["z_Na"] = -1
+    reaction_method_test_template(parameters)
 print("*** Unit test passed ***")
 
 # grxmc test
 print("*** Unit test: check that reactions are correctly set up in the G-RxMC method. ***")
-parameters = {
-        "method": "grxmc",
-        "pK_acid": 4.0,
-        "pK_base": 9.0,
-        "c_salt_res": 1,
-        "pH_res": 5.0
-        }
-reaction_method_test_template(parameters)
+for use_exclusion_radius_per_type in [False, True]:
+    parameters = {
+            "method": "grxmc",
+            "pK_acid": 4.0,
+            "pK_base": 9.0,
+            "c_salt_res": 1,
+            "pH_res": 5.0,
+            "z_Na": 1,
+            "z_Cl": -1,
+            "z_H": 1,
+            "z_OH": -1,
+            "use_exclusion_radius_per_type": use_exclusion_radius_per_type
+            }
+    reaction_method_test_template(parameters)
+
+    parameters["pka_set"] = {
+            "A": {"pka_value": 4.0, "acidity": "acidic"},
+            "B": {"pka_value": 9.0, "acidity": "basic"},
+            "C": {"pka_value": 7.0, "acidity": "acidi"}}
+    reaction_method_test_template(parameters)
+
+    parameters["z_Cl"] = 1    
+    reaction_method_test_template(parameters)
+
+    parameters["z_OH"] = 1    
+    reaction_method_test_template(parameters)
+
+    parameters["z_Na"] = -1    
+    reaction_method_test_template(parameters)
+
+    parameters["z_H"] = -1    
+    reaction_method_test_template(parameters)
 print("*** Unit test passed ***")
 
 # grxmc unified test
 print("*** Unit test: check that reactions are correctly set up in the unified G-RxMC method. ***")
-parameters = {
-        "method": "grxmc_unified",
-        "pK_acid": 4.0,
-        "pK_base": 9.0,
-        "c_salt_res": 1,
-        "pH_res": 5.0
-        }
-reaction_method_test_template(parameters)
+for use_exclusion_radius_per_type in [False, True]:
+    parameters = {
+            "method": "grxmc_unified",
+            "pK_acid": 4.0,
+            "pK_base": 9.0,
+            "c_salt_res": 1,
+            "pH_res": 5.0,
+            "z_Na": 1,
+            "z_Cl": -1,
+            "z_H": 1,
+            "z_OH": -1,
+            "use_exclusion_radius_per_type": use_exclusion_radius_per_type
+            }
+    reaction_method_test_template(parameters)
+
+    parameters["pka_set"] = {
+            "A": {"pka_value": 4.0, "acidity": "acidic"},
+            "B": {"pka_value": 9.0, "acidity": "basic"},
+            "C": {"pka_value": 7.0, "acidity": "acidi"}}
+    reaction_method_test_template(parameters)
+
+    parameters["z_OH"] = 1    
+    reaction_method_test_template(parameters)
+
+    parameters["z_H"] = -1    
+    reaction_method_test_template(parameters)
 print("*** Unit test passed ***")

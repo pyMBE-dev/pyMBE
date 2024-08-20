@@ -2127,9 +2127,12 @@ class pymbe_library():
             pka_set[name] = {'pka_value':pka_value,'acidity':acidity}
         return pka_set 
     
-    def get_radius_map(self):
+    def get_radius_map(self, dimensionless=True):
         '''
         Gets the effective radius of each `espresso type` in `pmb.df`. 
+
+        Args:
+            dimensionless('bool'): controlls if the returned radii have a dimension. Defaults to False.
         
         Returns:
             radius_map(`dict`): {espresso_type: radius}.
@@ -2142,6 +2145,9 @@ class pymbe_library():
         state_one = pd.Series((df_state_one.sigma.values+df_state_one.offset.values)/2.0,index=df_state_one.state_one.es_type.values)
         state_two = pd.Series((df_state_two.sigma.values+df_state_two.offset.values)/2.0,index=df_state_two.state_two.es_type.values)
         radius_map  = pd.concat([state_one,state_two],axis=0).to_dict()  
+        if dimensionless:
+            for key in radius_map:
+                radius_map[key] = radius_map[key].magnitude
         return radius_map
 
     def get_reduced_units(self):
@@ -2753,7 +2759,7 @@ class pymbe_library():
             exclusion_radius_per_type = {}
         
         RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude,
-                                                    exclusion_range=exclusion_range.magnitude, 
+                                                    exclusion_range=exclusion_range, 
                                                     seed=self.seed, 
                                                     constant_pH=constant_pH,
                                                     exclusion_radius_per_type = exclusion_radius_per_type
@@ -2762,7 +2768,7 @@ class pymbe_library():
         charge_number_map = self.get_charge_number_map()
         for name in pka_set.keys():
             if self.check_if_name_is_defined_in_df(name,pmb_type_to_be_defined='particle') is False :
-                print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in sg.type_map')
+                print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in the type map.')
                 continue
             gamma=10**-pka_set[name]['pka_value']
             state_one_type   = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
@@ -2802,7 +2808,7 @@ class pymbe_library():
             exclusion_radius_per_type = {}
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
-                                                    exclusion_range=exclusion_range.magnitude, 
+                                                    exclusion_range=exclusion_range, 
                                                     seed=self.seed, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
@@ -2874,7 +2880,7 @@ class pymbe_library():
             exclusion_radius_per_type = {}
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
-                                                    exclusion_range=exclusion_range.magnitude, 
+                                                    exclusion_range=exclusion_range, 
                                                     seed=self.seed, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
@@ -3078,7 +3084,7 @@ class pymbe_library():
             exclusion_radius_per_type = {}
         
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
-                                                    exclusion_range=exclusion_range.magnitude, 
+                                                    exclusion_range=exclusion_range, 
                                                     seed=self.seed, 
                                                     exclusion_radius_per_type = exclusion_radius_per_type
                                                     )
@@ -3118,7 +3124,7 @@ class pymbe_library():
         charge_number_map = self.get_charge_number_map()
         for name in pka_set.keys():
             if self.check_if_name_is_defined_in_df(name,pmb_type_to_be_defined='particle') is False :
-                print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in sg.type_map')
+                print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in the type map.')
                 continue
 
             Ka = 10**-pka_set[name]['pka_value'] * self.units.mol/self.units.l
