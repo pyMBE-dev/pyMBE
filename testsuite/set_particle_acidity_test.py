@@ -21,7 +21,7 @@ import numpy as np
 import pyMBE
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 def check_acid_base_setup(input_parameters,acidity_setup):
     """
@@ -29,12 +29,12 @@ def check_acid_base_setup(input_parameters,acidity_setup):
 
     Args:
         input_parameters(`dict`): dictionary with the input parameters for define_particle.
-        acidity_setup(`dict`): dictionary with the expected setup that pyMBE should do in the pmb.df foor acid/base particles.
+        acidity_setup(`dict`): dictionary with the expected setup that pyMBE should do in the pmb.df for acid/base particles.
 
     """
     pmb.define_particle(**input_parameters)
-    if input_parameters["acidity"] == "inert":
-        input_parameters.pop("q")
+    if input_parameters["acidity"] is None:
+        input_parameters.pop("z")
     # Checks that the input parameters are stored properly
     for parameter_key in input_parameters.keys():
         np.testing.assert_equal(actual=pmb.df[parameter_key].values[0], 
@@ -42,7 +42,7 @@ def check_acid_base_setup(input_parameters,acidity_setup):
                                     verbose=True)
     # Checks that the setup of the acid base properties is done correctly
     for state in ["state_one","state_two"]:
-        for state_atribute in ["label","charge"]:
+        for state_atribute in ["label","z"]:
             np.testing.assert_equal(actual=pmb.df[state][state_atribute].values[0], 
                                     desired=acidity_setup[state][state_atribute], 
                                     verbose=True)
@@ -55,17 +55,26 @@ print("*** Unit test: check that all acid/base input parameters in define_partic
 # Clean pmb.df
 pmb.setup_df()
 input_parameters={"name":"I", 
-                  "acidity": "inert",
+                  "acidity": None,
                   "pka": np.nan,
-                  "q":2}
+                  "z":2}
 acidity_setup={"state_one":{"label":f"{input_parameters['name']}",
-                         "charge":2},
+                         "z":2},
             "state_two":{"label": np.nan,
-                         "charge":np.nan},}
+                         "z":np.nan},}
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
 
+print("*** Unit test passed ***")
+print("*** Unit test: check that a deprecation warning is raised if the keyword 'inert' is used for acidity ***")
+# Clean pmb.df
+pmb.setup_df()
+input_parameters={"name":"I", 
+                  "acidity": "inert",
+                  "pka": np.nan,
+                  "z":2}
+pmb.define_particle(**input_parameters)
 print("*** Unit test passed ***")
 print("*** Unit test: check that all acid/base input parameters in define_particle for an acid are correctly stored in pmb.df***")
 # Clean pmb.df
@@ -74,9 +83,9 @@ input_parameters={"name":"A",
                   "acidity": "acidic",
                   "pka":4}
 acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
-                         "charge":0},
+                         "z":0},
             "state_two":{"label":f"{input_parameters['name']}",
-                         "charge":-1},}
+                         "z":-1},}
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
@@ -88,13 +97,14 @@ input_parameters={"name":"B",
                   "acidity": "basic",
                   "pka":9}
 acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
-                         "charge":1},
+                         "z":1},
             "state_two":{"label":f"{input_parameters['name']}",
-                         "charge":0},}
+                         "z":0},}
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
 print("*** Unit test passed ***")
+
 print("*** Unit test: check that set_particle_acidity raises a ValueError if pKa is not provided and pKa is acidic or basic  ***")
 input_parametersA={"name":"A", 
                    "acidity": "acidic" }

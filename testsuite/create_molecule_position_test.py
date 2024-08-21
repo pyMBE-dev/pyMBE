@@ -20,7 +20,7 @@ import numpy as np
 import espressomd
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 print("***create_molecule with input position list unit test ***")
 print("*** Unit test: Check that the positions of the central bead of the first residue in the generated molecules are equal to the input positions ***")
@@ -34,11 +34,9 @@ molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 
 pos_list = [[10,10,10], [20,20,20], [30,30,30]]
 pmb.define_particle(name='central_mon',
-                        acidity='inert',
                         sigma=0.35*pmb.units.nm, 
                         epsilon=1*pmb.units('reduced_energy'))
 pmb.define_particle(name='side_mon',
-                        acidity='inert',
                         sigma=0.35*pmb.units.nm, 
                         epsilon=1*pmb.units('reduced_energy'))
 
@@ -67,8 +65,8 @@ cation_name = 'Na'
 anion_name = 'Cl'
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
-pmb.define_particle(name=cation_name, q=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name,  q=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, z=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name,  z=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters
 volume = N_molecules/(pmb.N_A*molecule_concentration)

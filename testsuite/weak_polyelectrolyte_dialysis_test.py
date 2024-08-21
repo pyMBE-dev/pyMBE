@@ -26,7 +26,7 @@ import numpy as np
 import pandas as pd
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 script_path=pmb.get_resource("samples/Beyer2024/weak_polyelectrolyte_dialysis.py")
 test_pH_values=[3,5,7,9]

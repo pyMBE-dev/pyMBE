@@ -25,7 +25,7 @@ import pandas as pd
 from espressomd.io.writer import vtf
 # Create an instance of pyMBE library
 import pyMBE
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 #Import functions from handy_functions script 
 from lib.handy_functions import setup_electrostatic_interactions
@@ -143,13 +143,13 @@ cation_name = 'Na'
 anion_name = 'Cl'
 
 pmb.define_particle(name = cation_name, 
-                    q = 1, 
+                    z = 1, 
                     sigma=sigma, 
                     epsilon=epsilon,
                     offset=ion_size-sigma)
 
 pmb.define_particle(name = anion_name,  
-                    q =-1, 
+                    z =-1, 
                     sigma=sigma, 
                     epsilon=epsilon,
                     offset=ion_size-sigma)
@@ -197,10 +197,10 @@ if verbose:
     print ('The total amount of ionizable groups are:',total_ionisible_groups)
 
 #Setup of the reactions in espresso 
-RE, sucessfull_reactions_labels = pmb.setup_cpH(counter_ion=cation_name, 
-                                                constant_pH= pH_value)
+cpH, labels = pmb.setup_cpH(counter_ion=cation_name, 
+                            constant_pH= pH_value)
 if verbose:
-    print('The acid-base reaction has been sucessfully setup for ', sucessfull_reactions_labels)
+    print('The acid-base reaction has been sucessfully setup for ', labels)
 
 type_map = pmb.get_type_map()
 types = list (type_map.values())
@@ -208,7 +208,7 @@ espresso_system.setup_type_map( type_list = types)
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
-RE.set_non_interacting_type (type=non_interacting_type)
+cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
     print('The non interacting type is set to ', non_interacting_type)
 
@@ -251,13 +251,14 @@ for label in labels_obs:
     time_series[label]=[]
 
 charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
-                                            molecule_name=protein_name)
+                                            molecule_name=protein_name,
+                                            dimensionless=True)
     
 net_charge_residues = charge_dict ['residues']
 net_charge_amino_save = {}
 AA_label_list=[]    
 for amino in net_charge_residues.keys():
-    amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & (pmb.df['acidity'] != "inert")]
+    amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & ((pmb.df['acidity'] == "acidic") | (pmb.df['acidity'] == "basic"))]
     if not amino_part_row.empty:
         label = f'charge_{amino_part_row["name"].values[0]}'
         if label not in AA_label_list:
@@ -267,9 +268,10 @@ for amino in net_charge_residues.keys():
 
 for step in tqdm(range(N_samples),disable=not verbose):      
     espresso_system.integrator.run (steps = integ_steps)
-    RE.reaction( reaction_steps = total_ionisible_groups)
+    cpH.reaction(reaction_steps = total_ionisible_groups)
     charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
-                                            molecule_name=protein_name)
+                                            molecule_name=protein_name,
+                                            dimensionless=True)
     charge_residues = charge_dict['residues']
     charge_residues_per_type={}
 
@@ -277,7 +279,7 @@ for step in tqdm(range(N_samples),disable=not verbose):
         charge_residues_per_type[label]=[]
 
     for amino in charge_residues.keys():
-        amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & (pmb.df['acidity'] != "inert")]
+        amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & ((pmb.df['acidity'] == "acidic") | (pmb.df['acidity'] == "basic"))]
         if not amino_part_row.empty:
             label = f'charge_{amino_part_row["name"].values[0]}'
             if label in AA_label_list:

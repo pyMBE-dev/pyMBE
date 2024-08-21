@@ -6,7 +6,7 @@
 		"citekey": "lunkad2021a"
 	},
 	"data": {
-		"CA": {"object_type":"particle", "name": "CA", "q":0, "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}},
+		"CA": {"object_type":"particle", "name": "CA", "z":0, "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}},
 		"D": {"object_type":"particle", "name": "D",  "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}},
 		"E": {"object_type":"particle", "name": "E",  "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}},
 		"H": {"object_type":"particle", "name": "H",  "sigma": {"value":0.35, "units":"nm"}, "epsilon":{"value":1, "units":"reduced_energy"}},

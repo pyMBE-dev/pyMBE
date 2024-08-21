@@ -34,7 +34,7 @@ import pyMBE
 from lib import analysis
 
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(SEED=42)
+pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convinience
 from lib.handy_functions import setup_electrostatic_interactions
@@ -125,10 +125,10 @@ hydroxide_name = 'OHminus'
 sodium_name = 'Na'
 chloride_name = 'Cl'
 
-pmb.define_particle(name=proton_name, q=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=hydroxide_name,  q=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=sodium_name, q=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=chloride_name,  q=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=proton_name, z=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=hydroxide_name,  z=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=sodium_name, z=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=chloride_name, z=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters (some are read from the command line)
 c_mon_sys = args.c_mon_sys * pmb.units.mol/ pmb.units.L
@@ -169,9 +169,9 @@ excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(io
 activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
 if verbose:
     print("Setting up reactions...")
-RE, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, c_salt_res=c_salt_res, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, activity_coefficient=activity_coefficient_monovalent_pair, pka_set=pka_set)
+grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, c_salt_res=c_salt_res, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, activity_coefficient=activity_coefficient_monovalent_pair, pka_set=pka_set)
 if verbose:
-    print('The acid-base reaction has been sucessfully set up for ', sucessful_reactions_labels)
+    print('The acid-base reaction has been sucessfully set up for ', labels)
 
 # Setup espresso to track the ionization of the acid groups
 type_map = pmb.get_type_map()
@@ -180,7 +180,7 @@ espresso_system.setup_type_map(type_list = types)
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
-RE.set_non_interacting_type (type=non_interacting_type)
+grxmc.set_non_interacting_type (type=non_interacting_type)
 
 #Set up the interactions
 pmb.setup_lj_interactions(espresso_system=espresso_system)
@@ -196,7 +196,7 @@ if verbose:
     print("Running warmup without electrostatics")
 for i in tqdm(range(100),disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    RE.reaction(reaction_steps=1000)
+    grxmc.reaction(reaction_steps=1000)
 
 setup_electrostatic_interactions(units=pmb.units,
                                 espresso_system=espresso_system,
@@ -218,7 +218,7 @@ else:
     N_warmup_loops = 100
 for i in tqdm(range(N_warmup_loops),disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    RE.reaction(reaction_steps=100)
+    grxmc.reaction(reaction_steps=100)
 
 
 # Main loop
@@ -236,13 +236,13 @@ else:
     N_production_loops = 100
 for i in tqdm(range(N_production_loops),disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    RE.reaction(reaction_steps=100)
+    grxmc.reaction(reaction_steps=100)
 
     # Measure time
     time_series["time"].append(espresso_system.time)
 
     # Measure degree of ionization
-    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, molecule_name=polyacid_name)      
+    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, molecule_name=polyacid_name, dimensionless=True)
     time_series["alpha"].append(np.abs(charge_dict["mean"])/Chain_length)
 
 data_path = args.output

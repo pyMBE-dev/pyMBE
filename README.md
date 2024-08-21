@@ -1,3 +1,9 @@
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://github.com/pyMBE-dev/pyMBE/blob/logos/logo_banner_dark_mode.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/pyMBE-dev/pyMBE/blob/logos/logo_banner.png">
+  <img alt="pyMBE logo" src="https://github.com/pyMBE-dev/pyMBE/blob/logos/logo_banner.png">
+</picture>
+
 # pyMBE: the Python-based Molecule Builder for ESPResSo 
 
 ![GitHub Actions](https://github.com/pyMBE-dev/pyMBE/actions/workflows/testsuite.yml/badge.svg)
@@ -15,16 +21,10 @@ pyMBE provides tools to facilitate building up molecules with complex architectu
 - [SciPy](https://scipy.org/) 
 - [pdoc](https://pdoc.dev/) (for building the docs)
 
-## Branches
-
-A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the historical name of pyMBE, Sugar)  can be found in the branch `sugar_espresso4.1.4`. Note that further development of pyMBE will only be carried out for ESPResSo v4.2.1 and its forthcoming releases, and no further support for that branch is planned.
-
 ## Contents
 
-- `docs/`: folder with the API documentation of pyMBE.
 - `figs/`: folder with various images used in the tutorials of pyMBE.
-- `libs/`: folder with various libraries.
-- `logo/`: folder with the logo of pyMBE.
+- `lib/`: folder with various libraries.
 - `maintainer/`: folder with various scripts used by the maintainers.
 - `parameters/`: folder with various sets of parameters from previous works.
 - `samples/`: folder with various sample scripts showcasing how to use pyMBE to setup different systems.
@@ -32,8 +32,8 @@ A deprecated version of pyMBE compatible with ESPResSo v4.1.4 (under the histori
 - `tutorials/`: folder with the available tutorials on pyMBE.
 - `visualization/`: folder with helper scripts to aid the visualization of vtf trajectories from constant pH and Grand reaction simulations with [VMD](https://www.ks.uiuc.edu/Research/vmd/).
 - `AUTHORS.md`: list of authors and contributors of pyMBE.
-- `CONTRIBUTING`: rules on how to contribute to pyMBE.
-- `LICENSE.md`: license of pyMBE.
+- `CONTRIBUTING.md`: rules on how to contribute to pyMBE.
+- `LICENSE.txt`: license of pyMBE.
 - `pyMBE.py`: source code of pyMBE
 - `requirements.txt`: list of required libraries to use pyMBE.
 
@@ -130,7 +130,7 @@ that uses the virtual environment.
 
 ```sh
 source pymbe/bin/activate
-python3 sample_scripts/peptide.py
+python3 samples/peptide.py
 deactivate
 ```
 
@@ -165,18 +165,42 @@ and the [EESSI GitHub Action](https://github.com/marketplace/actions/eessi).
 
 ## References
 
-Check out the corresponding [preprint](https://doi.org/10.48550/arXiv.2401.14954) to learn more about pyMBE.
-If you use pyMBE in your research, please cite our preprint:
+Check out the corresponding [paper](https://doi.org/10.1063/5.0216389) to learn more about pyMBE.
+If you use pyMBE in your research, please cite our paper:
 
 ```bibtex
 @article{beyer2024pymbe,
-  title={pyMBE: the Python-based Molecule Builder for ESPResSo},
-  author={Beyer, David and Torres, Paola B and Pineda, Sebastian P and Narambuena, Claudio F and Grad, Jean-No{\"e}l and Ko{\v{s}}ovan, Peter and Blanco, Pablo M},
-  journal={arXiv preprint arXiv:2401.14954},
-  year={2024},
-  doi={10.48550/arXiv.2401.14954}
+  author = {Beyer, David and Torres, Paola B. and Pineda, Sebastian P. and
+            Narambuena, Claudio F. and Grad, Jean-No{\"e}l and Ko{\v{s}}ovan,
+            Peter and Blanco, Pablo M.},
+  title = {{pyMBE}: The {P}ython-based molecule builder for {ESPResSo}},
+  journal = {The Journal of Chemical Physics},
+  volume = {161},
+  number = {2},
+  pages = {022502},
+  year = {2024},
+  month = jul,
+  issn = {0021-9606},
+  doi = {10.1063/5.0216389},
 }
 ```
 
+When using a released version of pyMBE, we recommend citing the corresponding
+[Zenodo record](https://doi.org/10.5281/zenodo.12102634) in addition to the pyMBE paper,
+for example: "We set up our coarse-grained models using pyMBE v0.8.0
+[\@beyer2024pymbe; \@zenodo2024pymbe]".
+
 Please also make sure to properly cite the original authors if you use the resources provided in the `parameters/` folder.
-The relevant references are provided as comments in the corresponding files.
+The relevant references are provided as metadata in the corresponding files.
+
+## License
+
+Copyright (C) 2023-2024 pyMBE-dev team
+
+pyMBE is free software: you can redistribute it and/or modify it
+under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License,
+or (at your option) any later version.
+
+You should have received a [copy](LICENSE.txt) of the GNU General Public License
+along with this program.  If not, see <https://www.gnu.org/licenses/>.

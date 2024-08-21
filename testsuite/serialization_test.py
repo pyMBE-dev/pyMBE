@@ -16,9 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import io
 import json
-import contextlib
 import unittest as ut
 import numpy as np
 import pandas as pd
@@ -53,17 +51,15 @@ class Serialization(ut.TestCase):
         self.assertEqual(params_out, params_ref)
 
     def test_pint_units(self):
-        ref_output = [
-            "Current set of reduced units:",
-            "0.355 nanometer = 1 reduced_length",
-            "4.1164e-21 joule = 1 reduced_energy",
-            "1.6022e-19 coulomb = 1 reduced_charge",
-            "Temperature: 298.15 kelvin",
-        ]
-        pmb = pyMBE.pymbe_library(SEED=42)
-        with contextlib.redirect_stdout(io.StringIO()) as f:
-            pmb.print_reduced_units()
-        self.assertEqual(f.getvalue().strip("\n").split("\n"), ref_output)
+        ref_output =  "\n".join(["Current set of reduced units:",
+                                 "0.355 nanometer = 1 reduced_length",
+                                 "4.1164e-21 joule = 1 reduced_energy",
+                                 "1.6022e-19 coulomb = 1 reduced_charge",
+                                 "Temperature: 298.15 kelvin"
+                                ]) 
+        pmb = pyMBE.pymbe_library(seed=42)
+        reduced_units = pmb.get_reduced_units()
+        self.assertEqual(reduced_units, ref_output)
 
 
 if __name__ == "__main__":
