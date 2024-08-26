@@ -23,6 +23,7 @@ import json
 import pint
 import numpy as np
 import pandas as pd
+import scipy.constants
 import scipy.optimize
 
 
@@ -40,9 +41,9 @@ class pymbe_library():
         Kw(`pint.Quantity`): Ionic product of water. Used in the setup of the G-RxMC method.
     """
     units = pint.UnitRegistry()
-    N_A=6.02214076e23    / units.mol
-    Kb=1.38064852e-23    * units.J / units.K
-    e=1.60217662e-19 *units.C
+    N_A=scipy.constants.N_A / units.mol
+    Kb=scipy.constants.k * units.J / units.K
+    e=scipy.constants.e * units.C
     df=None
     kT=None
     Kw=None
