@@ -2162,7 +2162,7 @@ class pymbe_library():
                                        f"{unit_length.to('nm'):.5g} = {unit_length}",
                                        f"{unit_energy.to('J'):.5g} = {unit_energy}",
                                        f"{unit_charge.to('C'):.5g} = {unit_charge}",
-                                       f"Temperature: {(self.kT/self.Kb).to('K'):.5g}"
+                                       f"Temperature: {(self.kT/self.kB).to('K'):.5g}"
                                         ])   
         return reduced_units_text
 
@@ -2718,9 +2718,9 @@ class pymbe_library():
         if Kw is None:
             Kw = 1e-14
         self.N_A=scipy.constants.N_A / self.units.mol
-        self.Kb=scipy.constants.k * self.units.J / self.units.K
+        self.kB=scipy.constants.k * self.units.J / self.units.K
         self.e=scipy.constants.e * self.units.C
-        self.kT=temperature*self.Kb
+        self.kT=temperature*self.kB
         self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
         self.units.define(f'reduced_energy = {self.kT} ')
         self.units.define(f'reduced_length = {unit_length}')

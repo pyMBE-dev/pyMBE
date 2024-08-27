@@ -62,10 +62,10 @@ class Serialization(ut.TestCase):
         reduced_units = pmb.get_reduced_units()
         self.assertEqual(reduced_units, ref_output)
         np.testing.assert_allclose(
-            [pmb.Kb.magnitude, pmb.N_A.magnitude, pmb.e.magnitude],
+            [pmb.kB.magnitude, pmb.N_A.magnitude, pmb.e.magnitude],
             [scipy.constants.k, scipy.constants.N_A, scipy.constants.e],
             rtol=1e-8, atol=0.)
-        self.assertAlmostEqual((pmb.kT / pmb.Kb).magnitude, 298.15, delta=1e-7)
+        self.assertAlmostEqual((pmb.kT / pmb.kB).magnitude, 298.15, delta=1e-7)
         self.assertAlmostEqual((pmb.kT / scipy.constants.k).magnitude, 298.15,
                                delta=1e-7)
 
