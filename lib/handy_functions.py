@@ -19,32 +19,31 @@
 def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3,verbose=True):
     """
     Sets up electrostatic interactions in espressomd. 
-    Inputs:
-    system: instance of espressmd system class
-    c_salt: Added salt concentration. If provided, the program outputs the debye screening length. It is a mandatory parameter for the Debye-Huckel method. 
-    solvent_permittivity: Solvent relative permitivity, by default chosen per water at 298.15 K
-    method: method prefered for computing the electrostatic interactions. Currently only P3M (label = p3m) and Debye-Huckel (label = DH) are implemented
-    tune_p3m: If true (default), tunes the p3m parameters to improve efficiency
-    accuracy: desired accuracy for electrostatics, by default 1e-3
-    verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
+
+    Args:
+        units(`pint.UnitRegistry`): Unit registry.
+        espresso_system: instance of espressmd system class
+        kT(`float`): Thermal energy.
+        c_salt: Added salt concentration. If provided, the program outputs the debye screening length. It is a mandatory parameter for the Debye-Huckel method.
+        solvent_permittivity: Solvent relative permitivity, by default chosen per water at 298.15 K
+        method: method prefered for computing the electrostatic interactions. Currently only P3M (label = p3m) and Debye-Huckel (label = DH) are implemented
+        tune_p3m: If true (default), tunes the p3m parameters to improve efficiency
+        accuracy: desired accuracy for electrostatics, by default 1e-3
+        verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
     """
     import espressomd.electrostatics
     import numpy as np
-    #Initial checks
+    import scipy.constants
 
+    # Initial checks
     valid_methods_list=['p3m', 'DH']
-
     if method not in valid_methods_list:
-
         raise ValueError('provided an unknown label for method, valid values are', valid_methods_list)
-
     if c_salt is None and method == 'DH':
+        raise ValueError('Please provide the added salt concentration c_salt to setup the Debye-Huckel potential')
 
-        raise ValueError('Please provide the added salt concentration c_salt to settup the Debye-Huckel potential')
-        
-
-    e = 1.60217662e-19 *units.C
-    N_A=6.02214076e23    / units.mol
+    e = scipy.constants.e * units.C
+    N_A = scipy.constants.N_A / units.mol
 
     BJERRUM_LENGTH = e.to('reduced_charge')**2 / (4 * units.pi * units.eps0 * solvent_permittivity * kT.to('reduced_energy'))
     if verbose:
@@ -53,19 +52,12 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
     COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * kT.to('reduced_energy') 
     
     if c_salt is not None:
-
         if c_salt.check('[substance] [length]**-3'):
-
             KAPPA=1./np.sqrt(8*units.pi*BJERRUM_LENGTH*N_A*c_salt)
-
         elif c_salt.check('[length]**-3'):
-            
             KAPPA=1./np.sqrt(8*units.pi*BJERRUM_LENGTH*c_salt)
-
         else:
-
             raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
-
         if verbose:
             print(f"Debye kappa {KAPPA.to('nm')} = {KAPPA.to('reduced_length')}")
     print()

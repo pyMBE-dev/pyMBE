@@ -23,6 +23,7 @@ import json
 import pint
 import numpy as np
 import pandas as pd
+import scipy.constants
 import scipy.optimize
 
 
@@ -39,10 +40,6 @@ class pymbe_library():
         kT(`pint.Quantity`): Thermal energy.
         Kw(`pint.Quantity`): Ionic product of water. Used in the setup of the G-RxMC method.
     """
-    units = pint.UnitRegistry()
-    N_A=6.02214076e23    / units.mol
-    Kb=1.38064852e-23    * units.J / units.K
-    e=1.60217662e-19 *units.C
     df=None
     kT=None
     Kw=None
@@ -2165,7 +2162,7 @@ class pymbe_library():
                                        f"{unit_length.to('nm'):.5g} = {unit_length}",
                                        f"{unit_energy.to('J'):.5g} = {unit_energy}",
                                        f"{unit_charge.to('C'):.5g} = {unit_charge}",
-                                       f"Temperature: {(self.kT/self.Kb).to('K'):.5g}"
+                                       f"Temperature: {(self.kT/self.kB).to('K'):.5g}"
                                         ])   
         return reduced_units_text
 
@@ -2720,10 +2717,10 @@ class pymbe_library():
             unit_charge=self.units.e
         if Kw is None:
             Kw = 1e-14
-        self.N_A=6.02214076e23 / self.units.mol
-        self.Kb=1.38064852e-23 * self.units.J / self.units.K
-        self.e=1.60217662e-19 *self.units.C
-        self.kT=temperature*self.Kb
+        self.N_A=scipy.constants.N_A / self.units.mol
+        self.kB=scipy.constants.k * self.units.J / self.units.K
+        self.e=scipy.constants.e * self.units.C
+        self.kT=temperature*self.kB
         self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
         self.units.define(f'reduced_energy = {self.kT} ')
         self.units.define(f'reduced_length = {unit_length}')
