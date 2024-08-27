@@ -40,10 +40,6 @@ class pymbe_library():
         kT(`pint.Quantity`): Thermal energy.
         Kw(`pint.Quantity`): Ionic product of water. Used in the setup of the G-RxMC method.
     """
-    units = pint.UnitRegistry()
-    N_A=scipy.constants.N_A / units.mol
-    Kb=scipy.constants.k * units.J / units.K
-    e=scipy.constants.e * units.C
     df=None
     kT=None
     Kw=None
@@ -2721,9 +2717,9 @@ class pymbe_library():
             unit_charge=self.units.e
         if Kw is None:
             Kw = 1e-14
-        self.N_A=6.02214076e23 / self.units.mol
-        self.Kb=1.38064852e-23 * self.units.J / self.units.K
-        self.e=1.60217662e-19 *self.units.C
+        self.N_A=scipy.constants.N_A / self.units.mol
+        self.Kb=scipy.constants.k * self.units.J / self.units.K
+        self.e=scipy.constants.e * self.units.C
         self.kT=temperature*self.Kb
         self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
         self.units.define(f'reduced_energy = {self.kT} ')
