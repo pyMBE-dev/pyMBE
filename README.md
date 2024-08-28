@@ -20,6 +20,7 @@ pyMBE provides tools to facilitate building up molecules with complex architectu
 - [Numpy](https://numpy.org/) >=1.23
 - [SciPy](https://scipy.org/) 
 - [pdoc](https://pdoc.dev/) (for building the docs)
+- [CMake](https://cmake.org/) (for running the testsuite)
 
 ## Contents
 
@@ -153,12 +154,18 @@ To make sure your code is valid, please run the testsuite before submitting your
 
 ```sh
 source pymbe/bin/activate
-make tests
+make tests -j4
 deactivate
 ```
 
+Here, `-j4` instructs CTest to run the test cases in parallel using 4 CPU cores.
+This number can be adjusted depending on your hardware specifications.
+You can use `make unit_tests -j4` to run the subset of fast tests, but keep in mind those
+won't be able to detect more serious bugs that only manifest themselves in long simulations.
+You can also run individual test cases directly, for example with `python3 testsuite/parameter_test.py`.
+
 When contributing new features, consider adding a unit test in the `testsuite/`
-folder and a corresponding line in the `testsuite` target of the Makefile.
+folder and a corresponding line in the `testsuite/CTestTestfile.cmake` file.
 
 Every contribution is automatically tested in CI using EESSI (https://www.eessi.io)
 and the [EESSI GitHub Action](https://github.com/marketplace/actions/eessi).

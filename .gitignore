@@ -6,3 +6,4 @@ frames
 __pycache__
 traj*.vtf
 *_system.png
+testsuite/Testing/
