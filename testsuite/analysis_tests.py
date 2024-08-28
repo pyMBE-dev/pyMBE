@@ -19,24 +19,23 @@
 import unittest as ut
 import pandas as pd
 import lib.analysis as ana
+import pathlib
 
 
 class Serialization(ut.TestCase):
+    data_root = pathlib.Path(__file__).parent.resolve() / "tests_data"
 
     def test_analyze_time_series(self):
         print("*** Unit test: test that analysis.analyze_time_series analyzes all data in a folder correctly ***")
-        analyzed_data = ana.analyze_time_series(path_to_datafolder="testsuite/tests_data",
+        analyzed_data = ana.analyze_time_series(path_to_datafolder=self.data_root,
                                        filename_extension="_time_series.csv",
                                        minus_separator=True)
         analyzed_data[["Dens","eps"]] = analyzed_data[["Dens","eps"]].apply(pd.to_numeric)
-        reference_data = pd.read_csv("testsuite/tests_data/average_data.csv", header=[0,1])
+        reference_data = pd.read_csv(self.data_root / "average_data.csv", header=[0,1])
         analyzed_data.columns = analyzed_data.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
         reference_data.columns = reference_data.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
         pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False, check_dtype=False)
         print("*** Unit passed ***")
-        
-        return
-    
     
     def test_get_dt(self):
         print("*** Unit test: test that analysis.get_dt returns the right time step ***")
@@ -123,12 +122,12 @@ class Serialization(ut.TestCase):
         
     def test_block_analyze(self):
         print("*** Unit test: test that block_analyze yields the expected outputs and reports the number of blocks and the block size. It should print that it encountered 1 repeated time value. ***")
-        data = pd.read_csv("testsuite/tests_data/N-064_Solvent-good_Init-coil_time_series.csv")
+        data = pd.read_csv(self.data_root / "N-064_Solvent-good_Init-coil_time_series.csv")
         analyzed_data = ana.block_analyze(full_data=data, verbose=True)
         analyzed_data = ana.add_data_to_df(df=pd.DataFrame(),
                             data_dict=analyzed_data.to_dict(),
                             index=[0])
-        reference_data = pd.read_csv("testsuite/tests_data/N-064_Solvent-good_Init-coil_time_series_analyzed.csv", header=[0,1])
+        reference_data = pd.read_csv(self.data_root / "N-064_Solvent-good_Init-coil_time_series_analyzed.csv", header=[0,1])
         pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False)
         print("*** Unit passed ***")
         
@@ -137,7 +136,7 @@ class Serialization(ut.TestCase):
         analyzed_data = ana.add_data_to_df(df=pd.DataFrame(),
                             data_dict=analyzed_data.to_dict(),
                             index=[0])
-        reference_data = pd.read_csv("testsuite/tests_data/N-064_Solvent-good_Init-coil_time_series_analyzed.csv", header=[0,1])
+        reference_data = pd.read_csv(self.data_root / "N-064_Solvent-good_Init-coil_time_series_analyzed.csv", header=[0,1])
         reference_data = reference_data[[("mean","Rg"),("err_mean","Rg"),("n_eff","Rg"),("tau_int","Rg")]]
         pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False)
         print("*** Unit passed ***")
