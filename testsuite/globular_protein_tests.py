@@ -18,77 +18,66 @@
 
 from lib import analysis
 import sys
+import pathlib
 import tempfile
 import subprocess
+import multiprocessing
 import numpy as np
 import pandas as pd
 import unittest as ut
-import pathlib
+
+
+root = pathlib.Path(__file__).parent.parent.resolve()
+data_root = root / "testsuite" / "globular_protein_tests_data"
+script_path = root / "samples" / "Beyer2024" / "globular_protein.py"
+test_pH_values = [2, 5, 7]
+tasks = ["1beb", "1f6s"]
+mode = "test"
+
+
+def kernel(protein_pdb):
+    """
+    Runs a set of tests for a given protein pdb.
+
+    Args:
+        protein_pdb(`str`): PDB code of the protein.
+    """
+    with tempfile.TemporaryDirectory() as time_series_path:
+        for pH in test_pH_values:
+            print(f"pH = {pH}")
+            run_command=[sys.executable, script_path, "--pdb", protein_pdb, "--pH", str(pH),
+                         "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf",
+                         "--mode", "test", "--no_verbose", "--output", time_series_path]
+            print(subprocess.list2cmdline(run_command))
+            subprocess.check_output(run_command)
+        # Analyze all time series
+        data=analysis.analyze_time_series(path_to_datafolder=time_series_path,
+                                          filename_extension="_time_series.csv")
+    return (protein_pdb, data)
 
 
 class Test(ut.TestCase):
-    data_root = pathlib.Path(__file__).parent.resolve() / "globular_protein_tests_data"
-    samples_root = pathlib.Path(__file__).parent.parent.resolve() / "samples"
-
-    def run_protein_test(self, script_path, test_pH_values, protein_pdb, rtol, atol,mode="test"):
-        """
-        Runs a set of tests for a given protein pdb.
-
-        Args:
-            script_path(`str`): Path to the script to run the test.
-            test_pH_values(`lst`): List of pH values to be tested.
-            protein_pdb(`str`): PDB code of the protein.
-        """
-        valid_modes=["test","save"]
-        assert mode in valid_modes, f"Mode {mode} not supported, valid modes: {valid_modes}"
-
-        print(f"Running tests for {protein_pdb}")
-        with tempfile.TemporaryDirectory() as time_series_path:
-            for pH in test_pH_values:
-                print(f"pH = {pH}")
-                run_command=[sys.executable, script_path, "--pdb", protein_pdb, "--pH", str(pH),
-                             "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf",
-                             "--mode", "test", "--no_verbose", "--output", time_series_path]
-                print(subprocess.list2cmdline(run_command))
-                subprocess.check_output(run_command)
-            # Analyze all time series
-            data=analysis.analyze_time_series(path_to_datafolder=time_series_path,
-                                              filename_extension="_time_series.csv")
-
-        if mode == "test":
-            # Get reference test data
-            ref_data=pd.read_csv(self.data_root / f"{protein_pdb}.csv", header=[0, 1])
-            # Check charge
-            test_charge=np.sort(data["mean","charge"].to_numpy())
-            ref_charge=np.sort(ref_data["mean","charge"].to_numpy())
-            np.testing.assert_allclose(test_charge, ref_charge, rtol=rtol, atol=atol)
-            print(f"Test for {protein_pdb} was successful")
-        else:
-            assert mode == "save"
-            # Save data for future testing
-            data.to_csv(self.data_root / f"{protein_pdb}.csv", index=False)
 
     def test_globular_protein(self):
-        script_path = self.samples_root / "Beyer2024" / "globular_protein.py"
-        test_pH_values=[2,5,7]
+        with multiprocessing.Pool(processes=2) as pool:
+            results = dict(pool.map(kernel, tasks, chunksize=1))
+
         rtol=0.1 # relative tolerance
         atol=0.5 # absolute tolerance
-
-        # Run test for 1BEB case
-        protein_pdb = "1beb"
-        self.run_protein_test(script_path=script_path,
-                              test_pH_values=test_pH_values,
-                              protein_pdb=protein_pdb,
-                              rtol=rtol,
-                              atol=atol)
-
-        # Run test for 1F6S case
-        protein_pdb = "1f6s"
-        self.run_protein_test(script_path=script_path,
-                              test_pH_values=test_pH_values,
-                              protein_pdb=protein_pdb,
-                              rtol=rtol,
-                              atol=atol)
+        for protein_pdb, data in results.items():
+            # Save data for future testing
+            if mode == "save":
+                data.to_csv(data_root / f"{protein_pdb}.csv", index=False)
+                continue
+            assert mode == "test", f"Mode {mode} not supported, valid modes: ['save', 'test']"
+            with self.subTest(msg=f"Protein {protein_pdb}"):
+                # Get reference test data
+                ref_data=pd.read_csv(data_root / f"{protein_pdb}.csv", header=[0, 1])
+                # Check charge
+                test_charge=np.sort(data["mean","charge"].to_numpy())
+                ref_charge=np.sort(ref_data["mean","charge"].to_numpy())
+                np.testing.assert_allclose(
+                    test_charge, ref_charge, rtol=rtol, atol=atol)
 
 if __name__ == "__main__":
     ut.main()

@@ -16,87 +16,72 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Import pyMBE and other libraries
 import sys
+import pathlib
 import tempfile
 import subprocess
-import pyMBE
+import multiprocessing
 from lib import analysis
 import numpy as np
 import pandas as pd
+import unittest as ut
 
-# Template of the test
+root = pathlib.Path(__file__).parent.parent.resolve()
+data_root = root / "testsuite" / "peptide_tests_data"
+script_path = root / "samples" / "Beyer2024" / "peptide.py"
+test_pH_values = [3, 7, 11]
+tasks = [
+  "K"*5+"D"*5, # K_5-D_5 case
+  "E"*5+"H"*5, # E_5-H_5 case
+  "nDSHAKRHHGYKRKFHEKHHSHRGYc", # histatin-5 case, slow simulation
+]
+mode = "test"
 
-def run_peptide_test(script_path,test_pH_values,sequence,rtol,atol,mode="test"):
+def kernel(sequence):
     """
     Runs a set of tests for a given peptide sequence.
 
     Args:
-        script_path(`str`): Path to the script to run the test.
-        test_pH_values(`lst`): List of pH values to be tested.
         sequence(`str`): Amino acid sequence of the peptide.
     """
-    valid_modes=["test","save"]
-    assert mode in valid_modes, f"Mode {mode} not supported, valid modes: {valid_modes}"
-
-    print(f"Running tests for {sequence}")
     with tempfile.TemporaryDirectory() as time_series_path:
         for pH in test_pH_values:
             print(f"pH = {pH}")
-            run_command=[sys.executable, script_path, "--sequence", sequence, "--pH", str(pH), "--mode", "test", "--no_verbose", "--output", time_series_path]
+            run_command=[sys.executable, script_path, "--sequence", sequence,
+                         "--pH", str(pH), "--mode", "test", "--no_verbose",
+                         "--output", time_series_path]
             print(subprocess.list2cmdline(run_command))
             subprocess.check_output(run_command)
         # Analyze all time series
         data=analysis.analyze_time_series(path_to_datafolder=time_series_path)
-        data_path=pmb.get_resource(path="testsuite/peptide_tests_data")
-    if mode == "test":
-        # Get reference test data
-        ref_data=pd.read_csv(data_path+f"/{sequence}.csv", header=[0, 1])
-        # Check charge
-        test_charge=np.sort(data["mean","charge"].to_numpy())
-        ref_charge=np.sort(ref_data["mean","charge"].to_numpy())
-        np.testing.assert_allclose(test_charge, ref_charge, rtol=rtol, atol=atol)
-        # Check rg
-        test_rg=np.sort(data["mean","rg"].to_numpy())
-        ref_rg=np.sort(ref_data["mean","rg"].to_numpy())
-        np.testing.assert_allclose(test_rg, ref_rg, rtol=rtol, atol=atol)
-        print(f"Test for {sequence} was successful")
-    elif mode == "save":
-        # Save data for future testing
-        data.to_csv(f"{data_path}/{sequence}.csv", index=False)
-    else:
-        raise RuntimeError
+    return (sequence, data)
 
-# Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(seed=42)
 
-script_path=pmb.get_resource("samples/Beyer2024/peptide.py")
-test_pH_values=[3,7,11]
-rtol=0.1 # relative tolerance
-atol=0.5 # absolute tolerance
+class Test(ut.TestCase):
 
-# Run test for K_5-D_5 case
-sequence="K"*5+"D"*5
+    def test_peptide(self):
+        with multiprocessing.Pool(processes=2) as pool:
+            results = dict(pool.map(kernel, tasks, chunksize=2))
 
-run_peptide_test(script_path=script_path,
-                    test_pH_values=test_pH_values,
-                    sequence=sequence,
-                    rtol=rtol,
-                    atol=atol)
+        rtol=0.1 # relative tolerance
+        atol=0.5 # absolute tolerance
+        for sequence, data in results.items():
+            # Save data for future testing
+            if mode == "save":
+                data.to_csv(data_root / f"{sequence}.csv", index=False)
+                continue
+            assert mode == "test", f"Mode {mode} not supported, valid modes: ['save', 'test']"
+            with self.subTest(msg=f"Sequence {sequence}"):
+                # Get reference test data
+                ref_data=pd.read_csv(data_root / f"{sequence}.csv", header=[0, 1])
+                # Check charge
+                test_charge=np.sort(data["mean","charge"].to_numpy())
+                ref_charge=np.sort(ref_data["mean","charge"].to_numpy())
+                np.testing.assert_allclose(test_charge, ref_charge, rtol=rtol, atol=atol)
+                # Check rg
+                test_rg=np.sort(data["mean","rg"].to_numpy())
+                ref_rg=np.sort(ref_data["mean","rg"].to_numpy())
+                np.testing.assert_allclose(test_rg, ref_rg, rtol=rtol, atol=atol)
 
-# Run test for E_5-H_5 case
-sequence="E"*5+"H"*5
-
-run_peptide_test(script_path=script_path,
-                    test_pH_values=test_pH_values,
-                    sequence=sequence,
-                    rtol=rtol,
-                    atol=atol)
-                    
-# Run test for histatin-5 case
-sequence="nDSHAKRHHGYKRKFHEKHHSHRGYc"
-run_peptide_test(script_path=script_path,
-                    test_pH_values=test_pH_values,
-                    sequence=sequence,
-                    rtol=rtol,
-                    atol=atol)   
+if __name__ == "__main__":
+    ut.main()

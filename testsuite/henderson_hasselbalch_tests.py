@@ -50,63 +50,38 @@ class Test(ut.TestCase):
                 sequence = sequence2,
                 model = model)
 
+        with self.subTest(msg="Check Henderson-Hasselbalch equation"):
+            pH_range = np.linspace(2, 12, num=200)
+            Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1",
+                                      pH_list = pH_range)
+            Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2",
+                                      pH_list = pH_range)
 
-        print("*** Check that Henderson-Hasselbalch equation works correctly ***")
+            data_path = pmb.get_resource(path=self.data_root)
+            ref_data_HH = np.loadtxt(f"{data_path}/HH.csv", delimiter=",")
+            np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,:])
+            np.testing.assert_allclose(Z_HH_2, ref_data_HH[1,:])
 
-        # Calculate charge according to Henderson-Hasselbalch equation
-        pH_range = np.linspace(2, 12, num=200)
-        Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1",
-                                pH_list = pH_range)
-        Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2",
-                                pH_list = pH_range)
+        with self.subTest(msg="Check Henderson-Hasselbalch equation + Donnan"):
+            HH_Donnan_dict = pmb.calculate_HH_Donnan(
+                    c_macro = {"peptide_1": pep1_concentration,
+                               "peptide_2": pep2_concentration},
+                    c_salt = c_salt,
+                    pH_list = pH_range)
 
-        """
-        with open(self.data_root / "HH.csv", "wb") as f:
-            np.savetxt(f, np.asarray(Z_HH_1).reshape(1,-1), delimiter=",")
-            np.savetxt(f, np.asarray(Z_HH_2).reshape(1,-1), delimiter=",")
-        """
+            ref_data_HH_Donnan = np.loadtxt(f"{data_path}/HH_Donnan.csv", delimiter=",")
+            np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_1"], ref_data_HH_Donnan[0,:])
+            np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_2"], ref_data_HH_Donnan[1,:])
 
-        data_path = pmb.get_resource(path=self.data_root)
-        ref_data_HH = np.loadtxt(f"{data_path}/HH.csv", delimiter=",")
-        np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,:])
-        np.testing.assert_allclose(Z_HH_2, ref_data_HH[1,:])
+        with self.subTest(msg="Check HH and HH_Don are consistentn"):
+            Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1",
+                                      pH_list = HH_Donnan_dict["pH_system_list"])
+            Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2",
+                                      pH_list = HH_Donnan_dict["pH_system_list"])
 
-        print("*** Test passed ***\n")
+            np.testing.assert_allclose(Z_HH_1, HH_Donnan_dict["charges_dict"]["peptide_1"])
+            np.testing.assert_allclose(Z_HH_2, HH_Donnan_dict["charges_dict"]["peptide_2"])
 
-
-        print("*** Check that Henderson-Hasselbalch equation + Donnan works correctly ***")
-
-        HH_Donnan_dict = pmb.calculate_HH_Donnan(
-                c_macro = {"peptide_1": pep1_concentration,
-                           "peptide_2": pep2_concentration},
-                c_salt = c_salt,
-                pH_list = pH_range)
-
-        """
-        with open(self.data_root / "HH_Donnan.csv", "wb") as f:
-            np.savetxt(f, np.asarray(HH_Donnan_dict["charges_dict"]["peptide_1"]).reshape(1,-1), delimiter=",")
-            np.savetxt(f, np.asarray(HH_Donnan_dict["charges_dict"]["peptide_2"]).reshape(1,-1), delimiter=",")
-        """
-
-        ref_data_HH_Donnan = np.loadtxt(f"{data_path}/HH_Donnan.csv", delimiter=",")
-        np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_1"], ref_data_HH_Donnan[0,:])
-        np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_2"], ref_data_HH_Donnan[1,:])
-
-        print("*** Test passed ***\n")
-
-
-        print("*** Check that HH and HH_Don are consistent ***")
-
-        Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1",
-                                pH_list = HH_Donnan_dict["pH_system_list"])
-        Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2",
-                                pH_list = HH_Donnan_dict["pH_system_list"])
-
-        np.testing.assert_allclose(Z_HH_1, HH_Donnan_dict["charges_dict"]["peptide_1"])
-        np.testing.assert_allclose(Z_HH_2, HH_Donnan_dict["charges_dict"]["peptide_2"])
-
-
-        print("*** Test passed***")
 
 if __name__ == "__main__":
     ut.main()
