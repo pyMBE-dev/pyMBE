@@ -5,4 +5,7 @@ pint-pandas>=0.3
 biopandas==0.5.1.dev0
 scipy>=1.8.0
 matplotlib>=3.5.1
+# soft dependencies to run the samples
 tqdm>=4.57.0
+# soft dependencies to run the testsuite
+cmake>=3.22.1 # for CTest

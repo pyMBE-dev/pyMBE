@@ -37,7 +37,7 @@ jobs:
           module restore pymbe
           source venv/bin/activate
           make pylint
-          make unit_tests COVERAGE=1
+          make unit_tests -j $(nproc) COVERAGE=1
           make docs
           make coverage_xml
         shell: bash

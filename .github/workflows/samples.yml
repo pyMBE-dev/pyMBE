@@ -31,5 +31,5 @@ jobs:
         run: |
           module restore pymbe
           source venv/bin/activate
-          make functional_tests
+          make functional_tests -j $(nproc)
         shell: bash

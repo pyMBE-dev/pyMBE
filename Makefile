@@ -29,52 +29,30 @@ COVERAGE_HTML = coverage
 
 # Python executable or launcher, possibly with command line arguments
 PYTHON = python3
-ifeq ($(COVERAGE),1)
-PYTHON := ${PYTHON} -m coverage run --parallel-mode --source=$(CURDIR)
-endif
+
+# number of threads
+THREADS = $(shell echo $(MAKEFLAGS) | grep -oP "\\-j *\\d+")
 
 docs:
 	mkdir -p ./documentation
 	PDOC_ALLOW_EXEC=0 ${PYTHON} -m pdoc ./pyMBE.py -o ./documentation --docformat google
 
 unit_tests:
-	${PYTHON} testsuite/serialization_test.py
-	${PYTHON} testsuite/lj_tests.py
-	${PYTHON} testsuite/set_particle_acidity_test.py
-	${PYTHON} testsuite/bond_tests.py
-	${PYTHON} testsuite/generate_perpendicular_vectors_test.py
-	${PYTHON} testsuite/define_and_create_molecules_unit_tests.py
-	${PYTHON} testsuite/create_molecule_position_test.py
-	${PYTHON} testsuite/seed_test.py
-	${PYTHON} testsuite/read-write-df_test.py
-	${PYTHON} testsuite/parameter_test.py
-	${PYTHON} testsuite/henderson_hasselbalch_tests.py
-	${PYTHON} testsuite/calculate_net_charge_unit_test.py
-	${PYTHON} testsuite/setup_salt_ions_unit_tests.py
-	${PYTHON} testsuite/globular_protein_unit_tests.py
-	${PYTHON} testsuite/analysis_tests.py
-	${PYTHON} testsuite/charge_number_map_tests.py
-	${PYTHON} testsuite/generate_coordinates_tests.py
-	${PYTHON} testsuite/reaction_methods_unit_tests.py
-	${PYTHON} testsuite/determine_reservoir_concentrations_unit_test.py
+	COVERAGE=$(COVERAGE) ctest --output-on-failure $(THREADS) --test-dir testsuite -LE long --timeout 300
 
 functional_tests:
-	${PYTHON} testsuite/cph_ideal_tests.py
-	${PYTHON} testsuite/grxmc_ideal_tests.py
-	${PYTHON} testsuite/peptide_tests.py
-	${PYTHON} testsuite/gcmc_tests.py
-	${PYTHON} testsuite/weak_polyelectrolyte_dialysis_test.py
-	${PYTHON} testsuite/globular_protein_tests.py
+	COVERAGE=$(COVERAGE) ctest --output-on-failure $(THREADS) --test-dir testsuite -L long
 
-tests: unit_tests functional_tests
+tests:
+	COVERAGE=$(COVERAGE) ctest --output-on-failure $(THREADS) --test-dir testsuite
 
 coverage_xml:
-	${PYTHON} -m coverage combine .
+	${PYTHON} -m coverage combine testsuite
 	${PYTHON} -m coverage report
 	${PYTHON} -m coverage xml
 
 coverage_html:
-	${PYTHON} -m coverage combine .
+	${PYTHON} -m coverage combine testsuite
 	${PYTHON} -m coverage html --directory="${COVERAGE_HTML}"
 
 sample:
