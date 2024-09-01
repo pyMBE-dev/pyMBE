@@ -77,7 +77,6 @@ class pymbe_library():
         self.N_A=scipy.constants.N_A / self.units.mol
         self.kB=scipy.constants.k * self.units.J / self.units.K
         self.e=scipy.constants.e * self.units.C
-        self.Kw=1e-14*self.units.mol**2 / (self.units.l**2)
         self.set_reduced_units(unit_length=unit_length, 
                                unit_charge=unit_charge,
                                temperature=temperature, 
@@ -2716,12 +2715,14 @@ class pymbe_library():
             temperature = 298.15 * self.units.K
         if unit_charge is None:
             unit_charge = scipy.constants.e * self.units.C
+        if Kw is None:
+            Kw = 1e-14
         # Sanity check
         variables=[unit_length,temperature,unit_charge]
         dimensionalities=["[length]","[temperature]","[charge]"]
         for variable,dimensionality in zip(variables,dimensionalities):
             self.check_dimensionality(variable,dimensionality)
-            
+        self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
         self.kT=temperature*self.kB
         self.units._build_cache()
         self.units.define(f'reduced_energy = {self.kT} ')
