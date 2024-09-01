@@ -40,12 +40,6 @@ class pymbe_library():
         kT(`pint.Quantity`): Thermal energy.
         Kw(`pint.Quantity`): Ionic product of water. Used in the setup of the G-RxMC method.
     """
-    df=None
-    kT=None
-    Kw=None
-    seed=None
-    rng=None
-
 
     class NumpyEncoder(json.JSONEncoder):
         """
@@ -79,8 +73,16 @@ class pymbe_library():
         # Seed and RNG
         self.seed=seed
         self.rng = np.random.default_rng(seed)
-        self.set_reduced_units(unit_length=unit_length, unit_charge=unit_charge,
-                               temperature=temperature, Kw=Kw, verbose=False)
+        self.units=pint.UnitRegistry()
+        self.N_A=scipy.constants.N_A / self.units.mol
+        self.kB=scipy.constants.k * self.units.J / self.units.K
+        self.e=scipy.constants.e * self.units.C
+        self.Kw=1e-14*self.units.mol**2 / (self.units.l**2)
+        self.set_reduced_units(unit_length=unit_length, 
+                               unit_charge=unit_charge,
+                               temperature=temperature, 
+                               Kw=Kw, 
+                               verbose=False)
         self.setup_df()
         return
 
@@ -2708,20 +2710,20 @@ class pymbe_library():
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
             - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
-        self.units=pint.UnitRegistry()
         if unit_length is None:
-            unit_length=0.355*self.units.nm
+            unit_length= 0.355*self.units.nm
         if temperature is None:
-            temperature=298.15 * self.units.K
+            temperature = 298.15 * self.units.K
         if unit_charge is None:
-            unit_charge=self.units.e
-        if Kw is None:
-            Kw = 1e-14
-        self.N_A=scipy.constants.N_A / self.units.mol
-        self.kB=scipy.constants.k * self.units.J / self.units.K
-        self.e=scipy.constants.e * self.units.C
+            unit_charge = scipy.constants.e * self.units.C
+        # Sanity check
+        variables=[unit_length,temperature,unit_charge]
+        dimensionalities=["[length]","[temperature]","[charge]"]
+        for variable,dimensionality in zip(variables,dimensionalities):
+            self.check_dimensionality(variable,dimensionality)
+            
         self.kT=temperature*self.kB
-        self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
+        self.units._build_cache()
         self.units.define(f'reduced_energy = {self.kT} ')
         self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = {unit_charge}')
