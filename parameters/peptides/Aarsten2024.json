@@ -1,0 +1,369 @@
+{
+    "data": {
+    "CA": {
+      "object_type": "particle",
+      "name": "CA",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.152, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "G": {
+      "object_type": "particle",
+      "name": "G",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.152, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "S": {
+      "object_type": "particle",
+      "name": "S",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.072, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "C": {
+      "object_type": "particle",
+      "name": "C",
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.091, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "H": {
+      "object_type": "particle",
+      "name": "H",
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.156, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "K": {
+      "object_type": "particle",
+      "name": "K",
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.19, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "E": {
+      "object_type": "particle",
+      "name": "E",
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.168, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "R": {
+      "object_type": "particle",
+      "name": "R",
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.299, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "D": {
+      "object_type": "particle",
+      "name": "D",
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.113, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "n": {
+      "object_type": "particle",
+      "name": "n",
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "c": {
+      "object_type": "particle",
+      "name": "c",
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.15, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "T": {
+      "object_type": "particle",
+      "name": "T",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.124, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "N": {
+      "object_type": "particle",
+      "name": "N",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.266, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "Q": {
+      "object_type": "particle",
+      "name": "Q",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.432, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "A": {
+      "object_type": "particle",
+      "name": "A",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "V": {
+      "object_type": "particle",
+      "name": "V",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.13, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "I": {
+      "object_type": "particle",
+      "name": "I",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.274, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "L": {
+      "object_type": "particle",
+      "name": "L",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.122, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "M": {
+      "object_type": "particle",
+      "name": "M",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.456, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "F": {
+      "object_type": "particle",
+      "name": "F",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.476, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "Y": {
+      "object_type": "particle",
+      "name": "Y",
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.248, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "W": {
+      "object_type": "particle",
+      "name": "W",
+      "q": 0,
+      "sigma": {"value": 1, "units": "reduced_length"},
+      "offset": {"value": 0.528, "units": "nm"},
+      "epsilon": {"value": 1, "units": "reduced_energy"}
+    },
+    "bond_CA_CA": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "CA"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.310, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_n": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "n"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.300, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_c": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "c"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.310, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_E": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "E"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.610, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_H": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "H"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.553, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_K": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "K"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.602, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_S": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "S"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.269, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_C": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "C"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.462, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_G": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "G"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.364, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_R": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "R"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.779, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_D": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "D"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.412, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_T": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "T"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.288, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_N": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "N"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.359, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_Q": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "Q"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.442, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_A": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "A"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.302, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_V": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "V"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.291, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_I": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "I"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.363, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_L": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "L"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.287, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_M": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "M"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.454, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_F": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "F"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.463, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_Y": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "Y"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.775, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    },
+    "bond_CA_W": {
+      "object_type": "bond",
+      "particle_pairs": [["CA", "W"]],
+      "bond_type": "harmonic",
+      "bond_parameters": {
+        "r_0": {"value": 0.490, "units": "nm"},
+        "k": {"value": 560, "units": "reduced_energy / nm**2"}
+      }
+    }
+  }
+}
