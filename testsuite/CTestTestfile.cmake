@@ -48,6 +48,7 @@ pymbe_add_test(PATH gcmc_tests.py LABELS long)
 
 # unit tests
 pymbe_add_test(PATH serialization_test.py)
+pymbe_add_test(PATH test_global_variables.py)
 pymbe_add_test(PATH lj_tests.py)
 pymbe_add_test(PATH set_particle_acidity_test.py)
 pymbe_add_test(PATH bond_tests.py)
