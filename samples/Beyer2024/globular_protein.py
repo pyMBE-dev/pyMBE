@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
+from pathlib import Path
 from tqdm import tqdm
 import espressomd
 import argparse
@@ -123,8 +123,8 @@ WCA = True
 Electrostatics = True
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
-if not os.path.exists('./frames'):
-    os.makedirs('./frames')
+Path("./frames").mkdir(parents=True, 
+                       exist_ok=True)
 
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
 espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
@@ -303,8 +303,8 @@ data_path = args.output
 if data_path is None:
     data_path=pmb.get_resource(path="samples/Beyer2024/")+"/time_series/globular_protein"
 
-if not os.path.exists(data_path):
-    os.makedirs(data_path)
+Path(data_path).mkdir(parents=True, 
+                       exist_ok=True)
     
 time_series=pd.DataFrame(time_series)
 filename=analysis.built_output_name(input_dict=inputs)

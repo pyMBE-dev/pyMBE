@@ -17,8 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #Load espresso, pyMBE and other necessary libraries
-import os 
 import espressomd
+from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -48,8 +48,8 @@ if args.mode not in valid_modes:
     raise ValueError(f"Mode {args.mode} is not currently supported, valid modes are {valid_modes}")
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
-if not os.path.exists('./frames'):
-    os.makedirs('./frames')
+Path("./frames").mkdir(parents=True, 
+                       exist_ok=True)
 
 #Import functions from handy_functions script 
 from lib.analysis import block_analyze

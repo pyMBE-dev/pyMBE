@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Load python modules
-import os 
+from pathlib import Path
 import espressomd
 import numpy as np
 import pandas as pd
@@ -190,8 +190,8 @@ data_path = args.output
 if data_path is None:
     data_path=pmb.get_resource(path="samples/Beyer2024")+"/time_series/gcmc"
 
-if not os.path.exists(data_path):
-    os.makedirs(data_path)
+Path(data_path).mkdir(parents=True, 
+                       exist_ok=True)
 
 time_series=pd.DataFrame(time_series)
 filename=analysis.built_output_name(input_dict=inputs)

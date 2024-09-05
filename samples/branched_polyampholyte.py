@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Load espresso, pyMBE and other necessary libraries
-import os 
+from pathlib import Path
 import espressomd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -44,8 +44,8 @@ from lib.handy_functions import setup_langevin_dynamics
 from lib.analysis import block_analyze
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
-if not os.path.exists('./frames'):
-    os.makedirs('./frames')
+Path("./frames").mkdir(parents=True, 
+                       exist_ok=True)
 
 # Simulation parameters
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
