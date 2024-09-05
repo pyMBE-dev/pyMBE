@@ -19,7 +19,7 @@
 # Import pyMBE and other libraries
 import pyMBE
 from lib import analysis
-import os
+from pathlib import Path
 import sys
 import numpy as np
 import argparse 
@@ -114,8 +114,8 @@ data=analysis.analyze_time_series(path_to_datafolder=time_series_folder_path)
 
 # Store mean values and other statistics
 data_path=pmb.get_resource("samples/Beyer2024/")+"data"
-if not os.path.exists(data_path):
-    os.makedirs(data_path)
+Path(data_path).mkdir(parents=True, 
+                       exist_ok=True)
 data.to_csv(f"{data_path}/fig{fig_label}.csv")
 
 if plot:
@@ -341,8 +341,8 @@ if plot:
 
     # Save plot
     fig_path=pmb.get_resource("samples/Beyer2024")+"/figs"
-    if not os.path.exists(fig_path):
-        os.makedirs(fig_path)
+    Path(fig_path).mkdir(parents=True, 
+                       exist_ok=True)
     plt.legend(frameon=False, loc="lower left", fontsize=9, bbox_to_anchor=(0,1.02,1,0.2), mode="expand", borderaxespad=0, ncol=2)
     plt.savefig(f"{fig_path}/{fig_label}.pdf", 
                 bbox_inches='tight')

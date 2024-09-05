@@ -21,8 +21,8 @@
 #######################################################
 
 # Load python modules
-import os 
 import espressomd
+from pathlib import Path
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
@@ -249,8 +249,8 @@ data_path = args.output
 if data_path is None:
     data_path=pmb.get_resource(path="samples/Beyer2024")+"/time_series/grxmc"
 
-if not os.path.exists(data_path):
-    os.makedirs(data_path)
+Path(data_path).mkdir(parents=True, 
+                       exist_ok=True)
 
 time_series=pd.DataFrame(time_series)
 filename=analysis.built_output_name(input_dict=inputs)
