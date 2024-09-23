@@ -20,6 +20,7 @@
 import espressomd
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 from tqdm import tqdm
 from espressomd.io.writer import vtf
 from pathlib import Path
@@ -40,22 +41,29 @@ Path("./frames").mkdir(parents=True,
 
 # Simulation parameters
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
-pH_range = np.linspace(2, 12, num=20)
-Samples_per_pH = 1000
-MD_steps_per_sample = 1000
-steps_eq = int(Samples_per_pH/3)
-N_samples_print = 10  # Write the trajectory every 100 samples
-probability_reaction =0.5 
+pH_value = 7
+N_samples = 100 # to make the demonstration quick, we set this to a very low value
+MD_steps_per_sample = 100 # to make the demonstration quick, we set this to a very low value
+N_samples_print = 10  # Write the full trajectory data every X samples
 LANGEVIN_SEED = 100
-dt = 0.001
+dt = 0.01
 solvent_permitivity = 78.3
 
 # Peptide parameters
-
-sequence = 'EEEEDDDD'
+sequence = 'EEEEDDDD' # 8 ionizable side-chains
 model = '2beadAA'  # Model with 2 beads per each aminoacid
-pep_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
-N_peptide_chains = 4
+pep_concentration = 5e-4 *pmb.units.mol/pmb.units.L # mols of peptide chains
+N_peptide_chains = 1
+
+# Solution parameters
+cation_name = 'Na'
+anion_name = 'Cl'
+c_salt=5e-3 * pmb.units.mol/ pmb.units.L
+
+# Other system parameters, derived from those above
+volume = N_peptide_chains/(pmb.N_A*pep_concentration)
+L = volume ** (1./3.) # Side of the simulation box
+calculated_peptide_concentration = N_peptide_chains/(volume*pmb.N_A)
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
@@ -79,18 +87,8 @@ pmb.define_default_bond(bond_type = 'harmonic',
 peptide_name = 'generic_peptide'
 pmb.define_peptide (name=peptide_name, sequence=sequence, model=model)
 
-# Solution parameters
-cation_name = 'Na'
-anion_name = 'Cl'
-c_salt=5e-3 * pmb.units.mol/ pmb.units.L
-
 pmb.define_particle(name=cation_name, z=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 pmb.define_particle(name=anion_name,  z=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
-
-# System parameters
-volume = N_peptide_chains/(pmb.N_A*pep_concentration)
-L = volume ** (1./3.) # Side of the simulation box
-calculated_peptide_concentration = N_peptide_chains/(volume*pmb.N_A)
 
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
@@ -102,6 +100,8 @@ pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 pmb.create_pmb_object(name=peptide_name, number_of_objects= N_peptide_chains,espresso_system=espresso_system, use_default_bond=True)
 pmb.create_counterions(object_name=peptide_name,cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) # Create counterions for the peptide chains
 
+# check what is the actual salt concentration in the box
+# if the number of salt ions is a small integer, then the actual and desired salt concentration may significantly differ
 c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
 
 with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
@@ -118,7 +118,7 @@ print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
 print('The ionisable groups in your peptide are ', list_ionisible_groups)
 
-cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=2)
+cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
 print('The acid-base reaction has been sucessfully setup for ', labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
@@ -129,81 +129,65 @@ espresso_system.setup_type_map( type_list = types)
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
 cpH.set_non_interacting_type (type=non_interacting_type)
-print('The non interacting type is set to ', non_interacting_type)
+print('The non-interacting type is set to ', non_interacting_type)
 
-#Setup the potential energy
+##Setup the potential energy
+print('Setup LJ interaction (this can take a few seconds)')
 pmb.setup_lj_interactions (espresso_system=espresso_system)
+print('Minimize energy before adding electrostatics')
 minimize_espresso_system_energy (espresso_system=espresso_system)
+print('Setup and tune electrostatics (this can take a few seconds)')
 setup_electrostatic_interactions(units=pmb.units,
                                             espresso_system=espresso_system,
                                             kT=pmb.kT)
+print('Minimize energy after adding electrostatics')
 minimize_espresso_system_energy (espresso_system=espresso_system)
 
 
+print('Setup Langeving dynamics')
 setup_langevin_dynamics(espresso_system=espresso_system, 
                                     kT = pmb.kT, 
                                     SEED = LANGEVIN_SEED,
                                     time_step=dt,
                                     tune_skin=False)
-
+# for this example, we use a hard-coded skin value; In general it should be optimized by tuning
 espresso_system.cell_system.skin=0.4
-
-N_frame=0
-Z_pH=[] # List of the average global charge at each pH
 
 #Save the pyMBE dataframe in a CSV file
 pmb.write_pmb_df(filename='df.csv')
 
+# Initialize the time series with arbitrary values at time = 0
+time_series={} # for convenience, here we save the whole time series in a python dictionary
+time_series["time"] = [0.0] 
+time_series["charge"] = [0.0] 
+# In production, one should save the time series to a file, then read and analyze it after the simulation
 
 # Main loop for performing simulations at different pH-values
+N_frame=0
+for sample in tqdm(range(N_samples)):
 
-for index in tqdm(range(len(pH_range))):
+    # LD sampling of the configuration space
+    espresso_system.integrator.run(steps=MD_steps_per_sample)        
+    # cpH sampling of the reaction space
+    cpH.reaction( reaction_steps = total_ionisible_groups) # rule of thumb: one reaction step per titratable group (on average)
     
-    pH_value=pH_range[index]
-    # Sample list inicialization
-    Z_sim=[]
-    cpH.constant_pH = pH_value
-
-    # Inner loop for sampling each pH value
-
-    for step in range(Samples_per_pH+steps_eq):
-        
-        if np.random.random() > probability_reaction:
-            espresso_system.integrator.run(steps=MD_steps_per_sample)        
-        else:
-            cpH.reaction( reaction_steps = total_ionisible_groups)
-
-        if step > steps_eq:
-            # Get peptide net charge
-            charge_dict=pmb.calculate_net_charge (  espresso_system=espresso_system, 
-                                                    molecule_name=peptide_name,
-                                                    dimensionless=True)
-            Z_sim.append(charge_dict["mean"])
-
-        if step % N_samples_print == 0:
-            N_frame+=1
-            with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
-                vtf.writevsf(espresso_system, coordinates)
-                vtf.writevcf(espresso_system, coordinates)
-
-    Z_pH.append(Z_sim)
-    print(f"pH = {pH_value:6.4g} done")
+    # Get peptide net charge
+    charge_dict=pmb.calculate_net_charge (  espresso_system=espresso_system, 
+                                            molecule_name=peptide_name,
+                                            dimensionless=True)
+    time_series["time"].append(espresso_system.time)
+    time_series["charge"].append(charge_dict["mean"])
+    if sample % N_samples_print == 0:
+        N_frame+=1
+        with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
+            vtf.writevsf(espresso_system, coordinates)
+            vtf.writevcf(espresso_system, coordinates)
    
 # Estimate the statistical error and the autocorrelation time of the data
-
-print("Net charge analysis")
-av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(full_data=Z_pH)
+print("Statistical analysis of the time series:")
+av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(full_data=pd.DataFrame(time_series, columns=["time","charge"]))
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 Z_HH = pmb.calculate_HH(molecule_name=peptide_name, 
-                        pH_list=pH_range)
-
-fig, ax = plt.subplots(figsize=(10, 7))
-plt.errorbar(pH_range, av_net_charge, yerr=err_net_charge, fmt = '-o', capsize=3, label='Simulation')
-ax.plot(pH_range, Z_HH, "-k", label='Henderson-Hasselbach')
-plt.legend()
-plt.xlabel('pH')
-plt.ylabel('Charge of the peptide / e')
-plt.title(f'Peptide sequence: {sequence}')
-
-plt.show()
+                        pH_list=[pH_value])
+print(f"average net charge = {av_net_charge}+/-{err_net_charge} (ideal value: {Z_HH})", )
