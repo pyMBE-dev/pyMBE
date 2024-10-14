@@ -26,7 +26,7 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 
 
- print("*** Unit test: check that read_protein_vtf_in_df() loads the protein topology correctly ***")
+print("*** Unit test: check that read_protein_vtf_in_df() loads the protein topology correctly ***")
 
 protein_pdb = '1beb'
 
@@ -34,7 +34,7 @@ path_to_cg=pmb.get_resource(f'parameters/globular_proteins/{protein_pdb}.vtf')
 
 topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
 
-
+# print(topology_dict)
 np.testing.assert_equal(actual= str(pmb.df.loc[index, "pmb_type"].values[0]), 
                         desired= 'protein',
                         verbose = True)
