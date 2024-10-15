@@ -32,7 +32,6 @@ path_to_cg=pmb.get_resource(f'parameters/globular_proteins/{protein_pdb}.vtf')
 
 topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
 
-
 # np.testing.assert_equal(actual= topology_dict, 
 #                         desired= {},
 #                         verbose = True)
@@ -66,7 +65,6 @@ for aminoacid in topology_dict.keys():
                                 verbose=True)
 
 print("*** Unit test passed ***")
-
 
 
 
@@ -123,3 +121,28 @@ print("*** Unit test passed ***")
 
 
 
+
+print("*** Unit test: check that enable_motion_of_rigid_object() moves the protein correctly ***")
+
+##WIP
+
+espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
+
+protein_id = pmb.df.loc[pmb.df['name']==protein_pdb].molecule_id.values[0]
+
+center_of_mass = pmb.calculate_center_of_mass_of_molecule ( molecule_id=protein_id,espresso_system=espresso_system)
+
+pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
+                                  name=protein_pdb)
+
+new_center_of_mass = pmb.calculate_center_of_mass_of_molecule ( molecule_id=protein_id,espresso_system=espresso_system)
+
+np.testing.assert_almost_equal (center_of_mass, new_center_of_mass)
+
+# np.testing.assert_equal(actual=center_of_mass, 
+#                         desired=new_center_of_mass, 
+#                         verbose=True)
+
+print (center_of_mass)
+print (new_center_of_mass)
+print("*** Unit test passed ***")
