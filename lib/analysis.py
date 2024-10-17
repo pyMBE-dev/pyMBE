@@ -182,7 +182,7 @@ def get_dt(data, time_col = "time", relative_tolerance = 0.01, verbose = False):
     Note:
         - `relative_tolerance` is used in two ways to check for irregularities in time intervals of between consecutive lines:
             - Sometimes, small inconsistencies in time intervals may occur due to rounding errors or because we run a short tuning of cells or Ewald parameters. These inconsistencies are considered negligible, as long as they do not exceed dt * relative_tolerance
-            - Sometimes, consecutive values may have identical times, e.g. if only reactions are performed but there no MD evolution in beteen. In this case, dt is ill-defined. As of May 2024, we only produce warnings but do not raise an error in order to retain backward compatibility. We deprecate such use and plan to remove this compatibility in the future. If necessary, the user can always override get_dt() by providing a custom value on the input.
+            - Sometimes, consecutive values may have identical times, e.g. if only reactions are performed but there no MD evolution in between. In this case, dt is ill-defined. As of May 2024, we only produce warnings but do not raise an error in order to retain backward compatibility. We deprecate such use and plan to remove this compatibility in the future. If necessary, the user can always override get_dt() by providing a custom value on the input.
     """
     if time_col in data.columns.to_list():
         time = data[ time_col ]
