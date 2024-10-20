@@ -18,39 +18,50 @@
 
 # Load espresso, pyMBE and other necessary libraries
 import espressomd
-import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 from tqdm import tqdm
 from espressomd.io.writer import vtf
 from pathlib import Path
 import pyMBE
+import argparse
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convinience
-from lib.handy_functions import setup_electrostatic_interactions
-from lib.handy_functions import minimize_espresso_system_energy
-from lib.handy_functions import setup_langevin_dynamics
-from lib.analysis import block_analyze
+from lib.handy_functions import setup_electrostatic_interactions, minimize_espresso_system_energy,setup_langevin_dynamics
+from lib.analysis import built_output_name
+
+parser = argparse.ArgumentParser(description='Sample script to run the pre-made peptide models with pyMBE')
+parser.add_argument('--sequence',
+                    type=str,
+                    default= 'EEEEDDDD', # 8 ionizable side-chains
+                    help='sequence of the peptide')
+parser.add_argument('--pH',
+                    type=float,
+                    default=7,
+                    help='pH of the solution')
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
+args = parser.parse_args()
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 Path("./frames").mkdir(parents=True, 
                        exist_ok=True)
 
 # Simulation parameters
-pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
-pH_value = 7
+pmb.set_reduced_units(unit_length=0.4*pmb.units.nm, 
+                    verbose=False)
+pH_value = args.pH
 N_samples = 100 # to make the demonstration quick, we set this to a very low value
 MD_steps_per_sample = 100 # to make the demonstration quick, we set this to a very low value
 N_samples_print = 10  # Write the full trajectory data every X samples
 LANGEVIN_SEED = 100
 dt = 0.01
 solvent_permitivity = 78.3
+verbose=args.no_verbose
 
 # Peptide parameters
-sequence = 'EEEEDDDD' # 8 ionizable side-chains
+sequence = args.sequence
 model = '2beadAA'  # Model with 2 beads per each aminoacid
 pep_concentration = 5e-4 *pmb.units.mol/pmb.units.L # mols of peptide chains
 N_peptide_chains = 1
@@ -85,10 +96,18 @@ pmb.define_default_bond(bond_type = 'harmonic',
 
 # Defines the peptide in the pyMBE data frame
 peptide_name = 'generic_peptide'
-pmb.define_peptide (name=peptide_name, sequence=sequence, model=model)
+pmb.define_peptide (name=peptide_name, 
+                    sequence=sequence, 
+                    model=model)
 
-pmb.define_particle(name=cation_name, z=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name,  z=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, 
+                    z=1, 
+                    sigma=0.35*pmb.units.nm, 
+                    epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name,  
+                    z=-1, 
+                    sigma=0.35*pmb.units.nm,  
+                    epsilon=1*pmb.units('reduced_energy'))
 
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
@@ -97,12 +116,24 @@ espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
-pmb.create_pmb_object(name=peptide_name, number_of_objects= N_peptide_chains,espresso_system=espresso_system, use_default_bond=True)
-pmb.create_counterions(object_name=peptide_name,cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system) # Create counterions for the peptide chains
+pmb.create_pmb_object(name=peptide_name, 
+                        number_of_objects= N_peptide_chains,
+                        espresso_system=espresso_system, 
+                        use_default_bond=True)
+# Create counterions for the peptide chains
+pmb.create_counterions(object_name=peptide_name,
+                        cation_name=cation_name,
+                        anion_name=anion_name,
+                        espresso_system=espresso_system,
+                        verbose=verbose) 
 
 # check what is the actual salt concentration in the box
 # if the number of salt ions is a small integer, then the actual and desired salt concentration may significantly differ
-c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
+                                        cation_name=cation_name,
+                                        anion_name=anion_name,
+                                        c_salt=c_salt,
+                                        verbose=verbose)
 
 with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
@@ -114,12 +145,14 @@ acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=
 list_ionisible_groups = basic_groups + acidic_groups
 total_ionisible_groups = len (list_ionisible_groups)
 
-print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
-print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
-print('The ionisable groups in your peptide are ', list_ionisible_groups)
+if verbose:
+    print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
+    print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
+    print('The ionisable groups in your peptide are ', list_ionisible_groups)
 
 cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
-print('The acid-base reaction has been sucessfully setup for ', labels)
+if verbose:
+    print('The acid-base reaction has been sucessfully setup for ', labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 type_map =pmb.get_type_map()
@@ -129,27 +162,36 @@ espresso_system.setup_type_map( type_list = types)
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
 cpH.set_non_interacting_type (type=non_interacting_type)
-print('The non-interacting type is set to ', non_interacting_type)
+if verbose:
+    print('The non-interacting type is set to ', non_interacting_type)
 
 ##Setup the potential energy
-print('Setup LJ interaction (this can take a few seconds)')
-pmb.setup_lj_interactions (espresso_system=espresso_system)
-print('Minimize energy before adding electrostatics')
-minimize_espresso_system_energy (espresso_system=espresso_system)
-print('Setup and tune electrostatics (this can take a few seconds)')
+if verbose:
+    print('Setup LJ interaction (this can take a few seconds)')
+pmb.setup_lj_interactions (espresso_system=espresso_system,
+                            warnings=verbose)
+if verbose:
+    print('Minimize energy before adding electrostatics')
+minimize_espresso_system_energy (espresso_system=espresso_system,
+                                verbose=verbose)
+if verbose:
+    print('Setup and tune electrostatics (this can take a few seconds)')
 setup_electrostatic_interactions(units=pmb.units,
-                                            espresso_system=espresso_system,
-                                            kT=pmb.kT)
-print('Minimize energy after adding electrostatics')
-minimize_espresso_system_energy (espresso_system=espresso_system)
+                                espresso_system=espresso_system,
+                                kT=pmb.kT,
+                                verbose=verbose)
+if verbose:
+    print('Minimize energy after adding electrostatics')
+minimize_espresso_system_energy (espresso_system=espresso_system,
+                                verbose=verbose)
 
-
-print('Setup Langeving dynamics')
+if verbose:
+    print('Setup Langeving dynamics')
 setup_langevin_dynamics(espresso_system=espresso_system, 
-                                    kT = pmb.kT, 
-                                    SEED = LANGEVIN_SEED,
-                                    time_step=dt,
-                                    tune_skin=False)
+                        kT = pmb.kT, 
+                        SEED = LANGEVIN_SEED,
+                        time_step=dt,
+                        tune_skin=False)
 # for this example, we use a hard-coded skin value; In general it should be optimized by tuning
 espresso_system.cell_system.skin=0.4
 
@@ -172,7 +214,7 @@ for sample in tqdm(range(N_samples)):
     cpH.reaction( reaction_steps = total_ionisible_groups) # rule of thumb: one reaction step per titratable group (on average)
     
     # Get peptide net charge
-    charge_dict=pmb.calculate_net_charge (  espresso_system=espresso_system, 
+    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
                                             molecule_name=peptide_name,
                                             dimensionless=True)
     time_series["time"].append(espresso_system.time)
@@ -183,11 +225,13 @@ for sample in tqdm(range(N_samples)):
             vtf.writevsf(espresso_system, coordinates)
             vtf.writevcf(espresso_system, coordinates)
    
-# Estimate the statistical error and the autocorrelation time of the data
-print("Statistical analysis of the time series:")
-av_net_charge, err_net_charge, tau_net_charge, block_size_net_charge = block_analyze(full_data=pd.DataFrame(time_series, columns=["time","charge"]))
+# Store time series
+data_path=pmb.get_resource(path="samples")+"/time_series/peptide"
+Path(data_path).mkdir(parents=True, 
+                       exist_ok=True)
+time_series=pd.DataFrame(time_series)
+filename=built_output_name(input_dict={"sequence":sequence,"pH":pH_value})
 
-# Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-Z_HH = pmb.calculate_HH(molecule_name=peptide_name, 
-                        pH_list=[pH_value])
-print(f"average net charge = {av_net_charge}+/-{err_net_charge} (ideal value: {Z_HH})", )
+time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
+
+
