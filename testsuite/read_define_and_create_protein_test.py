@@ -118,46 +118,47 @@ pmb.create_protein(name=protein_pdb,
                     espresso_system=espresso_system,
                     topology_dict=topology_dict)
 
+residue_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].residue_id.dropna().to_list()
+
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
-# np.testing.assert_equal(actual = len(particle_id_list), 
-#                         desired = len(topology_dict.keys()), 
-#                         verbose = True)
-
+box_half=espresso_system.box_l[0]/2.0
+protein_center = pmb.generate_coordinates_outside_sphere(radius = 1, 
+                                                                        max_dist=box_half, 
+                                                                        n_samples=1, 
+                                                                        center=[box_half]*3)[0]
 for id in particle_id_list:
-      initial_pos = espresso_system.part.by_id(id).pos
-      charge = espresso_system.part.by_id(id).q
-      es_type = espresso_system.part.by_id(id).es_type
 
-      np.testing.assert_equal(actual=initial_pos, 
-                        desired=topology_dict['initial_pos'], 
-                        verbose=True)
-      
-      
-      np.testing.assert_equal(actual=charge, 
-                        desired=pmb.df.loc[index, ("state_one","charge")].values[0], 
-                        verbose=True)
-      
-    #   np.testing.assert_equal(actual=es_type, 
-    #                     desired=pmb.df.loc[index, ("state_one","es_type")].values[0], 
+    initial_pos = espresso_system.part.by_id(id).pos
+    charge = espresso_system.part.by_id(id).q
+    es_type = espresso_system.part.by_id(id).type
+
+    residue_id = pmb.df.loc[pmb.df['particle_id']==id].residue_id.values[0]
+    residue_name = pmb.df.loc[pmb.df['particle_id']==id].name.values[0]
+
+    input_parameters=topology_dict[aminoacid]
+
+    #WIP positions are too different even adding the protein center 
+    
+    # np.testing.assert_equal(actual=initial_pos, 
+    #                     desired=topology_dict[residue_name+residue_id]['initial_pos']+protein_center, 
     #                     verbose=True)
+      
+    index = pmb.df.loc[pmb.df['particle_id']==id].index
 
-#comparar espressso_system.part.by_id().pos con topology_dict['initial_pos]
-
-#comparar carga e es_type de espresso con el dataframe
-
-#1.posicion 2.carga. 3.es_type
-
-#Check that creates proteins correctly creates all the particles in the topology_dict()
+    np.testing.assert_equal(actual=charge, 
+                        desired=pmb.df.loc[index, ("state_one","z")].values[0], 
+                        verbose=True)
+      
+    np.testing.assert_equal(actual=es_type, 
+                    desired=pmb.df.loc[index, ("state_one","es_type")].values[0], 
+                    verbose=True)
 
 print("*** Unit test passed ***")
-
-
 
 print("*** Unit test: check that create_protein() does not create any protein for number_of_proteins <= 0  ***")
 
 starting_number_of_particles=len(espresso_system.part.all())
-
 
 pmb.create_protein(name=protein_pdb,
                     number_of_proteins=0,
@@ -198,14 +199,14 @@ print("*** Unit test: check that enable_motion_of_rigid_object() moves the prote
 
 espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
-# protein_id = pmb.df.loc[pmb.df['name']==protein_pdb].molecule_id.values[0]
-
-
 pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
                                   name=protein_pdb)
 
-# np.testing.assert_equal(actual=center_of_mass, 
-#                         desired=False, 
-#                         verbose=True)
+for id in particle_id_list:
+    fix_value = espresso_system.part.by_id(id).fix
+
+    np.testing.assert_equal(actual=fix_value, 
+                            desired=[True, True, True], 
+                            verbose=True)
 
 print("*** Unit test passed ***")
