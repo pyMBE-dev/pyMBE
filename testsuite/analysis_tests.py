@@ -36,6 +36,17 @@ class Serialization(ut.TestCase):
         reference_data.columns = reference_data.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
         pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False, check_dtype=False)
         print("*** Unit passed ***")
+        print("*** Unit test: test that analysis.analyze_time_series ignores files that should not be analyzed ***")
+        analyzed_data = ana.analyze_time_series(path_to_datafolder=self.data_root,
+                                       ignore_files=["average_data.csv","N-064_Solvent-good_Init-coil_time_series_analyzed.csv"],
+                                       minus_separator=True,
+                                       filename_extension="_time_series.csv")
+        analyzed_data[["Dens","eps"]] = analyzed_data[["Dens","eps"]].apply(pd.to_numeric)
+        reference_data = pd.read_csv(self.data_root / "average_data.csv", header=[0,1])
+        analyzed_data.columns = analyzed_data.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
+        reference_data.columns = reference_data.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
+        pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False, check_dtype=False)
+        print("*** Unit passed ***")
     
     def test_get_dt(self):
         print("*** Unit test: test that analysis.get_dt returns the right time step ***")

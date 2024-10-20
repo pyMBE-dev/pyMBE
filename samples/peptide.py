@@ -41,6 +41,11 @@ parser.add_argument('--pH',
                     type=float,
                     default=7,
                     help='pH of the solution')
+parser.add_argument('--output',
+                    type=str,
+                    required= False,
+                    default="samples/time_series/peptide",
+                    help='output directory')
 parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 args = parser.parse_args()
 
@@ -226,7 +231,9 @@ for sample in tqdm(range(N_samples)):
             vtf.writevcf(espresso_system, coordinates)
    
 # Store time series
-data_path=pmb.get_resource(path="samples")+"/time_series/peptide"
+
+data_path=pmb.get_resource(path=args.output)
+
 Path(data_path).mkdir(parents=True, 
                        exist_ok=True)
 time_series=pd.DataFrame(time_series)
