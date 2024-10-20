@@ -24,8 +24,6 @@ import pathlib
 import tempfile
 import subprocess
 import multiprocessing
-from lib import analysis
-import numpy as np
 import pandas as pd
 import unittest as ut
 
@@ -57,7 +55,7 @@ def kernel(sequence):
         analyzed_data=pd.read_csv(time_series_path + "/analyzed_data.csv", header=[0, 1])
         # Save data for future testing
         if mode == "save":
-            analyzed_data.to_csv(reference_path / f"peptide_sample.csv", index=False)
+            analyzed_data.to_csv(reference_path / "peptide_sample.csv", index=False)
         else:
             assert mode == "test", f"Mode {mode} not supported, valid modes: ['save', 'test']"
 
@@ -72,7 +70,7 @@ class Test(ut.TestCase):
             analyzed_data=pool.map(kernel, sequences, chunksize=2)[0]
         rtol=0.1 # relative tolerance
         atol=0.5 # absolute tolerance
-        reference_data=pd.read_csv(reference_path / f"peptide_sample.csv", header=[0, 1])
+        reference_data=pd.read_csv(reference_path / "peptide_sample.csv", header=[0, 1])
         pd.testing.assert_series_equal (analyzed_data[("mean","charge")], 
                                        reference_data[("mean","charge")], 
                                        rtol=rtol, 
