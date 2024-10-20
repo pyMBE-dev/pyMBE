@@ -57,6 +57,7 @@ unit_tests:
 	${PYTHON} testsuite/generate_coordinates_tests.py
 	${PYTHON} testsuite/reaction_methods_unit_tests.py
 	${PYTHON} testsuite/determine_reservoir_concentrations_unit_test.py
+	${PYTHON} testsuite/read_define_and_create_protein_test.py
 
 functional_tests:
 	${PYTHON} testsuite/cph_ideal_tests.py
