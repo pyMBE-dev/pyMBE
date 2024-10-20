@@ -28,14 +28,14 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 print("*** Unit test: check that read_protein_vtf_in_df() loads the protein topology correctly ***")
 
+#NOTE: save to json error "TypeError: Object of type Quantity is not JSON serializable"
+# problems with units
+
 protein_pdb = '1beb'
 
 path_to_cg=pmb.get_resource(f'parameters/globular_proteins/{protein_pdb}.vtf')
 
 topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
-
-# save to json error "TypeError: Object of type Quantity is not JSON serializable"
-# problems with units
 
 # with open ("protein_topology_dict.json", "w") as output:
 #       json.dump(topology_dict, output)
@@ -159,7 +159,7 @@ for id in particle_id_list:
 
     input_parameters=topology_dict[aminoacid]
 
-    #WIP positions are too different even adding the protein center 
+    #NOTE: positions are too different even adding the protein center 
     
     # np.testing.assert_equal(actual=initial_pos, 
     #                     desired=topology_dict[residue_name+residue_id]['initial_pos']+protein_center, 
@@ -197,6 +197,31 @@ np.testing.assert_equal(actual=len(espresso_system.part.all()),
 
 print("*** Unit test passed ***")
 
+print("*** Unit test: check that enable_motion_of_rigid_object() moves the protein correctly ***")
+
+espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
+
+pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
+                                  name=protein_pdb)
+
+for id in particle_id_list:
+    fix_value = espresso_system.part.by_id(id).fix
+
+    np.testing.assert_equal(actual=fix_value, 
+                            desired=[True, True, True], 
+                            verbose=True)
+
+print("*** Unit test passed ***")
+
+
+print("*** Unit test: check that enable_motion_of_rigid_object() raises a ValueError if a wrong pmb_type is provided***")
+
+input_parameters = {"espresso_system":espresso_system,
+                    "name": "CA"}
+
+np.testing.assert_raises(ValueError, pmb.enable_motion_of_rigid_object, **input_parameters)
+
+print("*** Unit test passed ***")
 
 print("*** Unit test: check that protein_sequence_parser() correctly returns que protein sequence ***")
 
@@ -254,33 +279,5 @@ input_parameters = {"sequence":["A", "E","X"]}
 
 np.testing.assert_raises(ValueError, pmb.protein_sequence_parser, **input_parameters)
 
-
-print("*** Unit test passed ***")
-
-
-print("*** Unit test: check that enable_motion_of_rigid_object() moves the protein correctly ***")
-
-espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
-
-pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
-                                  name=protein_pdb)
-
-for id in particle_id_list:
-    fix_value = espresso_system.part.by_id(id).fix
-
-    np.testing.assert_equal(actual=fix_value, 
-                            desired=[True, True, True], 
-                            verbose=True)
-
-
-print("*** Unit test passed ***")
-
-
-print("*** Unit test: check that enable_motion_of_rigid_object() raises a ValueError if a wrong pmb_type is provided***")
-
-input_parameters = {"espresso_system":espresso_system,
-                    "name": "CA"}
-
-np.testing.assert_raises(ValueError, pmb.enable_motion_of_rigid_object, **input_parameters)
 
 print("*** Unit test passed ***")
