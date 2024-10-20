@@ -104,6 +104,27 @@ np.testing.assert_equal(actual=pmb.df.loc[protein_index, ('residue_list','')].va
 
 print("*** Unit test passed ***")
 
+print("*** Unit test: check that define_protein() raises a ValueError if the user provides a wrong model")
+
+
+input_parameters={"name": protein_pdb,
+                 "topology_dict": topology_dict,
+                 "model" : "3beadAA",
+                "lj_setup_mode": "wca"}
+
+np.testing.assert_raises(ValueError, pmb.define_protein, **input_parameters)
+
+#Note: provide a correct option to lj 
+
+input_parameters={"name": protein_pdb,
+                 "topology_dict": topology_dict,
+                 "model" : protein_model,
+                "lj_setup_mode": "awc"}
+
+np.testing.assert_raises(ValueError, pmb.define_protein, **input_parameters)
+
+print("*** Unit test passed ***")
+
 
 print("*** Unit test: check that create_protein() creates all the particles in the protein into the espresso_system with the properties defined in pmb.df  ***")
 
@@ -188,14 +209,56 @@ np.testing.assert_equal(actual=clean_sequence,
                         desired=output, 
                         verbose=True)
 
+output = ["R", "E", "C", "H"]
+sequence = "R-E-C-H"
+
+clean_sequence= pmb.protein_sequence_parser(sequence = sequence)
+
+np.testing.assert_equal(actual=clean_sequence, 
+                        desired=output, 
+                        verbose=True)
+
+output = ["R", "E", "C", "H"]
+sequence = ["R","E", "C", "H"]
+
+clean_sequence= pmb.protein_sequence_parser(sequence = sequence)
+
+np.testing.assert_equal(actual=clean_sequence, 
+                        desired=output, 
+                        verbose=True)
+
+#Note: The function does not accept a list of aminoacid with 3 letter code?
+
+# output = ["R", "E", "C", "H"]
+# sequence = ["ARG","GLU", "CYS", "HIS"]
+
+# clean_sequence= pmb.protein_sequence_parser(sequence = sequence)
+
+# np.testing.assert_equal(actual=clean_sequence, 
+#                         desired=output, 
+#                         verbose=True)
+
+
+print("*** Unit test: check that protein_sequence_parser() raises a ValueError if a wrong residue key is provided***")
+
+input_parameters = {"sequence":"ARG-GLU-TUR-HIS"}
+
+np.testing.assert_raises(ValueError, pmb.protein_sequence_parser, **input_parameters)
+
+input_parameters = {"sequence":"A-E-E-X"}
+
+np.testing.assert_raises(ValueError, pmb.protein_sequence_parser, **input_parameters)
+
+
+input_parameters = {"sequence":["A", "E","X"]}
+
+np.testing.assert_raises(ValueError, pmb.protein_sequence_parser, **input_parameters)
+
+
 print("*** Unit test passed ***")
 
 
 print("*** Unit test: check that enable_motion_of_rigid_object() moves the protein correctly ***")
-
-##WIP
-
-# chequear en espresso la posicion en fixed (true) si esta activado motion seria false
 
 espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
@@ -208,5 +271,16 @@ for id in particle_id_list:
     np.testing.assert_equal(actual=fix_value, 
                             desired=[True, True, True], 
                             verbose=True)
+
+
+print("*** Unit test passed ***")
+
+
+print("*** Unit test: check that enable_motion_of_rigid_object() raises a ValueError if a wrong pmb_type is provided***")
+
+input_parameters = {"espresso_system":espresso_system,
+                    "name": "CA"}
+
+np.testing.assert_raises(ValueError, pmb.enable_motion_of_rigid_object, **input_parameters)
 
 print("*** Unit test passed ***")
