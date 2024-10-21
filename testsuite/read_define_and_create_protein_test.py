@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
 import numpy as np 
 import espressomd
 import pyMBE
@@ -72,10 +71,10 @@ for aminoacid in topology_dict.keys():
 
     
     for index in pmb.df[pmb.df['name']==residue_name].index:
-            if residue_name not in sequence:           
-                np.testing.assert_equal(actual=str(pmb.df.loc[index, "pmb_type"].values[0]), 
-                                    desired="particle", 
-                                    verbose=True)
+        if residue_name not in sequence:           
+            np.testing.assert_equal(actual=str(pmb.df.loc[index, "pmb_type"].values[0]), 
+                                desired="particle", 
+                                verbose=True)
 
 residue_list = pmb.define_AA_residues(sequence= clean_sequence,
                                       model = protein_model)
@@ -274,10 +273,8 @@ input_parameters = {"sequence":"A-E-E-X"}
 
 np.testing.assert_raises(ValueError, pmb.protein_sequence_parser, **input_parameters)
 
-
 input_parameters = {"sequence":["A", "E","X"]}
 
 np.testing.assert_raises(ValueError, pmb.protein_sequence_parser, **input_parameters)
-
 
 print("*** Unit test passed ***")
