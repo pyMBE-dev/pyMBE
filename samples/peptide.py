@@ -46,6 +46,10 @@ parser.add_argument('--output',
                     required= False,
                     default="samples/time_series/peptide",
                     help='output directory')
+parser.add_argument('--test', 
+                    default=False, 
+                    action='store_true',
+                    help='to run a short simulation for testing the script')
 parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 args = parser.parse_args()
 
@@ -57,13 +61,18 @@ Path("./frames").mkdir(parents=True,
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm, 
                     verbose=False)
 pH_value = args.pH
-N_samples = 100 # to make the demonstration quick, we set this to a very low value
+N_samples = 1000 # to make the demonstration quick, we set this to a very low value
 MD_steps_per_sample = 100 # to make the demonstration quick, we set this to a very low value
 N_samples_print = 10  # Write the full trajectory data every X samples
 LANGEVIN_SEED = 100
 dt = 0.01
 solvent_permitivity = 78.3
 verbose=args.no_verbose
+ideal=False
+
+if args.test:
+    MD_steps_per_sample = 1
+    ideal=True
 
 # Peptide parameters
 sequence = args.sequence
@@ -169,26 +178,26 @@ non_interacting_type = max(type_map.values())+1
 cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
     print('The non-interacting type is set to ', non_interacting_type)
-
-##Setup the potential energy
-if verbose:
-    print('Setup LJ interaction (this can take a few seconds)')
-pmb.setup_lj_interactions (espresso_system=espresso_system,
-                            warnings=verbose)
-if verbose:
-    print('Minimize energy before adding electrostatics')
-minimize_espresso_system_energy (espresso_system=espresso_system,
-                                verbose=verbose)
-if verbose:
-    print('Setup and tune electrostatics (this can take a few seconds)')
-setup_electrostatic_interactions(units=pmb.units,
-                                espresso_system=espresso_system,
-                                kT=pmb.kT,
-                                verbose=verbose)
-if verbose:
-    print('Minimize energy after adding electrostatics')
-minimize_espresso_system_energy (espresso_system=espresso_system,
-                                verbose=verbose)
+if not ideal:
+    ##Setup the potential energy
+    if verbose:
+        print('Setup LJ interaction (this can take a few seconds)')
+    pmb.setup_lj_interactions (espresso_system=espresso_system,
+                                warnings=verbose)
+    if verbose:
+        print('Minimize energy before adding electrostatics')
+    minimize_espresso_system_energy (espresso_system=espresso_system,
+                                    verbose=verbose)
+    if verbose:
+        print('Setup and tune electrostatics (this can take a few seconds)')
+    setup_electrostatic_interactions(units=pmb.units,
+                                    espresso_system=espresso_system,
+                                    kT=pmb.kT,
+                                    verbose=verbose)
+    if verbose:
+        print('Minimize energy after adding electrostatics')
+    minimize_espresso_system_energy (espresso_system=espresso_system,
+                                    verbose=verbose)
 
 if verbose:
     print('Setup Langeving dynamics')

@@ -24,7 +24,6 @@ parser.add_argument('--data_folder',
                     type=str,
                     required=True,
                     help='path to the data folder with the time series')
-parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 args = parser.parse_args()
 
 # Read and analyze time series
