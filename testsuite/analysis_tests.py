@@ -54,13 +54,19 @@ class Serialization(ut.TestCase):
         dt, n_warnings = ana.get_dt(data)
         self.assertAlmostEqual(dt, 1.0, delta = 1e-7)
         self.assertEqual(n_warnings, 0)
-        print("*** Unit passed ***")
-
-        print("*** Unit test: test that analysis.get_dt prints a warning if there are values with repeated time steps ***")
+        print("*** Unit passed ***")       
+        
+        print("*** Unit test: test that analysis.get_dt prints a warning if there are values with different time steps ***")
         data = pd.DataFrame.from_dict( {'time': [0, 1, 1,], 'obs': ['1.0', '2.0', '4.0']} )
         dt, n_warnings = ana.get_dt(data,verbose=True)
         self.assertAlmostEqual(dt, 1.0, delta = 1e-7)
         self.assertEqual(n_warnings, 1)
+        print("*** Unit passed ***")
+
+        print("*** Unit test: test that analysis.get_dt raises a ValueError if the two first values have the same time step***")
+        data = pd.DataFrame.from_dict( {'time': [0, 0, 1,], 'obs': ['1.0', '2.0', '4.0']} )
+        inputs = {"data": data}
+        self.assertRaises(ValueError, ana.get_dt, **inputs)
         print("*** Unit passed ***")
 
         print("*** Unit test: test that analysis.get_dt raises a ValueError if the column with the time is not found ***")

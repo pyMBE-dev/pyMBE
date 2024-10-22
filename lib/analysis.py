@@ -202,6 +202,8 @@ def get_dt(data, time_col = "time", relative_tolerance = 0.01, verbose = False):
         raise ValueError(f"Column \'{time_col}\' not found in columns: "+str( data.columns.to_list() ) )
     imax = data.shape[0]
     dt_init = time[1] - time[0]
+    if dt_init < 1e-8:
+        raise ValueError(f"The two first rows contain data samples at the same simulation time: time[0] = {time[0]} time[1] = {time[1]}. Post-processing of data with repeated time values is not supported because it breaks the estimation of the autocorrelation time.")
     warn_lines = []
     for i in range(1,imax):
         dt = time[i] - time[i-1]
