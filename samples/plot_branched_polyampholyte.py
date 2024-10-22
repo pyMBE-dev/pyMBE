@@ -26,20 +26,16 @@ import pandas as pd
 import pyMBE
 pmb = pyMBE.pymbe_library(seed=42)
 
-parser = argparse.ArgumentParser(description='Plots the titration data from peptide_mixture_grxmc_ideal.py and the corresponding analytical solution.')
-parser.add_argument('--sequence',
-                    type=str,
-                    default= 'EEEEDDDD', 
-                    help='sequence of the peptide')
+parser = argparse.ArgumentParser(description='Plots the titration data from branched_polyampholyte.py and the corresponding analytical solution.')
 parser.add_argument('--path_to_data',
                     type=str,
                     required= False,
-                    default="samples/time_series/peptide/analyzed_data.csv",
+                    default="samples/time_series/branched_polyampholyte/analyzed_data.csv",
                     help='path to the analyzed data')
 parser.add_argument('--output',
                     type=str,
                     required= False,
-                    default="time_series/peptide",
+                    default="time_series/branched_polyampholyte",
                     help='output directory')
 parser.add_argument('--mode',
                     type=str,
@@ -52,24 +48,47 @@ valid_modes = ["plot","store_HH"]
 if args.mode not in valid_modes:
     raise ValueError(f"mode {args.mode} is not supported, supported modes are {valid_modes}. Please check the docs for more information.")
 
-# Define peptide parameters
-sequence = args.sequence
-# Define the peptide in the pyMBE dataframe and load the pka set
-# This is necesary to calculate the analytical solution from the Henderson-Hasselbach equation
-peptide = 'generic_peptide'
-pmb.define_peptide (name=peptide, 
-                    sequence=sequence,
-                   model="1beadAA") # not really relevant for plotting
-path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
-pmb.load_pka_set(path_to_pka)
+# Define the molecule (necessary to calculate the HH analytical solution with pyMBE)
+
+# Acidic particle
+pmb.define_particle(
+    name = "A",
+    acidity = "acidic",
+    pka = 4,
+    sigma = 1*pmb.units('reduced_length'),
+    epsilon = 1*pmb.units('reduced_energy'))
+    
+# Basic particle
+pmb.define_particle(
+    name = "B",
+    acidity = "basic",
+    pka = 9,
+    sigma = 1*pmb.units('reduced_length'),
+    epsilon = 1*pmb.units('reduced_energy'))
+
+# Define different residues
+pmb.define_residue(
+    name = "Res_1",
+    central_bead = "I",
+    side_chains = ["A","B"])
+    
+pmb.define_residue(
+    name = "Res_2",
+    central_bead = "I",
+    side_chains = ["Res_1"])
+
+# Define the molecule
+pmb.define_molecule(
+    name = "polyampholyte",
+    residue_list = 5*["Res_1"] + 5*["Res_2"])
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 if args.mode == "plot":
     pH_range_HH = np.linspace(2, 12, num=100)
 elif args.mode == "store_HH":
     pH_range_HH = [2,4,5,6]
-Z_HH = pmb.calculate_HH(molecule_name=peptide, 
-                                  pH_list=pH_range_HH) 
+Z_HH = pmb.calculate_HH(molecule_name="polyampholyte",
+                        pH_list=pH_range_HH) 
 
 if args.mode == "plot":
     # Read the analyzed data produced with peptide_mixture_grxmc_ideal
@@ -93,7 +112,7 @@ if args.mode == "plot":
     
     plt.legend()
     plt.xlabel('pH')
-    plt.ylabel('Net charge of the peptide / e')
+    plt.ylabel('Net charge  of the polyampholyte / e')
     plt.show()
     plt.close()
 
