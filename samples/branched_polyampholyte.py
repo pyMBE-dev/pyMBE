@@ -230,7 +230,7 @@ pmb.write_pmb_df (filename='df.csv')
 # Main loop for performing simulations at different pH-values
 time_series={}
 for label in ["time","charge"]:
-        time_series[label]=[]
+    time_series[label]=[]
 
 # Production loop
 N_frame=0
