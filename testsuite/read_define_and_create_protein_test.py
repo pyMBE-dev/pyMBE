@@ -20,6 +20,9 @@ import numpy as np
 import espressomd
 import pyMBE
 import re
+import json
+from pint import UnitRegistry, Quantity
+ureg = UnitRegistry()
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -27,24 +30,32 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 print("*** Unit test: check that read_protein_vtf_in_df() loads the protein topology correctly ***")
 
-#NOTE: save to json error "TypeError: Object of type Quantity is not JSON serializable"
-# problems with units
-
 protein_pdb = '1beb'
 
 path_to_cg=pmb.get_resource(f'parameters/globular_proteins/{protein_pdb}.vtf')
 
 topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
 
-# with open ("protein_topology_dict.json", "w") as output:
-#       json.dump(topology_dict, output)
+def custom_serializer(obj):
+    if isinstance(obj, Quantity):
+        return {"value": obj.magnitude, "unit": str(obj.units)}  
+    raise TypeError(f"Type {type(obj)} not serializable")
 
-# with open ("protein_topology_dict.json", "r") as file:
-#     load_json = json.load(file)
+with open ("testsuite/tests_data/protein_topology_dict.json", "w") as output:
+      json.dump(topology_dict, output,default=custom_serializer)
 
-# np.testing.assert_equal(actual= topology_dict, 
-#                         desired= load_json,
-#                         verbose = True)
+
+def custom_deserializer(dct):
+    if "value" in dct and "unit" in dct:
+        return ureg.Quantity(dct["value"], dct["unit"])  
+    return dct  
+
+with open ("protein_topology_dict.json", "r") as file:
+    load_json = json.load(file,object_hook=custom_deserializer)
+
+np.testing.assert_equal(actual= topology_dict, 
+                        desired= load_json,
+                        verbose = True)
 
 print("*** Unit test passed ***")
 
@@ -87,7 +98,6 @@ for residue in residue_list:
 
 protein_index = pmb.df[pmb.df['name']==protein_pdb].index
 
-
 np.testing.assert_equal(actual=str(pmb.df.loc[protein_index, "name"].values[0]), 
                             desired=protein_pdb, 
                             verbose=True)        
@@ -105,15 +115,12 @@ print("*** Unit test passed ***")
 
 print("*** Unit test: check that define_protein() raises a ValueError if the user provides a wrong model")
 
-
 input_parameters={"name": protein_pdb,
                  "topology_dict": topology_dict,
                  "model" : "3beadAA",
                 "lj_setup_mode": "wca"}
 
 np.testing.assert_raises(ValueError, pmb.define_protein, **input_parameters)
-
-#Note: provide a correct option to lj 
 
 input_parameters={"name": protein_pdb,
                  "topology_dict": topology_dict,
