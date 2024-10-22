@@ -19,7 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - New sample script showing how to use the analysis tools in pyMBE for post-processing time series from the sample scripts `analyze_time_series.py` (#95) 
 - A new optional argument `ignore_files`  for `lib.analysis.analyze_time_series`, enabling to provide a list of files to be ignored for post-processing of time series. (#95)
-- Functional testing for all sampling scripts. (#95)
+- Functional testing for all sample scripts. (#95)
 - Unit testing for reaction methods. (#86)
 
 ### Fixed
