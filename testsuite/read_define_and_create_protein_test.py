@@ -222,12 +222,9 @@ print("*** Unit test passed ***")
 
 print("*** Unit test: check that enable_motion_of_rigid_object() moves the protein correctly ***")
 
-
-
+#NOTE: Its not changing the protein motion
 for id in particle_id_list:
     fix_value = espresso_system.part.by_id(id).fix
-    initial_pos_es = espresso_system.part.by_id(id).pos
-    print ('posicion antes motion', initial_pos_es)
     # np.testing.assert_equal(actual=fix_value, 
     #                         desired=[False, False, False], 
     #                         verbose=True)
@@ -238,13 +235,10 @@ pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
 for id in particle_id_list:
     fix_value = espresso_system.part.by_id(id).fix
 
-    initial_pos_es = espresso_system.part.by_id(id).pos
-    print ('posicion despues motion', initial_pos_es)
-
     np.testing.assert_equal(actual=fix_value, 
                             desired=[True, True, True], 
                             verbose=True)
-input ()
+
 print("*** Unit test passed ***")
 
 print("*** Unit test: check that enable_motion_of_rigid_object() raises a ValueError if a wrong pmb_type is provided***")
