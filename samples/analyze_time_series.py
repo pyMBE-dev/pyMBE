@@ -28,6 +28,6 @@ args = parser.parse_args()
 
 # Read and analyze time series
 analyzed_data=analysis.analyze_time_series(path_to_datafolder=args.data_folder,
-                                            ignore_files=["analyzed_data.csv"])
+                                            ignore_files=["analyzed_data.csv","df.csv"])
 analyzed_data.to_csv(f"{args.data_folder}/analyzed_data.csv", 
                         index=False)

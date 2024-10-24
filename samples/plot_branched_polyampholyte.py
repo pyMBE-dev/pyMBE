@@ -86,7 +86,7 @@ pmb.define_molecule(
 if args.mode == "plot":
     pH_range_HH = np.linspace(2, 12, num=100)
 elif args.mode == "store_HH":
-    pH_range_HH = [2,4,5,6]
+    pH_range_HH = [3.5,4.5,8.5,9.5]
 Z_HH = pmb.calculate_HH(molecule_name="polyampholyte",
                         pH_list=pH_range_HH) 
 

@@ -34,7 +34,7 @@ parser.add_argument('--sequence',
 parser.add_argument('--path_to_data',
                     type=str,
                     required= False,
-                    default="samples/time_series/peptide/analyzed_data.csv",
+                    default="samples/time_series/peptide_cpH/analyzed_data.csv",
                     help='path to the analyzed data')
 parser.add_argument('--output',
                     type=str,

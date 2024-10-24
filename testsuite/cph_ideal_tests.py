@@ -76,9 +76,9 @@ def analyze_and_test_data(temp_dir_path, analysis_path, plot_path, rtol, atol):
     
 class Test(ut.TestCase):
     def test_peptide(self):
-        sample_path = root / "samples" / "peptide.py"
+        sample_path = root / "samples" / "peptide_cpH.py"
         analysis_path = root / "samples" / "analyze_time_series.py"
-        plot_path = root / "samples" / "plot_peptide.py"
+        plot_path = root / "samples" / "plot_peptide_cpH.py"
         test_pH_values=[2,4,5,6]
         rtol=0.01 # relative tolerance
         atol=0.05 # absolute tolerance
