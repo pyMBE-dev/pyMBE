@@ -135,6 +135,7 @@ print("*** Unit test passed ***")
 print("*** Unit test: check that create_protein() creates all the particles in the protein into the espresso_system with the properties defined in pmb.df  ***")
 
 espresso_system=espressomd.System(box_l = [10]*3)
+espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
 # Here we upload the pka set from the reference_parameters folder
 path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.json') 
@@ -176,7 +177,8 @@ for id in particle_id_list:
     residue_name = pmb.df.loc[pmb.df['particle_id']==id].name.values[0]
 
     initial_pos = topology_dict[residue_name+residue_id]['initial_pos']
-    
+    index = pmb.df.loc[pmb.df['particle_id']==id].index
+
     for axis in axis_list:
         distance_es[axis] = (initial_pos_es[axis] - center_of_mass_es[axis])**2
         distance_topology[axis] = (initial_pos[axis] - center_of_mass[axis])**2
@@ -187,8 +189,6 @@ for id in particle_id_list:
     np.testing.assert_equal(actual=relative_distance_es, 
                         desired=relative_distance, 
                         verbose=True)
-      
-    index = pmb.df.loc[pmb.df['particle_id']==id].index
 
     np.testing.assert_equal(actual=charge, 
                         desired=pmb.df.loc[index, ("state_one","z")].values[0], 
@@ -222,7 +222,15 @@ print("*** Unit test passed ***")
 
 print("*** Unit test: check that enable_motion_of_rigid_object() moves the protein correctly ***")
 
-espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
+
+
+for id in particle_id_list:
+    fix_value = espresso_system.part.by_id(id).fix
+    initial_pos_es = espresso_system.part.by_id(id).pos
+    print ('posicion antes motion', initial_pos_es)
+    # np.testing.assert_equal(actual=fix_value, 
+    #                         desired=[False, False, False], 
+    #                         verbose=True)
 
 pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
                                   name=protein_pdb)
@@ -230,12 +238,14 @@ pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
 for id in particle_id_list:
     fix_value = espresso_system.part.by_id(id).fix
 
+    initial_pos_es = espresso_system.part.by_id(id).pos
+    print ('posicion despues motion', initial_pos_es)
+
     np.testing.assert_equal(actual=fix_value, 
                             desired=[True, True, True], 
                             verbose=True)
-
+input ()
 print("*** Unit test passed ***")
-
 
 print("*** Unit test: check that enable_motion_of_rigid_object() raises a ValueError if a wrong pmb_type is provided***")
 
@@ -275,17 +285,14 @@ np.testing.assert_equal(actual=clean_sequence,
                         desired=output, 
                         verbose=True)
 
-#Note: The function does not accept a list of aminoacid with 3 letter code?
+output = ["R", "E", "C", "H"]
+sequence = ["ARG","GLU", "CYS", "HIS"]
 
-# output = ["R", "E", "C", "H"]
-# sequence = ["ARG","GLU", "CYS", "HIS"]
+clean_sequence= pmb.protein_sequence_parser(sequence = sequence)
 
-# clean_sequence= pmb.protein_sequence_parser(sequence = sequence)
-
-# np.testing.assert_equal(actual=clean_sequence, 
-#                         desired=output, 
-#                         verbose=True)
-
+np.testing.assert_equal(actual=clean_sequence, 
+                        desired=output, 
+                        verbose=True)
 
 print("*** Unit test: check that protein_sequence_parser() raises a ValueError if a wrong residue key is provided***")
 
