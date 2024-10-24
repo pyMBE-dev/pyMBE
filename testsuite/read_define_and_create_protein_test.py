@@ -35,22 +35,22 @@ protein_pdb = '1beb'
 path_to_cg=pmb.get_resource(f'parameters/globular_proteins/{protein_pdb}.vtf')
 
 topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
+filename = "testsuite/tests_data/protein_topology_dict.json"
 
 def custom_serializer(obj):
     if isinstance(obj, Quantity):
         return {"value": obj.magnitude, "unit": str(obj.units)}  
     raise TypeError(f"Type {type(obj)} not serializable")
 
-with open ("testsuite/tests_data/protein_topology_dict.json", "w") as output:
-      json.dump(topology_dict, output,default=custom_serializer)
-
+with open (filename, "w") as output:
+    json.dump(topology_dict, output,default=custom_serializer)
 
 def custom_deserializer(dct):
     if "value" in dct and "unit" in dct:
         return ureg.Quantity(dct["value"], dct["unit"])  
     return dct  
 
-with open ("protein_topology_dict.json", "r") as file:
+with open (filename, "r") as file:
     load_json = json.load(file,object_hook=custom_deserializer)
 
 np.testing.assert_equal(actual= topology_dict, 
@@ -149,27 +149,44 @@ residue_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].residue_id.dropna().
 
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
-box_half=espresso_system.box_l[0]/2.0
-protein_center = pmb.generate_coordinates_outside_sphere(radius = 1, 
-                                                                        max_dist=box_half, 
-                                                                        n_samples=1, 
-                                                                        center=[box_half]*3)[0]
+molecule_id = pmb.df.loc[pmb.df['name']==protein_pdb].molecule_id.values[0]
+
+center_of_mass_es = pmb.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
+
+center_of_mass = np.zeros(3)
+axis_list = [0,1,2]
+
+for aminoacid in topology_dict.keys():
+    initial_pos = topology_dict[aminoacid]['initial_pos']
+
+    for axis in axis_list:
+        center_of_mass[axis] +=  initial_pos[axis]
+center_of_mass = center_of_mass/ len(topology_dict.keys())
+
+distance_es = np.zeros(3)
+distance_topology = np.zeros(3)
+
 for id in particle_id_list:
 
-    initial_pos = espresso_system.part.by_id(id).pos
+    initial_pos_es = espresso_system.part.by_id(id).pos
     charge = espresso_system.part.by_id(id).q
     es_type = espresso_system.part.by_id(id).type
 
     residue_id = pmb.df.loc[pmb.df['particle_id']==id].residue_id.values[0]
     residue_name = pmb.df.loc[pmb.df['particle_id']==id].name.values[0]
 
-    input_parameters=topology_dict[aminoacid]
-
-    #NOTE: positions are too different even adding the protein center 
+    initial_pos = topology_dict[residue_name+residue_id]['initial_pos']
     
-    # np.testing.assert_equal(actual=initial_pos, 
-    #                     desired=topology_dict[residue_name+residue_id]['initial_pos']+protein_center, 
-    #                     verbose=True)
+    for axis in axis_list:
+        distance_es[axis] = (initial_pos_es[axis] - center_of_mass_es[axis])**2
+        distance_topology[axis] = (initial_pos[axis] - center_of_mass[axis])**2
+
+    relative_distance_es = np.sqrt(np.sum(distance_es))
+    relative_distance = np.sqrt(np.sum(distance_es))
+    
+    np.testing.assert_equal(actual=relative_distance_es, 
+                        desired=relative_distance, 
+                        verbose=True)
       
     index = pmb.df.loc[pmb.df['particle_id']==id].index
 
