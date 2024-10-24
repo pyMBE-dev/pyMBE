@@ -2414,14 +2414,16 @@ class pymbe_library():
                             raise ValueError("Unknown one letter code for a residue: ", residue, " please review the input sequence")
                     clean_sequence.append(residue_ok)
         if isinstance(sequence, list):
+
             for residue in sequence:
+
                 if residue in keys.values():
                     residue_ok=residue
                 else:
                     if residue.upper() in keys.values():
                         residue_ok=residue.upper()
                     elif (residue.upper() in keys.keys()):
-                        clean_sequence.append(keys[residue.upper()])
+                        residue_ok= keys[residue.upper()]
                     else:
                         raise ValueError("Unknown code for a residue: ", residue, " please review the input sequence")
                 clean_sequence.append(residue_ok)
