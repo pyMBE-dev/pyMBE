@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
+import sys
 import numpy as np 
 import espressomd
 import pyMBE
@@ -54,7 +54,7 @@ path_to_parfile=pmb.get_resource(filename)
 if mode == "save":
     with open (path_to_parfile, "w") as output:
         json.dump(topology_dict, output,default=custom_serializer)
-    exit()
+    sys.exit()
 elif mode == "test":
     with open (path_to_parfile, "r") as file:
         load_json = json.load(file,object_hook=custom_deserializer)
