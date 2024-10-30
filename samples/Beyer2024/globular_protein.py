@@ -55,7 +55,7 @@ parser.add_argument('--path_to_cg',
                     required= True,  
                     help='Path to the CG structure of the protein')
 parser.add_argument('--move_protein', 
-                    type=float, 
+                    type=bool, 
                     required= False, 
                     default=False,  
                     help='Activates the motion of the protein')
