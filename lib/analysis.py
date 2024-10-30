@@ -72,9 +72,6 @@ def analyze_time_series(path_to_datafolder, filename_extension= ".csv", minus_se
                         ignore_file=True
                 if ignore_file:
                     continue
-                print(subitem.name)
-                from time import sleep
-                sleep(5)
                 if filename_extension in subitem.name:
                     # Get parameters from the file name
                     data_dict=get_params_from_file_name(file_name=subitem.name,
