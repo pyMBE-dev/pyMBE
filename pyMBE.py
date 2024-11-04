@@ -23,6 +23,7 @@ import json
 import pint
 import numpy as np
 import pandas as pd
+import scipy.constants
 import scipy.optimize
 
 
@@ -39,16 +40,6 @@ class pymbe_library():
         kT(`pint.Quantity`): Thermal energy.
         Kw(`pint.Quantity`): Ionic product of water. Used in the setup of the G-RxMC method.
     """
-    units = pint.UnitRegistry()
-    N_A=6.02214076e23    / units.mol
-    Kb=1.38064852e-23    * units.J / units.K
-    e=1.60217662e-19 *units.C
-    df=None
-    kT=None
-    Kw=None
-    seed=None
-    rng=None
-
 
     class NumpyEncoder(json.JSONEncoder):
         """
@@ -82,8 +73,15 @@ class pymbe_library():
         # Seed and RNG
         self.seed=seed
         self.rng = np.random.default_rng(seed)
-        self.set_reduced_units(unit_length=unit_length, unit_charge=unit_charge,
-                               temperature=temperature, Kw=Kw, verbose=False)
+        self.units=pint.UnitRegistry()
+        self.N_A=scipy.constants.N_A / self.units.mol
+        self.kB=scipy.constants.k * self.units.J / self.units.K
+        self.e=scipy.constants.e * self.units.C
+        self.set_reduced_units(unit_length=unit_length, 
+                               unit_charge=unit_charge,
+                               temperature=temperature, 
+                               Kw=Kw, 
+                               verbose=False)
         self.setup_df()
         return
 
@@ -1806,15 +1804,25 @@ class pymbe_library():
         if pmb_type != 'protein':
             raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
         molecule_ids_list = self.df.loc[self.df['name']==name].molecule_id.to_list()
+        
         for molecule_id in molecule_ids_list:    
             particle_ids_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
             center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
             rigid_object_center = espresso_system.part.add(pos=center_of_mass,
                                                            rotation=[True,True,True], 
                                                            type=self.propose_unused_type())
+            rigid_object_center.mass = len(particle_ids_list)
+            momI = 0
+            for pid in particle_ids_list:
+                momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
+
+            rigid_object_center.rinertia = np.ones(3) * momI
+            
             for particle_id in particle_ids_list:
                 pid = espresso_system.part.by_id(particle_id)
                 pid.vs_auto_relate_to(rigid_object_center.id)
+
+
         return
 
     def filter_df(self, pmb_type):
@@ -2165,7 +2173,7 @@ class pymbe_library():
                                        f"{unit_length.to('nm'):.5g} = {unit_length}",
                                        f"{unit_energy.to('J'):.5g} = {unit_energy}",
                                        f"{unit_charge.to('C'):.5g} = {unit_charge}",
-                                       f"Temperature: {(self.kT/self.Kb).to('K'):.5g}"
+                                       f"Temperature: {(self.kT/self.kB).to('K'):.5g}"
                                         ])   
         return reduced_units_text
 
@@ -2711,20 +2719,24 @@ class pymbe_library():
             - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
             - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
         """
-        self.units=pint.UnitRegistry()
+
         if unit_length is None:
-            unit_length=0.355*self.units.nm
+            unit_length= 0.355*self.units.nm
         if temperature is None:
-            temperature=298.15 * self.units.K
+            temperature = 298.15 * self.units.K
         if unit_charge is None:
-            unit_charge=self.units.e
+            unit_charge = scipy.constants.e * self.units.C
         if Kw is None:
             Kw = 1e-14
-        self.N_A=6.02214076e23 / self.units.mol
-        self.Kb=1.38064852e-23 * self.units.J / self.units.K
-        self.e=1.60217662e-19 *self.units.C
-        self.kT=temperature*self.Kb
+
+        # Sanity check
+        variables=[unit_length,temperature,unit_charge]
+        dimensionalities=["[length]","[temperature]","[charge]"]
+        for variable,dimensionality in zip(variables,dimensionalities):
+            self.check_dimensionality(variable,dimensionality)
         self.Kw=Kw*self.units.mol**2 / (self.units.l**2)
+        self.kT=temperature*self.kB
+        self.units._build_cache()
         self.units.define(f'reduced_energy = {self.kT} ')
         self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = {unit_charge}')
