@@ -27,7 +27,7 @@ import pandas as pd
 
 # Template of the test
 
-def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="test"):
+def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="test", move_protein = False):
     """
     Runs a set of tests for a given protein pdb.
 
@@ -43,9 +43,15 @@ def run_protein_test(script_path, test_pH_values, protein_pdb, rtol, atol,mode="
     with tempfile.TemporaryDirectory() as time_series_path:
         for pH in test_pH_values:
             print(f"pH = {pH}")
-            run_command=[sys.executable, script_path, "--pdb", protein_pdb, "--pH", str(pH),
-                         "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf",
-                         "--mode", "test", "--no_verbose", "--output", time_series_path]
+            if move_protein: 
+                print ("Running test with enable motion of protein")
+                run_command=[sys.executable, script_path, "--pdb", protein_pdb, "--pH", str(pH),
+                "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf",
+                "--mode", "test", "--no_verbose", "--move_protein", "--output", time_series_path]
+            else:
+                run_command=[sys.executable, script_path, "--pdb", protein_pdb, "--pH", str(pH),
+                            "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf",
+                            "--mode", "test", "--no_verbose", "--output", time_series_path]
             print(subprocess.list2cmdline(run_command))
             subprocess.check_output(run_command)
         # Analyze all time series
@@ -85,6 +91,13 @@ run_protein_test(script_path=script_path,
                     rtol=rtol,
                     atol=atol)
 
+run_protein_test(script_path=script_path,
+                    test_pH_values=test_pH_values,
+                    protein_pdb=protein_pdb,
+                    rtol=rtol,
+                    atol=atol,
+                    move_protein=True)
+
 # Run test for 1F6S case
 protein_pdb = "1f6s"
 run_protein_test(script_path=script_path,
@@ -92,6 +105,13 @@ run_protein_test(script_path=script_path,
                     protein_pdb=protein_pdb,
                     rtol=rtol,
                     atol=atol)   
+
+run_protein_test(script_path=script_path,
+                    test_pH_values=test_pH_values,
+                    protein_pdb=protein_pdb,
+                    rtol=rtol,
+                    atol=atol,
+                    move_protein=True)   
 
 
 
