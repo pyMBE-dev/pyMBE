@@ -21,7 +21,6 @@ import espressomd
 import pyMBE
 import re
 import json
-from tqdm import tqdm
 from pint import UnitRegistry, Quantity
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import minimize_espresso_system_energy
@@ -330,7 +329,8 @@ setup_langevin_dynamics (espresso_system=espresso_system,
                         kT = pmb.kT, 
                         SEED = 77)
 
-for step in tqdm(range(N_samples)):      
+print("*** Running simulation ***")
+for step in range(N_samples):      
     espresso_system.integrator.run (steps = integ_steps)
 
 positions_enable_motion = []
