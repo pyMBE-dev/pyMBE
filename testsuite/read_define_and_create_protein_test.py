@@ -325,13 +325,13 @@ minimize_espresso_system_energy (espresso_system=espresso_system)
 setup_electrostatic_interactions (units=pmb.units,
                                         espresso_system=espresso_system,
                                         kT=pmb.kT)
+
 setup_langevin_dynamics (espresso_system=espresso_system, 
                         kT = pmb.kT, 
                         SEED = 77)
 
 for step in tqdm(range(N_samples)):      
     espresso_system.integrator.run (steps = integ_steps)
-
 
 positions_enable_motion = []
 for pid in particle_id_list:
