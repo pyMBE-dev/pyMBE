@@ -23,6 +23,7 @@ import re
 import json
 from tqdm import tqdm
 from pint import UnitRegistry, Quantity
+from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_langevin_dynamics
 
@@ -244,10 +245,86 @@ t_max = 1e3
 stride_obs = 10 #  in LJ units of time
 integ_steps = int (stride_obs/dt)
 N_samples = int (t_max / stride_obs)
+epsilon = 1*pmb.units('reduced_energy')
+sigma = 1*pmb.units("reduced_length")
+ion_size = 0.4*pmb.units.nm
+
+c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
+c_protein =  2e-4 * pmb.units.mol / pmb.units.L 
+Box_V =  1. / (pmb.N_A*c_protein)
+Box_L = Box_V**(1./3.) 
+
+# Here we define the solution particles in the pmb.df 
+cation_name = 'Na'
+anion_name = 'Cl'
+
+pmb.define_particle(name = cation_name, 
+                    z = 1, 
+                    sigma=sigma, 
+                    epsilon=epsilon,
+                    offset=ion_size-sigma)
+
+pmb.define_particle(name = anion_name,  
+                    z =-1, 
+                    sigma=sigma, 
+                    epsilon=epsilon,
+                    offset=ion_size-sigma)
+
+# Estimate the radius of the protein
+protein_ids = pmb.get_particle_id_map(object_name=protein_pdb)["all"]
+protein_radius=0
+protein_center=espresso_system.box_l/2
+for pid in protein_ids:
+    protein_part = espresso_system.part.by_id(pid)
+    dist = protein_part.pos - protein_center
+    dist = np.linalg.norm(dist)
+    if dist > protein_radius:
+        protein_radius = dist
+
+# Create counter-ions 
+protein_net_charge = pmb.calculate_net_charge(espresso_system=espresso_system,
+                                              molecule_name=protein_pdb,
+                                              dimensionless=True)["mean"]
+
+## Get coordinates outside the volume occupied by the protein
+counter_ion_coords=pmb.generate_coordinates_outside_sphere(center=protein_center,
+                                                            radius=protein_radius,
+                                                            max_dist=Box_L.m_as("reduced_length"),
+                                                            n_samples=abs(protein_net_charge))
+if protein_net_charge > 0:
+    counter_ion_name=anion_name
+elif protein_net_charge < 0:
+    counter_ion_name=cation_name
+
+pmb.create_particle(name=counter_ion_name,
+                    espresso_system=espresso_system,
+                    number_of_particles=int(abs(protein_net_charge)),
+                    position=counter_ion_coords)
+
+# Create added salt ions
+N_ions= int((Box_V.to("reduced_length**3")*c_salt.to('mol/reduced_length**3')*pmb.N_A).magnitude)
+
+## Get coordinates outside the volume occupied by the protein
+added_salt_ions_coords=pmb.generate_coordinates_outside_sphere(center=protein_center,
+                                                            radius=protein_radius,
+                                                            max_dist=Box_L.m_as("reduced_length"),
+                                                            n_samples=N_ions*2)
+## Create cations
+pmb.create_particle(name=cation_name,
+                    espresso_system=espresso_system,
+                    number_of_particles=N_ions,
+                    position=added_salt_ions_coords[:N_ions])
+## Create anions
+pmb.create_particle(name=anion_name,
+                    espresso_system=espresso_system,
+                    number_of_particles=N_ions,
+                    position=added_salt_ions_coords[N_ions:])
 
 pmb.setup_lj_interactions (espresso_system=espresso_system)
 minimize_espresso_system_energy (espresso_system=espresso_system)
-
+setup_electrostatic_interactions (units=pmb.units,
+                                        espresso_system=espresso_system,
+                                        kT=pmb.kT)
 setup_langevin_dynamics (espresso_system=espresso_system, 
                         kT = pmb.kT, 
                         SEED = 77)
