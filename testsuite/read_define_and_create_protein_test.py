@@ -23,7 +23,6 @@ import re
 import json
 from tqdm import tqdm
 from pint import UnitRegistry, Quantity
-from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_langevin_dynamics
 
