@@ -21,7 +21,12 @@ import espressomd
 import pyMBE
 import re
 import json
+from tqdm import tqdm
 from pint import UnitRegistry, Quantity
+from lib.handy_functions import setup_electrostatic_interactions
+from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import setup_langevin_dynamics
+
 ureg = UnitRegistry()
 
 # Create an instance of pyMBE library
@@ -228,25 +233,38 @@ print("*** Unit test passed ***")
 
 print("*** Unit test: check that enable_motion_of_rigid_object() moves the protein correctly ***")
 
-#NOTE: Its not changing the protein motion
-for id in particle_id_list:
-    fix_value = espresso_system.part.by_id(id).fix
-    # np.testing.assert_equal(actual=fix_value, 
-    #                         desired=[False, False, False], 
-    #                         verbose=True)
+positions = []
+for pid in particle_id_list:
+    positions.append(espresso_system.part.by_id(pid).pos)
 
 pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
                                   name=protein_pdb)
-"""
-TO BE FIXED
-for id in particle_id_list:
-    fix_value = espresso_system.part.by_id(id).fix
 
-    np.testing.assert_equal(actual=fix_value, 
-                            desired=[False, False, False], 
-                            verbose=True)
-"""
+dt = 0.01
+t_max = 1e3
+stride_obs = 10 #  in LJ units of time
+integ_steps = int (stride_obs/dt)
+N_samples = int (t_max / stride_obs)
+
+pmb.setup_lj_interactions (espresso_system=espresso_system)
+minimize_espresso_system_energy (espresso_system=espresso_system)
+
+setup_langevin_dynamics (espresso_system=espresso_system, 
+                        kT = pmb.kT, 
+                        SEED = 77)
+
+for step in tqdm(range(N_samples)):      
+    espresso_system.integrator.run (steps = integ_steps)
+
+
+positions_enable_motion = []
+for pid in particle_id_list:
+    positions_enable_motion.append(espresso_system.part.by_id(pid).pos)
+
+np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, positions, positions_enable_motion)
+
 print("*** Unit test passed ***")
+
 
 print("*** Unit test: check that enable_motion_of_rigid_object() raises a ValueError if a wrong pmb_type is provided***")
 
