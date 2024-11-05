@@ -873,7 +873,7 @@ class pymbe_library():
                 print(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
         
-    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, use_default_bond=False):
+    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False):
         """
         Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
