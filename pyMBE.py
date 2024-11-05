@@ -926,7 +926,8 @@ class pymbe_library():
                         for item in list_of_first_residue_positions:
                             residue_position = [np.array(list_of_first_residue_positions[pos_index])]
                     # Generate an arbitrary random unit vector
-                    backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0], 
+                    if backbone_vector is None:
+                        backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
                                                                 radius=1, 
                                                                 n_samples=1,
                                                                 on_surface=True)[0]
@@ -1847,7 +1848,7 @@ class pymbe_library():
         bond_keys = [particle_name1 +'-'+ particle_name2, particle_name2 +'-'+ particle_name1 ]
         bond_defined=False
         for bond_key in bond_keys:
-            if bond_key in self.df.values:
+            if bond_key in self.df["name"].values:
                 bond_defined=True
                 correct_key=bond_key
                 break
