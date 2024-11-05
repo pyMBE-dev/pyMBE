@@ -253,6 +253,8 @@ c_protein =  2e-4 * pmb.units.mol / pmb.units.L
 Box_V =  1. / (pmb.N_A*c_protein)
 Box_L = Box_V**(1./3.) 
 
+pH_value= 3
+
 # Here we define the solution particles in the pmb.df 
 cation_name = 'Na'
 anion_name = 'Cl'
@@ -319,6 +321,24 @@ pmb.create_particle(name=anion_name,
                     number_of_particles=N_ions,
                     position=added_salt_ions_coords[N_ions:])
 
+#Here we calculated the ionisible groups 
+basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
+acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
+list_ionisible_groups = basic_groups + acidic_groups
+total_ionisible_groups = len (list_ionisible_groups)
+
+#Setup of the reactions in espresso 
+cpH, labels = pmb.setup_cpH(counter_ion=cation_name, 
+                            constant_pH= pH_value)
+
+type_map = pmb.get_type_map()
+types = list (type_map.values())
+espresso_system.setup_type_map( type_list = types)
+
+# Setup the non-interacting type for speeding up the sampling of the reactions
+non_interacting_type = max(type_map.values())+1
+cpH.set_non_interacting_type (type=non_interacting_type)
+
 pmb.setup_lj_interactions (espresso_system=espresso_system)
 minimize_espresso_system_energy (espresso_system=espresso_system)
 setup_electrostatic_interactions (units=pmb.units,
@@ -332,6 +352,8 @@ setup_langevin_dynamics (espresso_system=espresso_system,
 print("*** Running simulation ***")
 for step in range(N_samples):      
     espresso_system.integrator.run (steps = integ_steps)
+    cpH.reaction(reaction_steps = total_ionisible_groups)
+    
 
 positions_enable_motion = []
 for pid in particle_id_list:
