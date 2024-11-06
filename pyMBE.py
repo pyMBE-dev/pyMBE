@@ -1810,6 +1810,14 @@ class pymbe_library():
             rigid_object_center = espresso_system.part.add(pos=center_of_mass,
                                                            rotation=[True,True,True], 
                                                            type=self.propose_unused_type())
+            
+            rigid_object_center.mass = len(particle_ids_list)
+            momI = 0
+            for pid in particle_ids_list:
+                momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
+
+            rigid_object_center.rinertia = np.ones(3) * momI
+            
             for particle_id in particle_ids_list:
                 pid = espresso_system.part.by_id(particle_id)
                 pid.vs_auto_relate_to(rigid_object_center.id)
@@ -2419,7 +2427,7 @@ class pymbe_library():
                     if residue.upper() in keys.values():
                         residue_ok=residue.upper()
                     elif (residue.upper() in keys.keys()):
-                        clean_sequence.append(keys[residue.upper()])
+                        residue_ok= keys[residue.upper()]
                     else:
                         raise ValueError("Unknown code for a residue: ", residue, " please review the input sequence")
                 clean_sequence.append(residue_ok)
