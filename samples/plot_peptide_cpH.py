@@ -39,7 +39,7 @@ parser.add_argument('--path_to_data',
 parser.add_argument('--output',
                     type=str,
                     required= False,
-                    default="time_series/peptide",
+                    default="time_series/peptide_cpH",
                     help='output directory')
 parser.add_argument('--mode',
                     type=str,

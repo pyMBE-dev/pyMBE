@@ -44,7 +44,7 @@ parser.add_argument('--pH',
 parser.add_argument('--output',
                     type=str,
                     required= False,
-                    default="samples/time_series/peptide",
+                    default="samples/time_series/peptide_cpH",
                     help='output directory')
 parser.add_argument('--test', 
                     default=False, 
