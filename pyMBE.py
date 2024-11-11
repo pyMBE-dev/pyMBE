@@ -3214,6 +3214,10 @@ class pymbe_library():
                 '': object},
             'l0': {
                 '': float},
+            'node_map':{
+                '':object},
+            'chain_map':{
+                '':object}
         }
         
         self.df = pd.DataFrame(columns=pd.MultiIndex.from_tuples([(col_main, col_sub) for col_main, sub_cols in columns_dtypes.items() for col_sub in sub_cols.keys()]))
