@@ -113,9 +113,9 @@ class Test(ut.TestCase):
                         if header.isnumeric():
                             coord_part = line_clean[1:]
                             if int (num[0]) == 0:
-                                    first_trajectory_coord_list.append(coord_part)
+                                first_trajectory_coord_list.append(coord_part)
                             elif int (num[0]) == (len(list_files)-1):
-                                    last_trajectory_coord_list.append(coord_part)
+                                last_trajectory_coord_list.append(coord_part)
 
         np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, first_trajectory_coord_list, last_trajectory_coord_list)
 
