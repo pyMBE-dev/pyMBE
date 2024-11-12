@@ -333,18 +333,37 @@ setup_langevin_dynamics (espresso_system=espresso_system,
                         SEED = 77)
 
 print("*** Running simulation ***")
+
 for step in range(N_samples):      
     espresso_system.integrator.run (steps = integ_steps)
 
+momI = 0
+molecule_id = pmb.df.loc[pmb.df['name']==protein_pdb].molecule_id.values[0]
+for p in espresso_system.part:
+        center_of_mass = pmb.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
+        if p.mass > 1: 
+            rigid_object_id = p.id 
+            rigid_object_mass = espresso_system.part.by_id(rigid_object_id).mass
+            rigid_object_rotation = espresso_system.part.by_id(rigid_object_id).rotation
+            rigid_object_intertia  = np.copy(espresso_system.part.by_id(rigid_object_id).rinertia)
 
-positions_enable_motion = []
-for pid in particle_id_list:
-    positions_enable_motion.append(espresso_system.part.by_id(pid).pos)
+            np.testing.assert_equal(actual=rigid_object_mass, 
+                        desired=len(particle_id_list), 
+                        verbose=True)
+            print ('mass passed ')
 
-np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, positions, positions_enable_motion)
+            np.testing.assert_equal(actual=rigid_object_rotation, 
+            desired=[1, 1, 1], 
+            verbose=True)
+            print ('rotation  passed ')
+
+            for pid in particle_id_list:
+                momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
+            rinertia = np.ones(3) * momI
+
+            np.testing.assert_array_almost_equal(rinertia, rigid_object_intertia)
 
 print("*** Unit test passed ***")
-
 
 print("*** Unit test: check that enable_motion_of_rigid_object() raises a ValueError if a wrong pmb_type is provided***")
 
