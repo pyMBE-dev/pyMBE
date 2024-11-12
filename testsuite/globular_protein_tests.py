@@ -100,14 +100,11 @@ class Test(ut.TestCase):
         kernel_move("1beb")
         
         list_files = glob.glob(f"{frame_folder}/*.vtf")
-
         first_trajectory_coord_list = []
         last_trajectory_coord_list = []
 
         for frame in list_files:
-
             num = re.findall(r'\d+', frame)
-
             with open(frame) as f:
                 for line in f:
                     line_clean = line.split()
