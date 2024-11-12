@@ -42,7 +42,7 @@ def add_data_to_df(df, data_dict, index):
                          index=index)])
     return updated_df
 
-def analyze_time_series(path_to_datafolder, filename_extension= ".csv", minus_separator = False,):
+def analyze_time_series(path_to_datafolder, filename_extension= ".csv", minus_separator = False, ignore_files=None):
     """
     Analyzes all time series stored in `path_to_datafolder` using the block binning method.
 
@@ -50,6 +50,7 @@ def analyze_time_series(path_to_datafolder, filename_extension= ".csv", minus_se
         path_to_datafolder(`str`): path to the folder with the files with the time series
         filename_extension(`str`): extension of the file. Defaults to ".csv"
         minus_separator(`bool`): switch to enable the minus as a separator. Defaults to False.
+        ignore_files(`lst`): list of filenames to be ignored for the bining analysis.
 
     Returns:
         data(`Pandas.Dataframe`): Dataframe with the time averages of all the time series in the datafolder.
@@ -59,10 +60,18 @@ def analyze_time_series(path_to_datafolder, filename_extension= ".csv", minus_se
 
     """
     data=pd.DataFrame()
+    if ignore_files is None:
+        ignore_files=[]
     with os.scandir(path_to_datafolder) as subdirectory:
         # Gather all data
         for subitem in subdirectory:
             if subitem.is_file():
+                ignore_file=False
+                for file in ignore_files:
+                    if set(file.split()) == set(subitem.name.split()):
+                        ignore_file=True
+                if ignore_file:
+                    continue
                 if filename_extension in subitem.name:
                     # Get parameters from the file name
                     data_dict=get_params_from_file_name(file_name=subitem.name,
@@ -190,6 +199,8 @@ def get_dt(data, time_col = "time", relative_tolerance = 0.01, verbose = False):
         raise ValueError(f"Column \'{time_col}\' not found in columns: "+str( data.columns.to_list() ) )
     imax = data.shape[0]
     dt_init = time[1] - time[0]
+    if dt_init < 1e-8:
+        raise ValueError(f"The two first rows contain data samples at the same simulation time: time[0] = {time[0]} time[1] = {time[1]}. Post-processing of data with repeated time values is not supported because it breaks the estimation of the autocorrelation time.")
     warn_lines = []
     for i in range(1,imax):
         dt = time[i] - time[i-1]

@@ -46,6 +46,7 @@ parser.add_argument('--mode',
 parser.add_argument('--output',
                     type=str,
                     required= False,
+                    default="time_series/salt_solution_gcmc",
                     help='output directory')
 parser.add_argument('--no_verbose', 
                     action='store_false', 
@@ -187,9 +188,6 @@ for i in tqdm(range(N_production_loops),disable=not verbose):
     time_series["c_salt"].append((number_of_ion_pairs/(volume * pmb.N_A)).magnitude)
 
 data_path = args.output
-if data_path is None:
-    data_path=pmb.get_resource(path="samples/Beyer2024")+"/time_series/gcmc"
-
 Path(data_path).mkdir(parents=True, 
                        exist_ok=True)
 
