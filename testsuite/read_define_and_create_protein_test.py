@@ -340,28 +340,28 @@ for step in range(N_samples):
 momI = 0
 molecule_id = pmb.df.loc[pmb.df['name']==protein_pdb].molecule_id.values[0]
 for p in espresso_system.part:
-        center_of_mass = pmb.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
-        if p.mass > 1: 
-            rigid_object_id = p.id 
-            rigid_object_mass = espresso_system.part.by_id(rigid_object_id).mass
-            rigid_object_rotation = espresso_system.part.by_id(rigid_object_id).rotation
-            rigid_object_intertia  = np.copy(espresso_system.part.by_id(rigid_object_id).rinertia)
+    center_of_mass = pmb.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
+    if p.mass > 1: 
+        rigid_object_id = p.id 
+        rigid_object_mass = espresso_system.part.by_id(rigid_object_id).mass
+        rigid_object_rotation = espresso_system.part.by_id(rigid_object_id).rotation
+        rigid_object_intertia  = np.copy(espresso_system.part.by_id(rigid_object_id).rinertia)
 
-            np.testing.assert_equal(actual=rigid_object_mass, 
-                        desired=len(particle_id_list), 
-                        verbose=True)
-            print ('mass passed ')
+        np.testing.assert_equal(actual=rigid_object_mass, 
+                    desired=len(particle_id_list), 
+                    verbose=True)
+        print ('mass passed ')
 
-            np.testing.assert_equal(actual=rigid_object_rotation, 
-            desired=[1, 1, 1], 
-            verbose=True)
-            print ('rotation  passed ')
+        np.testing.assert_equal(actual=rigid_object_rotation, 
+        desired=[1, 1, 1], 
+        verbose=True)
+        print ('rotation  passed ')
 
-            for pid in particle_id_list:
-                momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
-            rinertia = np.ones(3) * momI
+        for pid in particle_id_list:
+            momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
+        rinertia = np.ones(3) * momI
 
-            np.testing.assert_array_almost_equal(rinertia, rigid_object_intertia)
+        np.testing.assert_array_almost_equal(rinertia, rigid_object_intertia)
 
 print("*** Unit test passed ***")
 
