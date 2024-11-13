@@ -64,7 +64,7 @@ def kernel_move (protein_pdb):
 
         run_command=[sys.executable, script_path, "--pdb", protein_pdb, "--pH", str(2),
                         "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf",
-                        "--mode", "short-run", "--move_protein", "--no_verbose", "--output", time_series_path]
+                        "--mode", "test", "--output",  time_series_path, "--move_protein", "--no_verbose", "--ideal" ]
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)
     return 
@@ -72,7 +72,7 @@ def kernel_move (protein_pdb):
 
 
 class Test(ut.TestCase):
-
+    
     def test_globular_protein(self):
         with multiprocessing.Pool(processes=2) as pool:
             results = dict(pool.map(kernel, tasks, chunksize=1))
@@ -93,7 +93,7 @@ class Test(ut.TestCase):
                 ref_charge=np.sort(ref_data["mean","charge"].to_numpy())
                 np.testing.assert_allclose(
                     test_charge, ref_charge, rtol=rtol, atol=atol)
-
+    
 
     def test_globular_protein_enable_motion(self):        
 
@@ -117,6 +117,8 @@ class Test(ut.TestCase):
                             elif int (num[0]) == (len(list_files)-1):
                                 last_trajectory_coord_list.append(coord_part)
 
+        print(first_trajectory_coord_list)
+        print(last_trajectory_coord_list)
         np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, first_trajectory_coord_list, last_trajectory_coord_list)
 
 if __name__ == "__main__":
