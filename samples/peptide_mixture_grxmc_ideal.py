@@ -19,12 +19,11 @@
 #Load espresso, pyMBE and other necessary libraries
 import espressomd
 from pathlib import Path
-import numpy as np
-import matplotlib.pyplot as plt
 import pandas as pd
 import argparse
 from espressomd.io.writer import vtf
 import pyMBE
+from lib.analysis import built_output_name
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -41,7 +40,24 @@ parser.add_argument('--test',
                     default=False, 
                     action='store_true',
                     help='to run a short simulation for testing the script')
-
+parser.add_argument('--sequence1',
+                    type=str,
+                    default= 'nEHc', 
+                    help='sequence of the first peptide')
+parser.add_argument('--sequence2',
+                    type=str,
+                    default= 'nEEHHc', 
+                    help='sequence of the second peptide')
+parser.add_argument('--pH',
+                    type=float,
+                    default=7,
+                    help='pH of the solution')
+parser.add_argument('--output',
+                    type=str,
+                    required= False,
+                    default="samples/time_series/peptide_mixture_grxmc_ideal",
+                    help='output directory')
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 args = parser.parse_args()
 
 if args.mode not in valid_modes:
@@ -51,43 +67,33 @@ if args.mode not in valid_modes:
 Path("./frames").mkdir(parents=True, 
                        exist_ok=True)
 
-#Import functions from handy_functions script 
-from lib.analysis import block_analyze
-
 # Simulation parameters
+verbose=args.no_verbose
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm, 
-                      Kw=1e-14)
-pH_range = np.linspace(2, 12, num=20)
-Samples_per_pH = 500
-MD_steps_per_sample = 0
-steps_eq = int(Samples_per_pH)
+                      Kw=1e-14,
+                      verbose=verbose)
+N_samples = 1000 # to make the demonstration quick, we set this to a very low value
+MD_steps_per_sample = 1000
 N_samples_print = 1000  # Write the trajectory every 100 samples
-probability_reaction =1
 LANGEVIN_SEED = 42
 dt = 0.001
 solvent_permitivity = 78.3
-
+pH_value= args.pH
 # Peptide parameters
-sequence1 = 'nEHc'
+sequence1 = args.sequence1
 model = '1beadAA'  # Model with 2 beads per each aminoacid
 pep1_concentration = 1e-2 *pmb.units.mol/pmb.units.L
 N_peptide1_chains = 10
 
-sequence2 = 'nEEHHc'
+sequence2 = args.sequence2
 pep2_concentration = 1e-2 *pmb.units.mol/pmb.units.L
 N_peptide2_chains = 10
-verbose=True
 
 if args.test:
-    Samples_per_pH = 1000
-    probability_reaction = 1 
-    N_samples_print = 1000
+    MD_steps_per_sample = 1
     N_peptide1_chains = 5
     N_peptide2_chains = 5
-    pH_range = np.linspace(2, 12, num=10)
-    verbose = False
-
-
+    
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 # Note that this parameterization only includes some of the natural aminoacids
 # For the other aminoacids the user needs to use  a parametrization including all the aminoacids in the peptide sequence
@@ -97,17 +103,13 @@ path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
 pmb.load_interaction_parameters(filename=path_to_interactions) 
 pmb.load_pka_set(path_to_pka)
 
-
 # Defines the bonds
-
 bond_type = 'harmonic'
 generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
 harmonic_bond = {'r_0'    : generic_bond_length,
-                 'k'      : generic_harmonic_constant,
-                 }
-
+                 'k'      : generic_harmonic_constant}
 
 pmb.define_default_bond(bond_type = bond_type, 
                         bond_parameters = harmonic_bond)
@@ -187,27 +189,36 @@ if args.mode == 'standard':
     pmb.create_counterions(object_name=peptide1,
                            cation_name=proton_name,
                            anion_name=hydroxide_name,
-                           espresso_system=espresso_system) # Create counterions for the peptide chains
+                           espresso_system=espresso_system,
+                           verbose=verbose) # Create counterions for the peptide chains with sequence 1
     pmb.create_counterions(object_name=peptide2,
                            cation_name=proton_name,
                            anion_name=hydroxide_name,
-                           espresso_system=espresso_system) # Create counterions for the peptide chains
+                           espresso_system=espresso_system,
+                           verbose=verbose) # Create counterions for the peptide chains with sequence 2
 
-    c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,cation_name=sodium_name,anion_name=chloride_name,c_salt=c_salt)
+    c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
+                                              cation_name=sodium_name,
+                                              anion_name=chloride_name,
+                                              c_salt=c_salt,
+                                              verbose=verbose)
 elif args.mode == 'unified':
     pmb.create_counterions(object_name=peptide1, 
                            cation_name=cation_name,
                            anion_name=anion_name,
-                           espresso_system=espresso_system) # Create counterions for the peptide chains
+                           espresso_system=espresso_system,
+                           verbose=verbose) # Create counterions for the peptide chains with sequence 1
     pmb.create_counterions(object_name=peptide2, 
                            cation_name=cation_name,
                            anion_name=anion_name,
-                           espresso_system=espresso_system) # Create counterions for the peptide chains
+                           espresso_system=espresso_system,
+                           verbose=verbose) # Create counterions for the peptide chains with sequence 2
 
     c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                               cation_name=cation_name,
                                               anion_name=anion_name,
-                                              c_salt=c_salt)
+                                              c_salt=c_salt,
+                                              verbose=verbose)
 
 
 with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
@@ -219,11 +230,12 @@ basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']==
 acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
 list_ionisible_groups = basic_groups + acidic_groups
 total_ionisible_groups = len (list_ionisible_groups)
-
-print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
+# Get peptide net charge
+if verbose:
+    print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 
 if args.mode == 'standard':
-    grxmc, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=2, 
+    grxmc, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, 
                                                                                    c_salt_res=c_salt, 
                                                                                    proton_name=proton_name, 
                                                                                    hydroxide_name=hydroxide_name, 
@@ -231,12 +243,13 @@ if args.mode == 'standard':
                                                                                    salt_anion_name=chloride_name,
                                                                                    activity_coefficient=lambda x: 1.0)
 elif args.mode == 'unified':
-    grxmc, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=2, 
+    grxmc, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, 
                                                                                  c_salt_res=c_salt, 
                                                                                  cation_name=cation_name, 
                                                                                  anion_name=anion_name,
                                                                                  activity_coefficient=lambda x: 1.0)
-print('The acid-base reaction has been sucessfully setup for ', sucessful_reactions_labels)
+if verbose:
+    print('The acid-base reaction has been sucessfully setup for ', sucessful_reactions_labels)
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 type_map =pmb.get_type_map()
@@ -246,7 +259,8 @@ espresso_system.setup_type_map(type_list = types)
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
 grxmc.set_non_interacting_type (type=non_interacting_type)
-print('The non interacting type is set to ', non_interacting_type)
+if verbose:
+    print('The non interacting type is set to ', non_interacting_type)
 
 espresso_system.time_step = dt
 
@@ -259,131 +273,53 @@ with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
 espresso_system.time_step= dt 
 espresso_system.integrator.set_vv()
 espresso_system.thermostat.set_langevin(kT=pmb.kT.to('reduced_energy').magnitude, gamma=0.1, seed=LANGEVIN_SEED)
-
-N_frame=0
-Z_pH=[] # List of the average global charge at each pH
-err_Z_pH=[] # List of the error of the global charge at each pH
-xi_plus=[] # List of the average partition coefficient of positive ions
-err_xi_plus=[] # List of the error of the partition coefficient of positive ions
-
-particle_id_list = pmb.get_particle_id_map(peptide1)["all"]+pmb.get_particle_id_map(peptide2)["all"]
+espresso_system.cell_system.skin=0.4
 
 #Save the pyMBE dataframe in a CSV file
 pmb.write_pmb_df (filename='df.csv')
+time_series={}
+for label in ["time","charge_peptide1","charge_peptide2","num_plus","xi_plus"]:
+    time_series[label]=[] 
 
-# Main loop for performing simulations at different pH-values
-labels_obs=["time","charge","num_plus"]
-
-for pH_value in pH_range:
-    
-    time_series={}
-
-    for label in labels_obs:
-        time_series[label]=[]
-
+# Main simulation loop
+N_frame=0
+for step in range(N_samples):
+    espresso_system.integrator.run(steps=MD_steps_per_sample)        
+    grxmc.reaction(reaction_steps = total_ionisible_groups)   
+    time_series["time"].append(espresso_system.time)
+    # Get net charge of peptide1 and peptide2
+    charge_dict_peptide1=pmb.calculate_net_charge(espresso_system=espresso_system, 
+                                            molecule_name=peptide1,
+                                            dimensionless=True)
+    charge_dict_peptide2=pmb.calculate_net_charge(espresso_system=espresso_system, 
+                                            molecule_name=peptide2,
+                                            dimensionless=True)
+    time_series["charge_peptide1"].append(charge_dict_peptide1["mean"])
+    time_series["charge_peptide2"].append(charge_dict_peptide2["mean"])
     if args.mode == 'standard':
-        grxmc, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, 
-                                                                                       c_salt_res=c_salt, 
-                                                                                       proton_name=proton_name, 
-                                                                                       hydroxide_name=hydroxide_name, 
-                                                                                       salt_cation_name=sodium_name, 
-                                                                                       salt_anion_name=chloride_name,
-                                                                                       activity_coefficient=lambda x: 1.0)
+        num_plus = espresso_system.number_of_particles(type=type_map["Na"])+espresso_system.number_of_particles(type=type_map["Hplus"])
     elif args.mode == 'unified':
-        grxmc, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, 
-                                                                                     c_salt_res=c_salt, 
-                                                                                     cation_name=cation_name, 
-                                                                                     anion_name=anion_name,
-                                                                                     activity_coefficient=lambda x: 1.0)
+        num_plus = espresso_system.number_of_particles(type=type_map["Na"])      
+    time_series["num_plus"].append(num_plus)
+    concentration_plus = (num_plus/(pmb.N_A * L**3)).to("mol/L")
+    xi_plus = (concentration_plus/ionic_strength_res).magnitude
+    time_series["xi_plus"].append(xi_plus)
+    if step % N_samples_print == 0:
+        N_frame+=1
+        with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
+            vtf.writevsf(espresso_system, coordinates)
+            vtf.writevcf(espresso_system, coordinates)
 
-    # Inner loop for sampling each pH value
+# Store time series
+data_path=pmb.get_resource(path=args.output)
+Path(data_path).mkdir(parents=True, 
+                       exist_ok=True)
+time_series=pd.DataFrame(time_series)
 
-    for step in range(Samples_per_pH+steps_eq):
-        
-        if np.random.random() > probability_reaction:
-            espresso_system.integrator.run(steps=MD_steps_per_sample)        
-        else:
-            grxmc.reaction(reaction_steps = total_ionisible_groups)
+filename=built_output_name(input_dict={"mode":args.mode,
+                                       "sequence1":sequence1,
+                                       "sequence2": sequence2,
+                                       "pH":pH_value})
 
-        if step > steps_eq:
-            # Get peptide net charge      
-            z_one_object=0
-            for pid in particle_id_list:
-                z_one_object +=espresso_system.part.by_id(pid).q
-
-            if args.test:
-                time_series["time"].append(step)
-            else:
-                time_series["time"].append(espresso_system.time)
-            time_series["charge"].append(np.mean((z_one_object)))
-
-            if args.mode == 'standard':
-                time_series["num_plus"].append(espresso_system.number_of_particles(type=type_map["Na"])+espresso_system.number_of_particles(type=type_map["Hplus"]))
-            elif args.mode == 'unified':
-                time_series["num_plus"].append(espresso_system.number_of_particles(type=type_map["Na"]))
-            
-        if step % N_samples_print == 0:
-            N_frame+=1
-            with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
-                vtf.writevsf(espresso_system, coordinates)
-                vtf.writevcf(espresso_system, coordinates)
-
-    # Estimate the statistical error and the autocorrelation time of the data
-    processed_data = block_analyze(full_data=pd.DataFrame(time_series, columns=labels_obs),
-                                   verbose=verbose)
-
-    Z_pH.append(processed_data["mean", "charge"])
-    err_Z_pH.append(processed_data["err_mean", "charge"])
-    concentration_plus = (processed_data["mean", "num_plus"]/(pmb.N_A * L**3)).to('mol/L')
-    err_concentration_plus = (processed_data["err_mean", "num_plus"]/(pmb.N_A * L**3)).to('mol/L')
-    xi_plus.append((concentration_plus/ionic_strength_res).magnitude)
-    err_xi_plus.append(err_concentration_plus/ionic_strength_res)
-    print(f"pH = {pH_value:6.4g} done")
-   
-
-if args.test:
-    # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-    HH_charge_dict = pmb.calculate_HH_Donnan(c_macro={peptide1: pep1_concentration, peptide2: pep2_concentration}, 
-                                             c_salt=c_salt, 
-                                             pH_list=pH_range)
-    Z_HH_Donnan = HH_charge_dict["charges_dict"]
-    xi = HH_charge_dict["partition_coefficients"]
- 
-    # Write out the data
-    data = {}
-    data["Z_sim"] = np.asarray(Z_pH)/N_peptide1_chains
-    data["xi_sim"] = np.asarray(xi_plus)
-    data["Z_HH_Donnan"] = np.asarray(Z_HH_Donnan[peptide1])+np.asarray(Z_HH_Donnan[peptide2])
-    data["xi_HH_Donnan"] = np.asarray(xi)
-    data = pd.DataFrame.from_dict(data) 
-
-    data_path = pmb.get_resource(path="samples")
-    data.to_csv(f"{data_path}/data_peptide_grxmc.csv", index=False)
-
-else:
-    # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
-    pH_range_HH = np.linspace(2, 12, num=100)
-    HH_charge_dict = pmb.calculate_HH_Donnan(c_macro={peptide1: pep1_concentration, peptide2: pep2_concentration}, 
-                                             c_salt=c_salt, 
-                                             pH_list=pH_range_HH)
-    Z_HH_Donnan = HH_charge_dict["charges_dict"]
-    xi = HH_charge_dict["partition_coefficients"]
-
-    # Plot the results
-    fig, ax = plt.subplots(figsize=(10, 7))
-    plt.errorbar(pH_range, np.asarray(Z_pH)/N_peptide1_chains, yerr=np.asarray(err_Z_pH)/N_peptide1_chains, fmt = 'o', capsize=3, label='Simulation')
-    ax.plot(pH_range_HH, np.asarray(Z_HH_Donnan[peptide1])+np.asarray(Z_HH_Donnan[peptide2]), "--r", label='HH+Donnan')
-    plt.legend()
-    plt.xlabel('pH')
-    plt.ylabel('Charge of the peptide 1 + peptide 2 / e')
-    plt.show()
-    plt.close()
-
-    fig, ax = plt.subplots(figsize=(10, 7))
-    plt.errorbar(pH_range, xi_plus, yerr=err_xi_plus, fmt = 'o', capsize=3, label='Simulation')
-    ax.plot(pH_range_HH, np.asarray(xi), "-k", label='HH+Donnan')
-    plt.legend()
-    plt.xlabel('pH')
-    plt.ylabel(r'partition coefficient $\xi_+$')
-    plt.show()
-    plt.close()
+time_series.to_csv(f"{data_path}/{filename}_time_series.csv",
+                    index=False)

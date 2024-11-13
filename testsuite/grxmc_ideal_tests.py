@@ -16,42 +16,90 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# Tests that samples/peptide_mixture_grxmc_ideal.py, analysis.py, plot_peptide_mixture_grxmc_ideal.py work properly
 # Import pyMBE and other libraries
-import pyMBE
 import sys
 import subprocess
 import numpy as np
+import sys
+import pathlib
+import tempfile
+import subprocess
+import multiprocessing
 import pandas as pd
+import unittest as ut
 
-# Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(seed=42)
-script_path = pmb.get_resource("samples/peptide_mixture_grxmc_ideal.py")
-data_path = pmb.get_resource("samples/data_peptide_grxmc.csv")
+root = pathlib.Path(__file__).parent.parent.resolve()
+data_root = root / "samples" / "time_series" / "peptide_mixture_grxmc_ideal"
+sample_path = root / "samples" / "peptide_mixture_grxmc_ideal.py"
+analysis_path = root / "samples" / "analyze_time_series.py"
+ideal_path = root / "samples" / "plot_peptide_mixture_grxmc_ideal.py"
+test_pH_values=[2,5,7,10,12]
+rtol=0.01 # relative tolerance
+atol=0.05 # absolute tolerance
 
-print("*** Grand reaction (G-RxMC) implementation tests ***\n")
-print("*** Test that our implementation of the original G-RxMC method reproduces the Henderson-Hasselbalch equation corrected with the Donnan potential (HH+Don) for an ideal mixture of peptides ***")
+def kernel(pH_value,temp_dir_path,mode):
+    """
+    Runs a set of tests for a given peptide sequence.
 
-run_command = [sys.executable, script_path, "--mode", "standard", "--test"]
-subprocess.check_output(run_command)
+    Args:
+        pH_value(`float`): pH of the media.
+        temp_dir_path(`str`): path of the folder were to output the data.
+        mode(`str`): mode for the setup of the grxmc mode, supported modes are "standard" and "unified"
+    """
+    run_command=[sys.executable, sample_path, "--mode", mode,
+                    "--pH", str(pH_value), "--output", temp_dir_path, "--test"]
+    print(subprocess.list2cmdline(run_command))
+    subprocess.check_output(run_command)
+    return 
 
-data = pd.read_csv(data_path)
-# Check if charges agree
-np.testing.assert_allclose(data["Z_sim"], data["Z_HH_Donnan"], rtol=0.01, atol=0.05)
-# Check if partition coefficients agree
-np.testing.assert_allclose(data["xi_sim"], data["xi_HH_Donnan"], rtol=0.1, atol=0.1)
+def analyze_and_test_data(temp_dir_path):
+    """
+    Analyzes the data and checks that is consistent against the HH analytical result.
 
-print("*** Test passed ***\n")
+    Args:
+        temp_dir_path(`str`): path of the folder were to output the data.
+    """
+    # Analyze the data
+    run_command=[sys.executable, analysis_path, "--data_folder", temp_dir_path]
+    subprocess.check_output(run_command)
+    analyzed_data=pd.read_csv(temp_dir_path + "/analyzed_data.csv", header=[0, 1])
+    # Produce the ideal data
+    run_command=[sys.executable, ideal_path, "--output", temp_dir_path, "--mode", "store_HH"]
+    subprocess.check_output(run_command)
+    HH_data=pd.read_csv(temp_dir_path + "/HH_data.csv") 
+    np.testing.assert_allclose(np.sort(analyzed_data["mean"]["charge_peptide1"].to_numpy()), 
+                               np.sort(HH_data["Z_HH_peptide1"].to_numpy()), 
+                               rtol=rtol, 
+                               atol=atol)
+    np.testing.assert_allclose(np.sort(analyzed_data["mean"]["charge_peptide2"].to_numpy()), 
+                               np.sort(HH_data["Z_HH_peptide2"].to_numpy()), 
+                               rtol=rtol, 
+                               atol=atol)
+    np.testing.assert_allclose(np.sort(analyzed_data["mean"]["xi_plus"].to_numpy()), 
+                               np.sort(HH_data["xi_HH"].to_numpy()), 
+                               rtol=rtol*5, 
+                               atol=atol*5)    
+
+class Test(ut.TestCase):
+    def test_standard_grxmc(self):
+        temp_dir=tempfile.TemporaryDirectory()
+        mode="standard"
+        N_cases=len(test_pH_values)
+        with multiprocessing.Pool(processes=2) as pool:
+            pool.starmap(kernel, zip(test_pH_values,[temp_dir.name]*N_cases,[mode]*N_cases), chunksize=2)[0]
+        analyze_and_test_data(temp_dir_path=temp_dir.name)
+        temp_dir.cleanup()
+    def test_unified_grxmc(self):
+        temp_dir=tempfile.TemporaryDirectory()
+        mode="unified"
+        N_cases=len(test_pH_values)
+        with multiprocessing.Pool(processes=2) as pool:
+            pool.starmap(kernel, zip(test_pH_values,[temp_dir.name]*N_cases,[mode]*N_cases), chunksize=2)[0]
+        analyze_and_test_data(temp_dir_path=temp_dir.name)
+        temp_dir.cleanup()
+
+if __name__ == "__main__":
+    ut.main()
 
 
-print("*** Test that our implementation of the G-RxMC method with unified ion types reproduces HH+Don for an ideal mixture of peptides ***")
-
-run_command = [sys.executable, script_path, "--mode", "unified", "--test"]
-subprocess.check_output(run_command)
-
-data = pd.read_csv(data_path)
-# Check if charges agree
-np.testing.assert_allclose(data["Z_sim"], data["Z_HH_Donnan"], rtol=0.01, atol=0.05)
-# Check if partition coefficients agree
-np.testing.assert_allclose(data["xi_sim"], data["xi_HH_Donnan"], rtol=0.1, atol=0.1)
-
-print("*** Test passed ***\n")
