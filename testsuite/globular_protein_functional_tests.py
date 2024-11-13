@@ -25,15 +25,17 @@ import multiprocessing
 import numpy as np
 import pandas as pd
 import unittest as ut
-
+import glob 
+import re 
+        
 
 root = pathlib.Path(__file__).parent.parent.resolve()
 data_root = root / "testsuite" / "globular_protein_tests_data"
 script_path = root / "samples" / "Beyer2024" / "globular_protein.py"
+frame_folder = root / "frames"
 test_pH_values = [2, 5, 7]
 tasks = ["1beb", "1f6s"]
 mode = "test"
-
 
 def kernel(protein_pdb):
     """
@@ -56,8 +58,21 @@ def kernel(protein_pdb):
     return (protein_pdb, data)
 
 
-class Test(ut.TestCase):
+def kernel_move (protein_pdb):
 
+    with tempfile.TemporaryDirectory() as time_series_path:
+
+        run_command=[sys.executable, script_path, "--pdb", protein_pdb, "--pH", str(2),
+                        "--path_to_cg", f"parameters/globular_proteins/{protein_pdb}.vtf",
+                        "--mode", "test", "--output",  time_series_path, "--move_protein", "--no_verbose", "--ideal" ]
+        print(subprocess.list2cmdline(run_command))
+        subprocess.check_output(run_command)
+    return 
+
+
+
+class Test(ut.TestCase):
+    
     def test_globular_protein(self):
         with multiprocessing.Pool(processes=2) as pool:
             results = dict(pool.map(kernel, tasks, chunksize=1))
@@ -78,6 +93,33 @@ class Test(ut.TestCase):
                 ref_charge=np.sort(ref_data["mean","charge"].to_numpy())
                 np.testing.assert_allclose(
                     test_charge, ref_charge, rtol=rtol, atol=atol)
+    
+
+    def test_globular_protein_enable_motion(self):        
+
+        kernel_move("1beb")
+        
+        list_files = glob.glob(f"{frame_folder}/*.vtf")
+        first_trajectory_coord_list = []
+        last_trajectory_coord_list = []
+
+        for frame in list_files:
+            num = re.findall(r'\d+', frame)
+            with open(frame) as f:
+                for line in f:
+                    line_clean = line.split()
+                    if line_clean: 
+                        header = line_clean[0]
+                        if header.isnumeric():
+                            coord_part = line_clean[1:]
+                            if int (num[0]) == 0:
+                                first_trajectory_coord_list.append(coord_part)
+                            elif int (num[0]) == (len(list_files)-1):
+                                last_trajectory_coord_list.append(coord_part)
+
+        print(first_trajectory_coord_list)
+        print(last_trajectory_coord_list)
+        np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, first_trajectory_coord_list, last_trajectory_coord_list)
 
 if __name__ == "__main__":
     ut.main()

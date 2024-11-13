@@ -17,12 +17,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to Ctest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
+- New boolean flag `--ideal` as argparse argument of `samples/globular_protein.py` enabling to run the script without setting up interactions.
+- Unit tests for `pmb.create_protein`, `pmb.enable_motion_of_rigid_object`, `pmb.protein_sequence_parser`, `pmb.define_protein`, `pmb.read_protein_vtf_in_df` (#101)
+- Library `lattice.py`, a general builder for crystaline lattices. This library is part of on-going project to support hydrogels in pyMBE. (#93)
 - New sample script showing how to use the analysis tools in pyMBE for post-processing time series from the sample scripts `analyze_time_series.py` (#95) 
 - A new optional argument `ignore_files`  for `lib.analysis.analyze_time_series`, enabling to provide a list of files to be ignored for post-processing of time series. (#95)
 - Functional testing for all sample scripts. (#95)
 - Unit testing for reaction methods. (#86)
 
 ### Fixed
+- Wrong parsing in `pmb.protein_sequence_parser` of input sequences provided as a list of aminoacids using the three letter code. (#101)
+- Wrong setup of the rigid object in `pmb.enable_motion_of_rigid_object`, leading to crashes in `samples/globular_protein.py` when enabling the protein motion. (#101)
+- The argparse argument `--move_protein` of `samples/globular_protein.py` is now a boolean flag instead of taking arbitrary float values. (#101)
 - `lib.analysis.get_dt` now raises a ValueError if the two first two rows of the dataframe have the same values for the time, which break the subsequent code. (#95)
 - Removed global state variables, instead they are now created by the constructor of `pyMBE.pymbe_library`. This prevents two instances of the pyMBE library to share the same memory address for their attributes. (#89)
 - Required Python dependency versions compatible with ESPResSo 4.2 (#84)

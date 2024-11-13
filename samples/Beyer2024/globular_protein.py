@@ -55,10 +55,14 @@ parser.add_argument('--path_to_cg',
                     required= True,  
                     help='Path to the CG structure of the protein')
 parser.add_argument('--move_protein', 
-                    type=float, 
-                    required= False, 
+                    action="store_true",
                     default=False,  
                     help='Activates the motion of the protein')
+
+parser.add_argument('--ideal', 
+                    action="store_true",
+                    default=False,  
+                    help='Sets up an ideal system without steric and electrostatic interactions ')
 
 parser.add_argument('--mode',
                     type=str,
@@ -70,7 +74,9 @@ parser.add_argument('--output',
                     required= False,
                     help='output directory')
 
-parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
+parser.add_argument('--no_verbose', 
+                    action='store_false', 
+                    help="Switch to deactivate verbose",default=True)
 
 args = parser.parse_args ()
 mode=args.mode
@@ -121,6 +127,10 @@ else:
 #Switch for Electrostatics and WCA interactions 
 WCA = True
 Electrostatics = True
+
+if args.ideal:
+    WCA=False
+    Electrostatics=False
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 Path("./frames").mkdir(parents=True, 
@@ -174,16 +184,57 @@ protein_id = pmb.df.loc[pmb.df['name']==protein_name].molecule_id.values[0]
 pmb.center_molecule_in_simulation_box (molecule_id=protein_id,
                                     espresso_system=espresso_system)
 
-# Creates counterions and added salt 
-pmb.create_counterions (object_name=protein_name,
-                        cation_name=cation_name,
-                        anion_name=anion_name,
-                        espresso_system=espresso_system)
+if not args.ideal:
+    # Estimate the radius of the protein
+    protein_ids = pmb.get_particle_id_map(object_name=protein_name)["all"]
+    protein_radius=0
+    protein_center=espresso_system.box_l/2
+    for pid in protein_ids:
+        protein_part = espresso_system.part.by_id(pid)
+        dist = protein_part.pos - protein_center
+        dist = np.linalg.norm(dist)
+        if dist > protein_radius:
+            protein_radius = dist
 
-c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
-                                          cation_name=cation_name,
-                                          anion_name=anion_name,
-                                          c_salt=c_salt)
+
+    # Create counter-ions 
+    protein_net_charge = pmb.calculate_net_charge(espresso_system=espresso_system,
+                                                molecule_name=protein_name,
+                                                dimensionless=True)["mean"]
+
+    ## Get coordinates outside the volume occupied by the protein
+    counter_ion_coords=pmb.generate_coordinates_outside_sphere(center=protein_center,
+                                                                radius=protein_radius,
+                                                                max_dist=Box_L.m_as("reduced_length"),
+                                                                n_samples=abs(protein_net_charge))
+    if protein_net_charge > 0:
+        counter_ion_name=anion_name
+    elif protein_net_charge < 0:
+        counter_ion_name=cation_name
+
+    pmb.create_particle(name=counter_ion_name,
+                        espresso_system=espresso_system,
+                        number_of_particles=int(abs(protein_net_charge)),
+                        position=counter_ion_coords)
+
+    # Create added salt ions
+    N_ions= int((Box_V.to("reduced_length**3")*c_salt.to('mol/reduced_length**3')*pmb.N_A).magnitude)
+
+    ## Get coordinates outside the volume occupied by the protein
+    added_salt_ions_coords=pmb.generate_coordinates_outside_sphere(center=protein_center,
+                                                                radius=protein_radius,
+                                                                max_dist=Box_L.m_as("reduced_length"),
+                                                                n_samples=N_ions*2)
+    ## Create cations
+    pmb.create_particle(name=cation_name,
+                        espresso_system=espresso_system,
+                        number_of_particles=N_ions,
+                        position=added_salt_ions_coords[:N_ions])
+    ## Create anions
+    pmb.create_particle(name=anion_name,
+                        espresso_system=espresso_system,
+                        number_of_particles=N_ions,
+                        position=added_salt_ions_coords[N_ions:])
 
 #Here we calculated the ionisible groups 
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
@@ -212,6 +263,11 @@ cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
     print('The non interacting type is set to ', non_interacting_type)
 
+#Save the initial state 
+n_frame = 0
+with open('frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as coordinates:
+    vtf.writevsf(espresso_system, coordinates)
+    vtf.writevcf(espresso_system, coordinates)
 # Setup the potential energy
 
 if WCA:
@@ -221,13 +277,7 @@ if WCA:
         setup_electrostatic_interactions (units=pmb.units,
                                         espresso_system=espresso_system,
                                         kT=pmb.kT)
-
-#Save the initial state 
-n_frame = 0
-with open('frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as coordinates:
-    vtf.writevsf(espresso_system, coordinates)
-    vtf.writevcf(espresso_system, coordinates)
-
+        
 setup_langevin_dynamics (espresso_system=espresso_system, 
                                     kT = pmb.kT, 
                                     SEED = LANGEVIN_SEED)
