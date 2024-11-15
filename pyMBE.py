@@ -873,7 +873,7 @@ class pymbe_library():
                 print(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
         
-    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, use_default_bond=False):
+    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False):
         """
         Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
 
@@ -881,7 +881,8 @@ class pymbe_library():
             name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
             espresso_system(`espressomd.system.System`): Instance of a system object from espressomd library.
             number_of_molecules(`int`): Number of molecules of type `name` to be created.
-            list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default
+            list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default.
+            backbone_vector(`list` of `float`): Backbone vector of the molecule, random by default. Central beads of the residues in the `residue_list` are placed along this vector. 
             use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
 
         Returns:
@@ -926,7 +927,8 @@ class pymbe_library():
                         for item in list_of_first_residue_positions:
                             residue_position = [np.array(list_of_first_residue_positions[pos_index])]
                     # Generate an arbitrary random unit vector
-                    backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0], 
+                    if backbone_vector is None:
+                        backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
                                                                 radius=1, 
                                                                 n_samples=1,
                                                                 on_surface=True)[0]
@@ -1855,7 +1857,7 @@ class pymbe_library():
         bond_keys = [particle_name1 +'-'+ particle_name2, particle_name2 +'-'+ particle_name1 ]
         bond_defined=False
         for bond_key in bond_keys:
-            if bond_key in self.df.values:
+            if bond_key in self.df["name"].values:
                 bond_defined=True
                 correct_key=bond_key
                 break
@@ -3221,7 +3223,7 @@ class pymbe_library():
                 '': object},
             'l0': {
                 '': float},
-        }
+            }
         
         self.df = pd.DataFrame(columns=pd.MultiIndex.from_tuples([(col_main, col_sub) for col_main, sub_cols in columns_dtypes.items() for col_sub in sub_cols.keys()]))
         

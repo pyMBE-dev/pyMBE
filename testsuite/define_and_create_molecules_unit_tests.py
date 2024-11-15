@@ -325,12 +325,17 @@ print("*** Unit test passed ***")
 # Additional unit tests for define_molecule are in create_molecule_position_test
 print("*** Unit test: check that create_molecule() creates a simple molecule into the espresso_system with the properties defined in pmb.df  ***")
 
-pmb.create_molecule(name="M2",
+backbone_vector = np.array([1,3,-4])
+magnitude = np.linalg.norm(backbone_vector)
+backbone_vector = backbone_vector/magnitude
+molecule_info_M2 = pmb.create_molecule(name="M2",
                     number_of_molecules=2,
                     espresso_system=espresso_system,
+                    backbone_vector = backbone_vector,
                     use_default_bond=True)
 
 particle_ids=pmb.get_particle_id_map(object_name="M2")["all"]
+
 
 residue_ids={9: 2, 10: 3, 11: 3, 12: 3, 13: 4, 14: 4, 15: 4, 16: 4, # First molecule
             17: 5, 18: 6, 19: 6, 20: 6, 21: 7, 22: 7, 23: 7, 24: 7} # Second molecule
@@ -412,6 +417,41 @@ for mol_id in [0,1]:
                             verbose=True)
 
 print("*** Unit test passed ***")
+
+print("*** Unit test: check the backbone vector of the molecule in espresso and the given input backbone vector are same ***")
+
+
+central_bead_positions = []
+
+for residue_name in molecule_parameters["M2"]["residue_list"]:
+    
+    mol_id = pmb.df[pmb.df["name"]=="M2"]["molecule_id"].values[0]
+    res_id = pmb.df[(pmb.df["molecule_id"]==mol_id) & (pmb.df['name']==residue_name)]["residue_id"].values[0]
+    central_bead_id = molecule_info_M2[mol_id][res_id]['central_bead_id']
+    central_bead_pos = espresso_system.part.by_id(central_bead_id).pos
+    central_bead_positions.append(central_bead_pos)
+
+if len(central_bead_positions) == len(molecule_parameters["M2"]["residue_list"]):
+    
+    backbone_direction_1 = central_bead_positions[1] - central_bead_positions[0]
+    backbone_direction_2 = central_bead_positions[2] - central_bead_positions[1]
+    backbone_direction_1 /= np.linalg.norm(backbone_direction_1)
+    backbone_direction_2 /= np.linalg.norm(backbone_direction_2)
+    np.testing.assert_almost_equal(
+        actual = backbone_direction_1,
+        desired = backbone_vector,
+        verbose = True)
+    np.testing.assert_almost_equal(
+        actual = backbone_direction_2,
+        desired = backbone_vector,
+        verbose = True)
+
+else:
+
+    raise ValueError("Expected 3 central bead positions for residues R1, R2, and R3")        
+
+print("*** Unit test passed ***")
+
 print("*** Unit test: check that create_molecule() does not create any molcule for number_of_molecules <= 0  ***")
 
 starting_number_of_particles=len(espresso_system.part.all())
