@@ -117,6 +117,12 @@ with tempfile.TemporaryDirectory() as tmp_directory:
     # Read the same pyMBE df from a csv a load it in pyMBE
     read_df = pmb.read_pmb_df(filename = df_filename)
 
+stored_df['node_map'] = stored_df['node_map'].astype(object)
+stored_df['chain_map'] = stored_df['chain_map'].astype(object)
+
+read_df['node_map'] = read_df['node_map'].astype(object)
+read_df['chain_map'] = read_df['chain_map'].astype(object)
+
 # Preprocess data for the Unit Test
 # The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal
 stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: ast.literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pd.notnull(x) else x)
