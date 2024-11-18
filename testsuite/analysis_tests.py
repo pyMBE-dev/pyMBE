@@ -36,6 +36,17 @@ class Serialization(ut.TestCase):
         reference_data.columns = reference_data.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
         pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False, check_dtype=False)
         print("*** Unit passed ***")
+        print("*** Unit test: test that analysis.analyze_time_series ignores files that should not be analyzed ***")
+        analyzed_data = ana.analyze_time_series(path_to_datafolder=self.data_root,
+                                       ignore_files=["average_data.csv","N-064_Solvent-good_Init-coil_time_series_analyzed.csv"],
+                                       minus_separator=True,
+                                       filename_extension="_time_series.csv")
+        analyzed_data[["Dens","eps"]] = analyzed_data[["Dens","eps"]].apply(pd.to_numeric)
+        reference_data = pd.read_csv(self.data_root / "average_data.csv", header=[0,1])
+        analyzed_data.columns = analyzed_data.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
+        reference_data.columns = reference_data.sort_index(axis=1,level=[0,1],ascending=[True,True]).columns
+        pd.testing.assert_frame_equal(analyzed_data.dropna(),reference_data.dropna(), check_column_type=False, check_dtype=False)
+        print("*** Unit passed ***")
     
     def test_get_dt(self):
         print("*** Unit test: test that analysis.get_dt returns the right time step ***")
@@ -43,13 +54,19 @@ class Serialization(ut.TestCase):
         dt, n_warnings = ana.get_dt(data)
         self.assertAlmostEqual(dt, 1.0, delta = 1e-7)
         self.assertEqual(n_warnings, 0)
-        print("*** Unit passed ***")
-
-        print("*** Unit test: test that analysis.get_dt prints a warning if there are values with repeated time steps ***")
+        print("*** Unit passed ***")       
+        
+        print("*** Unit test: test that analysis.get_dt prints a warning if there are values with different time steps ***")
         data = pd.DataFrame.from_dict( {'time': [0, 1, 1,], 'obs': ['1.0', '2.0', '4.0']} )
         dt, n_warnings = ana.get_dt(data,verbose=True)
         self.assertAlmostEqual(dt, 1.0, delta = 1e-7)
         self.assertEqual(n_warnings, 1)
+        print("*** Unit passed ***")
+
+        print("*** Unit test: test that analysis.get_dt raises a ValueError if the two first values have the same time step***")
+        data = pd.DataFrame.from_dict( {'time': [0, 0, 1,], 'obs': ['1.0', '2.0', '4.0']} )
+        inputs = {"data": data}
+        self.assertRaises(ValueError, ana.get_dt, **inputs)
         print("*** Unit passed ***")
 
         print("*** Unit test: test that analysis.get_dt raises a ValueError if the column with the time is not found ***")

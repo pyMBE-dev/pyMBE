@@ -19,12 +19,14 @@
 # Load espresso, pyMBE and other necessary libraries
 from pathlib import Path
 import espressomd
-import numpy as np
-import matplotlib.pyplot as plt
 import argparse
 import pandas as pd
 from espressomd.io.writer import vtf
 import pyMBE
+
+# Load some functions from the handy_scripts library for convinience
+from lib.handy_functions import setup_langevin_dynamics,minimize_espresso_system_energy,setup_electrostatic_interactions
+from lib.analysis import built_output_name
 
 # Create an instance of pyMBE library
 
@@ -32,42 +34,46 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 # Command line arguments
 parser = argparse.ArgumentParser(description='Script that runs a Monte Carlo simulation of an ideal branched polyampholyte using pyMBE and ESPResSo.')
+parser.add_argument('--pH',
+                    type=float,
+                    default=7,
+                    help='pH of the solution')
+parser.add_argument('--output',
+                    type=str,
+                    required= False,
+                    default="samples/time_series/branched_polyampholyte",
+                    help='output directory')
 parser.add_argument('--test', 
                     default=False, 
                     action='store_true',
                     help='to run a short simulation for testing the script')
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 args = parser.parse_args()
-
-
-# Load some functions from the handy_scripts library for convinience
-from lib.handy_functions import setup_langevin_dynamics
-from lib.analysis import block_analyze
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 Path("./frames").mkdir(parents=True, 
                        exist_ok=True)
 
 # Simulation parameters
-pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
-pH_range = np.linspace(2, 12, num=20)
-Samples_per_pH = 1000
-MD_steps_per_sample = 1000
-steps_eq = int(Samples_per_pH/3)
-N_samples_print = 10  # Write the trajectory every 100 samples
-probability_reaction =0.5 
+pH_value = args.pH
+N_samples = 1000 # to make the demonstration quick, we set this to a very low value
+MD_steps_per_sample = 100 # to make the demonstration quick, we set this to a very low value
+N_samples_print = 10  # Write the full trajectory data every X samples
 LANGEVIN_SEED = 100
-dt = 0.001
+dt = 0.01
+solvent_permitivity = 78.3
+verbose=args.no_verbose
+ideal=False
+
+if args.test:
+    MD_steps_per_sample = 1
+    ideal=True
+    N_polyampholyte_chains = 1 
 solvent_permitivity = 78.3
 N_polyampholyte_chains = 5
 polyampholyte_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 volume = N_polyampholyte_chains/(pmb.N_A*polyampholyte_concentration)
 
-if args.test:
-    Samples_per_pH = 100
-    probability_reaction = 1 
-    N_samples_print = 1000
-    N_polyampholyte_chains = 1 
-    pH_range = np.linspace(2, 12, num=10)
 
 # Define different particles
 # Inert particle 
@@ -126,8 +132,14 @@ cation_name = 'Na'
 anion_name = 'Cl'
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
 
-pmb.define_particle(name=cation_name, z=1, sigma=0.35*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name, z=-1, sigma=0.35*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, 
+                    z=1, 
+                    sigma=0.35*pmb.units.nm, 
+                    epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name, 
+                    z=-1, 
+                    sigma=0.35*pmb.units.nm,  
+                    epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters
 
@@ -140,11 +152,22 @@ espresso_system=espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
 # Add all bonds to espresso system
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
-# Create your molecules into the espresso system
-pmb.create_pmb_object(name="polyampholyte", number_of_objects=N_polyampholyte_chains,espresso_system=espresso_system, use_default_bond=True)
-pmb.create_counterions(object_name="polyampholyte",cation_name=cation_name,anion_name=anion_name,espresso_system=espresso_system)
+# Create your molecules icph_ideal_tests.pynto the espresso system
+pmb.create_pmb_object(name="polyampholyte", 
+                      number_of_objects=N_polyampholyte_chains,
+                      espresso_system=espresso_system, 
+                      use_default_bond=True)
+pmb.create_counterions(object_name="polyampholyte",
+                       cation_name=cation_name,
+                       anion_name=anion_name,
+                       espresso_system=espresso_system,
+                       verbose=verbose)
 
-c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=c_salt)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
+                                          cation_name=cation_name,
+                                          anion_name=anion_name,
+                                          c_salt=c_salt,
+                                          verbose=verbose)
 
 #List of ionisible groups 
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
@@ -152,12 +175,14 @@ acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=
 list_ionisible_groups = basic_groups + acidic_groups
 total_ionisible_groups = len (list_ionisible_groups)
 
-print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
-print('The polyampholyte concentration in your system is ', calculated_polyampholyte_concentration.to('mol/L') , 'with', N_polyampholyte_chains, 'molecules')
-print('The ionisable groups in your polyampholyte are ', list_ionisible_groups)
+if verbose:
+    print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
+    print('The polyampholyte concentration in your system is ', calculated_polyampholyte_concentration.to('mol/L') , 'with', N_polyampholyte_chains, 'molecules')
+    print('The ionisable groups in your polyampholyte are ', list_ionisible_groups)
 
-cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=2)
-print('The acid-base reaction has been sucessfully setup for ', labels)
+cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
+if verbose:
+    print('The acid-base reaction has been sucessfully setup for ', labels)
 
 # Setup espresso to track the ionization of the acid/basic groups 
 type_map = pmb.get_type_map()
@@ -167,7 +192,29 @@ espresso_system.setup_type_map(type_list = types)
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
 cpH.set_non_interacting_type (type=non_interacting_type)
-print('The non interacting type is set to ', non_interacting_type)
+if verbose:
+    print('The non interacting type is set to ', non_interacting_type)
+
+if not ideal:
+    ##Setup the potential energy
+    if verbose:
+        print('Setup LJ interaction (this can take a few seconds)')
+    pmb.setup_lj_interactions (espresso_system=espresso_system,
+                                warnings=verbose)
+    if verbose:
+        print('Minimize energy before adding electrostatics')
+    minimize_espresso_system_energy (espresso_system=espresso_system,
+                                    verbose=verbose)
+    if verbose:
+        print('Setup and tune electrostatics (this can take a few seconds)')
+    setup_electrostatic_interactions(units=pmb.units,
+                                    espresso_system=espresso_system,
+                                    kT=pmb.kT,
+                                    verbose=verbose)
+    if verbose:
+        print('Minimize energy after adding electrostatics')
+    minimize_espresso_system_energy (espresso_system=espresso_system,
+                                    verbose=verbose)
 
 #Setup Langevin
 setup_langevin_dynamics(espresso_system=espresso_system, 
@@ -177,89 +224,40 @@ setup_langevin_dynamics(espresso_system=espresso_system,
                                     tune_skin=False)
 
 espresso_system.cell_system.skin=0.4
-
-N_frame=0
-Z_pH=[] # List of the average global charge at each pH
-err_Z_pH=[] # List of the error of the global charge at each pH
-
-
 #Save the pyMBE dataframe in a CSV file
 pmb.write_pmb_df (filename='df.csv')
 
 # Main loop for performing simulations at different pH-values
-labels_obs=["time","charge"]
+time_series={}
+for label in ["time","charge"]:
+    time_series[label]=[]
 
-for pH_value in pH_range:
+# Production loop
+N_frame=0
+for step in range(N_samples):
     
-    time_series={}
+    espresso_system.integrator.run(steps=MD_steps_per_sample)        
+    cpH.reaction( reaction_steps = total_ionisible_groups)
 
-    for label in labels_obs:
-        time_series[label]=[]
+    
+    # Get polyampholyte net charge
+    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
+                                        molecule_name="polyampholyte",
+                                        dimensionless=True)
+    
+    time_series["time"].append(espresso_system.time)
+    time_series["charge"].append(charge_dict["mean"])
 
-    cpH.constant_pH = pH_value
+    if step % N_samples_print == 0:
+        N_frame+=1
+        with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
+            vtf.writevsf(espresso_system, coordinates)
+            vtf.writevcf(espresso_system, coordinates)
 
-    # Inner loop for sampling each pH value
-
-    for step in range(Samples_per_pH+steps_eq):
-        
-        if np.random.random() > probability_reaction:
-            espresso_system.integrator.run(steps=MD_steps_per_sample)        
-        else:
-            cpH.reaction( reaction_steps = total_ionisible_groups)
-
-        if step > steps_eq:
-            # Get polyampholyte net charge
-            charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
-                    molecule_name="polyampholyte",
-                    dimensionless=True)
-            if args.test:
-                time_series["time"].append(step)
-            else:
-                time_series["time"].append(espresso_system.time)
-            time_series["charge"].append(charge_dict["mean"])
-
-        if step % N_samples_print == 0:
-            N_frame+=1
-            with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
-                vtf.writevsf(espresso_system, coordinates)
-                vtf.writevcf(espresso_system, coordinates)
-
-    # Estimate the statistical error and the autocorrelation time of the data
-    processed_data = block_analyze(full_data=pd.DataFrame(time_series, columns=labels_obs))
-    Z_pH.append(processed_data["mean", "charge"])
-    err_Z_pH.append(processed_data["err_mean", "charge"])
-    print(f"pH = {pH_value:6.4g} done")
-   
-
-if args.test:
-     # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (pyMBE)
-    Z_HH = pmb.calculate_HH(molecule_name="polyampholyte", 
-                            pH_list=pH_range)
-
-    # Write out the data
-    data = {}
-    data["Z_sim"] = np.asarray(Z_pH)
-    data["Z_HH"] = np.asarray(Z_HH)
-    data = pd.DataFrame.from_dict(data) 
-
-    data_path = pmb.get_resource(path="samples")
-    data.to_csv(f"{data_path}/data_polyampholyte_cph.csv", index=False)
-
-else:
-    # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (manually)
-    pH_range_HH = np.linspace(2, 12, num=1000)
-    Z_HH_manually = [10 * (1/(1+10**(pH_value-9)) - 1/(1+10**(4-pH_value))) for pH_value in pH_range_HH]
-
-    # Calculate the ideal titration curve of the polyampholyte with Henderson-Hasselbach equation (pyMBE)
-    Z_HH = pmb.calculate_HH(molecule_name="polyampholyte", 
-                            pH_list=pH_range_HH)
-
-    fig, ax = plt.subplots(figsize=(10, 7))
-    plt.errorbar(pH_range, Z_pH, yerr=err_Z_pH, fmt = 'o', capsize=3, label='Simulation')
-    plt.plot(pH_range_HH, Z_HH_manually, label="Henderson-Hasselbalch (manually)")
-    ax.plot(pH_range_HH, Z_HH, "-k", label='Henderson-Hasselbach (pyMBE)')
-    plt.legend()
-    plt.xlabel('pH')
-    plt.ylabel('Charge of the polyampholyte / e')
-
-    plt.show()
+# Store time series
+data_path=pmb.get_resource(path=args.output)
+Path(data_path).mkdir(parents=True, 
+                       exist_ok=True)
+time_series=pd.DataFrame(time_series)
+filename=built_output_name(input_dict={"pH":pH_value})
+time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
