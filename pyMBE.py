@@ -2799,7 +2799,7 @@ class pymbe_library():
             raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
 
         node_position = np.array(list(int(x) for x in node.strip('[]').split()))*0.25*self.lattice_builder.BOXL
-        node_particle_id = self.create_particle(name = residue,
+        self.create_particle(name = residue,
                          espresso_system=espresso_system,
                          number_of_particles=1,
                          position = [node_position])
