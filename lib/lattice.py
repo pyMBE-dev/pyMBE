@@ -18,7 +18,6 @@
 
 import itertools
 import numpy as np
-import espressomd
 
 #pmb = pyMBE.pymbe_library(seed=42)
 
@@ -52,7 +51,6 @@ class LatticeBuilder:
         self.strict = strict
         self.node_labels = {str([int(x) for x in indices]).replace(",", ""): i
                             for i, indices in enumerate(self.lattice.indices)}
-        #self.node_labels_arr = {str(indices):i for i, indices in enumerate(self.lattice.indices)}
         self.nodes = {label: "default_linker" for label in self.node_labels}
         self.colormap = {}
         self.chains = {}
@@ -60,10 +58,8 @@ class LatticeBuilder:
         self.kwargs_monomers = {}
         self.kwargs_bonds = {}
         self.kwargs_box = {}
-        #self.pmb = pmb
         self.MPC = lattice.MPC
         self.BOXL = lattice.BOXL
-        #self.BOND_LENGTH = BOND_LENGTH.to("reduced_length") if BOND_LENGTH is not None else self.pmb.units.Quantity(1, 'reduced_length')
         
 
     def _get_node_by_label(self, node):

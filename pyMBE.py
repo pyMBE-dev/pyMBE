@@ -54,7 +54,7 @@ class pymbe_library():
                 return obj.item()
             return super().default(obj)
 
-    def __init__(self, seed, temperature=None, unit_length=None, unit_charge=None, Kw=None, lattice_builder=None):
+    def __init__(self, seed, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
         Initializes the pymbe_library by setting up the reduced unit system with `temperature` and `reduced_length` 
         and sets up  the `pmb.df` for bookkeeping.
@@ -897,11 +897,11 @@ class pymbe_library():
 
         node_positions = {}
         node_topology = self.df[self.df["name"]==name]["node_map"].iloc[0]
-        for index, node_info in node_topology.items():
+        for node_info in node_topology.values():
             node_index = node_info["lattice_index"]
             node_name = node_info["particle_name"]
 
-            node_id,node_pos = self.set_node(format_node(node_index), node_name, espresso_system)
+            node_pos = self.set_node(format_node(node_index), node_name, espresso_system)
             node_label = self.lattice_builder.node_labels[format_node(node_index)]
             node_positions[node_label]=node_pos
 
@@ -909,49 +909,7 @@ class pymbe_library():
         # Looping over all the 16 chains
 
         chain_topology = self.df[self.df["name"]==name]["chain_map"].iloc[0]
-        for chain_id,chain_info in chain_topology.items():
-            node_s = chain_info["node_start"]
-            node_e = chain_info["node_end"]
-            self.set_chain(node_s, node_e, node_positions, espresso_system)
-
-        return node_positions;
-
-        
-    def create_hydrogel(self, name, espresso_system):
-        """ 
-        creates the hyrogel `name` in espresso_system
-        
-        Args:
-            name(`str`): Label of the hydrogel to be created. `name` must be defined in the `pmb.df`
-            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
-
-        Returns:
-            
-        """
-
-        def format_node(node_list):
-            return "[" + " ".join(map(str, node_list)) + "]"
-
-        self.check_if_name_is_defined_in_df(name=name,
-                                            pmb_type_to_be_defined='hydrogel')
-
-        # placing nodes
-
-        node_positions = {}
-        node_topology = self.df[self.df["name"]==name]["node_map"].iloc[0]
-        for index, node_info in node_topology.items():
-            node_index = node_info["lattice_index"]
-            node_name = node_info["particle_name"]
-
-            node_id,node_pos = self.set_node(format_node(node_index), node_name, espresso_system)
-            node_label = self.lattice_builder.node_labels[format_node(node_index)]
-            node_positions[node_label]=node_pos
-
-        # Placing chains between nodes
-        # Looping over all the 16 chains
-
-        chain_topology = self.df[self.df["name"]==name]["chain_map"].iloc[0]
-        for chain_id,chain_info in chain_topology.items():
+        for chain_info in chain_topology.values():
             node_s = chain_info["node_start"]
             node_e = chain_info["node_end"]
             self.set_chain(node_s, node_e, node_positions, espresso_system)
@@ -1582,45 +1540,6 @@ class pymbe_library():
             self.define_molecule(name=molecule_name, residue_list=residue_list)
 
         return;
-
-
-    def define_hydrogel(self, name, node_map, chain_map):
-        """
-        Defines a pyMBE object of type `hydrogel` in `pymbe.df`.
-
-        Args:
-            name(`str`): Unique label that identifies the `hydrogel`.
-            node_map(`dict`): {"node_label": {"particle_name": , "lattice_index": }, ... }
-            chain_map(`dict`): {"chain_id": {"node_start": , "node_end": , "residue_list": , ... }
-
-        """
-
-
-        if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='hydrogel'):
-            return
-
-        index = len(self.df)
-        self.df.at [index, "name"] = name
-        self.df.at [index, "pmb_type"] = "hydrogel"
-        self.add_value_to_df(index = index,
-                        key = ('node_map',''),
-                        new_value = node_map,
-                        non_standard_value=True)
-        self.add_value_to_df(index = index,
-                        key = ('chain_map',''),
-                        new_value = chain_map,
-                        non_standard_value=True)
-
-        for chain_id in chain_map:
-            node_start = chain_map[chain_id]["node_start"]
-            node_end = chain_map[chain_id]["node_end"]
-            residue_list = chain_map[chain_id]['residue_list']
-            # Molecule name
-            molecule_name = "chain_"+node_start+"_"+node_end
-            self.define_molecule(name=molecule_name, residue_list=residue_list)
-
-        return;
-
 
     def define_molecule(self, name, residue_list):
         """
@@ -2887,7 +2806,7 @@ class pymbe_library():
         key = self.lattice_builder._get_node_by_label(node)
         self.lattice_builder.nodes[key] = residue
 
-        return node_particle_id,node_position.tolist()
+        return node_position.tolist()
 
     def set_particle_acidity(self, name, acidity=None, default_charge_number=0, pka=None, verbose=True, overwrite=True):
         """

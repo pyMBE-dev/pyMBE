@@ -1,20 +1,9 @@
 import pyMBE
 import espressomd
-import numpy as np
-from tqdm import tqdm
-import re
-from pathlib import Path
 import matplotlib.pyplot as plt
-import json
-import pandas as pd
-from lib.handy_functions import minimize_espresso_system_energy
-from lib.handy_functions import setup_langevin_dynamics
-from lib.analysis import block_analyze
 from lib.lattice import DiamondLattice
 
-# Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
-# Creating instance from diamond lattice 
 reduced_unit_set = pmb.get_reduced_units()
 # Monomers per chain
 MPC = 8
@@ -58,16 +47,10 @@ pmb.define_bond(bond_type = 'harmonic',
 
 # Provide MPC and BOND_LENGTH to Diamond Lattice
 diamond_lattice = DiamondLattice(MPC,generic_bond_length)
-# Get the box length from the object of DiamondLattice 
-# and use it to create espresso system
 espresso_system = espressomd.System(box_l = [diamond_lattice.BOXL]*3)
 pmb.add_bonds_to_espresso(espresso_system = espresso_system)
-# Currently pass the pyMBE object into lattice builder
-# so you have only one instance of the pyMBE by setting 
-# self.pmb = pmb in constructor of the LatticeBuilder
 lattice_builder = pmb.initialize_lattice_builder(diamond_lattice) # Dont need pmb when integrated to pyMBE.py
 
-######---creating a hydrogel---###########
 # Setting up node topology
 indices = diamond_lattice.indices
 node_topology = {}
@@ -80,12 +63,8 @@ for index in range(len(indices)):
 connectivity = diamond_lattice.connectivity
 node_labels = lattice_builder.node_labels
 reverse_node_labels = {v: k for k, v in node_labels.items()}
-# reverse_node_labels looks like {0:"[0 0 0]",1:"[1 1 1]", ..}
 connectivity_with_labels = {(reverse_node_labels[i], reverse_node_labels[j]) for i, j in connectivity}
 chain_topology = {}
-
-def parse_node(node_str):
-    return list(map(int, node_str.strip("[]").split()))
 
 chain_id = 0
 for node_s, node_e in connectivity_with_labels:
@@ -97,14 +76,9 @@ for node_s, node_e in connectivity_with_labels:
 pmb.define_hydrogel("my_hydrogel",node_topology, chain_topology)
 node_positions = pmb.create_hydrogel("my_hydrogel", espresso_system)
    
-from mpl_toolkits.mplot3d import Axes3D
 fig = plt.figure()
 ax = fig.add_subplot(111,projection="3d")
 lattice_builder.draw_lattice(ax)
 lattice_builder.draw_simulation_box(ax)
 plt.legend(fontsize=12)
 plt.show()
-
-
-
-
