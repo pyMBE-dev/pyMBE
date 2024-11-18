@@ -12,6 +12,7 @@ The following people have contributed to pyMBE (Github username, Name, current a
 - pinedaps, Sebastian P. Pineda (Charles University, Czech Republic)
 
 ## Tier-1 Contributors
+- 1234somesh, Somesh Kurahatti (University of Stuttgart, Germany)
 - amartise, Albert Martinez-Serra (Royal College of Surgeons, Ireland) 
 - mariusaarsten, Marius Aarsten (Norwegian University of Science and Tecnology, Norway)
 - Zitzeronion, Stefan Zitz (Research Center Pharmaceutical Engineering, Austria)

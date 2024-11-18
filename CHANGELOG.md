@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to Ctest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
+- New optional argument `backbone_vector` enabling to build molecules along an input vector using `pmb.create_molecule` and `pmb.create_pmb_object`
 - Unit testing for reaction methods (#86)
 
 ### Fixed
