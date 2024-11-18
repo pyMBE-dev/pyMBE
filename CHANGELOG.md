@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to Ctest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
+- New optional argument `backbone_vector` enabling to build molecules along an input vector using `pmb.create_molecule` and `pmb.create_pmb_object` (#99)
+- Unit testing for reaction methods (#86)
 - New boolean flag `--ideal` as argparse argument of `samples/globular_protein.py` enabling to run the script without setting up interactions.
 - Unit tests for `pmb.create_protein`, `pmb.enable_motion_of_rigid_object`, `pmb.protein_sequence_parser`, `pmb.define_protein`, `pmb.read_protein_vtf_in_df` (#101)
 - Library `lattice.py`, a general builder for crystaline lattices. This library is part of on-going project to support hydrogels in pyMBE. (#93)
