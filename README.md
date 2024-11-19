@@ -64,16 +64,16 @@ sudo apt install python3-venv
 To set up pyMBE, the users need to install its virtual environment, install its Python dependencies and configure the path to the ESPResSo build folder as follows:
 
 ```sh
-python3 -m venv pymbe
-source pymbe/bin/activate
-python3 maintainer/configure_venv.py --espresso_path=/home/user/espresso/build # adapt path
-python3 -m pip install -r requirements.txt
-deactivate
+python3 -m venv pymbe  # creates a local folder named pymbe, which contains the virtual environment
+source pymbe/bin/activate  # activates the pymbe venv
+python3 maintainer/configure_venv.py --espresso_path=/home/user/espresso/build # please, adapt the espresso path accordingly
+python3 simulation_script.py # run the espresso simulation script
+deactivate  # deactivate the virtual environment
 ```
 
-We highlight that the path `/home/user/espresso/build` is just an example of a possible
-path to the ESPResSo build folder. The user should change this path to match
-the local absolute path were ESPResSo was installed. 
+We highlight that the path `/home/user/espresso/build` is just an example of a possible path to the ESPResSo build folder. 
+The user should change this path to match the local absolute path were ESPResSo was installed.
+For more details on how to install ESPResSo, please consult the [ESPResSo installation guide](https://espressomd.github.io/doc4.2.2/installation.html).
 
 The pyMBE virtual enviroment can be deactivated at any moment:
 ```sh
