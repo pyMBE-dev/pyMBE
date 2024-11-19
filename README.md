@@ -8,6 +8,7 @@
 
 ![GitHub Actions](https://github.com/pyMBE-dev/pyMBE/actions/workflows/testsuite.yml/badge.svg)
 [![codecov](https://codecov.io/gh/pyMBE-dev/pyMBE/branch/main/graph/badge.svg)](https://codecov.io/gh/pyMBE-dev/pyMBE)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md) 
 
 pyMBE provides tools to facilitate building up molecules with complex architectures in the Molecular Dynamics software [ESPResSo](https://espressomd.org/wordpress/). Some examples of molecules that can be set up with pyMBE are polyelectrolytes, peptides and proteins. pyMBE bookkeeps all the information about the molecule topology, permitting to link each particle to its corresponding residue and molecule. pyMBE uses the [Pint](https://pint.readthedocs.io/en/stable/) library to enable input parameters in any arbitrary unit system, which is later transformed in the reduced unit system used in ESPResSo.
 
@@ -63,17 +64,16 @@ sudo apt install python3-venv
 To set up pyMBE, the users need to install its virtual environment, install its Python dependencies and configure the path to the ESPResSo build folder as follows:
 
 ```sh
-python3 -m venv pymbe  # creates a local folder named pymbe, which contains the virtual environment
-source pymbe/bin/activate  # activates the pymbe venv
-python3 maintainer/configure_venv.py --espresso_path=/home/user/espresso/build # please, adapt the espresso path accordingly
+python3 -m venv pymbe
+source pymbe/bin/activate
+python3 maintainer/configure_venv.py --espresso_path=/home/user/espresso/build # adapt path
 python3 -m pip install -r requirements.txt
-python3 simulation_script.py # run the espresso simulation script
-deactivate  # deactivate the virtual environment
+deactivate
 ```
 
-We highlight that the path `/home/user/espresso/build` is just an example of a possible path to the ESPResSo build folder. 
-The user should change this path to match the local absolute path were ESPResSo was installed.
-For more details on how to install ESPResSo, please consult the [ESPResSo installation guide](https://espressomd.github.io/doc4.2.2/installation.html).
+We highlight that the path `/home/user/espresso/build` is just an example of a possible
+path to the ESPResSo build folder. The user should change this path to match
+the local absolute path were ESPResSo was installed. 
 
 The pyMBE virtual enviroment can be deactivated at any moment:
 ```sh
