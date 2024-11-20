@@ -2704,7 +2704,11 @@ class pymbe_library():
             raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
 
         molecule_name = "chain_"+node_start+"_"+node_end
-
+        if molecule_name not in self.df['name'].values:
+            raise KeyError(
+            f"Molecule '{molecule_name}' is not defined in the pyMBE DataFrame. "
+            "Please define it with the correct residue list before setting the chain."
+            )
         sequence = self.df[self.df['name']==molecule_name].residue_list.values [0]
 
         assert len(sequence) != 0 and not isinstance(sequence, str)
@@ -2720,6 +2724,9 @@ class pymbe_library():
 
         node1 = self.lattice_builder.node_labels[node_start]
         node2 = self.lattice_builder.node_labels[node_end]
+        
+        if node_positions[node1] is None or node_positions[node2] is None:
+            raise ValueError("Set node position before placing a chain between them")
 
         # Finding a backbone vector between node_start and node_end
         vec_between_nodes = np.array(node_positions[node2]) - np.array(node_positions[node1])

@@ -16,105 +16,173 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
-
+import numpy as np
 import lib.lattice
 import unittest as ut
 import matplotlib
 import matplotlib.pyplot as plt
+import pyMBE
+import espressomd
+
 matplotlib.use("Agg") # use a non-graphic backend
 
+pmb = pyMBE.pymbe_library(seed=42)
+MPC = 4
+BOND_LENGTH = 0.355 * pmb.units.nm
+
+# Define node particle
+NodeType1 = "node_type1"
+NodeType2 = "node_type2"
+
+
+# define monomers
+BeadType1 = "carbon"
+BeadType2 = "oxygen"
+BeadType3 = "nitrogen"
+
+Res1 = "res_1"
+Res2 = "res_2"
+Res3 = "res_3"
+
+# Defining bonds in the hydrogel for all different pairs
+generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
+generic_bond_length = 0.355*pmb.units.nm
+HARMONIC_parameters = {'r_0'    : generic_bond_length,
+                       'k'      : generic_harmonic_constant}
 
 class Test(ut.TestCase):
     colormap = {
-        "default_linker": "C0",
-        "default_monomer": "C1",
-        "silicon": "C2",
-        "carbon": "C3",
-        "oxygen": "C4",
-        "nitrogen": "C5",
-    }
+        "default_linker":"green",
+        "default_monomer":"blue",
+        Res3: "red",
+        NodeType2: "orange",
+        NodeType1: "cyan",
+        Res1: "yellow",
+        Res2: "magenta"
+        }
+    
+    @classmethod
+    def setUpClass(cls): 
+        pmb.define_particle(name=NodeType1, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_particle(name=NodeType2, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_particle(name=BeadType1, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_particle(name=BeadType2, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_particle(name=BeadType3, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_residue(
+            name=Res1,
+            central_bead=BeadType1,
+            side_chains=[]
+            )
+        pmb.define_residue(
+            name=Res2,
+            central_bead=BeadType2,  
+            side_chains=[]
+            )
+        pmb.define_residue(
+            name=Res3,
+            central_bead=BeadType3,
+            side_chains=[]
+            )
+        pmb.define_bond(bond_type = 'harmonic',
+                        bond_parameters = HARMONIC_parameters, particle_pairs = [[BeadType1, BeadType1],
+                                                                                 [BeadType1, BeadType2],
+                                                                                 [BeadType1, BeadType3],
+                                                                                 [BeadType2, BeadType2],
+                                                                                 [BeadType2, BeadType3],
+                                                                                 [BeadType3, BeadType3],
+                                                                                 [BeadType1, NodeType1],
+                                                                                 [BeadType1, NodeType2],
+                                                                                 [BeadType2, NodeType1],
+                                                                                 [BeadType2, NodeType2],
+                                                                                 [BeadType3, NodeType1],
+                                                                                 [BeadType3, NodeType2]])
 
-    def test_builder(self):
-        diamond = lib.lattice.DiamondLattice
-        lattice = lib.lattice.LatticeBuilder(diamond, strict=False)
-        sequence = ["nitrogen", "carbon", "oxygen", "carbon"]
+    def test_lattice_setup(self):
+        
+        diamond = lib.lattice.DiamondLattice(MPC, BOND_LENGTH)
+        espresso_system = espressomd.System(box_l = [diamond.BOXL]*3)
+        pmb.add_bonds_to_espresso(espresso_system = espresso_system)
+        lattice = pmb.initialize_lattice_builder(diamond)
+        sequence = [Res3, Res1, Res2, Res1]
         # build default structure
-        self.assertEqual(len(lattice.nodes), len(diamond.indices))
-        self.assertEqual(len(lattice.chains), 0)
-        lattice.add_default_chains(mpc=2)
-        self.assertEqual(len(lattice.chains), len(diamond.connectivity))
-        # define custom nodes
-        self.assertEqual(lattice.get_node("[1 1 1]"), "default_linker")
-        lattice.set_node(node="[1 1 1]", residue="silicon")
-        self.assertEqual(lattice.get_node("[1 1 1]"), "silicon")
-        # define custom chain in forward direction
-        lattice.set_chain("[0 0 0]", "[1 1 1]", sequence=sequence)
-        self.assertEqual(lattice.get_chain("[0 0 0]", "[1 1 1]"), sequence)
-        self.assertEqual(lattice.get_chain("[1 1 1]", "[0 0 0]"), sequence[::-1])
-        # define custom chain in reverse direction
-        lattice.set_chain("[1 1 1]", "[0 0 0]", sequence=sequence)
-        self.assertEqual(lattice.get_chain("[0 0 0]", "[1 1 1]"), sequence[::-1])
-        self.assertEqual(lattice.get_chain("[1 1 1]", "[0 0 0]"), sequence)
-        # define custom chain between normally unconnected nodes
-        lattice.set_chain("[0 0 0]", "[2 2 0]", sequence=sequence)
-        self.assertEqual(lattice.get_chain("[0 0 0]", "[2 2 0]"), sequence)
-        self.assertEqual(lattice.get_chain("[2 2 0]", "[0 0 0]"), sequence[::-1])
-        # define custom chain that loops
-        lattice.set_chain("[0 0 0]", "[0 0 0]", sequence=["carbon"])
-        self.assertEqual(lattice.get_chain("[0 0 0]", "[0 0 0]"), ["carbon"])
-        # colors
-        lattice.set_colormap(self.colormap)
-        for index, (label, color) in enumerate(self.colormap.items()):
-            self.assertEqual(lattice.get_monomer_color(label), color)
-            self.assertEqual(lattice.get_monomer_color_index(label), index)
+        assert len(lattice.nodes) == len(diamond.indices)
+        assert len(lattice.chains) ==  0
 
-    def test_exceptions(self):
-        diamond = lib.lattice.DiamondLattice
-        lattice = lib.lattice.LatticeBuilder(diamond, strict=True)
+        # this function need some work
+        lattice.add_default_chains(mpc=2)
+        assert len(lattice.chains) ==  len(diamond.connectivity)
+
+        # define custom nodes
+        assert lattice.get_node("[1 1 1]") == "default_linker"
+        assert lattice.get_node("[0 0 0]") == "default_linker"
+
+        pos_node1 = pmb.set_node("[1 1 1]", NodeType1, espresso_system=espresso_system)
+        np.testing.assert_equal(actual = lattice.get_node("[1 1 1]"), desired = NodeType1, verbose=True)
+        pos_node2 = pmb.set_node("[0 0 0]", NodeType2, espresso_system=espresso_system)
+        np.testing.assert_equal(actual = lattice.get_node("[0 0 0]"), desired = NodeType2, verbose=True)
+        pos_node3 = pmb.set_node("[2 2 0]", NodeType2, espresso_system=espresso_system)
+        np.testing.assert_equal(actual = lattice.get_node("[2 2 0]"), desired = NodeType2, verbose=True)
+
+        node_positions={}
+        node1_label = lattice.node_labels["[1 1 1]"]
+        node_positions[node1_label]=pos_node1
+        node2_label = lattice.node_labels["[0 0 0]"]
+        node_positions[node2_label]=pos_node2
+        node3_label = lattice.node_labels["[2 2 0]"]
+        node_positions[node3_label]=pos_node3
+
+        # define molecule in forward direction
+        molecule_name = "chain_[1 1 1]_[0 0 0]"
+        pmb.define_molecule(name=molecule_name, residue_list=sequence)
+        pmb.set_chain("[1 1 1]", "[0 0 0]", node_positions, espresso_system=espresso_system)
+        np.testing.assert_equal(actual = lattice.get_chain("[1 1 1]", "[0 0 0]"), desired = sequence, verbose=True)
+        np.testing.assert_equal(actual = lattice.get_chain("[0 0 0]", "[1 1 1]"), desired = sequence[::-1], verbose=True)
+
+        # define custom chain in reverse direction
+        molecule_name = "chain_[0 0 0]_[1 1 1]"
+        pmb.define_molecule(name=molecule_name, residue_list=sequence)
+        pmb.set_chain("[0 0 0]", "[1 1 1]", node_positions, espresso_system=espresso_system)
+        np.testing.assert_equal(lattice.get_chain("[1 1 1]", "[0 0 0]"), sequence[::-1])
+        np.testing.assert_equal(lattice.get_chain("[0 0 0]", "[1 1 1]"), sequence)
+
+        ####---Raise Exceptions---####
+        # define custom chain between normally unconnected nodes
+        molecule_name = "chain_[0 0 0]_[2 2 0]"
+        pmb.define_molecule(name=molecule_name, residue_list=sequence)
+        np.testing.assert_raises(AssertionError, 
+                         pmb.set_chain, 
+                         "[0 0 0]", "[2 2 0]", node_positions, espresso_system=espresso_system)
+
+        # define custom chain that loops
+        molecule_name = "chain_[0 0 0]_[0 0 0]"
+        pmb.define_molecule(name=molecule_name, residue_list=sequence)
+        np.testing.assert_raises(AssertionError,
+                         pmb.set_chain,
+                         "[0 0 0]", "[0 0 0]", node_positions, espresso_system=espresso_system)
+
+        lattice.set_colormap(lattice.colormap)
+        for index, (label, color) in enumerate(lattice.colormap.items()):
+            np.testing.assert_equal(actual = lattice.get_monomer_color(label),desired = color, verbose=True)
+            np.testing.assert_equal(actual = lattice.get_monomer_color_index(label),desired = index, verbose=True)
+
+
+        # Test invalid operations
         with self.assertRaisesRegex(RuntimeError, "monomer 'unknown' has no associated color in the colormap"):
             lattice.get_monomer_color("unknown")
         with self.assertRaises(AssertionError):
             lattice.set_colormap("red")
-        with self.assertRaises(AssertionError):
-            lattice.set_colormap([("oxygen", "red")])
+
+        # Test node operations
         with self.assertRaisesRegex(AssertionError, r"node '\[0 5 13\]' doesn't exist in a diamond lattice"):
             lattice.get_node("[0 5 13]")
-        with self.assertRaisesRegex(AssertionError, r"node '\[-1 0 0\]' doesn't exist in a diamond lattice"):
-            lattice.set_node("[-1 0 0]", "carbon")
-        with self.assertRaisesRegex(RuntimeError, r"no chain has been defined between '\[0 0 0\]' and '\[1 1 1\]' yet"):
-            lattice.get_chain("[0 0 0]", "[1 1 1]")
-        with self.assertRaisesRegex(AssertionError, r"node '\[0 5 13\]' doesn't exist in a diamond lattice"):
-            lattice.get_chain("[0 5 13]", "[1 1 1]")
-        with self.assertRaisesRegex(AssertionError, r"node '\[0 5 13\]' doesn't exist in a diamond lattice"):
-            lattice.get_chain("[0 0 0]", "[0 5 13]")
-        with self.assertRaisesRegex(AssertionError, r"there is no chain between '\[0 0 0\]' and '\[2 2 0\]' in a diamond lattice \(strict mode is enabled\)"):
-            lattice.get_chain("[0 0 0]", "[2 2 0]")
-        with self.assertRaisesRegex(AssertionError, r"there is no chain between '\[0 0 0\]' and '\[0 0 0\]' in a diamond lattice \(strict mode is enabled\)"):
-            lattice.get_chain("[0 0 0]", "[0 0 0]")
-        with self.assertRaises(AssertionError):
-            lattice.set_chain("[0 0 0]", "[1 1 1]", sequence=[])
-        with self.assertRaises(AssertionError):
-            lattice.set_chain("[0 0 0]", "[1 1 1]", sequence="oxygen")
-        with self.assertRaisesRegex(AssertionError, r"chain cannot be defined between '\[0 0 0\]' and '\[0 0 0\]' since it would form a loop with a non-symmetric sequence \(under-defined stereocenter\)"):
-            lattice.strict = False
-            lattice.set_chain("[0 0 0]", "[0 0 0]", sequence=["carbon", "oxygen"])
 
-    def test_plot(self):
-        # smoke test: check for runtime errors when drawing on a 3D canvas
-        sequence = ["nitrogen", "carbon", "oxygen", "carbon"]
-        diamond = lib.lattice.DiamondLattice
-        lattice = lib.lattice.LatticeBuilder(diamond)
-        lattice.add_default_chains(mpc=2)
-        lattice.set_node(node="[1 1 1]", residue="silicon")
-        lattice.set_chain("[0 0 0]", "[1 1 1]", sequence=sequence)
-        # with default colormap
+        # Test plot
         fig = plt.figure(figsize=(12, 12))
         ax = fig.add_subplot(projection="3d", computed_zorder=False)
         lattice.draw_lattice(ax)
         lattice.draw_simulation_box(ax)
-        ax.legend()
         plt.close(fig)
-        # with custom colormap
+
         fig = plt.figure(figsize=(12, 12))
         ax = fig.add_subplot(projection="3d", computed_zorder=False)
         lattice.set_colormap(self.colormap)
@@ -123,6 +191,6 @@ class Test(ut.TestCase):
         ax.legend()
         plt.close(fig)
 
-
 if __name__ == "__main__":
     ut.main()
+
