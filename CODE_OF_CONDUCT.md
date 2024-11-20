@@ -59,8 +59,10 @@ representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement in Github.
-To report a post in Github, press in the three dots sign (`...`) at the top right corner of the post and select `Report content`.
+reported to the community leaders responsible for enforcement in GitHub.
+To report a post in GitHub, press in the three dots sign (`...`) at the top
+right corner of the post and select `Report content`, then choose between
+`Report to repository admins` or `Report abuse to GitHub Support`.
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
