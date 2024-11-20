@@ -132,8 +132,12 @@ if args.ideal:
     WCA=False
     Electrostatics=False
 
+data_path = args.output
+if data_path is None:
+    data_path=pmb.get_resource(path="samples/Beyer2024/")+"/time_series/globular_protein"
+
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
-Path("./frames").mkdir(parents=True, 
+Path(f"{data_path}/frames").mkdir(parents=True, 
                        exist_ok=True)
 
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
@@ -265,7 +269,7 @@ if verbose:
 
 #Save the initial state 
 n_frame = 0
-with open('frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as coordinates:
+with open(f'{data_path}/frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
     vtf.writevcf(espresso_system, coordinates)
 # Setup the potential energy
@@ -337,7 +341,7 @@ for step in tqdm(range(N_samples),disable=not verbose):
 
     if step % stride_traj == 0 :
         n_frame +=1
-        with open('frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as coordinates:
+        with open(f'{data_path}/frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as coordinates:
             vtf.writevsf(espresso_system, coordinates)
             vtf.writevcf(espresso_system, coordinates)
 
@@ -349,9 +353,7 @@ for step in tqdm(range(N_samples),disable=not verbose):
         charge_amino = np.mean(charge_residues_per_type[label])
         time_series[label].append(charge_amino)
 
-data_path = args.output
-if data_path is None:
-    data_path=pmb.get_resource(path="samples/Beyer2024/")+"/time_series/globular_protein"
+
 
 Path(data_path).mkdir(parents=True, 
                        exist_ok=True)
