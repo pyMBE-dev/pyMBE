@@ -26,8 +26,7 @@ import numpy as np
 import pandas as pd
 import unittest as ut
 import glob 
-import re 
-        
+       
 
 root = pathlib.Path(__file__).parent.parent.resolve()
 data_root = root / "testsuite" / "globular_protein_tests_data"
