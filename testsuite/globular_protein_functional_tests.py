@@ -26,13 +26,11 @@ import numpy as np
 import pandas as pd
 import unittest as ut
 import glob 
-import re 
-        
+       
 
 root = pathlib.Path(__file__).parent.parent.resolve()
 data_root = root / "testsuite" / "globular_protein_tests_data"
 script_path = root / "samples" / "Beyer2024" / "globular_protein.py"
-frame_folder = root / "frames"
 test_pH_values = [2, 5, 7]
 tasks = ["1beb", "1f6s"]
 mode = "test"
@@ -67,7 +65,25 @@ def kernel_move (protein_pdb):
                         "--mode", "test", "--output",  time_series_path, "--move_protein", "--no_verbose", "--ideal" ]
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)
-    return 
+        frame_folder = f"{time_series_path}/frames"
+        list_files = glob.glob(f"{frame_folder}/*.vtf")
+        coords={"first_frame": [],
+                "last_frame": []}
+        # Read the first and the last trajectory to check that the protein has moved
+        for frame in list_files:
+            num = int(frame[-5])
+            with open(frame) as f:
+                for line in f:
+                    line_clean = line.split()
+                    if line_clean: 
+                        header = line_clean[0]
+                        if header.isnumeric():
+                            coord_part = line_clean[1:]
+                            if int (num) == 0:
+                                coords["first_frame"].append(coord_part)
+                            elif int (num) == (len(list_files)-1):
+                                coords["last_frame"].append(coord_part)
+    return coords
 
 
 
@@ -97,29 +113,11 @@ class Test(ut.TestCase):
 
     def test_globular_protein_enable_motion(self):        
 
-        kernel_move("1beb")
-        
-        list_files = glob.glob(f"{frame_folder}/*.vtf")
-        first_trajectory_coord_list = []
-        last_trajectory_coord_list = []
-
-        for frame in list_files:
-            num = re.findall(r'\d+', frame)
-            with open(frame) as f:
-                for line in f:
-                    line_clean = line.split()
-                    if line_clean: 
-                        header = line_clean[0]
-                        if header.isnumeric():
-                            coord_part = line_clean[1:]
-                            if int (num[0]) == 0:
-                                first_trajectory_coord_list.append(coord_part)
-                            elif int (num[0]) == (len(list_files)-1):
-                                last_trajectory_coord_list.append(coord_part)
-
-        print(first_trajectory_coord_list)
-        print(last_trajectory_coord_list)
-        np.testing.assert_raises(AssertionError, np.testing.assert_array_equal, first_trajectory_coord_list, last_trajectory_coord_list)
+        coords=kernel_move("1beb")
+        np.testing.assert_raises(AssertionError, 
+                                 np.testing.assert_array_equal, 
+                                 coords["first_frame"], 
+                                 coords["last_frame"])
 
 if __name__ == "__main__":
     ut.main()
