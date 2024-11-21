@@ -43,3 +43,7 @@ When rapidly prototyping code, run `make unit_tests` periodically to check for r
 All new code will be reviewed by at least one member of the pyMBE development team before being merged into the main branch to ensure that a functional version of the code is always available.
 Class methods are sorted in alphabetical order.
 We follow semantic versioning and keep a changelog.
+
+## Community standards
+We aim to keep the pyMBE community an open and friendly space for researchers to collaborate in developing tools for building coarse-grained models of polyelectrolytes and biomolecules. 
+We adhere to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md) v2.1 to provide guidelines on the expected behaviour of the members of our community, which we hope it contributes to a healthy and a positive enviroment for our developers and users. 
