@@ -9,6 +9,6 @@ where the previous line will run the script to produce Fig. 7a in Ref.[^1] The u
 - globular_protein.py: for the globular protein benchmarks
 - weak_polyelectrolyte_dialysis.py: for the weak polyelectrolyte dialysis benchmarks
 
-The optional argparse argument `--plot` controls if these scripts generate the corresponding plot or if the data is simply stored to file. We note that the format of the plots can differ from that of our publication [^1]. Theses scripts are part of the continous integration (CI) scheme of the pyMBE library and they are used to ensure that any stable version of the library reproduces the benchmarks.
+The optional argparse argument `--plot` controls if these scripts generate the corresponding plot or if the data is simply stored to file. We note that the format of the plots can differ from that of our publication [^1]. Theses scripts are part of the continous integration (CI) pipeline to ensure that future pyMBE releases still reproduce the benchmarks.
 
-[^1]: D. Beyer, P. B. Torres, S. P. Pineda, C. F. Narambuena, J. N. Grad, P. Košovan, P. M Blanco. J. Chem. Phys.(2024), 161 (2), 022502. doi: [10.1063/5.0216389](https://doi.org/10.1063/5.0216389).
+[^1]: D. Beyer, P. B. Torres, S. P. Pineda, C. F. Narambuena, J.-N. Grad, P. Košovan, P. M. Blanco. J. Chem. Phys.(2024), 161 (2), 022502. doi: [10.1063/5.0216389](https://doi.org/10.1063/5.0216389).

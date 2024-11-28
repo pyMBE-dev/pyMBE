@@ -25,7 +25,7 @@ import espressomd
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+import tqdm
 from scipy import interpolate
 import argparse
 
@@ -36,7 +36,7 @@ from lib import analysis
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
-# Load some functions from the handy_scripts library for convinience
+# Load some functions from the handy_scripts library for convenience
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_langevin_dynamics
@@ -194,7 +194,7 @@ setup_langevin_dynamics(espresso_system=espresso_system,
                                     tune_skin=False)
 if verbose:
     print("Running warmup without electrostatics")
-for i in tqdm(range(100),disable=not verbose):
+for i in tqdm.trange(100, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
     grxmc.reaction(reaction_steps=1000)
 
@@ -216,7 +216,7 @@ if mode == "long-run":
     N_warmup_loops = 1000
 else:
     N_warmup_loops = 100
-for i in tqdm(range(N_warmup_loops),disable=not verbose):
+for i in tqdm.trange(N_warmup_loops, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
     grxmc.reaction(reaction_steps=100)
 
@@ -234,7 +234,7 @@ if mode == "long-run":
     N_production_loops = 5000
 else:
     N_production_loops = 100
-for i in tqdm(range(N_production_loops),disable=not verbose):
+for i in tqdm.trange(N_production_loops, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
     grxmc.reaction(reaction_steps=100)
 

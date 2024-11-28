@@ -125,11 +125,12 @@ print("*** Unit test: check that create_particle() creates particles into the es
 # Create an instance of an espresso system
 espresso_system=espressomd.System(box_l = [10]*3)
 particle_positions=[[0,0,0],[1,1,1]]
-pmb.create_particle(name="S1",
-                    espresso_system=espresso_system,
-                    number_of_particles=2,
-                    fix=True,
-                    position=particle_positions)
+retval = pmb.create_particle(name="S1",
+                             espresso_system=espresso_system,
+                             number_of_particles=2,
+                             fix=True,
+                             position=particle_positions)
+np.testing.assert_array_equal(retval, [0, 1])
 
 particle_ids=pmb.get_particle_id_map(object_name="S1")["all"]
 type_map=pmb.get_type_map()
@@ -153,12 +154,11 @@ print("*** Unit test passed ***")
 
 print("*** Unit test: check that create_particle() does not create any particle for number_of_particles <= 0  ***")
 starting_number_of_particles=len(espresso_system.part.all())
-pmb.create_particle(name="S1",
-                    espresso_system=espresso_system,
-                    number_of_particles=0)
-pmb.create_particle(name="S1",
-                    espresso_system=espresso_system,
-                    number_of_particles=-1)
+for number_of_particles in [0, -1]:
+    retval = pmb.create_particle(name="S1",
+                                 espresso_system=espresso_system,
+                                 number_of_particles=number_of_particles)
+    np.testing.assert_equal(len(retval), 0)
 # If no particles have been created, only two particles should be in the system (from the previous test)
 np.testing.assert_equal(actual=len(espresso_system.part.all()), 
                         desired=starting_number_of_particles, 

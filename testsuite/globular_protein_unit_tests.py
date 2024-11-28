@@ -147,7 +147,6 @@ print("*** Unit test passed ***")
 print("*** Unit test: check that create_protein() creates all the particles in the protein into the espresso_system with the properties defined in pmb.df  ***")
 
 espresso_system=espressomd.System(box_l = [Box_L.to('reduced_length').magnitude] * 3)
-espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
 # Here we upload the pka set from the reference_parameters folder
 path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.json') 

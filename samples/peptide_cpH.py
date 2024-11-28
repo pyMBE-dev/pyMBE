@@ -19,7 +19,7 @@
 # Load espresso, pyMBE and other necessary libraries
 import espressomd
 import pandas as pd
-from tqdm import tqdm
+import tqdm
 from espressomd.io.writer import vtf
 from pathlib import Path
 import pyMBE
@@ -28,7 +28,7 @@ import argparse
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
-# Load some functions from the handy_scripts library for convinience
+# Load some functions from the handy_scripts library for convenience
 from lib.handy_functions import setup_electrostatic_interactions, minimize_espresso_system_energy,setup_langevin_dynamics
 from lib.analysis import built_output_name
 
@@ -50,7 +50,7 @@ parser.add_argument('--test',
                     default=False, 
                     action='store_true',
                     help='to run a short simulation for testing the script')
-parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbosity",default=True)
 args = parser.parse_args()
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
@@ -153,20 +153,20 @@ with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
     vtf.writevcf(espresso_system, coordinates)
 
-#List of ionisible groups 
+#List of ionisable groups
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
 acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
-list_ionisible_groups = basic_groups + acidic_groups
-total_ionisible_groups = len (list_ionisible_groups)
+list_ionisable_groups = basic_groups + acidic_groups
+total_ionisable_groups = len(list_ionisable_groups)
 
 if verbose:
-    print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
-    print('The peptide concentration in your system is ', calculated_peptide_concentration.to('mol/L') , 'with', N_peptide_chains, 'peptides')
-    print('The ionisable groups in your peptide are ', list_ionisible_groups)
+    print(f"The box length of your system is {L.to('reduced_length')} {L.to('nm')}")
+    print(f"The peptide concentration in your system is {calculated_peptide_concentration.to('mol/L')} with {N_peptide_chains} peptides")
+    print(f"The ionisable groups in your peptide are {list_ionisable_groups}")
 
 cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
 if verbose:
-    print('The acid-base reaction has been sucessfully setup for ', labels)
+    print(f"The acid-base reaction has been successfully setup for {labels}")
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 type_map =pmb.get_type_map()
@@ -220,12 +220,12 @@ time_series["charge"] = [0.0]
 
 # Main loop for performing simulations at different pH-values
 N_frame=0
-for sample in tqdm(range(N_samples)):
+for sample in tqdm.trange(N_samples):
 
     # LD sampling of the configuration space
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
     # cpH sampling of the reaction space
-    cpH.reaction( reaction_steps = total_ionisible_groups) # rule of thumb: one reaction step per titratable group (on average)
+    cpH.reaction(reaction_steps=total_ionisable_groups) # rule of thumb: one reaction step per titratable group (on average)
     
     # Get peptide net charge
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
@@ -235,7 +235,7 @@ for sample in tqdm(range(N_samples)):
     time_series["charge"].append(charge_dict["mean"])
     if sample % N_samples_print == 0:
         N_frame+=1
-        with open('frames/trajectory'+str(N_frame)+'.vtf', mode='w+t') as coordinates:
+        with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
             vtf.writevsf(espresso_system, coordinates)
             vtf.writevcf(espresso_system, coordinates)
    

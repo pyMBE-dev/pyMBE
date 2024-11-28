@@ -30,12 +30,12 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 # Command line arguments
 
-valid_modes=["standard", "unified"]
 parser = argparse.ArgumentParser(description='Script that runs a simulation of an ideal peptide mixture in the grand-reaction ensemble using pyMBE and ESPResSo.')
 parser.add_argument('--mode',
                     type=str,
                     default= "standard",
-                    help='Set if the grand-reaction method is used with unified ions or not, valid modes are {valid_modes}')
+                    choices=["standard", "unified"],
+                    help='Set if the grand-reaction method is used with unified ions or not')
 parser.add_argument('--test', 
                     default=False, 
                     action='store_true',
@@ -59,9 +59,6 @@ parser.add_argument('--output',
                     help='output directory')
 parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 args = parser.parse_args()
-
-if args.mode not in valid_modes:
-    raise ValueError(f"Mode {args.mode} is not currently supported, valid modes are {valid_modes}")
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
 Path("./frames").mkdir(parents=True, 
@@ -228,8 +225,8 @@ with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
 #List of ionisable groups 
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
 acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
-list_ionisible_groups = basic_groups + acidic_groups
-total_ionisible_groups = len (list_ionisible_groups)
+list_ionisable_groups = basic_groups + acidic_groups
+total_ionisable_groups = len (list_ionisable_groups)
 # Get peptide net charge
 if verbose:
     print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
@@ -285,7 +282,7 @@ for label in ["time","charge_peptide1","charge_peptide2","num_plus","xi_plus"]:
 N_frame=0
 for step in range(N_samples):
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
-    grxmc.reaction(reaction_steps = total_ionisible_groups)   
+    grxmc.reaction(reaction_steps = total_ionisable_groups)
     time_series["time"].append(espresso_system.time)
     # Get net charge of peptide1 and peptide2
     charge_dict_peptide1=pmb.calculate_net_charge(espresso_system=espresso_system, 
