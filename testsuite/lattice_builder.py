@@ -160,8 +160,8 @@ class Test(ut.TestCase):
                          pmb.set_chain,
                          "[0 0 0]", "[0 0 0]", node_positions, espresso_system=espresso_system)
 
-        lattice.set_colormap(lattice.colormap)
-        for index, (label, color) in enumerate(lattice.colormap.items()):
+        lattice.set_colormap(self.colormap)
+        for index, (label, color) in enumerate(self.colormap.items()):
             np.testing.assert_equal(actual = lattice.get_monomer_color(label),desired = color, verbose=True)
             np.testing.assert_equal(actual = lattice.get_monomer_color_index(label),desired = index, verbose=True)
 
