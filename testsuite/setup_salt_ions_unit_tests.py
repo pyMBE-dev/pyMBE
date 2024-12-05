@@ -18,6 +18,7 @@
 
 import numpy as np
 import espressomd
+from lib.handy_functions import get_number_of_particles
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library(seed=42)
@@ -41,22 +42,22 @@ L = volume ** (1./3.) # Side of the simulation box
 
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
-espresso_system.setup_type_map(type_map.values())
+espresso_system.setup_type_map(type_list=type_map.values())
 
 #### Unit tests for the added salt
 
 def check_salt_concentration(espresso_system,cation_name,anion_name,c_salt,N_SALT_ION_PAIRS, verbose=False):
     charge_number_map=pmb.get_charge_number_map()
     type_map=pmb.get_type_map()
-    espresso_system.setup_type_map(type_map.values())
+    espresso_system.setup_type_map(type_list=type_map.values())
     c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                             cation_name=cation_name,
                                             anion_name=anion_name,
                                             c_salt=c_salt,
                                             verbose=verbose)
 
-    np.testing.assert_equal(espresso_system.number_of_particles(type_map[cation_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[anion_name]]))
-    np.testing.assert_equal(espresso_system.number_of_particles(type_map[anion_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[cation_name]]))
+    np.testing.assert_equal(get_number_of_particles(espresso_system, type_map[cation_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[anion_name]]))
+    np.testing.assert_equal(get_number_of_particles(espresso_system, type_map[anion_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[cation_name]]))
     np.testing.assert_almost_equal(c_salt_calculated.m_as("mol/L"), c_salt.m_as("mol/L"))
     espresso_system.part.clear()
 print("*** Unit test: test that create_added_salt works for a 1:1 salt (NaCl-like). Should print the added salt concentration and number of ions ***")
@@ -90,13 +91,13 @@ check_salt_concentration(espresso_system=espresso_system,
 print("*** Unit test passed***")
 print("*** Unit test: check that create_added_salt works for an input c_salt in [particle/lenght**3]. Should print the concentration and number of ions")
 c_salt_part=c_salt_input*pmb.N_A
-espresso_system.setup_type_map(type_map.values())
+espresso_system.setup_type_map(type_list=type_map.values())
 c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                             cation_name="Na",
                                             anion_name="Cl",
                                             c_salt=c_salt_part)
-np.testing.assert_equal(espresso_system.number_of_particles(type_map["Na"]),N_SALT_ION_PAIRS)
-np.testing.assert_equal(espresso_system.number_of_particles(type_map["Cl"]),N_SALT_ION_PAIRS)
+np.testing.assert_equal(get_number_of_particles(espresso_system, type_map["Na"]),N_SALT_ION_PAIRS)
+np.testing.assert_equal(get_number_of_particles(espresso_system, type_map["Cl"]),N_SALT_ION_PAIRS)
 np.testing.assert_almost_equal(c_salt_calculated.m_as("reduced_length**-3"), c_salt_part.m_as("reduced_length**-3"))
 espresso_system.part.clear()
 
@@ -181,9 +182,9 @@ def test_counterions(molecule_name, cation_name, anion_name, espresso_system, ex
                             anion_name=anion_name,
                             espresso_system=espresso_system,
                             verbose=verbose)
-    espresso_system.setup_type_map(type_map.values())
-    np.testing.assert_equal(espresso_system.number_of_particles(type_map[cation_name]),expected_numbers[cation_name])
-    np.testing.assert_equal(espresso_system.number_of_particles(type_map[anion_name]),expected_numbers[anion_name])
+    espresso_system.setup_type_map(type_list=type_map.values())
+    np.testing.assert_equal(get_number_of_particles(espresso_system, type_map[cation_name]),expected_numbers[cation_name])
+    np.testing.assert_equal(get_number_of_particles(espresso_system, type_map[anion_name]),expected_numbers[anion_name])
     pmb.destroy_pmb_object_in_system(espresso_system=espresso_system,
                                     name=molecule_name)
     espresso_system.part.clear()
@@ -276,7 +277,7 @@ pmb.create_counterions(object_name='neutral_molecule',
                             anion_name="Cl",
                             espresso_system=espresso_system,
                             verbose=False)
-espresso_system.setup_type_map(type_map.values())
-np.testing.assert_equal(espresso_system.number_of_particles(type_map["Na"]),0)
-np.testing.assert_equal(espresso_system.number_of_particles(type_map["Cl"]),0)
+espresso_system.setup_type_map(type_list=type_map.values())
+np.testing.assert_equal(get_number_of_particles(espresso_system, type_map["Na"]),0)
+np.testing.assert_equal(get_number_of_particles(espresso_system, type_map["Cl"]),0)
 print("*** Unit test passed ***")

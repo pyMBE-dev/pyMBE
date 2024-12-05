@@ -45,17 +45,14 @@ parser.add_argument('--mode',
                     type=str,
                     required= False,
                     default="plot",
-                    help='mode to execute the script available options are: store_HH (stores the analytical HH solution, used for testing) and plot (produces the plots)')
+                    choices=["plot", "store_HH"],
+                    help='mode to execute the script; available options are: store_HH (stores the analytical HH solution, used for testing) and plot (produces the plots)')
 args = parser.parse_args()
-
-valid_modes = ["plot","store_HH"]
-if args.mode not in valid_modes:
-    raise ValueError(f"mode {args.mode} is not supported, supported modes are {valid_modes}. Please check the docs for more information.")
 
 # Define peptide parameters
 sequence = args.sequence
 # Define the peptide in the pyMBE dataframe and load the pka set
-# This is necesary to calculate the analytical solution from the Henderson-Hasselbach equation
+# This is necessary to calculate the analytical solution from the Henderson-Hasselbach equation
 peptide = 'generic_peptide'
 pmb.define_peptide (name=peptide, 
                     sequence=sequence,

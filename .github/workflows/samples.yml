@@ -26,7 +26,7 @@ jobs:
         uses: ./.github/actions/dependencies
         with:
           modules: |-
-            ESPResSo/4.2.1-foss-2023a
+            ESPResSo/4.2.2-foss-2023a
       - name: Run testsuite
         run: |
           module restore pymbe

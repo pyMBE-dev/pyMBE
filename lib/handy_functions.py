@@ -32,6 +32,7 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
         verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
     """
     import espressomd.electrostatics
+    import espressomd.version
     import numpy as np
     import scipy.constants
 
@@ -71,12 +72,18 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
 
         if tune_p3m:
             espresso_system.time_step=0.01
-            espresso_system.actors.add(coulomb)
+            if espressomd.version.friendly() == "4.2":
+                espresso_system.actors.add(coulomb)
+            else:
+                espresso_system.electrostatics.solver = coulomb
 
             # save the optimal parameters and add them by hand
 
             p3m_params = coulomb.get_params()
-            espresso_system.actors.remove(coulomb)
+            if espressomd.version.friendly() == "4.2":
+                espresso_system.actors.remove(coulomb)
+            else:
+                espresso_system.electrostatics.solver = None
             coulomb = espressomd.electrostatics.P3M(
                                         prefactor = COULOMB_PREFACTOR.magnitude,
                                         accuracy = accuracy,
@@ -94,7 +101,10 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
                                             r_cut = KAPPA.to('reduced_length').magnitude)
 
     
-    espresso_system.actors.add(coulomb)
+    if espressomd.version.friendly() == "4.2":
+        espresso_system.actors.add(coulomb)
+    else:
+        espresso_system.electrostatics.solver = coulomb
     if verbose:
         print("\n Electrostatics successfully added to the system \n")
 
@@ -211,3 +221,20 @@ def do_snapshot_espresso_system(espresso_system, filename):
     visualizer.screenshot(filename)
 
     return
+
+def get_number_of_particles(espresso_system, ptype):
+    import espressomd.version
+    if espressomd.version.friendly() == "4.2":
+        args = (ptype,)
+        kwargs = {}
+    else:
+        args = ()
+        kwargs = {"type": ptype}
+    return espresso_system.number_of_particles(*args, **kwargs)
+
+def do_reaction(algorithm, steps):
+    import espressomd.version
+    if espressomd.version.friendly() == '4.2':
+        algorithm.reaction(reaction_steps=steps)
+    else:
+        algorithm.reaction(steps=steps)

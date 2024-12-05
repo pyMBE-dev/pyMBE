@@ -1006,7 +1006,7 @@ class pymbe_library():
             created_pid_list(`list` of `float`): List with the ids of the particles created into `espresso_system`.
         """       
         if number_of_particles <=0:
-            return 0
+            return []
         self.check_if_name_is_defined_in_df(name=name,
                                        pmb_type_to_be_defined='particle')
         # Copy the data of the particle `number_of_particles` times in the `df`
@@ -1015,6 +1015,7 @@ class pymbe_library():
                           number_of_copies=number_of_particles)
         # Get information from the particle type `name` from the df     
         z = self.df.loc[self.df['name']==name].state_one.z.values[0]
+        z = 0. if z is None else z
         es_type = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
         # Get a list of the index in `df` corresponding to the new particles to be created
         index = np.where(self.df['name']==name)
@@ -1033,11 +1034,10 @@ class pymbe_library():
             else:
                 bead_id = max (espresso_system.part.all().id) + 1
             created_pid_list.append(bead_id)
-            
+            kwargs = dict(id=bead_id, pos=particle_position, type=es_type, q=z)
             if fix:
-                espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = z,fix =[fix,fix,fix])        
-            else:
-                espresso_system.part.add (id=bead_id, pos = particle_position, type = es_type, q = z)        
+                kwargs["fix"] = 3 * [fix]
+            espresso_system.part.add(**kwargs)
             self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, verbose=False)                  
         return created_pid_list
 

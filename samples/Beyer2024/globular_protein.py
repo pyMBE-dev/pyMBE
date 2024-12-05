@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from pathlib import Path
-from tqdm import tqdm
+import tqdm
 import espressomd
 import argparse
 import numpy as np
@@ -31,14 +31,13 @@ pmb = pyMBE.pymbe_library(seed=42)
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import do_reaction
 from lib import analysis
 # Here you can adjust the width of the panda columns displayed when running the code 
 pd.options.display.max_colwidth = 10
 
 #This line allows you to see the complete amount of rows in the dataframe
 pd.set_option('display.max_rows', None)
-
-valid_modes=["short-run","long-run", "test"]
 
 parser = argparse.ArgumentParser(description='Script to run globular protein simulation in espressomd')
 
@@ -67,7 +66,8 @@ parser.add_argument('--ideal',
 parser.add_argument('--mode',
                     type=str,
                     default= "short-run",
-                    help='sets for how long the simulation runs, valid modes are {valid_modes}')
+                    choices=["short-run","long-run", "test"],
+                    help='sets for how long the simulation runs')
 
 parser.add_argument('--output',
                     type=str,
@@ -141,7 +141,6 @@ Path(f"{data_path}/frames").mkdir(parents=True,
                        exist_ok=True)
 
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
-espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
 #Reads the VTF file of the protein model
 path_to_cg=pmb.get_resource(args.path_to_cg)
@@ -240,22 +239,22 @@ if not args.ideal:
                         number_of_particles=N_ions,
                         position=added_salt_ions_coords[N_ions:])
 
-#Here we calculated the ionisible groups 
+#Here we calculated the ionisable groups
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
 acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
-list_ionisible_groups = basic_groups + acidic_groups
-total_ionisible_groups = len (list_ionisible_groups)
+list_ionisable_groups = basic_groups + acidic_groups
+total_ionisable_groups = len (list_ionisable_groups)
 
 if verbose:
-    print('The box length of the system is', Box_L.to('reduced_length'), Box_L.to('nm'))
-    print('The ionisable groups in the protein are ', list_ionisible_groups)
-    print ('The total amount of ionizable groups are:',total_ionisible_groups)
+    print(f"The box length of the system is {Box_L.to('reduced_length')} {Box_L.to('nm')}")
+    print(f"The ionisable groups in the protein are {list_ionisable_groups}")
+    print(f"The total amount of ionisable groups is {total_ionisable_groups}")
 
 #Setup of the reactions in espresso 
 cpH, labels = pmb.setup_cpH(counter_ion=cation_name, 
                             constant_pH= pH_value)
 if verbose:
-    print('The acid-base reaction has been sucessfully setup for ', labels)
+    print(f"The acid-base reaction has been sucessfully setup for {labels}")
 
 type_map = pmb.get_type_map()
 types = list (type_map.values())
@@ -265,7 +264,7 @@ espresso_system.setup_type_map( type_list = types)
 non_interacting_type = max(type_map.values())+1
 cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
-    print('The non interacting type is set to ', non_interacting_type)
+    print(f"The non interacting type is set to {non_interacting_type}")
 
 #Save the initial state 
 n_frame = 0
@@ -320,9 +319,9 @@ for amino in net_charge_residues.keys():
             net_charge_amino_save[label] = []
             time_series[label] = []
 
-for step in tqdm(range(N_samples),disable=not verbose):      
+for step in tqdm.trange(N_samples, disable=not verbose):
     espresso_system.integrator.run (steps = integ_steps)
-    cpH.reaction(reaction_steps = total_ionisible_groups)
+    do_reaction(cpH, steps=total_ionisable_groups)
     charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
                                             molecule_name=protein_name,
                                             dimensionless=True)
