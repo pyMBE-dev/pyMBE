@@ -24,6 +24,7 @@ import argparse
 from espressomd.io.writer import vtf
 import pyMBE
 from lib.analysis import built_output_name
+from lib.handy_functions import do_reaction
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -282,7 +283,7 @@ for label in ["time","charge_peptide1","charge_peptide2","num_plus","xi_plus"]:
 N_frame=0
 for step in range(N_samples):
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
-    grxmc.reaction(reaction_steps = total_ionisable_groups)
+    do_reaction(grxmc, steps=total_ionisable_groups)
     time_series["time"].append(espresso_system.time)
     # Get net charge of peptide1 and peptide2
     charge_dict_peptide1=pmb.calculate_net_charge(espresso_system=espresso_system, 

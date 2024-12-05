@@ -27,7 +27,7 @@ jobs:
         uses: ./.github/actions/dependencies
         with:
           modules: |-
-            ESPResSo/4.2.1-foss-2023a
+            ESPResSo/4.2.2-foss-2023a
           extra-python-packages: |-
             pdoc==14.3
             pylint==3.0.3

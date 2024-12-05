@@ -40,6 +40,7 @@ pmb = pyMBE.pymbe_library(seed=42)
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import do_reaction
 
 
 #######################################################
@@ -196,7 +197,7 @@ if verbose:
     print("Running warmup without electrostatics")
 for i in tqdm.trange(100, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    grxmc.reaction(reaction_steps=1000)
+    do_reaction(grxmc, steps=1000)
 
 setup_electrostatic_interactions(units=pmb.units,
                                 espresso_system=espresso_system,
@@ -218,7 +219,7 @@ else:
     N_warmup_loops = 100
 for i in tqdm.trange(N_warmup_loops, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    grxmc.reaction(reaction_steps=100)
+    do_reaction(grxmc, steps=100)
 
 
 # Main loop
@@ -236,7 +237,7 @@ else:
     N_production_loops = 100
 for i in tqdm.trange(N_production_loops, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    grxmc.reaction(reaction_steps=100)
+    do_reaction(grxmc, steps=100)
 
     # Measure time
     time_series["time"].append(espresso_system.time)

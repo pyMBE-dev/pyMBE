@@ -27,6 +27,7 @@ import tqdm
 import pyMBE
 from lib import analysis
 from lib import handy_functions as hf
+from lib.handy_functions import do_reaction
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -216,7 +217,7 @@ for sample in tqdm.trange(Nsamples,disable=not verbose):
     # Run LD
     espresso_system.integrator.run(steps=MD_steps_per_sample)
     # Run MC
-    cpH.reaction(reaction_steps=len(sequence))
+    do_reaction(cpH, steps=len(sequence))
     # Sample observables
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system,
                                             molecule_name=sequence,

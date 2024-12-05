@@ -29,7 +29,10 @@ import argparse
 pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convenience
-from lib.handy_functions import setup_electrostatic_interactions, minimize_espresso_system_energy,setup_langevin_dynamics
+from lib.handy_functions import setup_electrostatic_interactions
+from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import do_reaction
 from lib.analysis import built_output_name
 
 parser = argparse.ArgumentParser(description='Sample script to run the pre-made peptide models with pyMBE')
@@ -225,7 +228,7 @@ for sample in tqdm.trange(N_samples):
     # LD sampling of the configuration space
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
     # cpH sampling of the reaction space
-    cpH.reaction(reaction_steps=total_ionisable_groups) # rule of thumb: one reaction step per titratable group (on average)
+    do_reaction(cpH, steps=total_ionisable_groups) # rule of thumb: one reaction step per titratable group (on average)
     
     # Get peptide net charge
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 

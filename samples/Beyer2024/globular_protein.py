@@ -31,6 +31,7 @@ pmb = pyMBE.pymbe_library(seed=42)
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import do_reaction
 from lib import analysis
 # Here you can adjust the width of the panda columns displayed when running the code 
 pd.options.display.max_colwidth = 10
@@ -320,7 +321,7 @@ for amino in net_charge_residues.keys():
 
 for step in tqdm.trange(N_samples, disable=not verbose):
     espresso_system.integrator.run (steps = integ_steps)
-    cpH.reaction(reaction_steps = total_ionisable_groups)
+    do_reaction(cpH, steps=total_ionisable_groups)
     charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
                                             molecule_name=protein_name,
                                             dimensionless=True)

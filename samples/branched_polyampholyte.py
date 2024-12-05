@@ -20,12 +20,16 @@
 from pathlib import Path
 import espressomd
 import argparse
+import tqdm
 import pandas as pd
 from espressomd.io.writer import vtf
 import pyMBE
 
 # Load some functions from the handy_scripts library for convenience
-from lib.handy_functions import setup_langevin_dynamics,minimize_espresso_system_energy,setup_electrostatic_interactions
+from lib.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import setup_electrostatic_interactions
+from lib.handy_functions import do_reaction
 from lib.analysis import built_output_name
 
 # Create an instance of pyMBE library
@@ -234,10 +238,10 @@ for label in ["time","charge"]:
 
 # Production loop
 N_frame=0
-for step in range(N_samples):
+for step in tqdm.trange(N_samples):
     
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
-    cpH.reaction(reaction_steps=total_ionisable_groups)
+    do_reaction(cpH, steps=total_ionisable_groups)
 
     
     # Get polyampholyte net charge
