@@ -1,4 +1,3 @@
-#
 # Copyright (C) 2024 pyMBE-dev team
 #
 # This file is part of pyMBE.
@@ -20,17 +19,16 @@
 import itertools
 import numpy as np
 
+#pmb = pyMBE.pymbe_library(seed=42)
 
 class LatticeBuilder:
     """
     Generic lattice builder.
-
     Args:
         lattice(`object`): Data class that represents a lattice, for example a :class:`DiamondLattice`.
         strict(`bool`): If set to `True`, the lattice connectivity cannot be altered.
             For example, a chain cannot be created between two nodes that are
             not explicitly connected according to the definition in `lattice`.
-
     Attributes:
         kwargs_node_labels(`dict`): Keyword arguments passed to the matplotlib
             `Axes3D.text() <https://matplotlib.org/stable/api/_as_gen/mpl_toolkits.mplot3d.axes3d.Axes3D.text.html>`_
@@ -46,6 +44,8 @@ class LatticeBuilder:
             function to draw the simulation box.
     """
 
+# Remove pmb when integrated to main pyMBE.py file
+
     def __init__(self, lattice, strict=True):
         self.lattice = lattice
         self.strict = strict
@@ -58,6 +58,9 @@ class LatticeBuilder:
         self.kwargs_monomers = {}
         self.kwargs_bonds = {}
         self.kwargs_box = {}
+        self.MPC = lattice.MPC
+        self.BOXL = lattice.BOXL
+        
 
     def _get_node_by_label(self, node):
         assert node in self.node_labels, f"node '{node}' doesn't exist in a {self.lattice.name} lattice"
@@ -93,7 +96,6 @@ class LatticeBuilder:
     def add_default_chains(self, mpc):
         """
         Build a default lattice network. Skip node pairs that already have a chain defined.
-
         Args:
             mpc(`int`): Number of monomers per chain.
         """
@@ -104,7 +106,6 @@ class LatticeBuilder:
     def draw_lattice(self, ax):
         """
         Draw the lattice in an `Axes3D <https://matplotlib.org/stable/api/toolkits/mplot3d/axes3d.html>`_ canvas.
-
         Args:
             ax: Axes.
         """
@@ -150,8 +151,10 @@ class LatticeBuilder:
             if self.colormap:
                 color = self.colormap[node_type]
                 kwargs_monomers["c"] = color
+                
             node_positions = scatter_data[node_type]
             pos = np.array(node_positions)
+            # plotting nodes and monomers
             ax_data = ax.scatter(pos[:,0], pos[:,1], pos[:,2], edgecolor="none",
                                  zorder=2, label=node_type, s=12**2, **kwargs_monomers)
             color = ax_data.get_facecolors()[0]
@@ -163,7 +166,6 @@ class LatticeBuilder:
     def draw_simulation_box(self, ax):
         """
         Draw the simulation box in an `Axes3D <https://matplotlib.org/stable/api/toolkits/mplot3d/axes3d.html>`_ canvas.
-
         Args:
             ax: Axes.
         """
@@ -182,11 +184,9 @@ class LatticeBuilder:
     def get_chain(self, node_start, node_end):
         """
         Get a chain between two nodes.
-
         Args:
             node_start(`str`): Start node label, e.g. ``[0 0 0]`` for the node at the origin.
             node_end(`str`): End node label, e.g. ``[1 1 1]`` for the first node along the diagonal.
-
         Returns:
             `list`: Sequence of residue labels.
         """
@@ -202,10 +202,8 @@ class LatticeBuilder:
         """
         Get the color corresponding to a monomer label.
         Only works if a custom color map was set via :meth:`set_colormap`!
-
         Args:
             label(`str`): Monomer label.
-
         Returns:
             The color.
         """
@@ -216,10 +214,8 @@ class LatticeBuilder:
         """
         Get the color wheel index corresponding to a monomer label.
         Only works if a custom color map was set via :meth:`set_colormap`!
-
         Args:
             label(`str`): Monomer label.
-
         Returns:
             `int`: The color index.
         """
@@ -230,55 +226,23 @@ class LatticeBuilder:
     def get_node(self, node):
         """
         Get a node residue label.
-
         Args:
             node(`str`): Node label, e.g. ``[0 0 0]`` for the node at the origin.
-
         Returns:
             `str`: Residue label.
         """
         key = self._get_node_by_label(node)
         return self.nodes[key]
 
-    def set_chain(self, node_start, node_end, sequence):
-        """
-        Set a chain between two nodes.
-
-        Args:
-            node_start(`str`): Start node label, e.g. ``[0 0 0]`` for the node at the origin.
-            node_end(`str`): End node label, e.g. ``[1 1 1]`` for the first node along the diagonal.
-            sequence(`list`): Sequence of residue labels.
-        """
-        assert len(sequence) != 0 and not isinstance(sequence, str)
-        key, reverse = self._get_node_vector_pair(node_start, node_end)
-        assert node_start != node_end or sequence == sequence[::-1], \
-            (f"chain cannot be defined between '{node_start}' and '{node_end}' since it "
-            "would form a loop with a non-symmetric sequence (under-defined stereocenter)")
-        if reverse:
-            sequence = sequence[::-1]
-        self.chains[key] = sequence
-
     def set_colormap(self, colormap):
         """
         Set a discrete color map. By default, the standard matplotlib color wheel will be used.
-
         Args:
             colormap(`dict`): Discrete color wheel that maps monomer labels to colors.
         """
         assert isinstance(colormap, dict)
         self.colormap = colormap.copy()
         self.colormap_sorted_names = list(self.colormap.keys())
-
-    def set_node(self, node, residue):
-        """
-        Set a node residue type.
-
-        Args:
-            node(`str`): Node label, e.g. ``[0 0 0]`` for the node at the origin.
-            residue(`str`): Node residue label.
-        """
-        key = self._get_node_by_label(node)
-        self.nodes[key] = residue
 
 
 class DiamondLattice:
@@ -294,3 +258,9 @@ class DiamondLattice:
                     (2, 5), (3, 6), (4, 7), (5, 0),
                     (5, 3), (5, 4), (6, 0), (6, 2),
                     (6, 4), (7, 0), (7, 2), (7, 3)}
+
+    def __init__(self,MPC,BOND_LENGTH):
+        self.MPC = MPC
+        self.BOND_LENGTH = BOND_LENGTH
+        self.BOXL = (self.MPC+1)*self.BOND_LENGTH.magnitude / (np.sqrt(3)*0.25)
+
