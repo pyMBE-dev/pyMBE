@@ -19,6 +19,8 @@ jobs:
         uses: actions/checkout@main
       - name: Validate CITATION.cff
         uses: dieghernan/cff-validator@v3
+        with:
+          install-r: true # Ensure R is explicitly installed
       - name: Setup EESSI
         uses: eessi/github-action-eessi@v3
         with:
