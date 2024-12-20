@@ -1,9 +1,6 @@
 import numpy as np
 import random
-import lib.lattice
 import unittest as ut
-import matplotlib
-import matplotlib.pyplot as plt
 import pyMBE
 from lib.lattice import DiamondLattice
 import espressomd
@@ -201,7 +198,7 @@ bond_name_node_end = filtered_df[
 for _, row in filtered_df.iterrows():
     bond_object = row["bond_object"]
     if bond_object is None:
-        raise ValueError(f"Bond object is not defined near nodes")
+        raise ValueError("Bond object is not defined near nodes")
 
 central_bead_name_near_node_start = pmb.df[pmb.df["particle_id"]==central_bead_near_node_start]["name"].values[0]
 central_bead_name_near_node_end = pmb.df[pmb.df["particle_id"]==central_bead_near_node_end]["name"].values[0]
