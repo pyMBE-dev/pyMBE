@@ -260,6 +260,8 @@ class DiamondLattice:
                     (6, 4), (7, 0), (7, 2), (7, 3)}
 
     def __init__(self,MPC,BOND_LENGTH):
+        if not isinstance(MPC, int) or MPC <= 0:
+            raise ValueError("MPC must be a non-zero positive integer.")
         self.MPC = MPC
         self.BOND_LENGTH = BOND_LENGTH
         self.BOXL = (self.MPC+1)*self.BOND_LENGTH.magnitude / (np.sqrt(3)*0.25)

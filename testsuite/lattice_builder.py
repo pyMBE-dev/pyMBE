@@ -125,11 +125,11 @@ class Test(ut.TestCase):
 
         node_positions={}
         node1_label = lattice.node_labels["[1 1 1]"]
-        node_positions[node1_label]=pos_node1
+        node_positions[node1_label]=pos_node1[0]
         node2_label = lattice.node_labels["[0 0 0]"]
-        node_positions[node2_label]=pos_node2
+        node_positions[node2_label]=pos_node2[0]
         node3_label = lattice.node_labels["[2 2 0]"]
-        node_positions[node3_label]=pos_node3
+        node_positions[node3_label]=pos_node3[0]
 
         # define molecule in forward direction
         molecule_name = "chain_[1 1 1]_[0 0 0]"

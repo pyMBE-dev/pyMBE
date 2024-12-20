@@ -73,6 +73,8 @@ for node_s, node_e in connectivity_with_labels:
                               'residue_list':residue_list}
     chain_id+=1
 
+del chain_topology[0]
+print(chain_topology)
 pmb.define_hydrogel("my_hydrogel",node_topology, chain_topology)
 node_positions = pmb.create_hydrogel("my_hydrogel", espresso_system)
    

@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 import scipy.constants
 import scipy.optimize
-from lib.lattice import LatticeBuilder
+from lib.lattice import LatticeBuilder, DiamondLattice
 
 
 class pymbe_library():
@@ -891,26 +891,30 @@ class pymbe_library():
         self.check_if_name_is_defined_in_df(name=name,
                                             pmb_type_to_be_defined='hydrogel')
 
+        hydrogel_info={"name":name, "chains":{}, "nodes":{}}
         # placing nodes
         node_positions = {}
         node_topology = self.df[self.df["name"]==name]["node_map"].iloc[0]
         for node_info in node_topology.values():
             node_index = node_info["lattice_index"]
             node_name = node_info["particle_name"]
-
-            node_pos = self.set_node(format_node(node_index), node_name, espresso_system)
+            node_pos, node_id = self.set_node(format_node(node_index), node_name, espresso_system)
             node_label = self.lattice_builder.node_labels[format_node(node_index)]
+            hydrogel_info["nodes"][format_node(node_index)]=node_id
             node_positions[node_label]=node_pos
-
+        
         # Placing chains between nodes
         # Looping over all the 16 chains
         chain_topology = self.df[self.df["name"]==name]["chain_map"].iloc[0]
         for chain_info in chain_topology.values():
             node_s = chain_info["node_start"]
             node_e = chain_info["node_end"]
-            self.set_chain(node_s, node_e, node_positions, espresso_system)
-
-        return node_positions;
+            molecule_info = self.set_chain(node_s, node_e, node_positions, espresso_system)
+            for molecule_id in molecule_info:
+                hydrogel_info["chains"][molecule_id] = molecule_info[molecule_id]
+                hydrogel_info["chains"][molecule_id]["node_start"]=node_s
+                hydrogel_info["chains"][molecule_id]["node_end"]=node_e
+        return hydrogel_info;
 
 
     def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False):
@@ -1515,7 +1519,22 @@ class pymbe_library():
             chain_map(`dict`): {"chain_id": {"node_start": , "node_end": , "residue_list": , ... }
 
         """
+        expected_node_labels = set(range(8))  # Node labels 0 through 7
+        actual_node_labels = set(node_map.keys())
+        if actual_node_labels != expected_node_labels:
+            print(
+            f"Incomplete hydrogel: node_map must contain exactly 8 node_labels (0 through 7). "
+            f"Found: {sorted(actual_node_labels)}"
+        )
 
+        # Check chain_map contains exactly 16 chain_ids (0 through 15)
+        expected_chain_ids = set(range(16))  # Chain IDs 0 through 15
+        actual_chain_ids = set(chain_map.keys())
+        if actual_chain_ids != expected_chain_ids:
+            print(
+            f"Incomplete hydrogel: chain_map must contain exactly 16 chain_ids (0 through 15). "
+            f"Found: {sorted(actual_chain_ids)}"
+        )
 
         if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='hydrogel'):
             return
@@ -2297,6 +2316,8 @@ class pymbe_library():
         """
         Initialize the lattice builder with the DiamondLattice object.
         """
+        if not isinstance(diamond_lattice, DiamondLattice):
+            raise TypeError("Currently only DiamondLattice objects are supported.")
         self.lattice_builder = LatticeBuilder(lattice=diamond_lattice)
         print(f"LatticeBuilder initialized with MPC={diamond_lattice.MPC} and BOXL={diamond_lattice.BOXL}")
         return self.lattice_builder
@@ -2740,7 +2761,7 @@ class pymbe_library():
                 backbone_vector=np.array(backbone_vector),
                 use_default_bond=False  # Use default bonds between monomers
             )
-
+       
         # Collecting ids of beads of the chain/molecule
         chain_ids = []
         residue_ids = []
@@ -2793,6 +2814,7 @@ class pymbe_library():
                         new_value=residue_ids[-1],
                         verbose=False,
                         overwrite=True)
+        return chain_molecule_info
     
     def set_node(self, node, residue, espresso_system):
         """
@@ -2807,14 +2829,14 @@ class pymbe_library():
             raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
 
         node_position = np.array(list(int(x) for x in node.strip('[]').split()))*0.25*self.lattice_builder.BOXL
-        self.create_particle(name = residue,
+        p_id = self.create_particle(name = residue,
                          espresso_system=espresso_system,
                          number_of_particles=1,
                          position = [node_position])
         key = self.lattice_builder._get_node_by_label(node)
         self.lattice_builder.nodes[key] = residue
 
-        return node_position.tolist()
+        return node_position.tolist(), p_id
 
     def set_particle_acidity(self, name, acidity=None, default_charge_number=0, pka=None, verbose=True, overwrite=True):
         """
