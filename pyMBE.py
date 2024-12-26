@@ -885,12 +885,9 @@ class pymbe_library():
         Returns:
             
         """
-        def format_node(node_list):
-            return "[" + " ".join(map(str, node_list)) + "]"
-
-        self.check_if_name_is_defined_in_df(name=name,
-                                            pmb_type_to_be_defined='hydrogel')
-
+        if not self.check_if_name_is_defined_in_df(name=name, pmb_type_to_be_defined='hydrogel'):
+            raise ValueError(f"Hydrogel with name '{name}' is not defined in the DataFrame.")
+        
         hydrogel_info={"name":name, "chains":{}, "nodes":{}}
         # placing nodes
         node_positions = {}
@@ -898,9 +895,9 @@ class pymbe_library():
         for node_info in node_topology.values():
             node_index = node_info["lattice_index"]
             node_name = node_info["particle_name"]
-            node_pos, node_id = self.set_node(format_node(node_index), node_name, espresso_system)
-            node_label = self.lattice_builder.node_labels[format_node(node_index)]
-            hydrogel_info["nodes"][format_node(node_index)]=node_id
+            node_pos, node_id = self.set_node(self.format_node(node_index), node_name, espresso_system)
+            node_label = self.lattice_builder.node_labels[self.format_node(node_index)]
+            hydrogel_info["nodes"][self.format_node(node_index)]=node_id
             node_positions[node_label]=node_pos
         
         # Placing chains between nodes
@@ -1550,15 +1547,14 @@ class pymbe_library():
                         key = ('chain_map',''),
                         new_value = chain_map,
                         non_standard_value=True)
-
         for chain_id in chain_map:
             node_start = chain_map[chain_id]["node_start"]
             node_end = chain_map[chain_id]["node_end"]
             residue_list = chain_map[chain_id]['residue_list']
             # Molecule name
             molecule_name = "chain_"+node_start+"_"+node_end
+            self.delete_molecule_entry(molecule_name)
             self.define_molecule(name=molecule_name, residue_list=residue_list)
-
         return;
 
     def define_molecule(self, name, residue_list):
@@ -1770,7 +1766,17 @@ class pymbe_library():
         self.df.at [index,'pmb_type'] = 'residue'
         self.df.at [index,'central_bead'] = central_bead
         self.df.at [index,('side_chains','')] = side_chains
-        return 
+        return
+
+    def delete_molecule_entry(self, molecule_name):
+        """
+        Deletes a molecule entry from the DataFrame if it exists.
+
+        Args:
+            molecule_name (`str`): The name of the molecule to delete.
+        """
+        if molecule_name in self.df["name"].values:
+            self.df = self.df[self.df["name"] != molecule_name].reset_index(drop=True)
 
     def destroy_pmb_object_in_system(self, name, espresso_system):
         """
@@ -1990,6 +1996,10 @@ class pymbe_library():
                     column_name_value = self.df.loc[idx[index[0]], idx[(column_name,'')]]
                     return column_name_value
         return None
+
+    def format_node(self, node_list):
+        return "[" + " ".join(map(str, node_list)) + "]"
+
 
     def generate_coordinates_outside_sphere(self, center, radius, max_dist, n_samples):
         """
@@ -2731,7 +2741,6 @@ class pymbe_library():
             "Please define it with the correct residue list before setting the chain."
             )
         sequence = self.df[self.df['name']==molecule_name].residue_list.values [0]
-
         assert len(sequence) != 0 and not isinstance(sequence, str)
         assert len(sequence) == self.lattice_builder.MPC
 
