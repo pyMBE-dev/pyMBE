@@ -264,7 +264,7 @@ def test_hydrogel_info():
 test_hydrogel_info()
 ###########################
 def test_node_positions():
-    for node_index, node_id in hydrogel_info["nodes"].items():
+    for _, node_id in hydrogel_info["nodes"].items():
         # Ensure that the node is added to the espresso system and has a position
         node_pos = espresso_system.part.by_id(int(node_id[0])).pos
         node_name_in_espresso = pmb.df[(pmb.df["pmb_type"] == "particle") & (pmb.df["particle_id"] == node_id[0])]["name"].values[0]
