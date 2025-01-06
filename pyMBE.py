@@ -1519,19 +1519,17 @@ class pymbe_library():
         expected_node_labels = set(range(8))  # Node labels 0 through 7
         actual_node_labels = set(node_map.keys())
         if actual_node_labels != expected_node_labels:
-            print(
+            raise ValueError(
             f"Incomplete hydrogel: node_map must contain exactly 8 node_labels (0 through 7). "
-            f"Found: {sorted(actual_node_labels)}"
-        )
+            f"Found: {sorted(actual_node_labels)}")
 
         # Check chain_map contains exactly 16 chain_ids (0 through 15)
         expected_chain_ids = set(range(16))  # Chain IDs 0 through 15
         actual_chain_ids = set(chain_map.keys())
         if actual_chain_ids != expected_chain_ids:
-            print(
+            raise ValueError(
             f"Incomplete hydrogel: chain_map must contain exactly 16 chain_ids (0 through 15). "
-            f"Found: {sorted(actual_chain_ids)}"
-        )
+            f"Found: {sorted(actual_chain_ids)}")
 
         if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='hydrogel'):
             return
@@ -2735,11 +2733,6 @@ class pymbe_library():
             raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
 
         molecule_name = "chain_"+node_start+"_"+node_end
-        if molecule_name not in self.df['name'].values:
-            raise KeyError(
-            f"Molecule '{molecule_name}' is not defined in the pyMBE DataFrame. "
-            "Please define it with the correct residue list before setting the chain."
-            )
         sequence = self.df[self.df['name']==molecule_name].residue_list.values [0]
         assert len(sequence) != 0 and not isinstance(sequence, str)
         assert len(sequence) == self.lattice_builder.MPC
@@ -2755,7 +2748,7 @@ class pymbe_library():
         node1 = self.lattice_builder.node_labels[node_start]
         node2 = self.lattice_builder.node_labels[node_end]
         
-        if node_positions[node1] is None or node_positions[node2] is None:
+        if not node1 in node_positions or not node2 in node_positions:
             raise ValueError("Set node position before placing a chain between them")
 
         # Finding a backbone vector between node_start and node_end

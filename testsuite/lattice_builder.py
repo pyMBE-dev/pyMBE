@@ -102,6 +102,8 @@ class Test(ut.TestCase):
         diamond = lib.lattice.DiamondLattice(MPC, BOND_LENGTH)
         espresso_system = espressomd.System(box_l = [diamond.BOXL]*3)
         pmb.add_bonds_to_espresso(espresso_system = espresso_system)
+        np.testing.assert_raises(ValueError, pmb.set_node, "[1 1 1]", NodeType1, espresso_system)
+        np.testing.assert_raises(ValueError, pmb.set_chain, "[0 0 0]", "[1 1 1]", {0:[0,0,0],1:diamond.BOXL/4.0*np.ones(3)},espresso_system)
         lattice = pmb.initialize_lattice_builder(diamond)
         sequence = [Res3, Res1, Res2, Res1]
         # build default structure
@@ -122,6 +124,8 @@ class Test(ut.TestCase):
         np.testing.assert_equal(actual = lattice.get_node("[0 0 0]"), desired = NodeType2, verbose=True)
         pos_node3 = pmb.set_node("[2 2 0]", NodeType2, espresso_system=espresso_system)
         np.testing.assert_equal(actual = lattice.get_node("[2 2 0]"), desired = NodeType2, verbose=True)
+        pos_node4,_ = pmb.set_node("[3 1 3]", NodeType1, espresso_system=espresso_system)
+        np.testing.assert_equal(actual = lattice.get_node("[3 1 3]"), desired = NodeType1, verbose=True)
 
         node_positions={}
         node1_label = lattice.node_labels["[1 1 1]"]
@@ -137,6 +141,10 @@ class Test(ut.TestCase):
         pmb.set_chain("[1 1 1]", "[0 0 0]", node_positions, espresso_system=espresso_system)
         np.testing.assert_equal(actual = lattice.get_chain("[1 1 1]", "[0 0 0]"), desired = sequence, verbose=True)
         np.testing.assert_equal(actual = lattice.get_chain("[0 0 0]", "[1 1 1]"), desired = sequence[::-1], verbose=True)
+        # set chain before set node
+        molecule_name = "chain_[3 1 3]_[0 0 0]"
+        pmb.define_molecule(name=molecule_name, residue_list=sequence)
+        np.testing.assert_raises(ValueError, pmb.set_chain, "[3 1 3]", "[0 0 0]", node_positions, espresso_system)
 
         # define custom chain in reverse direction
         molecule_name = "chain_[0 0 0]_[1 1 1]"
