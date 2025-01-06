@@ -124,7 +124,7 @@ class Test(ut.TestCase):
         np.testing.assert_equal(actual = lattice.get_node("[0 0 0]"), desired = NodeType2, verbose=True)
         pos_node3 = pmb.set_node("[2 2 0]", NodeType2, espresso_system=espresso_system)
         np.testing.assert_equal(actual = lattice.get_node("[2 2 0]"), desired = NodeType2, verbose=True)
-        pos_node4,_ = pmb.set_node("[3 1 3]", NodeType1, espresso_system=espresso_system)
+        _,_ = pmb.set_node("[3 1 3]", NodeType1, espresso_system=espresso_system)
         np.testing.assert_equal(actual = lattice.get_node("[3 1 3]"), desired = NodeType1, verbose=True)
 
         node_positions={}
