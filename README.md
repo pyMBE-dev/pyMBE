@@ -10,6 +10,7 @@
 [![codecov](https://codecov.io/gh/pyMBE-dev/pyMBE/branch/main/graph/badge.svg)](https://codecov.io/gh/pyMBE-dev/pyMBE)
 [![docs](https://badgen.net/static/docs/up-to-date/yellow/)](pymbe-dev.github.io/pyMBE/pyMBE.html) 
 [![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md) 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 pyMBE provides tools to facilitate building up molecules with complex architectures in the Molecular Dynamics software [ESPResSo](https://espressomd.org/wordpress/). Some examples of molecules that can be set up with pyMBE are polyelectrolytes, peptides and proteins. pyMBE bookkeeps all the information about the molecule topology, permitting to link each particle to its corresponding residue and molecule. pyMBE uses the [Pint](https://pint.readthedocs.io/en/stable/) library to enable input parameters in any arbitrary unit system, which is later transformed in the reduced unit system used in ESPResSo.
 
