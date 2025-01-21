@@ -19,7 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Code of conduct of our community `CODE_OF_CONDUCT.md`, adhering to the Contributor Covenant v2.1 (#104) 
 - New optional argument `backbone_vector` enabling to build molecules along an input vector using `pmb.create_molecule` and `pmb.create_pmb_object` (#99)
-- Unit testing for reaction methods (#86)
 - New boolean flag `--ideal` as argparse argument of `samples/globular_protein.py` enabling to run the script without setting up interactions.
 - Unit tests for `pmb.create_protein`, `pmb.enable_motion_of_rigid_object`, `pmb.protein_sequence_parser`, `pmb.define_protein`, `pmb.read_protein_vtf_in_df` (#101)
 - Library `lattice.py`, a general builder for crystaline lattices. This library is part of on-going project to support hydrogels in pyMBE. (#93)
@@ -37,6 +36,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Required Python dependency versions compatible with ESPResSo 4.2 (#84)
 - NumPy 2, Pandas 2 and the development version of ESPResSo are now fully supported. (#106)
 - Fixed several deprecated paths and function names in `tutorials/pyMBE_tutorial.ipynb`. (#77, #78, #79, #80, #81)
+
+### Removed
+- `pmb.parse_sequence_from_file` has been removed since it is no longer necesary to parse the sequence from pmb.df (#110)
 
 ## [0.8.0] - 2024-06-18
 
