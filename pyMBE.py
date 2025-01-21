@@ -289,9 +289,6 @@ class pymbe_library():
                 Z_HH.append(Z)
             else:
                 # Molecule has a sequence
-                if not isinstance(sequence, list):
-                    # If the df has been read by file, the sequence needs to be parsed.
-                    sequence = self.parse_sequence_from_file(sequence=sequence)
                 for name in sequence:
                     if name in pka_set.keys():
                         if pka_set[name]['acidity'] == 'acidic':
@@ -2318,22 +2315,6 @@ class pymbe_library():
                                       overwrite=overwrite)
         return
 
-    def parse_sequence_from_file(self,sequence):
-        """
-        Parses the given sequence such that it can be used in pyMBE. This function has to be used if the df was read from a file.
-
-        Args:
-            sequence(`str`): sequence to be parsed
-
-        Returns:
-            sequence(`lst`): parsed sequence
-        """
-        sequence = sequence.replace(' ', '')
-        sequence = sequence.replace("'", '')
-        sequence = sequence.split(",")[1:-1]
-        return sequence
-
-    
 
     def propose_unused_type(self):
         """
