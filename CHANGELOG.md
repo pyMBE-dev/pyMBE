@@ -39,6 +39,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 - `pmb.parse_sequence_from_file` has been removed since it is no longer necesary to parse the sequence from pmb.df (#110)
+- `handy_functions.create_random_seed` no longer needed because now instances of pyMBE take the random seed as input (#111)
+- `handy_functions.visualize_espresso_system` because it was not used anywhere in the library (#111)
+- `handy_functions.do_snapshot_espresso_system` moved to the tutorial because it was a function specific for it (#111)
 
 ## [0.8.0] - 2024-06-18
 
