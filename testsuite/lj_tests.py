@@ -112,15 +112,32 @@ C_input_parameters={"name":"C",
                 "epsilon":pmb.units.Quantity(2,"reduced_energy"), 
                 "cutoff":2*2**(1./6.)*pmb.units.nm, 
                 "offset":2*pmb.units.nm}
+X_input_parameters={"name":"X"}
+
 pmb.define_particle(**A_input_parameters)
 pmb.define_particle(**B_input_parameters)
 pmb.define_particle(**C_input_parameters)
+pmb.define_particle(**X_input_parameters)
 
 # Create a dummy instance of an espresso system
 import espressomd
 espresso_system=espressomd.System(box_l = [50]*3)
 
-# Setup LJ interactions
+with warnings.catch_warnings(record=True) as w:
+    warnings.simplefilter("always")  # Capture all warnings, even those normally ignored
+    pmb.setup_lj_interactions(espresso_system=espresso_system)
+    assert any("The following particles do not have a defined value of sigma or epsilon" in str(warning.message) for warning in w), "Expected warning was not raised!"
+
+pmb.delete_particle_entry("X")
+
+# ValueError if combining-rule other than Lorentz_-Berthelot is used
+input_params = {"espresso_system":espresso_system, "combining_rule": "Geometric"}
+np.testing.assert_raises(ValueError, pmb.setup_lj_interactions, **input_params)
+
+# Initialized with shift=0
+pmb.setup_lj_interactions(espresso_system=espresso_system, shift_potential=False)
+
+# Setup LJ interactions shift="auto"
 pmb.setup_lj_interactions(espresso_system=espresso_system)
 
 # Check A-A LJ setup
