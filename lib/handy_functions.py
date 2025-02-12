@@ -71,12 +71,12 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
 
         if tune_p3m:
             espresso_system.time_step=0.01
-            espresso_system.actors.add(coulomb)
+            espresso_system.electrostatics.solver = coulomb
 
             # save the optimal parameters and add them by hand
 
             p3m_params = coulomb.get_params()
-            espresso_system.actors.remove(coulomb)
+            espresso_system.electrostatics.solver=None
             coulomb = espressomd.electrostatics.P3M(
                                         prefactor = COULOMB_PREFACTOR.magnitude,
                                         accuracy = accuracy,
@@ -94,7 +94,7 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
                                             r_cut = KAPPA.to('reduced_length').magnitude)
 
     
-    espresso_system.actors.add(coulomb)
+    espresso_system.electrostatics.solver = coulomb
     if verbose:
         print("\n Electrostatics successfully added to the system \n")
 

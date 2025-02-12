@@ -447,7 +447,7 @@ class pymbe_library():
             - The net charge of the molecule is averaged over all molecules of type `name` 
             - The net charge of each particle type is averaged over all particle of the same type in all molecules of type `name`
         '''        
-        valid_pmb_types = ["molecule", "protein"]
+        valid_pmb_types = ["molecule", "protein", "hydrogel"]
         pmb_type=self.df.loc[self.df['name']==molecule_name].pmb_type.values[0]
         if pmb_type not in valid_pmb_types:
             raise ValueError("The pyMBE object with name {molecule_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
@@ -843,7 +843,9 @@ class pymbe_library():
         """
         cation_charge = self.df.loc[self.df['name']==cation_name].state_one.z.iloc[0]
         anion_charge = self.df.loc[self.df['name']==anion_name].state_one.z.iloc[0]
+        print(cation_charge, anion_charge)
         object_ids = self.get_particle_id_map(object_name=object_name)["all"]
+        print(object_ids)
         counterion_number={}
         object_charge={}
         for name in ['positive', 'negative']:
@@ -877,13 +879,13 @@ class pymbe_library():
 
     def create_hydrogel(self, name, espresso_system):
         """ 
-        creates the hyrogel `name` in espresso_system
+        creates the hydrogel `name` in espresso_system
         Args:
             name(`str`): Label of the hydrogel to be created. `name` must be defined in the `pmb.df`
             espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
 
         Returns:
-            
+            hydrogel_info(`dict`):  {"name":hydrogel_name, "chains": {chain_id1: {residue_id1: {'central_bead_id': central_bead_id, 'side_chain_ids': [particle_id1,...]},...,"node_start":node_start,"node_end":node_end}, chain_id2: {...},...}, "nodes":{node1:[node1_id],...}}     
         """
         if not self.check_if_name_is_defined_in_df(name=name, pmb_type_to_be_defined='hydrogel'):
             raise ValueError(f"Hydrogel with name '{name}' is not defined in the DataFrame.")
@@ -892,17 +894,20 @@ class pymbe_library():
         # placing nodes
         node_positions = {}
         node_topology = self.df[self.df["name"]==name]["node_map"].iloc[0]
+        if isinstance(node_topology, str):
+            node_topology = ast.literal_eval(node_topology) 
         for node_info in node_topology.values():
             node_index = node_info["lattice_index"]
             node_name = node_info["particle_name"]
             node_pos, node_id = self.set_node(self.format_node(node_index), node_name, espresso_system)
-            node_label = self.lattice_builder.node_labels[self.format_node(node_index)]
             hydrogel_info["nodes"][self.format_node(node_index)]=node_id
-            node_positions[node_label]=node_pos
+            node_positions[node_id[0]]=node_pos
         
         # Placing chains between nodes
         # Looping over all the 16 chains
         chain_topology = self.df[self.df["name"]==name]["chain_map"].iloc[0]
+        if isinstance(chain_topology, str):
+            chain_topology = ast.literal_eval(chain_topology)
         for chain_info in chain_topology.values():
             node_s = chain_info["node_start"]
             node_e = chain_info["node_end"]
@@ -994,7 +999,7 @@ class pymbe_library():
                     first_residue = False          
                 else:                    
                     previous_central_bead_name=self.df[self.df['name']==previous_residue].central_bead.values[0]
-                    new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]       
+                    new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]
                     bond = self.search_bond(particle_name1=previous_central_bead_name, 
                                             particle_name2=new_central_bead_name, 
                                             hard_check=True, 
@@ -1003,6 +1008,7 @@ class pymbe_library():
                                             particle_name2=new_central_bead_name, 
                                             hard_check=True, 
                                             use_default_bond=use_default_bond)                
+                    
                     residue_position = residue_position+backbone_vector*l0
                     residues_info = self.create_residue(name=residue, 
                                                         espresso_system=espresso_system, 
@@ -1513,8 +1519,7 @@ class pymbe_library():
         Args:
             name(`str`): Unique label that identifies the `hydrogel`.
             node_map(`dict`): {"node_label": {"particle_name": , "lattice_index": }, ... }
-            chain_map(`dict`): {"chain_id": {"node_start": , "node_end": , "residue_list": , ... }
-
+            chain_map(`dict`): {"chain_label": {"node_start": , "node_end": , "residue_list": , ... }
         """
         expected_node_labels = set(range(8))  # Node labels 0 through 7
         actual_node_labels = set(node_map.keys())
@@ -1524,12 +1529,12 @@ class pymbe_library():
             f"Found: {sorted(actual_node_labels)}")
 
         # Check chain_map contains exactly 16 chain_ids (0 through 15)
-        expected_chain_ids = set(range(16))  # Chain IDs 0 through 15
-        actual_chain_ids = set(chain_map.keys())
-        if actual_chain_ids != expected_chain_ids:
+        expected_chain_labels = set(range(16))  # Chain IDs 0 through 15
+        actual_chain_labels = set(chain_map.keys())
+        if actual_chain_labels != expected_chain_labels:
             raise ValueError(
-            f"Incomplete hydrogel: chain_map must contain exactly 16 chain_ids (0 through 15). "
-            f"Found: {sorted(actual_chain_ids)}")
+            f"Incomplete hydrogel: chain_map must contain exactly 16 chain_labels (0 through 15). "
+            f"Found: {sorted(actual_chain_labels)}")
 
         if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='hydrogel'):
             return
@@ -1545,13 +1550,12 @@ class pymbe_library():
                         key = ('chain_map',''),
                         new_value = chain_map,
                         non_standard_value=True)
-        for chain_id in chain_map:
-            node_start = chain_map[chain_id]["node_start"]
-            node_end = chain_map[chain_id]["node_end"]
-            residue_list = chain_map[chain_id]['residue_list']
+        for chain_label in chain_map:
+            node_start = chain_map[chain_label]["node_start"]
+            node_end = chain_map[chain_label]["node_end"]
+            residue_list = chain_map[chain_label]['residue_list']
             # Molecule name
             molecule_name = "chain_"+node_start+"_"+node_end
-            self.delete_molecule_entry(molecule_name)
             self.define_molecule(name=molecule_name, residue_list=residue_list)
         return;
 
@@ -1775,6 +1779,18 @@ class pymbe_library():
         """
         if molecule_name in self.df["name"].values:
             self.df = self.df[self.df["name"] != molecule_name].reset_index(drop=True)
+
+    def delete_particle_entry(self, particle_name): 
+
+        """ 
+        Deletes a particle entry from the DataFrame if it exists. 
+        
+        Args: 
+            particle_name (`str`): The name of the particle to delete. 
+
+        """ 
+        if particle_name in self.df["name"].values: 
+            self.df = self.df[self.df["name"] != particle_name].reset_index(drop=True) 
 
     def destroy_pmb_object_in_system(self, name, espresso_system):
         """
@@ -2198,7 +2214,7 @@ class pymbe_library():
             id_map(`dict`): dict of the structure {"all": [all_ids_with_object_name], "residue_map": {res_id: [particle_ids_in_res_id]}, "molecule_map": {mol_id: [particle_ids_in_mol_id]}, }
         '''
         object_type = self.df.loc[self.df['name']== object_name].pmb_type.values[0]
-        valid_types = ["particle", "molecule", "residue", "protein"]
+        valid_types = ["particle", "molecule", "residue", "protein", "hydrogel"]
         if object_type not in valid_types:
             raise ValueError(f"{object_name} is of pmb_type {object_type}, which is not supported by this function. Supported types are {valid_types}")
         id_list = []
@@ -2225,6 +2241,16 @@ class pymbe_library():
                 id_list+=res_id_list
         elif object_type == 'particle':
             id_list = self.df.loc[self.df['name']== object_name].particle_id.dropna().tolist()
+        elif object_type == "hydrogel":
+            mol_ids = self.df[(self.df["pmb_type"] == "molecule") &
+            (self.df["name"].str.match(r"^chain_\[\d+ \d+ \d+\]_\[\d+ \d+ \d+\]$"))].molecule_id.dropna().tolist()
+            for mol_id in mol_ids:
+                res_ids = set(self.df.loc[(self.df["molecule_id"]==mol_id) & (self.df["pmb_type"]=="particle") ].residue_id.dropna().tolist())
+                res_map=do_res_map(res_ids=res_ids)
+                mol_list=self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
+                id_list+=mol_list
+                mol_map[mol_id]=mol_list
+                
         return {"all": id_list, "molecule_map": mol_map, "residue_map": res_map}
 
     def get_pka_set(self):
@@ -2320,14 +2346,15 @@ class pymbe_library():
         type_map  = pd.concat([state_one,state_two],axis=0).to_dict()
         return type_map
 
-    def initialize_lattice_builder(self, diamond_lattice):
+    def initialize_lattice_builder(self, diamond_lattice, verbose=False):
         """
         Initialize the lattice builder with the DiamondLattice object.
         """
         if not isinstance(diamond_lattice, DiamondLattice):
             raise TypeError("Currently only DiamondLattice objects are supported.")
         self.lattice_builder = LatticeBuilder(lattice=diamond_lattice)
-        print(f"LatticeBuilder initialized with MPC={diamond_lattice.MPC} and BOXL={diamond_lattice.BOXL}")
+        if verbose:
+            print(f"LatticeBuilder initialized with MPC={diamond_lattice.MPC} and BOXL={diamond_lattice.BOXL}")
         return self.lattice_builder
 
     def load_interaction_parameters(self, filename, verbose=False, overwrite=False):
@@ -2745,21 +2772,25 @@ class pymbe_library():
         if reverse:
             sequence = sequence[::-1]
 
-        node1 = self.lattice_builder.node_labels[node_start]
-        node2 = self.lattice_builder.node_labels[node_end]
-        
-        if not node1 in node_positions or not node2 in node_positions:
-            raise ValueError("Set node position before placing a chain between them")
+        node_start_pos = np.array(list(int(x) for x in node_start.strip('[]').split()))*0.25*self.lattice_builder.BOXL
+        node_end_pos = np.array(list(int(x) for x in node_end.strip('[]').split()))*0.25*self.lattice_builder.BOXL
+        node1 = espresso_system.part.select(lambda p: (p.pos == node_start_pos).all()).id
+        node2 = espresso_system.part.select(lambda p: (p.pos == node_end_pos).all()).id
 
+        if not node1[0] in node_positions or not node2[0] in node_positions:
+            raise ValueError("Set node position before placing a chain between them")
+         
         # Finding a backbone vector between node_start and node_end
-        vec_between_nodes = np.array(node_positions[node2]) - np.array(node_positions[node1])
+        vec_between_nodes = np.array(node_positions[node2[0]]) - np.array(node_positions[node1[0]])
         vec_between_nodes = vec_between_nodes - self.lattice_builder.BOXL * np.round(vec_between_nodes/self.lattice_builder.BOXL)
         backbone_vector = list(vec_between_nodes/(self.lattice_builder.MPC + 1))
+        node_start_name = self.df[(self.df["particle_id"]==node1[0]) & (self.df["pmb_type"]=="particle")]["name"].values[0]
+        first_res_name = self.df[(self.df["pmb_type"]=="residue") & (self.df["name"]==sequence[0])]["central_bead"].values[0]
         chain_molecule_info = self.create_molecule(
                 name=molecule_name,  # Use the name defined earlier
                 number_of_molecules=1,  # Creating one chain
                 espresso_system=espresso_system,
-                list_of_first_residue_positions=[list(np.array(node_positions[node1]) + np.array(backbone_vector))],  # Start at the first node
+                list_of_first_residue_positions=[list(np.array(node_positions[node1[0]]) + np.array(backbone_vector)*self.get_bond_length(node_start_name, first_res_name, hard_check=True))],#Start at the first node
                 backbone_vector=np.array(backbone_vector),
                 use_default_bond=False  # Use default bonds between monomers
             )
@@ -2777,7 +2808,6 @@ class pymbe_library():
         # Search bonds between nodes and chain ends
         BeadType_near_to_node_start = self.df[(self.df["residue_id"] == residue_ids[0]) & (self.df["central_bead"].notnull())]["central_bead"].drop_duplicates().iloc[0]
         BeadType_near_to_node_end = self.df[(self.df["residue_id"] == residue_ids[-1]) & (self.df["central_bead"].notnull())]["central_bead"].drop_duplicates().iloc[0]
-
         bond_node1_first_monomer = self.search_bond(particle_name1 = self.lattice_builder.nodes[node_start],
                                                     particle_name2 = BeadType_near_to_node_start,
                                                     hard_check=False,
@@ -2787,10 +2817,10 @@ class pymbe_library():
                                                     hard_check=False,
                                                     use_default_bond=False)
 
-        espresso_system.part.by_id(node1).add_bond((bond_node1_first_monomer, chain_ids[0]))
-        espresso_system.part.by_id(node2).add_bond((bond_node2_last_monomer, chain_ids[-1]))
+        espresso_system.part.by_id(node1[0]).add_bond((bond_node1_first_monomer, chain_ids[0]))
+        espresso_system.part.by_id(node2[0]).add_bond((bond_node2_last_monomer, chain_ids[-1]))
         # Add bonds to data frame
-        bond_index1 = self.add_bond_in_df(particle_id1=node1,
+        bond_index1 = self.add_bond_in_df(particle_id1=node1[0],
                                     particle_id2=chain_ids[0],
                                     use_default_bond=False)
         self.add_value_to_df(key=('molecule_id',''),
@@ -2803,7 +2833,7 @@ class pymbe_library():
                             new_value=residue_ids[0],
                             verbose=False,
                             overwrite=True)
-        bond_index2 = self.add_bond_in_df(particle_id1=node2,
+        bond_index2 = self.add_bond_in_df(particle_id1=node2[0],
                                     particle_id2=chain_ids[-1],
                                     use_default_bond=False)
         self.add_value_to_df(key=('molecule_id',''),
@@ -3552,7 +3582,6 @@ class pymbe_library():
                                 non_standard_value=True)
         if non_parametrized_labels and warnings:
             print(f'WARNING: The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.')
-            
         return
 
     def write_pmb_df (self, filename):

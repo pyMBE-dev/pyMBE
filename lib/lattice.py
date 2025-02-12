@@ -1,4 +1,5 @@
-# Copyright (C) 2024 pyMBE-dev team
+#
+# Copyright (C) 2024-2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -14,12 +15,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
 
 import itertools
 import numpy as np
-
-#pmb = pyMBE.pymbe_library(seed=42)
 
 class LatticeBuilder:
     """
@@ -44,13 +42,12 @@ class LatticeBuilder:
             function to draw the simulation box.
     """
 
-# Remove pmb when integrated to main pyMBE.py file
-
     def __init__(self, lattice, strict=True):
         self.lattice = lattice
         self.strict = strict
         self.node_labels = {str([int(x) for x in indices]).replace(",", ""): i
                             for i, indices in enumerate(self.lattice.indices)}
+        self.chain_labels = {f"({start}, {end})": idx for idx, (start, end) in enumerate(lattice.connectivity)}
         self.nodes = {label: "default_linker" for label in self.node_labels}
         self.colormap = {}
         self.chains = {}

@@ -1,3 +1,21 @@
+#
+# Copyright (C) 2024-2025 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import pyMBE
 import espressomd
 import matplotlib.pyplot as plt
@@ -6,7 +24,7 @@ from lib.lattice import DiamondLattice
 pmb = pyMBE.pymbe_library(seed=42)
 reduced_unit_set = pmb.get_reduced_units()
 # Monomers per chain
-MPC = 8
+MPC = 40
 # Define node particle
 NodeType = "node_type"
 pmb.define_particle(name=NodeType, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
@@ -39,17 +57,17 @@ HARMONIC_parameters = {'r_0'    : generic_bond_length,
                        'k'      : generic_harmonic_constant}
 pmb.define_bond(bond_type = 'harmonic',
                         bond_parameters = HARMONIC_parameters, particle_pairs = [[BeadType1, BeadType1],
-                                                                                 [BeadType1, BeadType2],
-                                                                                 [BeadType2, BeadType2]])
+                                                                                [BeadType1, BeadType2],
+                                                                                [BeadType2, BeadType2]])
 pmb.define_bond(bond_type = 'harmonic',
                         bond_parameters = HARMONIC_parameters, particle_pairs = [[NodeType, BeadType1],
                                                                                  [NodeType, BeadType2]])
 
 # Provide MPC and BOND_LENGTH to Diamond Lattice
-diamond_lattice = DiamondLattice(MPC,generic_bond_length)
+diamond_lattice = DiamondLattice(MPC, generic_bond_length)
 espresso_system = espressomd.System(box_l = [diamond_lattice.BOXL]*3)
 pmb.add_bonds_to_espresso(espresso_system = espresso_system)
-lattice_builder = pmb.initialize_lattice_builder(diamond_lattice) # Dont need pmb when integrated to pyMBE.py
+lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
 
 # Setting up node topology
 indices = diamond_lattice.indices
@@ -73,11 +91,12 @@ for node_s, node_e in connectivity_with_labels:
                               'residue_list':residue_list}
     chain_id+=1
 
-del chain_topology[0]
-print(chain_topology)
+last_chain_id = max(chain_topology.keys())
+chain_topology[last_chain_id]['residue_list'] = ["res_1" if i % 2 == 0 else "res_2" for i in range(len(residue_list))]
+
 pmb.define_hydrogel("my_hydrogel",node_topology, chain_topology)
-node_positions = pmb.create_hydrogel("my_hydrogel", espresso_system)
-   
+hydrogel_info = pmb.create_hydrogel("my_hydrogel", espresso_system)
+
 fig = plt.figure()
 ax = fig.add_subplot(111,projection="3d")
 lattice_builder.draw_lattice(ax)

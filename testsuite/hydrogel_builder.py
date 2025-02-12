@@ -1,3 +1,21 @@
+#
+# Copyright (C) 2024-2025 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import numpy as np
 import random
 import unittest as ut
@@ -5,11 +23,15 @@ import pyMBE
 from lib.lattice import DiamondLattice
 import espressomd
 
+
 pmb = pyMBE.pymbe_library(seed=42)
 
 # Define node particle
 NodeType = "node_type"
 pmb.define_particle(name=NodeType, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+
+CounterIon = "counter_ion"
+pmb.define_particle(name=CounterIon, sigma=0.5*pmb.units.nm, epsilon=1.5*pmb.units("reduced_energy"))
 
 # define monomers
 BeadType1 = "C"
@@ -30,6 +52,10 @@ pmb.define_residue(
     central_bead=BeadType2,  # Define the central bead name
     side_chains=[]  # Assuming no side chains for the monomer
 )
+
+molecule_name = 'alternating_residue'
+pmb.define_molecule(name=molecule_name, residue_list = [Res1, Res2, Res1, Res2, Res1, Res2])
+
 # define bond parameters
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 generic_bond_length = 0.355*pmb.units.nm
@@ -60,9 +86,21 @@ print("*** Unit test passed ***")
 
 MPC=8
 diamond_lattice = DiamondLattice(MPC, generic_bond_length)
-espresso_system = espressomd.System(box_l = [diamond_lattice.BOXL]*3)
+box_l = diamond_lattice.BOXL
+espresso_system = espressomd.System(box_l = [box_l]*3)
 pmb.add_bonds_to_espresso(espresso_system = espresso_system)
 lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
+
+pmb.create_particle(name=CounterIon,
+                    espresso_system=espresso_system,
+                    number_of_particles=1,
+                    position=[[np.random.uniform(0,box_l)]*3])
+
+pmb.create_molecule(name=molecule_name,
+                        number_of_molecules=1,
+                        espresso_system=espresso_system,
+                        use_default_bond=False,
+                        list_of_first_residue_positions = [[np.random.uniform(0,box_l)]*3])
 
 # Setting up node topology
 indices = diamond_lattice.indices
@@ -73,18 +111,21 @@ for index in range(len(indices)):
                           "lattice_index": indices[index]}
 
 # Setting up chain topology
-connectivity = diamond_lattice.connectivity
+#connectivity = diamond_lattice.connectivity
 node_labels = lattice_builder.node_labels
+chain_labels = lattice_builder.chain_labels
 reverse_node_labels = {v: k for k, v in node_labels.items()}
-connectivity_with_labels = {(reverse_node_labels[i], reverse_node_labels[j]) for i, j in connectivity}
+#connectivity_with_labels = {(reverse_node_labels[i], reverse_node_labels[j]) for i, j in connectivity}
 chain_topology = {}
 residue_list = [Res1]*(MPC//2) + [Res2]*(MPC//2)
-chain_id = 0
-for node_s, node_e in connectivity_with_labels:
-    chain_topology[chain_id]={'node_start':node_s,
-                              'node_end': node_e,
+#chain_id = 0
+for chain_data in chain_labels.items():
+    chain_label = chain_data[1]
+    node_label_pair = chain_data[0]
+    node_label_s, node_label_e = [int(x) for x in node_label_pair.strip("()").split(",")]
+    chain_topology[chain_label]={'node_start':reverse_node_labels[node_label_s],
+                              'node_end': reverse_node_labels[node_label_e],
                               'residue_list':residue_list}
-    chain_id+=1
 
 last_chain_id = max(chain_topology.keys())
 chain_topology[last_chain_id]['residue_list'] = chain_topology[last_chain_id]['residue_list'][::-1]
@@ -172,8 +213,8 @@ for chain_id in chain_topology:
 
 # Creating hydrogel
 hydrogel_info = pmb.create_hydrogel("my_hydrogel", espresso_system)
-print("*** Hydrogel created: Unit test to verify their name and positions ***")
 
+print("*** Hydrogel created: Unit test to verify their name and positions ***")
 ############################
 
 class Test(ut.TestCase):
@@ -189,7 +230,8 @@ class Test(ut.TestCase):
         for _, node_id in hydrogel_info["nodes"].items():
             node_pos = espresso_system.part.by_id(int(node_id[0])).pos
             node_name_in_espresso = pmb.df[(pmb.df["pmb_type"] == "particle") & (pmb.df["particle_id"] == node_id[0])]["name"].values[0]
-            node_data = node_topology[node_id[0]]
+            node_label = node_labels[pmb.format_node(list((node_pos*(4/lattice_builder.BOXL)).astype(int)))]
+            node_data = node_topology[node_label]
             node_name = node_data["particle_name"] 
             # Assert node's name and position are correctly set
             np.testing.assert_equal(node_name_in_espresso, node_name)
@@ -213,44 +255,54 @@ class Test(ut.TestCase):
             vec_between_nodes = vec_between_nodes -  diamond_lattice.BOXL * np.round(vec_between_nodes / diamond_lattice.BOXL)
             distance_between_nodes = np.linalg.norm(vec_between_nodes)
             np.testing.assert_allclose(distance_between_nodes, (diamond_lattice.MPC+1)*generic_bond_length.magnitude, atol=0.0000001)
-
+    
     def test_all_residue_placement(self):
-        for chain_id, chain_data in hydrogel_info["chains"].items():
+        for _, chain_data in hydrogel_info["chains"].items():
             node_start = chain_data["node_start"]
             node_end = chain_data["node_end"]
-
+            node_start_label = lattice_builder.node_labels[node_start]
+            node_end_label = lattice_builder.node_labels[node_end]
+            node_start_pos = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * lattice_builder.BOXL
+            node_end_pos = np.array([float(x) for x in node_end.strip('[]').split()]) * 0.25 * lattice_builder.BOXL
+            node_start_id = espresso_system.part.select(lambda p: (p.pos == node_start_pos).all()).id[0]
+            node_start_name = pmb.df[(pmb.df["particle_id"]==node_start_id) & (pmb.df["pmb_type"]=="particle")]["name"].values[0]
+            prev_particle_name = node_start_name 
+            vec_between_nodes = (np.array([float(x) for x in node_end.strip('[]').split()]) -
+                                     np.array([float(x) for x in node_start.strip('[]').split()])) * 0.25 * lattice_builder.BOXL
+            vec_between_nodes = vec_between_nodes - lattice_builder.BOXL * np.round(vec_between_nodes / lattice_builder.BOXL)
+            backbone_vector = vec_between_nodes / (diamond_lattice.MPC + 1)
+   
             # Get the list of residues (keys in chain_data, excluding node_start/node_end)
             residues_in_chain = {k: v for k, v in chain_data.items() if isinstance(k, int)}
-
+             
             # Loop through each residue in the chain
             for (res_id, res_data) in residues_in_chain.items():
                 central_bead_id = res_data["central_bead_id"]
-
+                
                 # Get the position of the central bead from the espresso system
                 central_bead_pos = espresso_system.part.by_id(central_bead_id).pos
 
                 # Calculate the expected position of the residue's central bead
-                residue_index = list(residues_in_chain.keys()).index(res_id)
-
-                vec_between_nodes = (np.array([float(x) for x in node_end.strip('[]').split()]) - 
-                                     np.array([float(x) for x in node_start.strip('[]').split()])) * 0.25 * diamond_lattice.BOXL
-                vec_between_nodes = vec_between_nodes - diamond_lattice.BOXL * np.round(vec_between_nodes / diamond_lattice.BOXL)
-                backbone_vector = vec_between_nodes / (diamond_lattice.MPC + 1)
-                expected_position = (np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * diamond_lattice.BOXL + 
-                                     (residue_index + 1) * backbone_vector)
+                residue_index = list(residues_in_chain.keys()) .index(res_id)
+                current_part_name = pmb.df[(pmb.df["particle_id"]==central_bead_id) & (pmb.df["pmb_type"]=="particle")]["name"].values[0] 
+                bond_length = pmb.get_bond_length(prev_particle_name, current_part_name)
+                expected_position = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * diamond_lattice.BOXL + (residue_index + 1) * backbone_vector * bond_length
                 
                 # Validate that the central bead's position matches the expected position
-                np.testing.assert_allclose(central_bead_pos, expected_position, atol=0.05)
-                expected_res_name = chain_topology[chain_id]["residue_list"][residue_index]
-                expected_node_start = chain_topology[chain_id]["node_start"]
-                expected_node_end = chain_topology[chain_id]["node_end"]
+                np.testing.assert_allclose(central_bead_pos, expected_position, atol=1e-7)
+                chain_label_key = "("+str(node_start_label)+", "+str(node_end_label)+")"
+                chain_label = chain_labels[chain_label_key]
+                expected_res_name = chain_topology[chain_label]["residue_list"][residue_index]
+                expected_node_start = chain_topology[chain_label]["node_start"]
+                expected_node_end = chain_topology[chain_label]["node_end"]
                 residue_name = pmb.df[(pmb.df["pmb_type"]=="residue") & (pmb.df["residue_id"]==res_id)]["name"].values[0]
                 np.testing.assert_equal(node_start, expected_node_start)
                 np.testing.assert_equal(node_end, expected_node_end)
                 np.testing.assert_equal(residue_name, expected_res_name)
+                prev_particle_name = current_part_name
 
 if __name__ == "__main__":
-    ut.main()
+    ut.main(exit=False)
 
 #####-- Invalid hydrogel name --#####
 # Test if create_hydrogel raises an exception when provided with invalid data
@@ -282,7 +334,13 @@ Res_node_end = numeric_keys[last_key]
 central_bead_near_node_start = Res_node_start["central_bead_id"]
 central_bead_near_node_end = Res_node_end["central_bead_id"]
 
-node_ids = [0,1,2,3,4,5,6,7]
+#node_ids = [0,1,2,3,4,5,6,7]
+node_ids = []
+for indice in node_labels.keys():
+    index_pos = np.array(list(int(x) for x in indice.strip('[]').split()))*0.25*lattice_builder.BOXL
+    node_id = espresso_system.part.select(lambda p: (p.pos == index_pos).all()).id[0]
+    node_ids.append(node_id)
+
 bead_ids_in_random_molecule = [i for i in range(central_bead_near_node_start, central_bead_near_node_end+1)]
 #print(pmb.df[pmb.df["molecule_id"]==random_chain_id])
 filtered_df = pmb.df[
