@@ -263,7 +263,6 @@ class Test(ut.TestCase):
             node_start_label = lattice_builder.node_labels[node_start]
             node_end_label = lattice_builder.node_labels[node_end]
             node_start_pos = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * lattice_builder.BOXL
-            node_end_pos = np.array([float(x) for x in node_end.strip('[]').split()]) * 0.25 * lattice_builder.BOXL
             node_start_id = espresso_system.part.select(lambda p: (p.pos == node_start_pos).all()).id[0]
             node_start_name = pmb.df[(pmb.df["particle_id"]==node_start_id) & (pmb.df["pmb_type"]=="particle")]["name"].values[0]
             prev_particle_name = node_start_name 
@@ -342,7 +341,6 @@ for indice in node_labels.keys():
     node_ids.append(node_id)
 
 bead_ids_in_random_molecule = [i for i in range(central_bead_near_node_start, central_bead_near_node_end+1)]
-#print(pmb.df[pmb.df["molecule_id"]==random_chain_id])
 filtered_df = pmb.df[
     pmb.df["particle_id"].isin(node_ids) & 
     pmb.df["particle_id2"].isin(bead_ids_in_random_molecule)

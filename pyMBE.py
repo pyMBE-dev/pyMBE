@@ -843,9 +843,7 @@ class pymbe_library():
         """
         cation_charge = self.df.loc[self.df['name']==cation_name].state_one.z.iloc[0]
         anion_charge = self.df.loc[self.df['name']==anion_name].state_one.z.iloc[0]
-        print(cation_charge, anion_charge)
         object_ids = self.get_particle_id_map(object_name=object_name)["all"]
-        print(object_ids)
         counterion_number={}
         object_charge={}
         for name in ['positive', 'negative']:
