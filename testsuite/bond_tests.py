@@ -51,23 +51,33 @@ class Test(ut.TestCase):
                     desired=input_parameters[key].m_as(reduced_units[key]),
                     verbose=True)
 
-    def test_custom_bond_harmonic(self):
+    def test_bond_harmonic(self):
         pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
         bond_type = 'harmonic'
         bond = {'r_0'    : 0.4 * pmb.units.nm,
                 'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
 
+        # check default bond
+        pmb.define_default_bond(bond_type = bond_type,
+                                bond_parameters = bond)
+
+        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[0]
+        self.check_bond_setup(bond_object=bond_object,
+                        input_parameters=bond,
+                        bond_type=bond_type)
+
+        # check particle bond
         pmb.define_bond(bond_type = bond_type,
                         bond_parameters = bond,
                         particle_pairs = [['A', 'A']])
 
-        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[0]
+        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[1]
         self.check_bond_setup(bond_object=bond_object,
                               input_parameters=bond,
                               bond_type=bond_type)
 
-    def test_custom_bond_fene(self):
+    def test_bond_fene(self):
         pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
         bond_type = 'FENE'
@@ -75,16 +85,26 @@ class Test(ut.TestCase):
                 'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
                 'd_r_max': 0.8 * pmb.units.nm}
 
-        pmb.define_bond(bond_type = bond_type,
-                        bond_parameters = bond,
-                        particle_pairs = [['A', 'A']])
+        # check default bond
+        pmb.define_default_bond(bond_type = bond_type,
+                                bond_parameters = bond)
 
         bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[0]
         self.check_bond_setup(bond_object=bond_object,
                               input_parameters=bond,
                               bond_type=bond_type)
 
-    def test_custom_bond_harmonic_and_fene(self):
+        # check particle bond
+        pmb.define_bond(bond_type = bond_type,
+                        bond_parameters = bond,
+                        particle_pairs = [['A', 'A']])
+
+        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[1]
+        self.check_bond_setup(bond_object=bond_object,
+                              input_parameters=bond,
+                              bond_type=bond_type)
+
+    def test_bond_harmonic_and_fene(self):
         pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
         pmb.define_particle(name='B', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
@@ -114,147 +134,65 @@ class Test(ut.TestCase):
                               input_parameters=bond_2,
                               bond_type=bond_type_2)
 
-    def test_custom_bond_raised_exceptions(self):
+    def test_bond_raised_exceptions(self):
         pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+        for callback in [pmb.define_bond, pmb.define_default_bond]:
+            with self.subTest(msg=f'using method {callback.__qualname__}()'):
+                self.check_bond_exceptions(callback)
 
+    def check_bond_exceptions(self, callback):
         # check exceptions for unknown bond types
         bond_type = 'Quartic'
         bond = {'r_0'    : 0.4 * pmb.units.nm,
                 'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
 
-        input_parameters={"bond_type": bond_type,
-                          "bond_parameters" : bond,
-                          "particle_pairs" : [['A', 'A']]
-                          }
+        input_parameters={"bond_type": bond_type, "bond_parameters" : bond}
+        if callback == pmb.define_bond:
+            input_parameters["particle_pairs"] = [['A', 'A']]
 
-        np.testing.assert_raises(ValueError, pmb.define_bond, **input_parameters)
+        np.testing.assert_raises(ValueError, callback, **input_parameters)
 
         # check exceptions for missing bond equilibrium length
         bond_type = 'harmonic'
         bond = {'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
 
-        input_parameters={"bond_type": bond_type,
-                          "bond_parameters" : bond,
-                          "particle_pairs" : [['A', 'A']]
-                          }
+        input_parameters={"bond_type": bond_type, "bond_parameters" : bond}
+        if callback == pmb.define_bond:
+            input_parameters["particle_pairs"] = [['A', 'A']]
 
-        np.testing.assert_raises(ValueError, pmb.define_bond, **input_parameters)
+        np.testing.assert_raises(ValueError, callback, **input_parameters)
 
         # check exceptions for missing bond force constant
         bond_type = 'harmonic'
         bond = {'r_0'    : 0.4 * pmb.units.nm}
 
-        input_parameters={"bond_type": bond_type,
-                          "bond_parameters" : bond,
-                          "particle_pairs" : [['A', 'A']]
-                          }
+        input_parameters={"bond_type": bond_type, "bond_parameters" : bond}
+        if callback == pmb.define_bond:
+            input_parameters["particle_pairs"] = [['A', 'A']]
 
-        np.testing.assert_raises(ValueError, pmb.define_bond, **input_parameters)
+        np.testing.assert_raises(ValueError, callback, **input_parameters)
 
         # check exceptions for missing bond force constant
         bond_type = 'FENE'
         bond = {'r_0'    : 0.4*pmb.units.nm,
                 'd_r_max': 0.8 * pmb.units.nm}
 
-        input_parameters={"bond_type": bond_type,
-                          "bond_parameters" : bond,
-                          "particle_pairs" : [['A', 'A']]
-                          }
+        input_parameters={"bond_type": bond_type, "bond_parameters" : bond}
+        if callback == pmb.define_bond:
+            input_parameters["particle_pairs"] = [['A', 'A']]
 
-        np.testing.assert_raises(ValueError, pmb.define_bond, **input_parameters)
+        np.testing.assert_raises(ValueError, callback, **input_parameters)
 
         # check exceptions for missing bond maximal length
         bond_type = 'FENE'
         bond = {'r_0'    : 0.4*pmb.units.nm,
                 'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
 
-        input_parameters={"bond_type": bond_type,
-                          "bond_parameters" : bond,
-                          "particle_pairs" : [['A', 'A']]
-                          }
+        input_parameters={"bond_type": bond_type, "bond_parameters" : bond}
+        if callback == pmb.define_bond:
+            input_parameters["particle_pairs"] = [['A', 'A']]
 
-        np.testing.assert_raises(ValueError, pmb.define_bond, **input_parameters)
-
-    def test_default_bond_harmonic(self):
-        bond_type = 'harmonic'
-        bond = {'r_0'    : 0.4 * pmb.units.nm,
-                'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
-
-        pmb.define_default_bond(bond_type = bond_type,
-                                bond_parameters = bond)
-
-        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[0]
-        self.check_bond_setup(bond_object=bond_object,
-                        input_parameters=bond,
-                        bond_type=bond_type)
-
-    def test_default_bond_fene(self):
-        bond_type = 'FENE'
-        bond = {'r_0'    : 0.4 * pmb.units.nm,
-                'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
-                'd_r_max': 0.8 * pmb.units.nm}
-
-        pmb.define_default_bond(bond_type = bond_type,
-                                bond_parameters = bond)
-
-        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[0]
-        self.check_bond_setup(bond_object=bond_object,
-                              input_parameters=bond,
-                              bond_type=bond_type)
-
-    def test_default_bond_raised_exceptions(self):
-        # check exceptions for unknown bond types
-        bond_type = 'Quartic'
-        bond = {'r_0'    : 0.4 * pmb.units.nm,
-                'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
-
-        input_parameters={"bond_type": bond_type,
-                          "bond_parameters" : bond,
-                          }
-
-        np.testing.assert_raises(ValueError, pmb.define_default_bond, **input_parameters)
-
-        # check exceptions for missing bond equilibrium length
-        bond_type = 'harmonic'
-        bond = {'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
-
-        input_parameters={"bond_type": bond_type,
-                          "bond_parameters" : bond,
-                          }
-
-        np.testing.assert_raises(ValueError, pmb.define_default_bond, **input_parameters)
-
-        # check exceptions for missing bond force constant
-        bond_type = 'harmonic'
-        bond = {'r_0'    : 0.4*pmb.units.nm}
-
-        input_parameters={"bond_type": bond_type,
-                          "bond_parameters" : bond,
-                          }
-
-        np.testing.assert_raises(ValueError, pmb.define_default_bond, **input_parameters)
-
-        # check exceptions for missing bond force constant
-        bond_type = 'FENE'
-        bond = {'r_0'    : 0.4*pmb.units.nm,
-                'd_r_max': 0.8 * pmb.units.nm}
-
-        input_parameters={"bond_type": bond_type,
-                          "bond_parameters" : bond,
-                          }
-
-        np.testing.assert_raises(ValueError, pmb.define_default_bond, **input_parameters)
-
-        # check exceptions for missing bond maximal length
-        bond_type = 'FENE'
-        bond = {'r_0'    : 0.4*pmb.units.nm,
-                'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
-
-        input_parameters={"bond_type": bond_type,
-                          "bond_parameters" : bond,
-                          }
-
-        np.testing.assert_raises(ValueError, pmb.define_default_bond, **input_parameters)
+        np.testing.assert_raises(ValueError, callback, **input_parameters)
 
 
 if __name__ == '__main__':
