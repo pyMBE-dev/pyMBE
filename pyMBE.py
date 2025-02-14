@@ -679,7 +679,7 @@ class pymbe_library():
         bond = m.group(1)
         if bond not in supported_bonds:
             raise NotImplementedError(f"Bond type '{bond}' currently not implemented in pyMBE, accepted types are {supported_bonds}")
-        params = json.loads(m.group(2).replace("'", '"'))
+        params = json.loads(m.group(2))
         return getattr(espressomd.interactions, bond)(**params)
 
     def copy_df_entry(self, name, column_name, number_of_copies):
@@ -3305,6 +3305,7 @@ class pymbe_library():
         df = self.df.copy(deep=True)
         for column_name in columns_with_list_or_dict:
             df[column_name] = df[column_name].apply(lambda x: json.dumps(x) if isinstance(x, (np.ndarray, tuple, list, dict)) or pd.notnull(x) else x)
+        df['bond_object'] = df['bond_object'].apply(lambda x: f'{x.__class__.__name__}({json.dumps(x.get_params())})' if pd.notnull(x) else x)
         df.to_csv(filename)
 
         return

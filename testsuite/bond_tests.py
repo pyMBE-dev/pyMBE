@@ -22,6 +22,7 @@ import numpy as np
 import unittest as ut
 import json.decoder
 import contextlib
+import json
 import io
 
 # Create an instance of pyMBE library
@@ -81,7 +82,8 @@ class Test(ut.TestCase):
                               bond_type=bond_type)
 
         # check bond deserialization
-        deserialized = pmb.convert_str_to_bond_object(str(bond_object))
+        deserialized = pmb.convert_str_to_bond_object(
+            f'{bond_object.__class__.__name__}({json.dumps(bond_object.get_params())})')
         self.check_bond_setup(bond_object=deserialized,
                               input_parameters=bond,
                               bond_type=bond_type)
@@ -114,7 +116,8 @@ class Test(ut.TestCase):
                               bond_type=bond_type)
 
         # check bond deserialization
-        deserialized = pmb.convert_str_to_bond_object(str(bond_object))
+        deserialized = pmb.convert_str_to_bond_object(
+            f'{bond_object.__class__.__name__}({json.dumps(bond_object.get_params())})')
         self.check_bond_setup(bond_object=deserialized,
                               input_parameters=bond,
                               bond_type=bond_type)
