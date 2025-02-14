@@ -20,6 +20,9 @@
 import pyMBE
 import numpy as np
 import unittest as ut
+import json.decoder
+import contextlib
+import io
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -116,6 +119,23 @@ class Test(ut.TestCase):
                               input_parameters=bond,
                               bond_type=bond_type)
 
+        # check bond default equilibrium length
+        bond_type = 'FENE'
+        bond = {'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
+                'd_r_max': 0.8 * pmb.units.nm}
+
+        with contextlib.redirect_stdout(io.StringIO()) as f:
+            pmb.define_bond(bond_type = bond_type,
+                            bond_parameters = bond,
+                            particle_pairs = [['A', 'A']])
+            self.assertEqual(f.getvalue(), 'WARNING: No value provided for r_0. Defaulting to r_0 = 0\n')
+
+        bond['r_0'] = 0. * pmb.units.nm
+        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[2]
+        self.check_bond_setup(bond_object=bond_object,
+                              input_parameters=bond,
+                              bond_type=bond_type)
+
     def test_bond_harmonic_and_fene(self):
         pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
         pmb.define_particle(name='B', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
@@ -162,7 +182,7 @@ class Test(ut.TestCase):
         if callback == pmb.define_bond:
             input_parameters["particle_pairs"] = [['A', 'A']]
 
-        np.testing.assert_raises(ValueError, callback, **input_parameters)
+        np.testing.assert_raises(NotImplementedError, callback, **input_parameters)
 
         # check exceptions for missing bond equilibrium length
         bond_type = 'harmonic'
@@ -205,6 +225,81 @@ class Test(ut.TestCase):
             input_parameters["particle_pairs"] = [['A', 'A']]
 
         np.testing.assert_raises(ValueError, callback, **input_parameters)
+
+    def test_bond_framework(self):
+        pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_particle(name='B', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+
+        with contextlib.redirect_stdout(io.StringIO()) as f:
+            pmb.add_bonds_to_espresso(None)
+            self.assertEqual(f.getvalue(), 'WARNING: There are no bonds defined in pymbe.df\n')
+
+        bond_type_1 = 'harmonic'
+        bond_1 = {'r_0'    : 0.4 * pmb.units.nm,
+                  'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
+        pmb.define_bond(bond_type = bond_type_1,
+                        bond_parameters = bond_1,
+                        particle_pairs = [['A', 'A']])
+
+        bond_type_2 = 'FENE'
+        bond_2 = {'r_0'    : 0.4 * pmb.units.nm,
+                  'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
+                  'd_r_max': 0.8 * pmb.units.nm}
+
+        pmb.define_bond(bond_type = bond_type_2,
+                        bond_parameters = bond_2,
+                        particle_pairs = [['B', 'B']])
+
+        bond_object_1 = pmb.filter_df(pmb_type='bond')['bond_object'][2]
+        bond_object_2 = pmb.filter_df(pmb_type='bond')['bond_object'][3]
+
+        self.check_bond_setup(bond_object=bond_object_1,
+                              input_parameters=bond_1,
+                              bond_type=bond_type_1)
+        self.check_bond_setup(bond_object=bond_object_2,
+                              input_parameters=bond_2,
+                              bond_type=bond_type_2)
+
+        # check deserialization exceptions
+        with self.assertRaises(ValueError):
+            pmb.convert_str_to_bond_object('Not_A_Bond()')
+        with self.assertRaises(json.decoder.JSONDecodeError):
+            pmb.convert_str_to_bond_object('HarmonicBond({invalid_json})')
+        with self.assertRaises(NotImplementedError):
+            pmb.convert_str_to_bond_object('QuarticBond({"r_0": 1., "k": 1.})')
+
+        # check bond keys
+        self.assertEqual(pmb.find_bond_key('A', 'A'), 'A-A')
+        self.assertEqual(pmb.find_bond_key('B', 'B'), 'B-B')
+        self.assertEqual(pmb.find_bond_key('A', 'A', use_default_bond=True), 'A-A')
+        self.assertEqual(pmb.find_bond_key('Z', 'Z', use_default_bond=True), 'default')
+        self.assertIsNone(pmb.find_bond_key('A', 'B'))
+        self.assertIsNone(pmb.find_bond_key('B', 'A'))
+        self.assertIsNone(pmb.find_bond_key('Z', 'Z'))
+
+        # check bond retrieval
+        with contextlib.redirect_stdout(io.StringIO()) as f:
+            self.assertIsNone(pmb.search_bond('A', 'B', hard_check=False))
+            self.assertEqual(f.getvalue(), 'Bond not defined between particles A and B\n')
+        with self.assertRaises(ValueError):
+            pmb.search_bond('A', 'B', use_default_bond=True)
+
+        # check invalid bond index
+        pmb.add_value_to_df(key=('particle_id',''), new_value=10,
+                            index=np.where(pmb.df['name']=='A')[0][0], verbose=False)
+        pmb.add_value_to_df(key=('particle_id',''), new_value=20,
+                            index=np.where(pmb.df['name']=='B')[0][0], verbose=False)
+        self.assertIsNone(pmb.add_bond_in_df(10, 20, use_default_bond=False))
+        self.assertIsNone(pmb.add_bond_in_df(10, 20, use_default_bond=True))
+
+        # check bond lengths
+        self.assertAlmostEqual(pmb.get_bond_length('A', 'A'),
+                               bond_object_1.r_0, delta=1e-7)
+        self.assertAlmostEqual(pmb.get_bond_length('B', 'B'),
+                               bond_object_2.r_0, delta=1e-7)
+        with contextlib.redirect_stdout(io.StringIO()) as f:
+            self.assertIsNone(pmb.get_bond_length('A', 'B'))
+            self.assertEqual(f.getvalue(), 'Bond not defined between particles A and B\n')
 
 
 if __name__ == '__main__':
