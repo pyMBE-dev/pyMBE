@@ -18,7 +18,6 @@
 
 import re
 import sys
-import ast
 import json
 import pint
 import numpy as np
@@ -104,7 +103,7 @@ class pymbe_library():
                                     particle_name2=particle_name2, 
                                     use_default_bond=use_default_bond)
         if not bond_key:
-            return
+            return None
         self.copy_df_entry(name=bond_key,column_name='particle_id2',number_of_copies=1)
         indexs = np.where(self.df['name']==bond_key)
         index_list = list (indexs[0])
@@ -112,6 +111,8 @@ class pymbe_library():
         #without this drop the program crashes when dropping duplicates because the 'bond' column is a dict
         used_bond_df = used_bond_df.drop([('bond_object','')],axis =1 )
         used_bond_index = used_bond_df.index.to_list()
+        if not index_list:
+            return None
         for index in index_list:
             if index not in used_bond_index:
                 self.clean_df_row(index=int(index))
@@ -610,9 +611,9 @@ class pymbe_library():
         """
         required_keys=['pka_value','acidity']
         for required_key in required_keys:
-            for pka_entry in pka_set.values():
-                if required_key not in pka_entry.keys():
-                    raise ValueError(f'missing a required key "{required_key}" in the following entry of pka_set "{pka_entry}"')
+            for pka_name, pka_entry in pka_set.items():
+                if required_key not in pka_entry:
+                    raise ValueError(f'missing a required key "{required_key}" in entry "{pka_name}" of pka_set ("{pka_entry}")')
         return
 
     def clean_df_row(self, index, columns_keys_to_clean=("particle_id", "particle_id2", "residue_id", "molecule_id")):
@@ -649,7 +650,7 @@ class pymbe_library():
             if df[column_name].isnull().all():
                 df[column_name] = df[column_name].astype(object)
             else:
-                df[column_name] = df[column_name].apply(lambda x: ast.literal_eval(str(x)) if pd.notnull(x) else x)
+                df[column_name] = df[column_name].apply(lambda x: json.loads(x) if pd.notnull(x) else x)
 
         for column_name in columns_with_units:
             df[column_name] = df[column_name].apply(lambda x: self.create_variable_with_units(x) if pd.notnull(x) else x)
@@ -659,7 +660,6 @@ class pymbe_library():
         return df
     
     def convert_str_to_bond_object (self, bond_str):
-        
         """
         Convert a row read as a `str` to the corresponding bond object. There are two supported bonds: HarmonicBond and FeneBond
 
@@ -667,24 +667,20 @@ class pymbe_library():
             bond_str(`str`): string with the information of a bond object
 
         Returns:
-            bond_object(`obj`): EsPRESSo bond object 
+            bond_object(`obj`): ESPResSo bond object
         """
-        
-        from espressomd.interactions import HarmonicBond
-        from espressomd.interactions import FeneBond
+        import espressomd.interactions
 
         supported_bonds = ['HarmonicBond', 'FeneBond']
 
-        for bond in supported_bonds:
-            variable = re.subn(f'{bond}', '', bond_str)
-            if variable[1] == 1: 
-                params = ast.literal_eval(variable[0])
-                if bond == 'HarmonicBond':
-                    bond_object = HarmonicBond(r_cut =params['r_cut'], k = params['k'], r_0=params['r_0'])
-                elif bond == 'FeneBond':
-                    bond_object = FeneBond(k = params['k'], d_r_max =params['d_r_max'], r_0=params['r_0'])
-
-        return bond_object 
+        m = re.search(r'^([A-Za-z0-9_]+)\((\{.+\})\)$', bond_str)
+        if m is None:
+            raise ValueError(f'Cannot parse bond "{bond_str}"')
+        bond = m.group(1)
+        if bond not in supported_bonds:
+            raise NotImplementedError(f"Bond type '{bond}' currently not implemented in pyMBE, accepted types are {supported_bonds}")
+        params = json.loads(m.group(2))
+        return getattr(espressomd.interactions, bond)(**params)
 
     def copy_df_entry(self, name, column_name, number_of_copies):
         '''
@@ -763,7 +759,7 @@ class pymbe_library():
 
     def create_bond_in_espresso(self, bond_type, bond_parameters):
         '''
-        Creates either a harmonic or a FENE bond in ESPREesSo
+        Creates either a harmonic or a FENE bond in ESPResSo
 
         Args:
             bond_type(`str`): label to identify the potential to model the bond.
@@ -779,13 +775,13 @@ class pymbe_library():
                 - r_0 (`obj`)    : Equilibrium bond length. It should have units of length using 
                 the `pmb.units` UnitRegistry.
            
-            For a FENE bond the dictionay must additionally contain:
+            For a FENE bond the dictionary must additionally contain:
                 
                 - d_r_max (`obj`): Maximal stretching length for FENE. It should have 
                 units of length using the `pmb.units` UnitRegistry. Default 'None'.
 
         Returns:
-              bond_object (`obj`): a harmonic or a FENE bond object in ESPREesSo
+              bond_object (`obj`): an ESPResSo bond object
         '''
         from espressomd import interactions
 
@@ -794,7 +790,7 @@ class pymbe_library():
         if 'k' in bond_parameters:
             bond_magnitude     = bond_parameters['k'].to('reduced_energy / reduced_length**2')
         else:
-            raise ValueError("Magnitud of the potential (k) is missing")
+            raise ValueError("Magnitude of the potential (k) is missing")
         
         if bond_type == 'harmonic':
             if 'r_0' in bond_parameters:
@@ -817,7 +813,7 @@ class pymbe_library():
                                                    k       = bond_magnitude.magnitude,
                                                    d_r_max = max_bond_stret.magnitude)
         else:
-            raise ValueError(f"Bond type {bond_type} currently not implemented in pyMBE, valid types are {valid_bond_types}")
+            raise NotImplementedError(f"Bond type '{bond_type}' currently not implemented in pyMBE, accepted types are {valid_bond_types}")
 
         return bond_object
 
@@ -1372,7 +1368,7 @@ class pymbe_library():
                 - r_0 (`obj`)    : Equilibrium bond length. It should have units of length using 
                 the `pmb.units` UnitRegistry.
            
-            For a FENE bond the dictionay must contain the same parameters as for a HARMONIC bond and:
+            For a FENE bond the dictionary must contain the same parameters as for a HARMONIC bond and:
                 
                 - d_r_max (`obj`): Maximal stretching length for FENE. It should have 
                 units of length using the `pmb.units` UnitRegistry. Default 'None'.
@@ -1393,9 +1389,9 @@ class pymbe_library():
                                                     cutoff      = lj_parameters["cutoff"],
                                                     offset      = lj_parameters["offset"],)
             index = len(self.df)
-            for label in [particle_name1+'-'+particle_name2,particle_name2+'-'+particle_name1]:
+            for label in [f'{particle_name1}-{particle_name2}', f'{particle_name2}-{particle_name1}']:
                 self.check_if_name_is_defined_in_df(name=label, pmb_type_to_be_defined="bond")
-            self.df.at [index,'name']= particle_name1+'-'+particle_name2
+            self.df.at [index,'name']= f'{particle_name1}-{particle_name2}'
             self.df.at [index,'bond_object'] = bond_object
             self.df.at [index,'l0'] = l0
             self.add_value_to_df(index=index,
@@ -1861,12 +1857,12 @@ class pymbe_library():
             use_default_bond(`bool`, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to 'False'. 
 
         Returns:
-            bond_key (str): `name` of the bond between `particle_name1` and `particle_name2` 
+            bond_key (str): `name` of the bond between `particle_name1` and `particle_name2` if a matching bond exists
 
         Note:
             - If `use_default_bond`=`True`, it returns "default" if no key is found.
         """
-        bond_keys = [particle_name1 +'-'+ particle_name2, particle_name2 +'-'+ particle_name1 ]
+        bond_keys = [f'{particle_name1}-{particle_name2}', f'{particle_name2}-{particle_name1}']
         bond_defined=False
         for bond_key in bond_keys:
             if bond_key in self.df["name"].values:
@@ -2014,7 +2010,7 @@ class pymbe_library():
         if bond_key:
             return self.df[self.df['name']==bond_key].l0.values[0]
         else:
-            print("Bond not defined between particles ", particle_name1, " and ", particle_name2)    
+            print(f"Bond not defined between particles {particle_name1} and {particle_name2}")
             if hard_check:
                 sys.exit(1)
             else:
@@ -2560,7 +2556,7 @@ class pymbe_library():
         if bond_key:
             return self.df[self.df['name']==bond_key].bond_object.values[0]
         else:
-            print("Bond not defined between particles ", particle_name1, " and ", particle_name2)    
+            print(f"Bond not defined between particles {particle_name1} and {particle_name2}")
             if hard_check:
                 sys.exit(1)
             else:
@@ -3317,6 +3313,11 @@ class pymbe_library():
             filename(`str`): Path to the csv file 
         '''
 
-        self.df.to_csv(filename)
+        columns_with_list_or_dict = ['residue_list','side_chains', 'parameters_of_the_potential','sequence']
+        df = self.df.copy(deep=True)
+        for column_name in columns_with_list_or_dict:
+            df[column_name] = df[column_name].apply(lambda x: json.dumps(x) if isinstance(x, (np.ndarray, tuple, list, dict)) or pd.notnull(x) else x)
+        df['bond_object'] = df['bond_object'].apply(lambda x: f'{x.__class__.__name__}({json.dumps(x.get_params())})' if pd.notnull(x) else x)
+        df.to_csv(filename)
 
         return

@@ -16,8 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import re 
-import ast
 import tempfile
 import espressomd
 import pandas as pd
@@ -32,7 +30,7 @@ print ('*** Unit tests: read and write from pyMBE dataframe ***')
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm,
                       verbose=False)
 
-#Define particles
+# Define particles
 pmb.define_particle(
     name = "I",
     sigma = 0.3*pmb.units.nm,
@@ -53,7 +51,7 @@ pmb.define_particle(
     sigma = 0.3*pmb.units.nm,
     epsilon = 1*pmb.units('reduced_energy'),)
 
-#Define the residues
+# Define residues
 pmb.define_residue(
     name = "Res_1",
     central_bead = "I",
@@ -64,8 +62,13 @@ pmb.define_residue(
     central_bead = "I",
     side_chains = ["Res_1"])   
 
+# Define peptide
+peptide_name = 'generic_peptide'
+peptide_sequence = 'EEEEEEE'
+peptide_model = '2beadAA'
+pmb.define_peptide(name=peptide_name, sequence=peptide_sequence, model=peptide_model)
 
-# Defines a molecule  
+# Define a molecule
 molecule_name = "A_molecule"
 n_molecules = 1
 
@@ -76,7 +79,7 @@ pmb.define_molecule(
                     "Res_1", "Res_2",
                     "Res_2"])
 
-
+# Define a bond
 bond_type = 'harmonic'
 generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
@@ -119,8 +122,8 @@ with tempfile.TemporaryDirectory() as tmp_directory:
 
 # Preprocess data for the Unit Test
 # The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal
-stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: ast.literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pd.notnull(x) else x)
-read_df['bond_object']  = read_df['bond_object'].apply(lambda x: ast.literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pd.notnull(x) else x)
+stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: (x.name(), x.get_params()) if pd.notnull(x) else x)
+read_df['bond_object']  = read_df['bond_object'].apply(lambda x: (x.name(), x.get_params()) if pd.notnull(x) else x)
 
 print("*** Unit test: check that the dataframe stored by pyMBE to file is the same as the one read from the file (same values and variable types) ***")
 
