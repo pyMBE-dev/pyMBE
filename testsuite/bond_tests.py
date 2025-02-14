@@ -77,6 +77,12 @@ class Test(ut.TestCase):
                               input_parameters=bond,
                               bond_type=bond_type)
 
+        # check bond deserialization
+        deserialized = pmb.convert_str_to_bond_object(str(bond_object))
+        self.check_bond_setup(bond_object=deserialized,
+                              input_parameters=bond,
+                              bond_type=bond_type)
+
     def test_bond_fene(self):
         pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
@@ -101,6 +107,12 @@ class Test(ut.TestCase):
 
         bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[1]
         self.check_bond_setup(bond_object=bond_object,
+                              input_parameters=bond,
+                              bond_type=bond_type)
+
+        # check bond deserialization
+        deserialized = pmb.convert_str_to_bond_object(str(bond_object))
+        self.check_bond_setup(bond_object=deserialized,
                               input_parameters=bond,
                               bond_type=bond_type)
 

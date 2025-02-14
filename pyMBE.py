@@ -18,7 +18,6 @@
 
 import re
 import sys
-import ast
 import json
 import pint
 import numpy as np
@@ -649,7 +648,7 @@ class pymbe_library():
             if df[column_name].isnull().all():
                 df[column_name] = df[column_name].astype(object)
             else:
-                df[column_name] = df[column_name].apply(lambda x: ast.literal_eval(str(x)) if pd.notnull(x) else x)
+                df[column_name] = df[column_name].apply(lambda x: json.loads(x) if pd.notnull(x) else x)
 
         for column_name in columns_with_units:
             df[column_name] = df[column_name].apply(lambda x: self.create_variable_with_units(x) if pd.notnull(x) else x)
@@ -659,7 +658,6 @@ class pymbe_library():
         return df
     
     def convert_str_to_bond_object (self, bond_str):
-        
         """
         Convert a row read as a `str` to the corresponding bond object. There are two supported bonds: HarmonicBond and FeneBond
 
@@ -667,24 +665,20 @@ class pymbe_library():
             bond_str(`str`): string with the information of a bond object
 
         Returns:
-            bond_object(`obj`): EsPRESSo bond object 
+            bond_object(`obj`): ESPResSo bond object
         """
-        
-        from espressomd.interactions import HarmonicBond
-        from espressomd.interactions import FeneBond
+        import espressomd.interactions
 
         supported_bonds = ['HarmonicBond', 'FeneBond']
 
-        for bond in supported_bonds:
-            variable = re.subn(f'{bond}', '', bond_str)
-            if variable[1] == 1: 
-                params = ast.literal_eval(variable[0])
-                if bond == 'HarmonicBond':
-                    bond_object = HarmonicBond(r_cut =params['r_cut'], k = params['k'], r_0=params['r_0'])
-                elif bond == 'FeneBond':
-                    bond_object = FeneBond(k = params['k'], d_r_max =params['d_r_max'], r_0=params['r_0'])
-
-        return bond_object 
+        m = re.search(r'^([A-Za-z0-9_]+)\((\{.+\})\)$', bond_str)
+        if m is None:
+            raise ValueError(f'Cannot parse bond "{bond_str}"')
+        bond = m.group(1)
+        if bond not in supported_bonds:
+            raise ValueError(f"Bond type '{bond}' currently not implemented in pyMBE, accepted types are {supported_bonds}")
+        params = json.loads(m.group(2).replace("'", '"'))
+        return getattr(espressomd.interactions, bond)(**params)
 
     def copy_df_entry(self, name, column_name, number_of_copies):
         '''
@@ -3305,6 +3299,10 @@ class pymbe_library():
             filename(`str`): Path to the csv file 
         '''
 
-        self.df.to_csv(filename)
+        columns_with_list_or_dict = ['residue_list','side_chains', 'parameters_of_the_potential','sequence']
+        df = self.df.copy(deep=True)
+        for column_name in columns_with_list_or_dict:
+            df[column_name] = df[column_name].apply(lambda x: json.dumps(x) if isinstance(x, (np.ndarray, tuple, list, dict)) or pd.notnull(x) else x)
+        df.to_csv(filename)
 
         return
