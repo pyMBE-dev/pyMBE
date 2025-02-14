@@ -129,3 +129,8 @@ path_to_interactions=pmb.get_resource("testsuite/test_parameters/test_non_valid_
 input_parameters={"filename":path_to_interactions}
 np.testing.assert_raises(ValueError, pmb.load_interaction_parameters, **input_parameters)
 print("*** Test passed ***")
+print("*** Unit test: check that  check_pka_set raises a ValueError if data is missing important fields ***")
+np.testing.assert_raises(ValueError, pmb.check_pka_set, {"name" : {}})
+np.testing.assert_raises(ValueError, pmb.check_pka_set, {"name" : {"pka_value": 1.}})
+np.testing.assert_raises(ValueError, pmb.check_pka_set, {"name" : {"acidity": 1.}})
+print("*** Test passed ***")
