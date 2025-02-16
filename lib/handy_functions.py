@@ -61,7 +61,6 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
             raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
         if verbose:
             print(f"Debye kappa {KAPPA.to('nm')} = {KAPPA.to('reduced_length')}")
-    print()
 
     if method == 'p3m':
 
