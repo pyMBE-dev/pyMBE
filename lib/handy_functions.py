@@ -61,7 +61,6 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
             raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
         if verbose:
             print(f"Debye kappa {KAPPA.to('nm')} = {KAPPA.to('reduced_length')}")
-    print()
 
     if method == 'p3m':
 
@@ -168,57 +167,6 @@ def setup_langevin_dynamics(espresso_system, kT, SEED,time_step=1e-2, gamma=1, t
         espresso_system.cell_system.tune_skin(min_skin=min_skin, max_skin=max_skin, tol=tolerance, int_steps=int_steps, adjust_max_skin=adjust_max_skin)
 
         print("Optimized skin value: ", espresso_system.cell_system.skin, "\n")
-
-    return
-
-def create_random_seed():
-    """
-    Generates a seed for the random number generator using the system time in seconds.
-    """
-    import time 
-    SEED=int(time.time())
-    print('\n The chosen seed for the random number generator is ', SEED)
-    return SEED
-
-def visualize_espresso_system(espresso_system):
-    """
-    Uses espresso visualizator for displaying the current state of the espresso_system
-    """ 
-    
-    import threading
-    from espressomd import visualization
-        
-    visualizer = visualization.openGLLive(espresso_system)
-    
-    def main_thread():
-        while True:
-            espresso_system.integrator.run(1)
-            visualizer.update()
-
-    t = threading.Thread(target=main_thread)
-    t.daemon = True
-    t.start()
-    visualizer.start()
-    return
-
-def do_snapshot_espresso_system(espresso_system, filename):
-    """
-    Uses espresso visualizator for creating a snapshot of the current state of the espresso_system
-    """ 
-    
-    from espressomd import visualization
-    
-
-    visualizer = visualization.openGLLive(
-            espresso_system, bond_type_radius=[0.3], particle_coloring='type', draw_axis=False, background_color=[1, 1, 1],
-    particle_type_colors=[[1.02,0.51,0], # Brown
-                        [1,1,1],  # Grey
-                        [2.55,0,0], # Red
-                        [0,0,2.05],  # Blue
-                        [0,0,2.05],  # Blue
-                        [2.55,0,0], # Red
-                        [2.05,1.02,0]]) # Orange
-    visualizer.screenshot(filename)
 
     return
 
