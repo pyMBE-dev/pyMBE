@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -18,36 +18,54 @@
 
 # Import pyMBE and other libraries
 import numpy as np
+import pandas as pd
 import pyMBE
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
-def check_acid_base_setup(input_parameters,acidity_setup):
+def check_acid_base_setup(input_parameters, acidity_setup):
     """
     Checks if pyMBE stores in the pmb.df the input parameters for acid/base particles correctly.
 
     Args:
-        input_parameters(`dict`): dictionary with the input parameters for define_particle.
-        acidity_setup(`dict`): dictionary with the expected setup that pyMBE should do in the pmb.df for acid/base particles.
-
+        input_parameters (`dict`): dictionary with the input parameters for define_particle.
+        acidity_setup (`dict`): dictionary with the expected setup that pyMBE should do in the pmb.df for acid/base particles.
     """
     pmb.define_particle(**input_parameters)
-    if input_parameters["acidity"] is None:
-        input_parameters.pop("z")
+
+    # Handle pd.NA safely
+    if pd.isna(input_parameters.get("acidity", None)):  
+        input_parameters.pop("z", None)  # Use .pop with default to avoid KeyError
+
     # Checks that the input parameters are stored properly
-    for parameter_key in input_parameters.keys():
-        np.testing.assert_equal(actual=pmb.df[parameter_key].values[0], 
-                                    desired=input_parameters[parameter_key], 
-                                    verbose=True)
-    # Checks that the setup of the acid base properties is done correctly
-    for state in ["state_one","state_two"]:
-        for state_atribute in ["label","z"]:
-            np.testing.assert_equal(actual=pmb.df[state][state_atribute].values[0], 
-                                    desired=acidity_setup[state][state_atribute], 
-                                    verbose=True)
-    # checks that pyMBE assigns different espresso type to each state
-    np.testing.assert_raises(AssertionError, np.testing.assert_equal, pmb.df["state_one"]["es_type"].values[0], pmb.df["state_two"]["es_type"].values[0])
+    for parameter_key, expected_value in input_parameters.items():
+        actual_value = pmb.df[parameter_key].values[0]
+
+        # Use pd.isna() to compare safely, since pd.NA does not behave like regular values
+        if pd.isna(expected_value) and pd.isna(actual_value):
+            continue  # Skip this check, they are both missing (NA)
+
+        np.testing.assert_equal(actual=actual_value, desired=expected_value, verbose=True)
+
+    # Checks that the setup of the acid/base properties is done correctly
+    for state in ["state_one", "state_two"]:
+        for state_attribute in ["label", "z"]:
+            actual_value = pmb.df[state][state_attribute].values[0]
+            expected_value = acidity_setup[state][state_attribute]
+
+            if pd.isna(expected_value) and pd.isna(actual_value):
+                continue  # Skip this check if both are NA
+
+            np.testing.assert_equal(actual=actual_value, desired=expected_value, verbose=True)
+
+    # Checks that pyMBE assigns different espresso types to each state
+    np.testing.assert_raises(
+        AssertionError, 
+        np.testing.assert_equal, 
+        pmb.df["state_one"]["es_type"].values[0], 
+        pmb.df["state_two"]["es_type"].values[0]
+    )
 
 
 print("*** Particle acidity unit tests ***")
@@ -55,13 +73,13 @@ print("*** Unit test: check that all acid/base input parameters in define_partic
 # Clean pmb.df
 pmb.setup_df()
 input_parameters={"name":"I", 
-                  "acidity": None,
-                  "pka": np.nan,
+                  "acidity": pd.NA,
+                  "pka": pd.NA,
                   "z":2}
 acidity_setup={"state_one":{"label":f"{input_parameters['name']}",
                          "z":2},
-            "state_two":{"label": np.nan,
-                         "z":np.nan},}
+            "state_two":{"label": pd.NA,
+                         "z": pd.NA},}
 
 check_acid_base_setup(input_parameters=input_parameters,
                       acidity_setup=acidity_setup)
@@ -72,7 +90,7 @@ print("*** Unit test: check that a deprecation warning is raised if the keyword 
 pmb.setup_df()
 input_parameters={"name":"I", 
                   "acidity": "inert",
-                  "pka": np.nan,
+                  "pka": pd.NA,
                   "z":2}
 pmb.define_particle(**input_parameters)
 print("*** Unit test passed ***")
