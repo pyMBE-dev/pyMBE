@@ -20,7 +20,11 @@ import tempfile
 import espressomd
 import pandas as pd
 import numpy as np
-pd.set_option('future.no_silent_downcasting', True)
+
+version = pd.__version__.split(".")
+# This feature was introduced in Pandasv2.2.0
+if int(version[0]) >= 2 and int(version[1]) >= 2:
+    pd.set_option('future.no_silent_downcasting', True)
 
 # Create an instance of pyMBE library
 import pyMBE
