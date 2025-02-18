@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -186,8 +186,8 @@ for id in particle_id_list:
 
     residue_id = pmb.df.loc[pmb.df['particle_id']==id].residue_id.values[0]
     residue_name = pmb.df.loc[pmb.df['particle_id']==id].name.values[0]
-
-    initial_pos = topology_dict[residue_name+residue_id]['initial_pos']
+    
+    initial_pos = topology_dict[f"{residue_name}{residue_id}"]['initial_pos']
     index = pmb.df.loc[pmb.df['particle_id']==id].index
 
     for axis in axis_list:

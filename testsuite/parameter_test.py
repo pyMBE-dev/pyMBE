@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -20,6 +20,10 @@ import pathlib
 import pyMBE
 import pandas as pd
 import numpy as np
+version = pd.__version__.split(".")
+# This feature was introduced in Pandasv2.2.0
+if int(version[0]) >= 2 and int(version[1]) >= 2:
+    pd.set_option('future.no_silent_downcasting', True)
 
 pmb = pyMBE.pymbe_library(seed=42)
 
@@ -45,18 +49,19 @@ path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
 # First order of loading parameters
 pmb.setup_df() # clear the pmb_df
 pmb.load_interaction_parameters (filename=path_to_interactions) 
-pmb.load_pka_set (filename=path_to_pka)
+pmb.load_pka_set(filename=path_to_pka)
 df_1 = pmb.df.copy()
 df_1 = df_1.sort_values(by="name").reset_index(drop=True)
 # Drop espresso types (they depend on the order of loading)
 df_1 = df_1.drop(labels=('state_one', 'es_type'), axis=1).drop(labels=('state_two', 'es_type'), axis=1)
 # Drop bond_object  (assert_frame_equal does not process it well)
 df_1 = df_1.sort_index(axis=1).drop(labels="bond_object", axis=1)
-
 # Second order of loading parameters
 pmb.setup_df() # clear the pmb_df
 pmb.load_pka_set (filename=path_to_pka)
-pmb.load_interaction_parameters (filename=path_to_interactions) 
+#print(pmb.df["acidity"])
+pmb.load_interaction_parameters(filename=path_to_interactions) 
+#print(pmb.df["acidity"])
 df_2 = pmb.df.copy()
 df_2 = df_2.sort_values(by="name").reset_index(drop=True)
 # Drop espresso types (they depend on the order of loading)
@@ -64,6 +69,8 @@ df_2 = df_2.drop(labels=('state_one', 'es_type'), axis=1).drop(labels=('state_tw
 # Drop bond_object  (assert_frame_equal does not process it well)
 df_2 = df_2.sort_index(axis=1).drop(labels="bond_object", axis=1)
 
+df_1 = df_1.replace({pd.NA: np.nan})
+df_2 = df_2.replace({pd.NA: np.nan})
 pd.testing.assert_frame_equal(df_1,df_2)
 
 print("*** Test passed ***")
@@ -73,8 +80,8 @@ pmb.setup_df() # clear the pmb_df
 path_to_interactions=pmb.get_resource("testsuite/test_parameters/test_FENE.json")
 pmb.load_interaction_parameters (filename=path_to_interactions) 
 
-expected_parameters = {'r_0'    : 0.4*pmb.units.nm,
-                        'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
+expected_parameters = {'r_0' : 0.4*pmb.units.nm,
+                        'k'  : 400 * pmb.units('reduced_energy / reduced_length**2'),
                         'd_r_max': 0.8 * pmb.units.nm}
 reduced_units = {'r_0'    : 'reduced_length',
                      'k'      : 'reduced_energy / reduced_length**2',

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -452,7 +452,7 @@ else:
 
 print("*** Unit test passed ***")
 
-print("*** Unit test: check that create_molecule() does not create any molcule for number_of_molecules <= 0  ***")
+print("*** Unit test: check that create_molecule() does not create any molecule for number_of_molecules <= 0  ***")
 
 starting_number_of_particles=len(espresso_system.part.all())
 pmb.create_molecule(name="M2",

@@ -54,7 +54,7 @@ class Test(ut.TestCase):
             np.testing.assert_equal(actual=bond_params[key],
                     desired=input_parameters[key].m_as(reduced_units[key]),
                     verbose=True)
-
+        
     def test_bond_harmonic(self):
         pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
@@ -82,14 +82,19 @@ class Test(ut.TestCase):
                               bond_type=bond_type)
 
         # check bond deserialization
+        bond_params =  bond_object._ctor_params
+        bond_params["bond_id"] = bond_object._bond_id
         deserialized = pmb.convert_str_to_bond_object(
-            f'{bond_object.__class__.__name__}({json.dumps(bond_object.get_params())})')
+            f'{bond_object.__class__.__name__}({json.dumps(bond_params)})')
         self.check_bond_setup(bond_object=deserialized,
                               input_parameters=bond,
                               bond_type=bond_type)
 
     def test_bond_fene(self):
-        pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_particle(name='A',
+                             z=0, 
+                             sigma=0.4*pmb.units.nm, 
+                             epsilon=1*pmb.units('reduced_energy'))
 
         bond_type = 'FENE'
         bond = {'r_0'    : 0.4 * pmb.units.nm,
@@ -116,8 +121,10 @@ class Test(ut.TestCase):
                               bond_type=bond_type)
 
         # check bond deserialization
+        bond_params =  bond_object._ctor_params
+        bond_params["bond_id"] = bond_object._bond_id
         deserialized = pmb.convert_str_to_bond_object(
-            f'{bond_object.__class__.__name__}({json.dumps(bond_object.get_params())})')
+            f'{bond_object.__class__.__name__}({json.dumps(bond_params)})')
         self.check_bond_setup(bond_object=deserialized,
                               input_parameters=bond,
                               bond_type=bond_type)
