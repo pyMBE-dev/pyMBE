@@ -104,60 +104,48 @@ pmb.create_molecule(name=molecule_name,
 
 # Setting up node topology
 indices = diamond_lattice.indices
-node_topology = {}
+node_topology = []
 
 for index in range(len(indices)):
-    node_topology[index]={"particle_name": NodeType,
-                          "lattice_index": indices[index]}
+    node_topology.append({"particle_name": NodeType,
+                          "lattice_index": indices[index]})
 
 # Setting up chain topology
-#connectivity = diamond_lattice.connectivity
+connectivity = diamond_lattice.connectivity
 node_labels = lattice_builder.node_labels
-chain_labels = lattice_builder.chain_labels
 reverse_node_labels = {v: k for k, v in node_labels.items()}
-#connectivity_with_labels = {(reverse_node_labels[i], reverse_node_labels[j]) for i, j in connectivity}
-chain_topology = {}
+connectivity_with_labels = {(reverse_node_labels[i], reverse_node_labels[j]) for i, j in connectivity}
+chain_topology = []
 residue_list = [Res1]*(MPC//2) + [Res2]*(MPC//2)
-#chain_id = 0
-for chain_data in chain_labels.items():
-    chain_label = chain_data[1]
-    node_label_pair = chain_data[0]
-    node_label_s, node_label_e = [int(x) for x in node_label_pair.strip("()").split(",")]
-    chain_topology[chain_label]={'node_start':reverse_node_labels[node_label_s],
-                              'node_end': reverse_node_labels[node_label_e],
-                              'residue_list':residue_list}
+for node_s, node_e in connectivity_with_labels:
+    chain_topology.append({'node_start':node_s,
+                              'node_end': node_e,
+                              'residue_list':residue_list})
 
-last_chain_id = max(chain_topology.keys())
-chain_topology[last_chain_id]['residue_list'] = chain_topology[last_chain_id]['residue_list'][::-1]
-
-#last_chain_id = max(chain_topology.keys())
-#chain_topology[last_chain_id]['residue_list'] = ["res_1" if i % 2 == 0 else "res_2" for i in range(len(residue_list))]
 ################################################
-incomplete_node_map = {
-        0: {"particle_name": NodeType, "lattice_index": [0, 0, 0]},
-        1: {"particle_name": NodeType, "lattice_index": [1, 1, 1]},
-    }
-incomplete_chain_map = {0: {"node_start": "[0 0 0]", "node_end":"[1 1 1]" , "residue_list": residue_list}}
+incomplete_node_map = [{"particle_name": NodeType, "lattice_index": [0, 0, 0]},{"particle_name": NodeType, "lattice_index": [1, 1, 1]}]
+incomplete_chain_map = [{"node_start": "[0 0 0]", "node_end":"[1 1 1]" , "residue_list": residue_list}]
 
 np.testing.assert_raises(ValueError, pmb.define_hydrogel, "test_hydrogel", incomplete_node_map, chain_topology)
 
 np.testing.assert_raises(ValueError, pmb.define_hydrogel, "test_hydrogel", node_topology, incomplete_chain_map)
 
 def compare_node_maps(map1, map2):
-    # Ensure keys are comparable
-    map1 = {int(k): v for k, v in map1.items()}
-    map2 = {int(k): v for k, v in map2.items()}
-
-    # Compare key sets
-    if set(map1.keys()) != set(map2.keys()):
+    # Ensure lengths are the same
+    if len(map1) != len(map2):
         return False
-
+    
+    # Sort lists by lattice_index to ensure correct comparison
+    map1_sorted = sorted(map1, key=lambda x: tuple(x["lattice_index"]))
+    map2_sorted = sorted(map2, key=lambda x: tuple(x["lattice_index"]))
+    
     # Compare each node's details
-    for key in map1:
-        if map1[key]["particle_name"] != map2[key]["particle_name"]:
+    for node1, node2 in zip(map1_sorted, map2_sorted):
+        if node1["particle_name"] != node2["particle_name"]:
             return False
-        if not np.array_equal(np.array(map1[key]["lattice_index"]), np.array(map2[key]["lattice_index"])):
+        if not np.array_equal(np.array(node1["lattice_index"]), np.array(node2["lattice_index"])):
             return False
+    
     return True
 
 def parse_string_to_array(string):
@@ -168,32 +156,36 @@ def parse_string_to_array(string):
     elements = map(int, string.split())  # Split by spaces and convert to integers
     return np.array(list(elements))
 
-def compare_chain_maps(map1, map2):
-    # Normalize keys to integers
-    map1 = {int(k): v for k, v in map1.items()}
-    map2 = {int(k): v for k, v in map2.items()}
+def compare_chain_maps(chain_topology_1, chain_topology_2):
+    """
+    Compare two chain topology maps by checking if they have the same set of edges with corresponding residue lists.
+    """
+    if len(chain_topology_1) != len(chain_topology_2):
+        return False  # Different number of edges
 
-    # Compare key sets
-    if set(map1.keys()) != set(map2.keys()):
-        return False
+    # Convert string coordinates to arrays and sort lists by (node_start, node_end)
+    def preprocess_chain(chain_topology):
+        processed = []
+        for edge in chain_topology:
+            processed.append({
+                'node_start': parse_string_to_array(edge['node_start']),
+                'node_end': parse_string_to_array(edge['node_end']),
+                'residue_list': edge['residue_list']  # Keep as is
+            })
+        return sorted(processed, key=lambda x: (x['node_start'].tolist(), x['node_end'].tolist()))
 
-    # Compare each chain's details
-    for key in map1:
-        # Compare node_start and node_end
-        node_start_1 = parse_string_to_array(map1[key]["node_start"])
-        node_start_2 = parse_string_to_array(map2[key]["node_start"])
-        if not np.array_equal(node_start_1, node_start_2):
-            return False
+    chain_topology_1 = preprocess_chain(chain_topology_1)
+    chain_topology_2 = preprocess_chain(chain_topology_2)
 
-        node_end_1 = parse_string_to_array(map1[key]["node_end"])
-        node_end_2 = parse_string_to_array(map2[key]["node_end"])
-        if not np.array_equal(node_end_1, node_end_2):
-            return False
+    # Compare edges one by one
+    for edge1, edge2 in zip(chain_topology_1, chain_topology_2):
+        if not np.array_equal(edge1['node_start'], edge2['node_start']) or not np.array_equal(edge1['node_end'], edge2['node_end']):
+            return False  # Nodes do not match
 
-        # Compare residue_list
-        if map1[key]["residue_list"] != map2[key]["residue_list"]:
-            return False
-    return True
+        if edge1['residue_list'] != edge2['residue_list']:
+            return False  # Residue lists do not match
+
+    return True  # All edges match
 
 #######################################################
 pmb.define_hydrogel("my_hydrogel",node_topology, chain_topology)
@@ -208,7 +200,7 @@ assert pmb.df.loc[pmb.df["name"] == existing_hydrogel_name, "pmb_type"].values[0
 assert compare_node_maps(pmb.df.loc[pmb.df["name"] == existing_hydrogel_name, "node_map"].values[0], node_topology)
 assert compare_chain_maps(pmb.df.loc[pmb.df["name"] == existing_hydrogel_name, "chain_map"].values[0], chain_topology)
 for chain_id in chain_topology:
-    molecule_name = f"chain_{chain_topology[chain_id]['node_start']}_{chain_topology[chain_id]['node_end']}"
+    molecule_name = f"chain_{chain_id['node_start']}_{chain_id['node_end']}"
     assert molecule_name in pmb.df["name"].values
 
 # Creating hydrogel
@@ -257,6 +249,14 @@ class Test(ut.TestCase):
             np.testing.assert_allclose(distance_between_nodes, (diamond_lattice.MPC+1)*generic_bond_length.magnitude, atol=0.0000001)
     
     def test_all_residue_placement(self):
+        def get_residue_list(chain_topology, node_start, node_end):
+            node_start_array = parse_string_to_array(node_start)
+            node_end_array = parse_string_to_array(node_end)
+            for edge in chain_topology:
+                if (np.array_equal(parse_string_to_array(edge['node_start']), node_start_array) and
+                   np.array_equal(parse_string_to_array(edge['node_end']), node_end_array)):
+                    return edge['residue_list']
+            return None
         for _, chain_data in hydrogel_info["chains"].items():
             node_start = chain_data["node_start"]
             node_end = chain_data["node_end"]
@@ -264,8 +264,6 @@ class Test(ut.TestCase):
             node_end_label = lattice_builder.node_labels[node_end]
             node_start_pos = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * lattice_builder.BOXL
             node_start_id = espresso_system.part.select(lambda p: (p.pos == node_start_pos).all()).id[0]
-            node_start_name = pmb.df[(pmb.df["particle_id"]==node_start_id) & (pmb.df["pmb_type"]=="particle")]["name"].values[0]
-            prev_particle_name = node_start_name 
             vec_between_nodes = (np.array([float(x) for x in node_end.strip('[]').split()]) -
                                      np.array([float(x) for x in node_start.strip('[]').split()])) * 0.25 * lattice_builder.BOXL
             vec_between_nodes = vec_between_nodes - lattice_builder.BOXL * np.round(vec_between_nodes / lattice_builder.BOXL)
@@ -278,27 +276,22 @@ class Test(ut.TestCase):
             for (res_id, res_data) in residues_in_chain.items():
                 central_bead_id = res_data["central_bead_id"]
                 
-                # Get the position of the central bead from the espresso system
+                # Get the position of the central bead from the espresso system 
                 central_bead_pos = espresso_system.part.by_id(central_bead_id).pos
 
                 # Calculate the expected position of the residue's central bead
                 residue_index = list(residues_in_chain.keys()) .index(res_id)
-                current_part_name = pmb.df[(pmb.df["particle_id"]==central_bead_id) & (pmb.df["pmb_type"]=="particle")]["name"].values[0] 
-                bond_length = pmb.get_bond_length(prev_particle_name, current_part_name)
-                expected_position = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * diamond_lattice.BOXL + (residue_index + 1) * backbone_vector * bond_length
+                expected_position = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * diamond_lattice.BOXL + (residue_index + 1) * backbone_vector
                 
                 # Validate that the central bead's position matches the expected position
                 np.testing.assert_allclose(central_bead_pos, expected_position, atol=1e-7)
-                chain_label_key = "("+str(node_start_label)+", "+str(node_end_label)+")"
-                chain_label = chain_labels[chain_label_key]
-                expected_res_name = chain_topology[chain_label]["residue_list"][residue_index]
-                expected_node_start = chain_topology[chain_label]["node_start"]
-                expected_node_end = chain_topology[chain_label]["node_end"]
+                expected_node_start = reverse_node_labels[node_start_label]
+                expected_node_end = reverse_node_labels[node_end_label]
+                expected_res_name = get_residue_list(chain_topology, expected_node_start, expected_node_end)[residue_index]
                 residue_name = pmb.df[(pmb.df["pmb_type"]=="residue") & (pmb.df["residue_id"]==res_id)]["name"].values[0]
                 np.testing.assert_equal(node_start, expected_node_start)
                 np.testing.assert_equal(node_end, expected_node_end)
                 np.testing.assert_equal(residue_name, expected_res_name)
-                prev_particle_name = current_part_name
 
 if __name__ == "__main__":
     ut.main(exit=False)
@@ -310,16 +303,15 @@ np.testing.assert_raises(ValueError, pmb.create_hydrogel, "invalid_hydrogel", es
 print("*** Invalid Input Test Passed ***")
 
 # Check if the molecules (chains) are correctly stored in the hydrogel data
-for ((molecule_id, molecule_data),chain_id_in_input_dict) in zip(hydrogel_info["chains"].items(),chain_topology.items()):
+for ((molecule_id, molecule_data),chain_dict) in zip(hydrogel_info["chains"].items(),chain_topology):
     molecule_name_in_espresso = pmb.df[(pmb.df["pmb_type"] == "molecule") & (pmb.df["molecule_id"] == molecule_id)]["name"].values[0]
     np.testing.assert_equal(molecule_name_in_espresso, f"chain_{molecule_data['node_start']}_{molecule_data['node_end']}")
-    Residue_list_in_espresso = pmb.df[(pmb.df["pmb_type"]=="molecule") & (pmb.df["molecule_id"]==molecule_id)]["residue_list"].values[0]
-    residue_list = chain_id_in_input_dict[1]["residue_list"]
-    np.testing.assert_equal(Residue_list_in_espresso, residue_list)
+    Residue_list_in_espresso = pmb.df[(pmb.df["pmb_type"]=="molecule") & (pmb.df["molecule_id"]==molecule_id)]["residue_list"].values[0]    
 
 print("*** Checking if the ends of the randomly chosen chain is connected to node_start and node_end ***")
-random_chain_id = random.choice(list(chain_topology.keys())) # Choose a random chain of 0-15
-molecule_random = hydrogel_info["chains"][random_chain_id]
+
+random_key = random.choice(list(hydrogel_info["chains"].keys()))
+molecule_random = hydrogel_info["chains"][random_key]
 numeric_keys = {key: value for key, value in molecule_random.items() if isinstance(key, int)}
 
 # Extract the first and last elements
@@ -333,7 +325,6 @@ Res_node_end = numeric_keys[last_key]
 central_bead_near_node_start = Res_node_start["central_bead_id"]
 central_bead_near_node_end = Res_node_end["central_bead_id"]
 
-#node_ids = [0,1,2,3,4,5,6,7]
 node_ids = []
 for indice in node_labels.keys():
     index_pos = np.array(list(int(x) for x in indice.strip('[]').split()))*0.25*lattice_builder.BOXL

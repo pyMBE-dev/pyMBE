@@ -58,41 +58,36 @@ HARMONIC_parameters = {'r_0'    : generic_bond_length,
 pmb.define_bond(bond_type = 'harmonic',
                         bond_parameters = HARMONIC_parameters, particle_pairs = [[BeadType1, BeadType1],
                                                                                 [BeadType1, BeadType2],
-                                                                                [BeadType2, BeadType2]])
-pmb.define_bond(bond_type = 'harmonic',
-                        bond_parameters = HARMONIC_parameters, particle_pairs = [[NodeType, BeadType1],
-                                                                                 [NodeType, BeadType2]])
-
+                                                                                [BeadType2, BeadType2],
+                                                                                [NodeType, BeadType1],
+                                                                                [NodeType, BeadType2]])
 # Provide MPC and BOND_LENGTH to Diamond Lattice
 diamond_lattice = DiamondLattice(MPC, generic_bond_length)
 espresso_system = espressomd.System(box_l = [diamond_lattice.BOXL]*3)
 pmb.add_bonds_to_espresso(espresso_system = espresso_system)
+
 lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
 
 # Setting up node topology
 indices = diamond_lattice.indices
-node_topology = {}
+node_topology = []
 
 for index in range(len(indices)):
-    node_topology[index]={"particle_name": NodeType,
-                          "lattice_index": indices[index]}
+    node_topology.append({"particle_name": NodeType,
+                          "lattice_index": indices[index]})
 
 # Setting up chain topology
 connectivity = diamond_lattice.connectivity
 node_labels = lattice_builder.node_labels
 reverse_node_labels = {v: k for k, v in node_labels.items()}
 connectivity_with_labels = {(reverse_node_labels[i], reverse_node_labels[j]) for i, j in connectivity}
-chain_topology = {}
+chain_topology = []
 
-chain_id = 0
 for node_s, node_e in connectivity_with_labels:
-    chain_topology[chain_id]={'node_start':node_s,
+    chain_topology.append({'node_start':node_s,
                               'node_end': node_e,
-                              'residue_list':residue_list}
-    chain_id+=1
+                              'residue_list':residue_list})
 
-last_chain_id = max(chain_topology.keys())
-chain_topology[last_chain_id]['residue_list'] = ["res_1" if i % 2 == 0 else "res_2" for i in range(len(residue_list))]
 
 pmb.define_hydrogel("my_hydrogel",node_topology, chain_topology)
 hydrogel_info = pmb.create_hydrogel("my_hydrogel", espresso_system)
