@@ -1526,8 +1526,7 @@ class pymbe_library():
             chain_map_connectivity.add((start,end))
 
         if self.lattice_builder.lattice.connectivity != chain_map_connectivity:
-            raise ValueError(
-            f"Incomplete hydrogel: A diamond lattice must contain correct 16 lattice index pairs")
+            raise ValueError("Incomplete hydrogel: A diamond lattice must contain correct 16 lattice index pairs")
 
         if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='hydrogel'):
             return

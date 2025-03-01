@@ -262,8 +262,6 @@ class Test(ut.TestCase):
             node_end = chain_data["node_end"]
             node_start_label = lattice_builder.node_labels[node_start]
             node_end_label = lattice_builder.node_labels[node_end]
-            node_start_pos = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * lattice_builder.BOXL
-            node_start_id = espresso_system.part.select(lambda p: (p.pos == node_start_pos).all()).id[0]
             vec_between_nodes = (np.array([float(x) for x in node_end.strip('[]').split()]) -
                                      np.array([float(x) for x in node_start.strip('[]').split()])) * 0.25 * lattice_builder.BOXL
             vec_between_nodes = vec_between_nodes - lattice_builder.BOXL * np.round(vec_between_nodes / lattice_builder.BOXL)
