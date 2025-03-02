@@ -1762,28 +1762,6 @@ class pymbe_library():
         self.df.at [index,('side_chains','')] = side_chains
         return
 
-    def delete_molecule_entry(self, molecule_name):
-        """
-        Deletes a molecule entry from the DataFrame if it exists.
-
-        Args:
-            molecule_name (`str`): The name of the molecule to delete.
-        """
-        if molecule_name in self.df["name"].values:
-            self.df = self.df[self.df["name"] != molecule_name].reset_index(drop=True)
-
-    def delete_particle_entry(self, particle_name): 
-
-        """ 
-        Deletes a particle entry from the DataFrame if it exists. 
-        
-        Args: 
-            particle_name (`str`): The name of the particle to delete. 
-
-        """ 
-        if particle_name in self.df["name"].values: 
-            self.df = self.df[self.df["name"] != particle_name].reset_index(drop=True) 
-
     def destroy_pmb_object_in_system(self, name, espresso_system):
         """
         Destroys all particles associated with `name` in `espresso_system` amd removes the destroyed pmb_objects from `pmb.df` 
