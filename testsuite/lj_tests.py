@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -128,7 +128,7 @@ with warnings.catch_warnings(record=True) as w:
     pmb.setup_lj_interactions(espresso_system=espresso_system)
     assert any("The following particles do not have a defined value of sigma or epsilon" in str(warning.message) for warning in w), "Expected warning was not raised!"
 
-pmb.delete_particle_entry("X")
+pmb.delete_entries_in_df("X")
 
 # ValueError if combining-rule other than Lorentz_-Berthelot is used
 input_params = {"espresso_system":espresso_system, "combining_rule": "Geometric"}
