@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to CTest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
+- Helper method to delete entries from `pmb.df` (#112)
 - Code of conduct of our community `CODE_OF_CONDUCT.md`, adhering to the Contributor Covenant v2.1 (#104) 
 - New optional argument `backbone_vector` enabling to build molecules along an input vector using `pmb.create_molecule` and `pmb.create_pmb_object` (#99)
 - New boolean flag `--ideal` as argparse argument of `samples/globular_protein.py` enabling to run the script without setting up interactions.
@@ -28,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit testing for reaction methods, bonds, object serialization. (#86, #113)
 
 ### Fixed
+- Warning handling and coverage in `setup_lj_interaction` (#112)
 - Wrong parsing in `pmb.protein_sequence_parser` of input sequences provided as a list of aminoacids using the three letter code. (#101)
 - Wrong setup of the rigid object in `pmb.enable_motion_of_rigid_object`, leading to crashes in `samples/globular_protein.py` when enabling the protein motion. (#101)
 - The argparse argument `--move_protein` of `samples/globular_protein.py` is now a boolean flag instead of taking arbitrary float values. (#101)
