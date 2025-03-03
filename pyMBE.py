@@ -1691,6 +1691,17 @@ class pymbe_library():
         self.df.fillna(pd.NA, inplace=True)
         return 
 
+    def delete_entries_in_df(self, entry_name):
+        """
+        Deletes entries with name `entry_name` from the DataFrame if it exists.
+
+        Args:
+            entry_name (`str`): The name of the entry in the dataframe to delete.
+
+        """
+        if entry_name in self.df["name"].values:
+            self.df = self.df[self.df["name"] != entry_name].reset_index(drop=True)
+
     def destroy_pmb_object_in_system(self, name, espresso_system):
         """
         Destroys all particles associated with `name` in `espresso_system` amd removes the destroyed pmb_objects from `pmb.df` 
@@ -3252,15 +3263,15 @@ class pymbe_library():
 
         """
         from itertools import combinations_with_replacement
+        import warnings
         implemented_combining_rules = ['Lorentz-Berthelot']
         compulsory_parameters_in_df = ['sigma','epsilon']
         # Sanity check
         if combining_rule not in implemented_combining_rules:
             raise ValueError('In the current version of pyMBE, the only combinatorial rules implemented are ', implemented_combining_rules)
+        shift=0
         if shift_potential:
             shift="auto"
-        else:
-            shift=0
         # List which particles have sigma and epsilon values defined in pmb.df and which ones don't
         particles_types_with_LJ_parameters = []
         non_parametrized_labels= []
@@ -3308,8 +3319,8 @@ class pymbe_library():
                                 new_value=lj_params,
                                 non_standard_value=True)
         if non_parametrized_labels and warnings:
-            print(f'WARNING: The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.')
-        self.df.fillna(pd.NA, inplace=True)    
+            warnings.warn(f'The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.',UserWarning) 
+ 
         return
 
     def write_pmb_df (self, filename):
