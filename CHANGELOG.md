@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- `pd.NA` is now enforced as value for empty cells in `pmb.df`, this prevents transformation of variable types from `int` to `float` which was breaking the code when reading `pmb.df` from file (See #102). (#116)
 - The sample script `plot_HH.py` has been replaced for specific examples on how to plot data post-processed with pyMBE: `plot_branched_polyampholyte.py`, `plot_peptide.py`, and `plot_peptide_mixture_grxmc_ideal.py`. (#95)
 - Sample scripts now take the pH as an argparse input instead of looping over several pH values. This enables paralization of the sample scripts and avoids conflicts with the current post-processing pipeline. (#95)
 - Switched from `os.makedirs` to `Path().mkdir()` to prevent ocasional failure of the scripts when running them in paralel. (#91)
@@ -29,6 +30,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit testing for reaction methods, bonds, object serialization. (#86, #113)
 
 ### Fixed
+- Writing and reading `pmb.df` from file does no longer change the variable type from `int` to `float` when there are empty cells in the column. (#116)
+- Espresso bond objects stored in `pmb.df` now retain the same value for the  `._bond_id` attribute as the original Espresso objects. (#116)
 - Warning handling and coverage in `setup_lj_interaction` (#112)
 - Wrong parsing in `pmb.protein_sequence_parser` of input sequences provided as a list of aminoacids using the three letter code. (#101)
 - Wrong setup of the rigid object in `pmb.enable_motion_of_rigid_object`, leading to crashes in `samples/globular_protein.py` when enabling the protein motion. (#101)
