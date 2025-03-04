@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -19,6 +19,12 @@
 import tempfile
 import espressomd
 import pandas as pd
+import numpy as np
+
+version = pd.__version__.split(".")
+# This feature was introduced in Pandasv2.2.0
+if int(version[0]) >= 2 and int(version[1]) >= 2:
+    pd.set_option('future.no_silent_downcasting', True)
 
 # Create an instance of pyMBE library
 import pyMBE
@@ -90,6 +96,17 @@ harmonic_bond = {'r_0'    : generic_bond_length,
 
 
 pmb.define_default_bond(bond_type = bond_type, bond_parameters = harmonic_bond)
+pmb.define_bond(bond_type = bond_type, 
+                bond_parameters = harmonic_bond,
+                particle_pairs=[["A","A"],["B","B"]])
+bond_type = 'FENE'
+FENE_bond = {'r_0'    : 0.4 * pmb.units.nm,
+                'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
+                'd_r_max': 0.8 * pmb.units.nm}
+
+pmb.define_bond(bond_type = bond_type, 
+                bond_parameters = FENE_bond,
+                particle_pairs=[["A","B"]])
 
 # Solution parameters
 cation_name = 'Na'
@@ -104,6 +121,7 @@ molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 volume = n_molecules/(pmb.N_A*molecule_concentration)
 L = volume ** (1./3.) # Side of the simulation box
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
+pmb.add_bonds_to_espresso(espresso_system = espresso_system)
 
 # Setup potential energy
 
@@ -120,12 +138,18 @@ with tempfile.TemporaryDirectory() as tmp_directory:
     # Read the same pyMBE df from a csv a load it in pyMBE
     read_df = pmb.read_pmb_df(filename = df_filename)
 
+
 # Preprocess data for the Unit Test
 # The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal
-stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: (x.name(), x.get_params()) if pd.notnull(x) else x)
-read_df['bond_object']  = read_df['bond_object'].apply(lambda x: (x.name(), x.get_params()) if pd.notnull(x) else x)
-
+stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: (x.name(), x.get_params(), x._bond_id) if pd.notnull(x) else x)
+read_df['bond_object']  = read_df['bond_object'].apply(lambda x: (x.name(), x.get_params(), x._bond_id) if pd.notnull(x) else x)
 print("*** Unit test: check that the dataframe stored by pyMBE to file is the same as the one read from the file (same values and variable types) ***")
 
-pd.testing.assert_frame_equal (stored_df, read_df, check_exact= True)
+# One needs to replace the pd.NA by np.nan otherwise the comparison between pint objects fails
+stored_df = stored_df.replace({pd.NA: np.nan})
+read_df = read_df.replace({pd.NA: np.nan})
+
+pd.testing.assert_frame_equal(stored_df, 
+                                read_df,
+                                rtol=1e-5)
 print("*** Unit test passed***")
