@@ -141,8 +141,8 @@ with tempfile.TemporaryDirectory() as tmp_directory:
 
 # Preprocess data for the Unit Test
 # The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal
-stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: (x.name(), x.get_params()) if pd.notnull(x) else x)
-read_df['bond_object']  = read_df['bond_object'].apply(lambda x: (x.name(), x.get_params()) if pd.notnull(x) else x)
+stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: (x.name(), x.get_params(), x._bond_id) if pd.notnull(x) else x)
+read_df['bond_object']  = read_df['bond_object'].apply(lambda x: (x.name(), x.get_params(), x._bond_id) if pd.notnull(x) else x)
 print("*** Unit test: check that the dataframe stored by pyMBE to file is the same as the one read from the file (same values and variable types) ***")
 
 # One needs to replace the pd.NA by np.nan otherwise the comparison between pint objects fails
