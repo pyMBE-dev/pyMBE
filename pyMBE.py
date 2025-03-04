@@ -133,8 +133,7 @@ class pymbe_library():
             bond_df = self.df.loc[self.df ['pmb_type'] == 'bond']
             bond_list = bond_df.bond_object.values.tolist()
             for bond in bond_list:
-                bond_id = espresso_system.bonded_inter.add(bond)
-                bond._ctor_params["bond_id"]=bond_id
+                espresso_system.bonded_inter.add(bond)
         else:
             print ('WARNING: There are no bonds defined in pymbe.df')
         
@@ -690,7 +689,6 @@ class pymbe_library():
         bond_id = params.pop("bond_id")
         bond_object = getattr(espressomd.interactions, bond)(**params)
         bond_object._bond_id = bond_id
-        bond_object._ctor_params["bond_id"] = bond_id
         return bond_object
 
     def copy_df_entry(self, name, column_name, number_of_copies):
@@ -825,7 +823,6 @@ class pymbe_library():
                                                    d_r_max = max_bond_stret.magnitude)
         else:
             raise NotImplementedError(f"Bond type '{bond_type}' currently not implemented in pyMBE, accepted types are {valid_bond_types}")
-        bond_object._ctor_params["bond_id"]=bond_object._bond_id
         return bond_object
 
 

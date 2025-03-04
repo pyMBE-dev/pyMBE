@@ -82,7 +82,7 @@ class Test(ut.TestCase):
                               bond_type=bond_type)
 
         # check bond deserialization
-        bond_params =  bond_object._ctor_params
+        bond_params =  bond_object.get_params()
         bond_params["bond_id"] = bond_object._bond_id
         deserialized = pmb.convert_str_to_bond_object(
             f'{bond_object.__class__.__name__}({json.dumps(bond_params)})')
@@ -121,7 +121,7 @@ class Test(ut.TestCase):
                               bond_type=bond_type)
 
         # check bond deserialization
-        bond_params =  bond_object._ctor_params
+        bond_params =  bond_object.get_params()
         bond_params["bond_id"] = bond_object._bond_id
         deserialized = pmb.convert_str_to_bond_object(
             f'{bond_object.__class__.__name__}({json.dumps(bond_params)})')
