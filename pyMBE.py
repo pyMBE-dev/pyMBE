@@ -3335,8 +3335,7 @@ class pymbe_library():
         df = self.df.copy(deep=True)
         for column_name in columns_with_list_or_dict:
             df[column_name] = df[column_name].apply(lambda x: json.dumps(x) if isinstance(x, (np.ndarray, tuple, list, dict)) or pd.notnull(x) else x)
-        df['bond_object'] = df['bond_object'].apply(lambda x: f'{x.__class__.__name__}({json.dumps(x._ctor_params)})' if pd.notnull(x) else x)
+        df['bond_object'] = df['bond_object'].apply(lambda x: f'{x.__class__.__name__}({json.dumps({**x.get_params(), "bond_id": x._bond_id})})' if pd.notnull(x) else x)
         df.fillna(pd.NA, inplace=True)
         df.to_csv(filename)
-
         return
