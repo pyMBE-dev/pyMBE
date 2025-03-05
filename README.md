@@ -8,19 +8,32 @@
 
 ![GitHub Actions](https://github.com/pyMBE-dev/pyMBE/actions/workflows/testsuite.yml/badge.svg)
 [![codecov](https://codecov.io/gh/pyMBE-dev/pyMBE/branch/main/graph/badge.svg)](https://codecov.io/gh/pyMBE-dev/pyMBE)
+[![docs](https://badgen.net/static/docs/up-to-date/blue/)](pymbe-dev.github.io/pyMBE/pyMBE.html) 
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE.txt)
+[![Contributor Covenant](https://img.shields.io/badge/Contributor%20Covenant-2.1-4baaaa.svg)](CODE_OF_CONDUCT.md) 
 
 pyMBE provides tools to facilitate building up molecules with complex architectures in the Molecular Dynamics software [ESPResSo](https://espressomd.org/wordpress/). Some examples of molecules that can be set up with pyMBE are polyelectrolytes, peptides and proteins. pyMBE bookkeeps all the information about the molecule topology, permitting to link each particle to its corresponding residue and molecule. pyMBE uses the [Pint](https://pint.readthedocs.io/en/stable/) library to enable input parameters in any arbitrary unit system, which is later transformed in the reduced unit system used in ESPResSo.
 
+An up-to-date documentation of all methods of the library can be found [here](pymbe-dev.github.io/pyMBE/pyMBE.html) and in the source code.
+
 ## Dependencies
 
-- [ESPResSo](https://espressomd.org/wordpress/) =4.2.1 
-- [Pint](https://pint.readthedocs.io/en/stable/) >=0.20.01
-- [Pandas](https://pandas.pydata.org/) >=1.5.3
-- [Pint-Pandas](https://pypi.org/project/Pint-Pandas/) >=0.3
-- [Numpy](https://numpy.org/) >=1.23
-- [SciPy](https://scipy.org/) 
+- [ESPResSo](https://espressomd.org/wordpress/)
+- [Pint](https://pint.readthedocs.io/en/stable/)
+- [Pandas](https://pandas.pydata.org/)
+- [Pint-Pandas](https://pypi.org/project/Pint-Pandas/)
+- [Numpy](https://numpy.org/)
+- [SciPy](https://scipy.org/)
 - [pdoc](https://pdoc.dev/) (for building the docs)
 - [CMake](https://cmake.org/) (for running the testsuite)
+- any virtual environment manager: [venv](https://docs.python.org/3/library/venv.html),
+  [virtualenv](https://virtualenv.pypa.io/en/latest/),
+  [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/getting-started.html#managing-python),
+  [miniconda](https://docs.anaconda.com/free/miniconda),
+  [micromamba](https://mamba.readthedocs.io/en/latest/user_guide/micromamba.html),
+  etc.
+
+Version requirements are documented in [`requirements.txt`](requirements.txt).
 
 ## Contents
 
@@ -49,33 +62,42 @@ git clone git@github.com:pyMBE-dev/pyMBE.git
 ```
 
 Please, be aware that pyMBE is intended to be a supporting tool to setup simulations with ESPResSo.
-Thus, for most of its functionalities ESPResSo must also be available. Following the NEP29 guidelines, we recommend the users of pyMBE to use Python3.10+ when using our module.
+Thus, for most of its functionalities ESPResSo must also be available.
+pyMBE supports ESPResSo 4.2 and ESPResSo 4.3-dev.
+Following the NEP29 guidelines, we recommend using Python3.10+.
+Both NumPy 1 and NumPy 2 are supported.
 
-The pyMBE module uses its own Python virtual enviroment to avoid incompatibility issues when loading its requirements from other libraries.
-The Python module [`venv`](https://docs.python.org/3/library/venv.html) is needed to set up pyMBE.
-If `venv` is not in the Python distribution of the user, the user will need to first install 'venv' before setting up pyMBE.
-For Ubuntu users, this can be done as follows:
+The pyMBE module needs a Python virtual environment to avoid compatibility issues with its dependencies.
+Any virtual environment manager should work, but this readme will use `venv`, which can be installed on Ubuntu as follows:
 
 ```sh
 sudo apt install python3-venv
 ```
 
-To set up pyMBE, the users need to install its virtual environment, install its Python dependencies and configure the path to the ESPResSo build folder as follows:
+To set up pyMBE, users need to configure a virtual environment. This is achieved by installing the Python dependencies and setting the path to the ESPResSo build folder, as follows:
 
 ```sh
-python3 -m venv pymbe  # creates a local folder named pymbe, which contains the virtual environment
-source pymbe/bin/activate  # activates the pymbe venv
-python3 maintainer/configure_venv.py --espresso_path=/home/user/espresso/build # please, adapt the espresso path accordingly
-python3 -m pip install -r requirements.txt
-python3 simulation_script.py # run the espresso simulation script
+python3 -m venv pymbe  # create a local folder named pymbe containing the environment files
+source pymbe/bin/activate  # activate the virtual environment
+python3 -m pip install -r requirements.txt "numpy<2.0" "pandas<2.0"
+python3 maintainer/configure_venv.py --espresso_path=/home/user/espresso/build # please adapt the espresso path accordingly
+python3 simulation_script.py # run a simulation script
 deactivate  # deactivate the virtual environment
 ```
 
+NumPy 2 users should adapt the pip command as follows:
+
+```sh
+python3 -m pip install -r requirements.txt "numpy>=2.1" "pandas>=2.0"
+```
+
 We highlight that the path `/home/user/espresso/build` is just an example of a possible path to the ESPResSo build folder. 
-The user should change this path to match the local absolute path were ESPResSo was installed.
+The user should change this path to match the local absolute path where ESPResSo was built.
+Also, ESPResSo must be built with the same NumPy version as the one installed in the environment to avoid API version mismatch.
 For more details on how to install ESPResSo, please consult the [ESPResSo installation guide](https://espressomd.github.io/doc4.2.2/installation.html).
 
-The pyMBE virtual enviroment can be deactivated at any moment:
+The pyMBE virtual environment can be deactivated at any moment as follows:
+
 ```sh
 deactivate
 ```
@@ -84,7 +106,7 @@ Cluster users who rely on module files to load dependencies should opt for the
 following alternative:
 
 ```sh
-module load ESPResSo/4.2.1-foss-2022a # adapt module name
+module load ESPResSo/4.2.2-foss-2023a # adapt release if needed
 python3 -m venv --system-site-packages pymbe
 source pymbe/bin/activate
 python3 maintainer/configure_venv.py
@@ -93,7 +115,7 @@ deactivate
 module purge
 ```
 
-We highlight that the module files need to be loaded before every activation
+Please note the module files need to be loaded before every activation
 of the virtual environment.
 
 Now you can use pyMBE and ESPResSo by activating the virtual environment:
@@ -107,11 +129,11 @@ $ source pymbe/bin/activate
 $ deactivate
 ```
 
-To use pyMBE in JupyterLab, register the virtual environment in a new kernel:
+To use pyMBE in JupyterLab, install extra dependencies and register the virtual environment in a new kernel:
 
 ```sh
 source pymbe/bin/activate
-python3 -m pip install ipykernel "jupyterlab>=4.0.8" "PyOpenGL>=3.1.5"
+python3 -m pip install ipykernel "jupyterlab>=4.0.8" "PyOpenGL>=3.1.5" "ipympl>=0.9.3"
 python3 -m ipykernel install --user --name=pyMBE
 deactivate
 ```
@@ -128,24 +150,30 @@ jupyter kernelspec uninstall pymbe
 The JupyterLab main menu will now show a new Python kernel called "pyMBE"
 that uses the virtual environment.
 
-### Use pyMBE in your simulation scripts
+### Run simulation scripts
+
+You can run the branched polyampholyte sample with the following commands:
 
 ```sh
 source pymbe/bin/activate
-python3 samples/peptide.py
+python3 samples/branched_polyampholyte.py --pH 6
+python3 samples/analyze_time_series.py --data_folder samples/time_series/branched_polyampholyte
+python3 samples/plot_branched_polyampholyte.py
 deactivate
 ```
 
-### Run the tutorial of pyMBE
+### Run tutorials
 
-You can run the interactive tutorial of pyMBE with the command:
+You can run the interactive tutorials with the following commands:
 
 ```sh
 source pymbe/bin/activate
-jupyter-lab tutorials/pyMBE_tutorial.ipynb
+jupyter-lab
 deactivate
 ```
 
+In the Jupyter interface, open the `tutorials` folder and then the `pyMBE_tutorial` file.
+It will guide you through the creation of polyelectrolytes with pyMBE.
 Be sure to use the pyMBE kernel instead of the default Python3 kernel.
 The currently active kernel is usually displayed in the top right corner of the notebook.
 

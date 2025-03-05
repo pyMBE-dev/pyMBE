@@ -50,7 +50,7 @@ def analyze_time_series(path_to_datafolder, filename_extension= ".csv", minus_se
         path_to_datafolder(`str`): path to the folder with the files with the time series
         filename_extension(`str`): extension of the file. Defaults to ".csv"
         minus_separator(`bool`): switch to enable the minus as a separator. Defaults to False.
-        ignore_files(`lst`): list of filenames to be ignored for the bining analysis.
+        ignore_files(`lst`): list of filenames to be ignored for the binning analysis.
 
     Returns:
         data(`Pandas.Dataframe`): Dataframe with the time averages of all the time series in the datafolder.
@@ -113,7 +113,7 @@ def block_analyze(full_data, n_blocks=16, time_col = "time", equil=0.1,  columns
             print(f"Warning: looks like a repeated time value was encountered {n_warnings} times")
 
     drop_rows = int(full_data.shape[0]*equil) # calculate how many rows should be dropped as equilibration
-    # drop the rows that will be discarded as equlibration
+    # drop the rows that will be discarded as equilibration
     data = full_data.drop(range(0,drop_rows))
     # drop the columns step, time and MC sweep
     if time_col in data.columns :

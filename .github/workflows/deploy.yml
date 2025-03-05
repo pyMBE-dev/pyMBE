@@ -3,7 +3,7 @@ name: deploy documentation
 on:
   # trigger workflow when the main branch completed the testsuite
   workflow_run:
-    workflows: [ "run tests" ]
+    workflows: [ "testsuite" ]
     branches: [ "main" ]
     types:
       - completed

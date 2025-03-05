@@ -20,12 +20,16 @@
 from pathlib import Path
 import espressomd
 import argparse
+import tqdm
 import pandas as pd
 from espressomd.io.writer import vtf
 import pyMBE
 
-# Load some functions from the handy_scripts library for convinience
-from lib.handy_functions import setup_langevin_dynamics,minimize_espresso_system_energy,setup_electrostatic_interactions
+# Load some functions from the handy_scripts library for convenience
+from lib.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import setup_electrostatic_interactions
+from lib.handy_functions import do_reaction
 from lib.analysis import built_output_name
 
 # Create an instance of pyMBE library
@@ -47,7 +51,7 @@ parser.add_argument('--test',
                     default=False, 
                     action='store_true',
                     help='to run a short simulation for testing the script')
-parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
+parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbosity",default=True)
 args = parser.parse_args()
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
@@ -152,7 +156,7 @@ espresso_system=espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
 # Add all bonds to espresso system
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
-# Create your molecules icph_ideal_tests.pynto the espresso system
+# Create your molecules into the espresso system
 pmb.create_pmb_object(name="polyampholyte", 
                       number_of_objects=N_polyampholyte_chains,
                       espresso_system=espresso_system, 
@@ -169,20 +173,20 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                           c_salt=c_salt,
                                           verbose=verbose)
 
-#List of ionisible groups 
+#List of ionisable groups
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
 acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
-list_ionisible_groups = basic_groups + acidic_groups
-total_ionisible_groups = len (list_ionisible_groups)
+list_ionisable_groups = basic_groups + acidic_groups
+total_ionisable_groups = len(list_ionisable_groups)
 
 if verbose:
-    print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
-    print('The polyampholyte concentration in your system is ', calculated_polyampholyte_concentration.to('mol/L') , 'with', N_polyampholyte_chains, 'molecules')
-    print('The ionisable groups in your polyampholyte are ', list_ionisible_groups)
+    print(f"The box length of your system is {L.to('reduced_length')}, {L.to('nm')}")
+    print(f"The polyampholyte concentration in your system is {calculated_polyampholyte_concentration.to('mol/L')} with {N_polyampholyte_chains} molecules")
+    print(f"The ionisable groups in your polyampholyte are {list_ionisable_groups}")
 
 cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
 if verbose:
-    print('The acid-base reaction has been sucessfully setup for ', labels)
+    print(f"The acid-base reaction has been successfully set up for {labels}")
 
 # Setup espresso to track the ionization of the acid/basic groups 
 type_map = pmb.get_type_map()
@@ -193,7 +197,7 @@ espresso_system.setup_type_map(type_list = types)
 non_interacting_type = max(type_map.values())+1
 cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
-    print('The non interacting type is set to ', non_interacting_type)
+    print(f"The non interacting type is set to {non_interacting_type}")
 
 if not ideal:
     ##Setup the potential energy
@@ -234,10 +238,10 @@ for label in ["time","charge"]:
 
 # Production loop
 N_frame=0
-for step in range(N_samples):
+for step in tqdm.trange(N_samples):
     
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
-    cpH.reaction( reaction_steps = total_ionisible_groups)
+    do_reaction(cpH, steps=total_ionisable_groups)
 
     
     # Get polyampholyte net charge

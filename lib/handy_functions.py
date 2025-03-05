@@ -32,6 +32,7 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
         verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
     """
     import espressomd.electrostatics
+    import espressomd.version
     import numpy as np
     import scipy.constants
 
@@ -60,7 +61,6 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
             raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
         if verbose:
             print(f"Debye kappa {KAPPA.to('nm')} = {KAPPA.to('reduced_length')}")
-    print()
 
     if method == 'p3m':
 
@@ -71,12 +71,19 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
 
         if tune_p3m:
             espresso_system.time_step=0.01
-            espresso_system.electrostatics.solver = coulomb
+            if espressomd.version.friendly() == "4.2":
+                espresso_system.actors.add(coulomb)
+            else:
+                espresso_system.electrostatics.solver = coulomb
+
 
             # save the optimal parameters and add them by hand
 
             p3m_params = coulomb.get_params()
-            espresso_system.electrostatics.solver=None
+            if espressomd.version.friendly() == "4.2":
+                espresso_system.actors.remove(coulomb)
+            else:
+                espresso_system.electrostatics.solver = None
             coulomb = espressomd.electrostatics.P3M(
                                         prefactor = COULOMB_PREFACTOR.magnitude,
                                         accuracy = accuracy,
@@ -94,7 +101,10 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
                                             r_cut = KAPPA.to('reduced_length').magnitude)
 
     
-    espresso_system.electrostatics.solver = coulomb
+    if espressomd.version.friendly() == "4.2":
+        espresso_system.actors.add(coulomb)
+    else:
+        espresso_system.electrostatics.solver = coulomb
     if verbose:
         print("\n Electrostatics successfully added to the system \n")
 
@@ -161,53 +171,19 @@ def setup_langevin_dynamics(espresso_system, kT, SEED,time_step=1e-2, gamma=1, t
 
     return
 
-def create_random_seed():
-    """
-    Generates a seed for the random number generator using the system time in seconds.
-    """
-    import time 
-    SEED=int(time.time())
-    print('\n The chosen seed for the random number generator is ', SEED)
-    return SEED
+def get_number_of_particles(espresso_system, ptype):
+    import espressomd.version
+    if espressomd.version.friendly() == "4.2":
+        args = (ptype,)
+        kwargs = {}
+    else:
+        args = ()
+        kwargs = {"type": ptype}
+    return espresso_system.number_of_particles(*args, **kwargs)
 
-def visualize_espresso_system(espresso_system):
-    """
-    Uses espresso visualizator for displaying the current state of the espresso_system
-    """ 
-    
-    import threading
-    from espressomd import visualization
-        
-    visualizer = visualization.openGLLive(espresso_system)
-    
-    def main_thread():
-        while True:
-            espresso_system.integrator.run(1)
-            visualizer.update()
-
-    t = threading.Thread(target=main_thread)
-    t.daemon = True
-    t.start()
-    visualizer.start()
-    return
-
-def do_snapshot_espresso_system(espresso_system, filename):
-    """
-    Uses espresso visualizator for creating a snapshot of the current state of the espresso_system
-    """ 
-    
-    from espressomd import visualization
-    
-
-    visualizer = visualization.openGLLive(
-            espresso_system, bond_type_radius=[0.3], particle_coloring='type', draw_axis=False, background_color=[1, 1, 1],
-    particle_type_colors=[[1.02,0.51,0], # Brown
-                        [1,1,1],  # Grey
-                        [2.55,0,0], # Red
-                        [0,0,2.05],  # Blue
-                        [0,0,2.05],  # Blue
-                        [2.55,0,0], # Red
-                        [2.05,1.02,0]]) # Orange
-    visualizer.screenshot(filename)
-
-    return
+def do_reaction(algorithm, steps):
+    import espressomd.version
+    if espressomd.version.friendly() == '4.2':
+        algorithm.reaction(reaction_steps=steps)
+    else:
+        algorithm.reaction(steps=steps)

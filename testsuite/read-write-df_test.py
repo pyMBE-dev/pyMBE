@@ -16,11 +16,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import re 
-import ast
 import tempfile
 import espressomd
 import pandas as pd
+import numpy as np
+
+version = pd.__version__.split(".")
+# This feature was introduced in Pandasv2.2.0
+if int(version[0]) >= 2 and int(version[1]) >= 2:
+    pd.set_option('future.no_silent_downcasting', True)
 
 # Create an instance of pyMBE library
 import pyMBE
@@ -32,7 +36,7 @@ print ('*** Unit tests: read and write from pyMBE dataframe ***')
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm,
                       verbose=False)
 
-#Define particles
+# Define particles
 pmb.define_particle(
     name = "I",
     sigma = 0.3*pmb.units.nm,
@@ -53,7 +57,7 @@ pmb.define_particle(
     sigma = 0.3*pmb.units.nm,
     epsilon = 1*pmb.units('reduced_energy'),)
 
-#Define the residues
+# Define residues
 pmb.define_residue(
     name = "Res_1",
     central_bead = "I",
@@ -64,8 +68,13 @@ pmb.define_residue(
     central_bead = "I",
     side_chains = ["Res_1"])   
 
+# Define peptide
+peptide_name = 'generic_peptide'
+peptide_sequence = 'EEEEEEE'
+peptide_model = '2beadAA'
+pmb.define_peptide(name=peptide_name, sequence=peptide_sequence, model=peptide_model)
 
-# Defines a molecule  
+# Define a molecule
 molecule_name = "A_molecule"
 n_molecules = 1
 
@@ -76,7 +85,7 @@ pmb.define_molecule(
                     "Res_1", "Res_2",
                     "Res_2"])
 
-
+# Define a bond
 bond_type = 'harmonic'
 generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
@@ -87,6 +96,17 @@ harmonic_bond = {'r_0'    : generic_bond_length,
 
 
 pmb.define_default_bond(bond_type = bond_type, bond_parameters = harmonic_bond)
+pmb.define_bond(bond_type = bond_type, 
+                bond_parameters = harmonic_bond,
+                particle_pairs=[["A","A"],["B","B"]])
+bond_type = 'FENE'
+FENE_bond = {'r_0'    : 0.4 * pmb.units.nm,
+                'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
+                'd_r_max': 0.8 * pmb.units.nm}
+
+pmb.define_bond(bond_type = bond_type, 
+                bond_parameters = FENE_bond,
+                particle_pairs=[["A","B"]])
 
 # Solution parameters
 cation_name = 'Na'
@@ -101,6 +121,7 @@ molecule_concentration = 5.56e-4 *pmb.units.mol/pmb.units.L
 volume = n_molecules/(pmb.N_A*molecule_concentration)
 L = volume ** (1./3.) # Side of the simulation box
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
+pmb.add_bonds_to_espresso(espresso_system = espresso_system)
 
 # Setup potential energy
 
@@ -125,10 +146,15 @@ read_df['chain_map'] = read_df['chain_map'].astype(object)
 
 # Preprocess data for the Unit Test
 # The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal
-stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: ast.literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pd.notnull(x) else x)
-read_df['bond_object']  = read_df['bond_object'].apply(lambda x: ast.literal_eval(re.subn('HarmonicBond', '', str(x))[0]) if pd.notnull(x) else x)
-
+stored_df['bond_object']  = stored_df['bond_object'].apply(lambda x: (x.name(), x.get_params(), x._bond_id) if pd.notnull(x) else x)
+read_df['bond_object']  = read_df['bond_object'].apply(lambda x: (x.name(), x.get_params(), x._bond_id) if pd.notnull(x) else x)
 print("*** Unit test: check that the dataframe stored by pyMBE to file is the same as the one read from the file (same values and variable types) ***")
 
-pd.testing.assert_frame_equal (stored_df, read_df, check_exact= True)
+# One needs to replace the pd.NA by np.nan otherwise the comparison between pint objects fails
+stored_df = stored_df.replace({pd.NA: np.nan})
+read_df = read_df.replace({pd.NA: np.nan})
+
+pd.testing.assert_frame_equal(stored_df, 
+                                read_df,
+                                rtol=1e-5)
 print("*** Unit test passed***")

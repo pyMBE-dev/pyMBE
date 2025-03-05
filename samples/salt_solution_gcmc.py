@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 from scipy import interpolate
 import argparse
-from tqdm import tqdm
+import tqdm
 
 # Import pyMBE
 import pyMBE
@@ -38,10 +38,12 @@ pmb = pyMBE.pymbe_library(seed=42)
 parser = argparse.ArgumentParser(description='Script that runs a simulation of a salt solution in the grand-canonical ensemble using pyMBE and ESPResSo.')
 parser.add_argument("--c_salt_res", 
                     type=float, 
+                    required=True,
                     help="Concentration of salt in the reservoir in mol/l.")
 parser.add_argument('--mode',
                     type=str,
                     default= "ideal",
+                    choices=["ideal", "interacting"],
                     help='Set if an ideal or interacting system is simulated.')
 parser.add_argument('--output',
                     type=str,
@@ -57,17 +59,14 @@ args = parser.parse_args()
 inputs={"csalt": args.c_salt_res,
         "mode": args.mode}
 
-mode=args.mode
-valid_modes=["ideal", "interacting"]
 verbose=args.no_verbose
-
-if args.mode not in valid_modes:
-    raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
 #Import functions from handy_functions script 
 from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import get_number_of_particles
+from lib.handy_functions import do_reaction
 
 
 
@@ -140,9 +139,9 @@ setup_langevin_dynamics(espresso_system=espresso_system,
 
 if verbose:
     print("Running warmup without electrostatics")
-for i in tqdm(range(100),disable=not verbose):
+for i in tqdm.trange(100, disable=not verbose):
     espresso_system.integrator.run(steps=100)
-    RE.reaction(reaction_steps=100)
+    do_reaction(RE, steps=100)
 
 if args.mode == "interacting":
     setup_electrostatic_interactions(units=pmb.units,
@@ -162,9 +161,9 @@ if verbose:
     print("Running warmup with electrostatics")
 
 N_warmup_loops = 100
-for i in tqdm(range(N_warmup_loops),disable=not verbose):
+for i in tqdm.trange(N_warmup_loops, disable=not verbose):
     espresso_system.integrator.run(steps=100)
-    RE.reaction(reaction_steps=100)
+    do_reaction(RE, steps=100)
 
 # Main loop
 print("Started production run.")
@@ -176,15 +175,15 @@ for label in labels_obs:
     time_series[label]=[]
 
 N_production_loops = 100
-for i in tqdm(range(N_production_loops),disable=not verbose):
+for i in tqdm.trange(N_production_loops, disable=not verbose):
     espresso_system.integrator.run(steps=100)
-    RE.reaction(reaction_steps=100)
+    do_reaction(RE, steps=100)
 
     # Measure time
     time_series["time"].append(espresso_system.time)
 
     # Measure degree of ionization
-    number_of_ion_pairs = espresso_system.number_of_particles(type_map[cation_name])
+    number_of_ion_pairs = get_number_of_particles(espresso_system, type_map[cation_name])
     time_series["c_salt"].append((number_of_ion_pairs/(volume * pmb.N_A)).magnitude)
 
 data_path = args.output

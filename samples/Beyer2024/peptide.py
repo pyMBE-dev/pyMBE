@@ -27,11 +27,11 @@ import tqdm
 import pyMBE
 from lib import analysis
 from lib import handy_functions as hf
+from lib.handy_functions import do_reaction
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
-valid_modes=["short-run","long-run", "test"]
 parser = argparse.ArgumentParser(description='Script to run the peptide test cases for pyMBE')
 parser.add_argument('--sequence',
                     type=str,
@@ -44,7 +44,8 @@ parser.add_argument('--pH',
 parser.add_argument('--mode',
                     type=str,
                     default= "short-run",
-                    help='sets for how long the simulation runs, valid modes are {valid_modes}')
+                    choices=["short-run","long-run", "test"],
+                    help='sets for how long the simulation runs')
 parser.add_argument('--output',
                     type=str,
                     required= False,
@@ -60,8 +61,6 @@ inputs={"pH": args.pH,
 mode=args.mode
 verbose=args.no_verbose
 
-if mode not in valid_modes:
-    raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
 LANGEVIN_SEED = 100
 dt = 0.01
@@ -218,7 +217,7 @@ for sample in tqdm.trange(Nsamples,disable=not verbose):
     # Run LD
     espresso_system.integrator.run(steps=MD_steps_per_sample)
     # Run MC
-    cpH.reaction(reaction_steps=len(sequence))
+    do_reaction(cpH, steps=len(sequence))
     # Sample observables
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system,
                                             molecule_name=sequence,
@@ -234,7 +233,7 @@ for sample in tqdm.trange(Nsamples,disable=not verbose):
 
 data_path = args.output
 if data_path is None:
-    data_path=pmb.get_resource(path="samples/Beyer2024")+"/time_series/peptides"
+    data_path=pmb.get_resource(path="samples/Beyer2024") / "time_series" / "peptides"
 
 Path(data_path).mkdir(parents=True, 
                        exist_ok=True)

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -147,7 +147,6 @@ print("*** Unit test passed ***")
 print("*** Unit test: check that create_protein() creates all the particles in the protein into the espresso_system with the properties defined in pmb.df  ***")
 
 espresso_system=espressomd.System(box_l = [Box_L.to('reduced_length').magnitude] * 3)
-espresso_system.virtual_sites = espressomd.virtual_sites.VirtualSitesRelative()
 
 # Here we upload the pka set from the reference_parameters folder
 path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.json') 
@@ -187,8 +186,8 @@ for id in particle_id_list:
 
     residue_id = pmb.df.loc[pmb.df['particle_id']==id].residue_id.values[0]
     residue_name = pmb.df.loc[pmb.df['particle_id']==id].name.values[0]
-
-    initial_pos = topology_dict[residue_name+residue_id]['initial_pos']
+    
+    initial_pos = topology_dict[f"{residue_name}{residue_id}"]['initial_pos']
     index = pmb.df.loc[pmb.df['particle_id']==id].index
 
     for axis in axis_list:
