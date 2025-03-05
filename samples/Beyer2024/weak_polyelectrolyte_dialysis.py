@@ -157,15 +157,23 @@ if verbose:
     print("Added bonds")
 
 # Create molecules and ions in the espresso system
-pmb.create_pmb_object(name=polyacid_name, number_of_objects=N_chains, espresso_system=espresso_system)
-pmb.create_counterions(object_name=polyacid_name, cation_name=proton_name, anion_name=hydroxide_name, espresso_system=espresso_system)
-c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system, cation_name=sodium_name, anion_name=chloride_name, c_salt=c_salt_res)
+pmb.create_pmb_object(name=polyacid_name, 
+                      number_of_objects=N_chains, 
+                      espresso_system=espresso_system)
+pmb.create_counterions(object_name=polyacid_name, 
+                       cation_name=proton_name, 
+                       anion_name=hydroxide_name, 
+                       espresso_system=espresso_system)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system, 
+                                          cation_name=sodium_name, 
+                                          anion_name=chloride_name, 
+                                          c_salt=c_salt_res)
 if verbose:
     print("Created molecules")
 
 # Set up the reactions
-path_to_ex_pot=pmb.get_resource("testsuite/data/src/")
-ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/excess_chemical_potential.dat", unpack=True)
+path_to_ex_pot=pmb.get_resource("parameters/salt/")
+ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/monovalent_salt_excess_chemical_potential.dat", unpack=True)
 excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
 activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
 if verbose:

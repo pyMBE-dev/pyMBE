@@ -96,14 +96,17 @@ if verbose:
     print("Created espresso object")
 
 # Add salt
-c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=0.5*c_salt_res)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
+                                          cation_name=cation_name,
+                                          anion_name=anion_name,
+                                          c_salt=0.5*c_salt_res)
 if verbose:
     print("Added salt")
 
 # Set up reactions
 if args.mode == "interacting":
-    path_to_ex_pot=pmb.get_resource("testsuite/data/src/")
-    ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/excess_chemical_potential.dat", unpack=True)
+    path_to_ex_pot=pmb.get_resource("parameters/salt/")
+    ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/monovalent_salt_excess_chemical_potential.dat", unpack=True)
     excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
     activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
     RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, activity_coefficient=activity_coefficient_monovalent_pair)

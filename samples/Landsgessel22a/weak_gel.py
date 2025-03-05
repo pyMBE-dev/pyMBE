@@ -57,12 +57,20 @@ c_salt_res = args.c_salt_res * pmb.units.mol/ pmb.units.L
 solvent_permittivity = 78.9
 
 NodeType = "N"
-pmb.define_particle(name=NodeType, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=NodeType, 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'))
 
 BeadType = "C"
-pmb.define_particle(name=BeadType, acidity="acidic", sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'), pka=args.pKa_value)
+pmb.define_particle(name=BeadType, 
+                    acidity="acidic", 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'), 
+                    pka=args.pKa_value)
 
-pmb.define_residue(name='Res', central_bead=BeadType, side_chains=[])
+pmb.define_residue(name='Res', 
+                   central_bead=BeadType, 
+                   side_chains=[])
 
 bond_type = 'FENE'
 bond_length = 0.966 * pmb.units("reduced_length")
@@ -73,7 +81,9 @@ fene_bond = {'k'      : fene_spring_constant,
              'd_r_max': fene_r_max,
             }
 
-pmb.define_bond(bond_type = bond_type, bond_parameters = fene_bond, particle_pairs = [[BeadType,NodeType],[BeadType, BeadType]])
+pmb.define_bond(bond_type = bond_type, 
+                bond_parameters = fene_bond, 
+                particle_pairs = [[BeadType,NodeType],[BeadType, BeadType]])
 
 # Parameters of the small ions
 proton_name = 'Hplus'
@@ -81,10 +91,22 @@ hydroxide_name = 'OHminus'
 sodium_name = 'Na'
 chloride_name = 'Cl'
 
-pmb.define_particle(name=proton_name, z=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=hydroxide_name, z=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=sodium_name, z=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=chloride_name, z=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=proton_name, 
+                    z=1, 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=hydroxide_name, 
+                    z=-1, 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=sodium_name, 
+                    z=1, 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=chloride_name, 
+                    z=-1, 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'))
 
 diamond_lattice = DiamondLattice(args.MPC, bond_length)
 espresso_system = espressomd.System(box_l = [diamond_lattice.BOXL]*3)
@@ -117,11 +139,17 @@ for chain_data in chain_labels.items():
 pmb.define_hydrogel("my_hydrogel", node_topology, chain_topology)
 hydrogel_info = pmb.create_hydrogel("my_hydrogel", espresso_system)
 
-pmb.create_counterions(object_name="my_hydrogel", cation_name=proton_name, anion_name=hydroxide_name, espresso_system=espresso_system)
+pmb.create_counterions(object_name="my_hydrogel", 
+                       cation_name=proton_name, 
+                       anion_name=hydroxide_name, 
+                       espresso_system=espresso_system)
 
 print("*** Finished adding counterions ***")
 
-c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system, cation_name=sodium_name, anion_name=chloride_name, c_salt=c_salt_res)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system, 
+                                          cation_name=sodium_name, 
+                                          anion_name=chloride_name, 
+                                          c_salt=c_salt_res)
 
 print(f"Salt concentration {c_salt_calculated} added")
 
@@ -132,18 +160,16 @@ espresso_system.time_step = DT
 pmb.setup_lj_interactions(espresso_system=espresso_system)
 
 setup_langevin_dynamics(espresso_system=espresso_system,
-                                    kT = pmb.kT,
-                                    SEED = 87643,
-                                    time_step=DT,
-                                    tune_skin=False)
+                        kT = pmb.kT,
+                        SEED = 87643,
+                        time_step=DT,
+                        tune_skin=False)
 
 print("*** Force capping.. ***")
-
 lj_cap = 50
 espresso_system.force_cap = lj_cap
 i=0
 while i < 100:
-
     espresso_system.integrator.run(steps=500+args.MPC*2)
     i += 1
     lj_cap = lj_cap + 10
@@ -152,7 +178,6 @@ while i < 100:
 print("min dist",espresso_system.analysis.min_dist())
 
 espresso_system.force_cap = 0
-
 L_max = diamond_lattice.BOXL
 L_target = args.L_target * L_max
 steps_size = 0.5
@@ -170,8 +195,8 @@ minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max
 print("*** Setting up the reactions... ***")
 
 # Set up the reactions
-path_to_ex_pot=pmb.get_resource("testsuite/data/src/")
-ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/excess_chemical_potential.dat", unpack=True)
+path_to_ex_pot=pmb.get_resource("parameters/salt/")
+ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/monovalent_salt_excess_chemical_potential.dat", unpack=True)
 excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
 activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
 pka_set = {BeadType: {"pka_value": args.pKa_value, "acidity": "acidic"}}
@@ -239,7 +264,6 @@ for i in tqdm(range(N_production_loops)):
     time_series["time"].append(espresso_system.time)
 
     # Measure degree of ionization
-    #charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, molecule_name="my_hydrogel", dimensionless=True)
     time_series["alpha"].append(len(espresso_system.part.select(type=2,q=-1))/(16*args.MPC))
     time_series["pressure"].append(espresso_system.analysis.pressure()["total"])
 

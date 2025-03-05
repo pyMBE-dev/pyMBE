@@ -1548,7 +1548,7 @@ class pymbe_library():
             # Molecule name
             molecule_name = "chain_"+node_start+"_"+node_end
             self.define_molecule(name=molecule_name, residue_list=residue_list)
-        return;
+        return
 
     def define_molecule(self, name, residue_list):
         """
