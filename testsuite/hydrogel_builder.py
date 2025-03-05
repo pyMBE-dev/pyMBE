@@ -17,27 +17,33 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import numpy as np
-import random
 import unittest as ut
 import pyMBE
 from lib.lattice import DiamondLattice
 import espressomd
 
-
 pmb = pyMBE.pymbe_library(seed=42)
 
 # Define node particle
 NodeType = "node_type"
-pmb.define_particle(name=NodeType, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=NodeType, 
+                    sigma=0.355*pmb.units.nm, 
+                    epsilon=1*pmb.units('reduced_energy'))
 
 CounterIon = "counter_ion"
-pmb.define_particle(name=CounterIon, sigma=0.5*pmb.units.nm, epsilon=1.5*pmb.units("reduced_energy"))
+pmb.define_particle(name=CounterIon, 
+                    sigma=0.5*pmb.units.nm, 
+                    epsilon=1.5*pmb.units("reduced_energy"))
 
 # define monomers
 BeadType1 = "C"
-pmb.define_particle(name=BeadType1, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=BeadType1, 
+                    sigma=0.355*pmb.units.nm, 
+                    epsilon=1*pmb.units('reduced_energy'))
 BeadType2 = "M"
-pmb.define_particle(name=BeadType2, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=BeadType2, 
+                    sigma=0.355*pmb.units.nm, 
+                    epsilon=1*pmb.units('reduced_energy'))
 
 Res1 = "res_1"
 pmb.define_residue(
@@ -63,26 +69,12 @@ HARMONIC_parameters = {'r_0'    : generic_bond_length,
                       'k'      : generic_harmonic_constant}
 
 pmb.define_bond(bond_type = 'harmonic',
-                        bond_parameters = HARMONIC_parameters, particle_pairs = [[BeadType1, BeadType1],
-                                                                                 [BeadType1, BeadType2],
-                                                                                 [BeadType2, BeadType2]])
+                bond_parameters = HARMONIC_parameters, particle_pairs = [[BeadType1, BeadType1],
+                                                                        [BeadType1, BeadType2],
+                                                                        [BeadType2, BeadType2]])
 pmb.define_bond(bond_type = 'harmonic',
-                        bond_parameters = HARMONIC_parameters, particle_pairs = [[NodeType, BeadType1],
-                                                                                 [NodeType, BeadType2]])
-
-print("*** Unit Test: check that only non-negative values of monomers per chain are allowed ***")
-MPC=0
-np.testing.assert_raises(ValueError, DiamondLattice, MPC, generic_bond_length)
-MPC="invalid"
-np.testing.assert_raises(ValueError, DiamondLattice, MPC, generic_bond_length)
-MPC=-5
-np.testing.assert_raises(ValueError, DiamondLattice, MPC, generic_bond_length)
-print("*** Unit Test passed ***")
-
-print("*** Unit test: check that any objects are other than DiamondLattice passed to initialize_lattice_builder raises a TypeError ***")
-np.testing.assert_raises(TypeError, pmb.initialize_lattice_builder, None)
-print("*** Unit test passed ***")
-
+                bond_parameters = HARMONIC_parameters, particle_pairs = [[NodeType, BeadType1],
+                                                                        [NodeType, BeadType2]])
 
 MPC=8
 diamond_lattice = DiamondLattice(MPC, generic_bond_length)
@@ -97,10 +89,10 @@ pmb.create_particle(name=CounterIon,
                     position=[[np.random.uniform(0,box_l)]*3])
 
 pmb.create_molecule(name=molecule_name,
-                        number_of_molecules=1,
-                        espresso_system=espresso_system,
-                        use_default_bond=False,
-                        list_of_first_residue_positions = [[np.random.uniform(0,box_l)]*3])
+                    number_of_molecules=1,
+                    espresso_system=espresso_system,
+                    use_default_bond=False,
+                    list_of_first_residue_positions = [[np.random.uniform(0,box_l)]*3])
 
 # Setting up node topology
 indices = diamond_lattice.indices
@@ -121,14 +113,14 @@ for node_s, node_e in connectivity_with_labels:
     chain_topology.append({'node_start':node_s,
                               'node_end': node_e,
                               'residue_list':residue_list})
+#######################################################
+hydrogel_name="my_hydrogel"
+pmb.define_hydrogel(hydrogel_name,node_topology, chain_topology)
+
+# Creating hydrogel
+hydrogel_info = pmb.create_hydrogel(hydrogel_name, espresso_system)
 
 ################################################
-incomplete_node_map = [{"particle_name": NodeType, "lattice_index": [0, 0, 0]},{"particle_name": NodeType, "lattice_index": [1, 1, 1]}]
-incomplete_chain_map = [{"node_start": "[0 0 0]", "node_end":"[1 1 1]" , "residue_list": residue_list}]
-
-np.testing.assert_raises(ValueError, pmb.define_hydrogel, "test_hydrogel", incomplete_node_map, chain_topology)
-
-np.testing.assert_raises(ValueError, pmb.define_hydrogel, "test_hydrogel", node_topology, incomplete_chain_map)
 
 def compare_node_maps(map1, map2):
     # Ensure lengths are the same
@@ -187,28 +179,6 @@ def compare_chain_maps(chain_topology_1, chain_topology_2):
 
     return True  # All edges match
 
-#######################################################
-pmb.define_hydrogel("my_hydrogel",node_topology, chain_topology)
-existing_hydrogel_name = "my_hydrogel"
-pmb.define_hydrogel(existing_hydrogel_name,node_topology, chain_topology)
-hydrogel_count = len(pmb.df[pmb.df["name"] == existing_hydrogel_name])
-assert hydrogel_count == 1, f"Hydrogel '{existing_hydrogel_name}' should not be redefined."
-assert existing_hydrogel_name in pmb.df["name"].values
-assert pmb.df.loc[pmb.df["name"] == existing_hydrogel_name, "pmb_type"].values[0] == "hydrogel"
-
-# Verify node_map and chain_map are correctly added
-assert compare_node_maps(pmb.df.loc[pmb.df["name"] == existing_hydrogel_name, "node_map"].values[0], node_topology)
-assert compare_chain_maps(pmb.df.loc[pmb.df["name"] == existing_hydrogel_name, "chain_map"].values[0], chain_topology)
-for chain_id in chain_topology:
-    molecule_name = f"chain_{chain_id['node_start']}_{chain_id['node_end']}"
-    assert molecule_name in pmb.df["name"].values
-
-# Creating hydrogel
-hydrogel_info = pmb.create_hydrogel("my_hydrogel", espresso_system)
-
-print("*** Hydrogel created: Unit test to verify their name and positions ***")
-############################
-
 class Test(ut.TestCase):
  
     def test_format_node(self):
@@ -216,7 +186,7 @@ class Test(ut.TestCase):
         assert pmb.format_node([4, 5, 6]) == "[4 5 6]"
 
     def test_hydrogel_info(self):
-        assert hydrogel_info["name"] == "my_hydrogel"
+        assert hydrogel_info["name"] == hydrogel_name
 
     def test_node_positions(self):
         for _, node_id in hydrogel_info["nodes"].items():
@@ -291,77 +261,107 @@ class Test(ut.TestCase):
                 np.testing.assert_equal(node_end, expected_node_end)
                 np.testing.assert_equal(residue_name, expected_res_name)
 
+    def test_exceptions(self):
+        print("*** Unit Test: check that only non-negative values of monomers per chain are allowed ***")
+        np.testing.assert_raises(ValueError, DiamondLattice, 0, generic_bond_length)
+        np.testing.assert_raises(ValueError, DiamondLattice, "invalid", generic_bond_length)
+        np.testing.assert_raises(ValueError, DiamondLattice, -5, generic_bond_length)
+        print("*** Unit Test passed ***")
+        print("*** Unit test: check that any objects are other than DiamondLattice passed to initialize_lattice_builder raises a TypeError ***")
+        np.testing.assert_raises(TypeError, pmb.initialize_lattice_builder, None)
+        print("*** Unit test passed ***")
+        # Check exceptions when the node and chain maps are incomplete
+        incomplete_node_map = [{"particle_name": NodeType, "lattice_index": [0, 0, 0]},{"particle_name": NodeType, "lattice_index": [1, 1, 1]}]
+        incomplete_chain_map = [{"node_start": "[0 0 0]", "node_end":"[1 1 1]" , "residue_list": residue_list}]
+        np.testing.assert_raises(ValueError, pmb.define_hydrogel, "test_hydrogel", incomplete_node_map, chain_topology)
+        np.testing.assert_raises(ValueError, pmb.define_hydrogel, "test_hydrogel", node_topology, incomplete_chain_map)
+        # Check that two hydrogels with the same name cannot be defined in the dataframe
+        pmb.define_hydrogel(hydrogel_name,node_topology, chain_topology)
+        hydrogel_count = len(pmb.df[pmb.df["name"] == hydrogel_name])
+        assert hydrogel_count == 1, f"Hydrogel '{hydrogel_name}' should not be redefined."
+        assert hydrogel_name in pmb.df["name"].values
+        assert pmb.df.loc[pmb.df["name"] == hydrogel_name, "pmb_type"].values[0] == "hydrogel"
+
+    def test_hydrogel_definitions_in_df(self):
+        # Verify node_map and chain_map are correctly added
+        assert compare_node_maps(pmb.df.loc[pmb.df["name"] == hydrogel_name, "node_map"].values[0], node_topology)
+        assert compare_chain_maps(pmb.df.loc[pmb.df["name"] == hydrogel_name, "chain_map"].values[0], chain_topology)
+        for chain_id in chain_topology:
+            molecule_name = f"chain_{chain_id['node_start']}_{chain_id['node_end']}"
+            assert molecule_name in pmb.df["name"].values
+        #####-- Invalid hydrogel name --#####
+        # Test if create_hydrogel raises an exception when provided with invalid data
+        print("*** Unit Test: Check invalid inputs for create_hydrogel ***")
+        np.testing.assert_raises(ValueError, pmb.create_hydrogel, "invalid_hydrogel", espresso_system)
+        print("*** Invalid Input Test Passed ***")
+        # Check if the molecules (chains) are correctly stored in the hydrogel data
+        for ((molecule_id, molecule_data),_) in zip(hydrogel_info["chains"].items(),chain_topology):
+            molecule_name_in_espresso = pmb.df[(pmb.df["pmb_type"] == "molecule") & (pmb.df["molecule_id"] == molecule_id)]["name"].values[0]
+            np.testing.assert_equal(molecule_name_in_espresso, f"chain_{molecule_data['node_start']}_{molecule_data['node_end']}")
+
+        print("*** Checking if the ends of an arbitrarly chosen chain is connected to node_start and node_end ***")
+
+        molecule = hydrogel_info["chains"][1]
+        Res_node_start = list(molecule.values())[0]
+        Res_node_end   = list(molecule.values())[-3]
+        central_bead_near_node_start = Res_node_start["central_bead_id"]
+        central_bead_near_node_end = Res_node_end["central_bead_id"]
+
+        node_ids = []
+        for indice in node_labels.keys():
+            index_pos = np.array(list(int(x) for x in indice.strip('[]').split()))*0.25*lattice_builder.BOXL
+            node_id = espresso_system.part.select(lambda p: (p.pos == index_pos).all()).id[0]
+            node_ids.append(node_id)
+
+        bead_ids_in_random_molecule = [i for i in range(central_bead_near_node_start, central_bead_near_node_end+1)]
+        particle_ids = pmb.df["particle_id"].fillna(-1).to_numpy()
+        particle_ids2 = pmb.df["particle_id2"].fillna(-1).to_numpy()
+
+        mask = np.isin(particle_ids, node_ids) & np.isin(particle_ids2, bead_ids_in_random_molecule)
+        filtered_df = pmb.df[mask]
+        
+        # Extract scalar values for central_bead_node_start and central_bead_node_end
+        central_bead_node_start = filtered_df[filtered_df["particle_id2"] == central_bead_near_node_start]["particle_id"].iloc[0]
+        central_bead_node_end = filtered_df[filtered_df["particle_id2"] == central_bead_near_node_end]["particle_id"].iloc[0]
+
+        bond_name_node_start = filtered_df[
+            (filtered_df["particle_id"] == central_bead_node_start) & 
+            (filtered_df["particle_id2"] == central_bead_near_node_start)
+        ]["name"].iloc[0]
+
+        bond_name_node_end = filtered_df[
+            (filtered_df["particle_id"] == central_bead_node_end) & 
+            (filtered_df["particle_id2"] == central_bead_near_node_end)
+        ]["name"].iloc[0]
+        
+        all_not_na = filtered_df['bond_object'].notna().all()
+        if not all_not_na:
+            raise ValueError("Bond object is not defined near nodes")
+        
+        central_bead_name_near_node_start = pmb.df[pmb.df["particle_id"]==central_bead_near_node_start]["name"].values[0]
+        central_bead_name_near_node_end = pmb.df[pmb.df["particle_id"]==central_bead_near_node_end]["name"].values[0]
+
+        if central_bead_name_near_node_start == BeadType1:
+            possible_bond_names = [NodeType+"-"+BeadType1, BeadType1+"-"+NodeType]
+            assert bond_name_node_start in possible_bond_names
+
+        elif central_bead_name_near_node_start == BeadType2:
+            possible_bond_names = [NodeType+"-"+BeadType2, BeadType2+"-"+NodeType]
+            assert bond_name_node_start in possible_bond_names
+
+        if central_bead_name_near_node_end == BeadType1:
+            possible_bond_names = [NodeType+"-"+BeadType1, BeadType1+"-"+NodeType]
+            assert bond_name_node_end in possible_bond_names
+
+        elif central_bead_name_near_node_end == BeadType2:
+            possible_bond_names = [NodeType+"-"+BeadType2, BeadType2+"-"+NodeType]
+            assert bond_name_node_end in possible_bond_names
+        
+        print("*** Unit Test passed ***")
+        
 if __name__ == "__main__":
     ut.main(exit=False)
 
-#####-- Invalid hydrogel name --#####
-# Test if create_hydrogel raises an exception when provided with invalid data
-print("*** Unit Test: Check invalid inputs for create_hydrogel ***")
-np.testing.assert_raises(ValueError, pmb.create_hydrogel, "invalid_hydrogel", espresso_system)
-print("*** Invalid Input Test Passed ***")
 
-# Check if the molecules (chains) are correctly stored in the hydrogel data
-for ((molecule_id, molecule_data),chain_dict) in zip(hydrogel_info["chains"].items(),chain_topology):
-    molecule_name_in_espresso = pmb.df[(pmb.df["pmb_type"] == "molecule") & (pmb.df["molecule_id"] == molecule_id)]["name"].values[0]
-    np.testing.assert_equal(molecule_name_in_espresso, f"chain_{molecule_data['node_start']}_{molecule_data['node_end']}")
-    Residue_list_in_espresso = pmb.df[(pmb.df["pmb_type"]=="molecule") & (pmb.df["molecule_id"]==molecule_id)]["residue_list"].values[0]    
 
-print("*** Checking if the ends of an arbitrarly chosen chain is connected to node_start and node_end ***")
 
-molecule = hydrogel_info["chains"][1]
-Res_node_start = list(molecule.values())[0]
-Res_node_end   = list(molecule.values())[-3]
-central_bead_near_node_start = Res_node_start["central_bead_id"]
-central_bead_near_node_end = Res_node_end["central_bead_id"]
-
-node_ids = []
-for indice in node_labels.keys():
-    index_pos = np.array(list(int(x) for x in indice.strip('[]').split()))*0.25*lattice_builder.BOXL
-    node_id = espresso_system.part.select(lambda p: (p.pos == index_pos).all()).id[0]
-    node_ids.append(node_id)
-
-bead_ids_in_random_molecule = [i for i in range(central_bead_near_node_start, central_bead_near_node_end+1)]
-filtered_df = pmb.df[
-    pmb.df["particle_id"].isin(node_ids) & 
-    pmb.df["particle_id2"].isin(bead_ids_in_random_molecule)
-    ]
-
-# Extract scalar values for central_bead_node_start and central_bead_node_end
-central_bead_node_start = filtered_df[filtered_df["particle_id2"] == central_bead_near_node_start]["particle_id"].iloc[0]
-central_bead_node_end = filtered_df[filtered_df["particle_id2"] == central_bead_near_node_end]["particle_id"].iloc[0]
-
-bond_name_node_start = filtered_df[
-    (filtered_df["particle_id"] == central_bead_node_start) & 
-    (filtered_df["particle_id2"] == central_bead_near_node_start)
-]["name"].iloc[0]
-
-bond_name_node_end = filtered_df[
-    (filtered_df["particle_id"] == central_bead_node_end) & 
-    (filtered_df["particle_id2"] == central_bead_near_node_end)
-]["name"].iloc[0]
-
-for _, row in filtered_df.iterrows():
-    bond_object = row["bond_object"]
-    if bond_object is None:
-        raise ValueError("Bond object is not defined near nodes")
-
-central_bead_name_near_node_start = pmb.df[pmb.df["particle_id"]==central_bead_near_node_start]["name"].values[0]
-central_bead_name_near_node_end = pmb.df[pmb.df["particle_id"]==central_bead_near_node_end]["name"].values[0]
-
-if central_bead_name_near_node_start == BeadType1:
-    possible_bond_names = [NodeType+"-"+BeadType1, BeadType1+"-"+NodeType]
-    assert bond_name_node_start in possible_bond_names
-
-elif central_bead_name_near_node_start == BeadType2:
-    possible_bond_names = [NodeType+"-"+BeadType2, BeadType2+"-"+NodeType]
-    assert bond_name_node_start in possible_bond_names
-
-if central_bead_name_near_node_end == BeadType1:
-    possible_bond_names = [NodeType+"-"+BeadType1, BeadType1+"-"+NodeType]
-    assert bond_name_node_end in possible_bond_names
-
-elif central_bead_name_near_node_end == BeadType2:
-    possible_bond_names = [NodeType+"-"+BeadType2, BeadType2+"-"+NodeType]
-    assert bond_name_node_end in possible_bond_names
-
-print("*** Unit Test passed ***")
