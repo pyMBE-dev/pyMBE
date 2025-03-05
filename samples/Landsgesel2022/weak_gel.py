@@ -27,10 +27,10 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--MPC",
                     type=int,
                     help="Number of monomers per chain ",
-                    default=30)
-parser.add_argument("--L_target",
+                    default=40)
+parser.add_argument("--L_fraction",
                     type=float,
-                    help="Target box length to achieve starting from L_max",
+                    help="Target fraction of the maximum box length to achieve during the volume compression of the gel",
                     default=1)
 parser.add_argument("--c_salt_res",
                     type=float,
@@ -187,7 +187,7 @@ print("min dist",espresso_system.analysis.min_dist())
 
 espresso_system.force_cap = 0
 L_max = diamond_lattice.BOXL
-L_target = args.L_target * L_max
+L_target = args.L_fraction * L_max
 steps_size = 0.5
 steps_needed = int(abs((L_max - L_target)/steps_size))
 
@@ -195,7 +195,7 @@ print("*** BOX Dimension changing... ***")
 
 for j in tqdm(np.arange(0,steps_needed)):
     espresso_system.change_volume_and_rescale_particles(d_new = espresso_system.box_l[0]-steps_size, dir = "xyz")
-    espresso_system.integrator.run(1000)  #1000 here
+    espresso_system.integrator.run(1000)  
 espresso_system.change_volume_and_rescale_particles(d_new = L_target, dir = "xyz")
 espresso_system.thermostat.turn_off()
 minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max_displacement=0.01, skin=0.4)
@@ -276,14 +276,14 @@ for i in tqdm(range(N_production_loops)):
     time_series["alpha"].append(len(espresso_system.part.select(type=2,q=-1))/(16*args.MPC))
     time_series["pressure"].append(espresso_system.analysis.pressure()["total"])
 
-inputs={"csalt": c_salt_res,
-        "L_target": args.L_target,
+inputs={"csalt": args.c_salt_res,
+        "Ltarget": args.L_fraction,
         "pH": args.pH_res,
         "pKa": args.pKa_value}
 
 data_path = args.output
 if data_path is None:
-    data_path=pmb.get_resource(path="samples/Landsgessel22a")+"/time_series/"
+    data_path=pmb.get_resource(path="samples/Landsgesel22a")+"/time_series/"
 
 Path(data_path).mkdir(parents=True,
                        exist_ok=True)
