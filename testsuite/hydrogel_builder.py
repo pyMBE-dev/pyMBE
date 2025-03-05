@@ -306,20 +306,11 @@ for ((molecule_id, molecule_data),chain_dict) in zip(hydrogel_info["chains"].ite
     np.testing.assert_equal(molecule_name_in_espresso, f"chain_{molecule_data['node_start']}_{molecule_data['node_end']}")
     Residue_list_in_espresso = pmb.df[(pmb.df["pmb_type"]=="molecule") & (pmb.df["molecule_id"]==molecule_id)]["residue_list"].values[0]    
 
-print("*** Checking if the ends of the randomly chosen chain is connected to node_start and node_end ***")
+print("*** Checking if the ends of an arbitrarly chosen chain is connected to node_start and node_end ***")
 
-random_key = random.choice(list(hydrogel_info["chains"].keys()))
-molecule_random = hydrogel_info["chains"][random_key]
-numeric_keys = {key: value for key, value in molecule_random.items() if isinstance(key, int)}
-
-# Extract the first and last elements
-keys = list(numeric_keys.keys())
-first_key = keys[0]
-last_key = keys[-1]
-
-Res_node_start = numeric_keys[first_key]
-Res_node_end = numeric_keys[last_key]
-
+molecule = hydrogel_info["chains"][1]
+Res_node_start = list(molecule.values())[0]
+Res_node_end   = list(molecule.values())[-3]
 central_bead_near_node_start = Res_node_start["central_bead_id"]
 central_bead_near_node_end = Res_node_end["central_bead_id"]
 

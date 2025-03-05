@@ -1356,19 +1356,13 @@ class pymbe_library():
         Returns:
             variable_with_units(`obj`): variable with units using the pyMBE UnitRegistry.
         """        
-        
         if isinstance(variable, dict):
-
             value=variable.pop('value')
             units=variable.pop('units')
-
         elif isinstance(variable, str):
-
             value = float(re.split(r'\s+', variable)[0])
             units = re.split(r'\s+', variable)[1]
-        
         variable_with_units=value*self.units(units)
-
         return variable_with_units 
 
     def define_AA_residues(self, sequence, model):
@@ -3467,9 +3461,7 @@ class pymbe_library():
             'node_map':{
                 '':object},
             'chain_map':{
-                '':object},
-                '': object},
-            }
+                '':object}}
         
         self.df = pd.DataFrame(columns=pd.MultiIndex.from_tuples([(col_main, col_sub) for col_main, sub_cols in columns_dtypes.items() for col_sub in sub_cols.keys()]))
         
