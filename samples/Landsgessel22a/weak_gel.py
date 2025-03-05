@@ -6,7 +6,6 @@ from tqdm import tqdm
 from scipy import interpolate
 import argparse
 from lib.lattice import DiamondLattice
-import pickle
 import pyMBE
 from lib import analysis
 
@@ -17,6 +16,8 @@ pmb = pyMBE.pymbe_library(seed=42)
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import minimize_espresso_system_energy
 from lib.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import do_reaction
+
 #######################################################
 # Setting parameters for the simulation
 #######################################################
@@ -25,19 +26,24 @@ from lib.handy_functions import setup_langevin_dynamics
 parser = argparse.ArgumentParser()
 parser.add_argument("--MPC",
                     type=int,
-                    help="Number of monomers per chain ")
+                    help="Number of monomers per chain ",
+                    default=30)
 parser.add_argument("--L_target",
                     type=float,
-                    help="Target box length to achieve starting from L_max")
+                    help="Target box length to achieve starting from L_max",
+                    default=1)
 parser.add_argument("--c_salt_res",
                     type=float,
-                    help="Concentration of NaCl in the reservoir in mol/l.")
+                    help="Concentration of NaCl in the reservoir in mol/l.",
+                    default=0.01)
 parser.add_argument("--pH_res",
                     type=float,
-                    help="pH-value in the reservoir.")
+                    help="pH-value in the reservoir.",
+                    default=7)
 parser.add_argument("--pKa_value",
                     type=float,
-                    help="pKa-value of the hydrogel monomers")
+                    help="pKa-value of the hydrogel monomers",
+                    default=4)
 parser.add_argument('--mode',
                     type=str,
                     default= "short-run",
@@ -76,9 +82,11 @@ bond_type = 'FENE'
 bond_length = 0.966 * pmb.units("reduced_length")
 fene_spring_constant = 30 * pmb.units('reduced_energy / reduced_length**2')
 fene_r_max = 1.5 * pmb.units('reduced_length')
+fene_r0 = 0 * pmb.units('reduced_length')
 
 fene_bond = {'k'      : fene_spring_constant,
              'd_r_max': fene_r_max,
+             "r_0": fene_r0,
             }
 
 pmb.define_bond(bond_type = bond_type, 
@@ -214,7 +222,7 @@ grxmc.set_non_interacting_type (type=non_interacting_type)
 
 for i in tqdm(range(100)):
     espresso_system.integrator.run(steps=1000)
-    grxmc.reaction(1000)
+    do_reaction(grxmc,1000)
 
 setup_electrostatic_interactions(units=pmb.units,
                                 espresso_system=espresso_system,
@@ -239,7 +247,8 @@ else:
 print("*** Running warmup with electrostatics ***")
 for i in tqdm(range(N_warmup_loops)):
     espresso_system.integrator.run(steps=1000)
-    grxmc.reaction(100)
+    do_reaction(grxmc,100)
+    
 
 
 # Main loop
@@ -258,7 +267,7 @@ else:
 
 for i in tqdm(range(N_production_loops)):
     espresso_system.integrator.run(steps=1000)
-    grxmc.reaction(200)
+    do_reaction(grxmc,200)
 
     # Measure time
     time_series["time"].append(espresso_system.time)
@@ -266,9 +275,6 @@ for i in tqdm(range(N_production_loops)):
     # Measure degree of ionization
     time_series["alpha"].append(len(espresso_system.part.select(type=2,q=-1))/(16*args.MPC))
     time_series["pressure"].append(espresso_system.analysis.pressure()["total"])
-
-with open("time_series.pkl", "wb") as f:
-    pickle.dump(time_series, f)
 
 inputs={"csalt": c_salt_res,
         "L_target": args.L_target,

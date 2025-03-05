@@ -51,16 +51,20 @@ from lib.handy_functions import do_reaction
 parser = argparse.ArgumentParser()
 parser.add_argument("--c_salt_res", 
                     type=float, 
-                    help="Concentration of NaCl in the reservoir in mol/l.")
+                    help="Concentration of NaCl in the reservoir in mol/l.",
+                    default=0.01)
 parser.add_argument("--c_mon_sys", 
                     type=float, 
-                    help="Concentration of acid monomers in the system in mol/l.")
+                    help="Concentration of acid monomers in the system in mol/l.",
+                    default=0.01)
 parser.add_argument("--pH_res", 
                     type=float, 
-                    help="pH-value in the reservoir.")
+                    help="pH-value in the reservoir.",
+                    default=7)
 parser.add_argument("--pKa_value", 
                     type=float, 
-                    help="pKa-value of the polyacid monomers.")
+                    help="pKa-value of the polyacid monomers.",
+                    default=4)
 parser.add_argument('--mode',
                     type=str,
                     default= "short-run",
@@ -80,7 +84,6 @@ inputs={"csalt": args.c_salt_res,
         "cmon": args.c_mon_sys,
         "pH": args.pH_res,
         "pKa": args.pKa_value}
-
 mode=args.mode
 valid_modes=["short-run","long-run", "test"]
 verbose=args.no_verbose
@@ -105,9 +108,16 @@ else:
 polyacid_name = 'polyacid'
 
 # Add the polyacid to the pmb instance
-pmb.define_particle(name='A', acidity='acidic', sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'), pka=args.pKa_value)
-pmb.define_residue(name='rA', central_bead="A", side_chains=[])
-pmb.define_molecule(name=polyacid_name, residue_list=['rA']*Chain_length)
+pmb.define_particle(name='A', 
+                    acidity='acidic', 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'), 
+                    pka=args.pKa_value)
+pmb.define_residue(name='rA', 
+                   central_bead="A", 
+                   side_chains=[])
+pmb.define_molecule(name=polyacid_name, 
+                    residue_list=['rA']*Chain_length)
 
 
 bond_type = 'FENE'
@@ -118,7 +128,9 @@ fene_bond = {'k'      : fene_spring_constant,
              'd_r_max': fene_r_max, 
             }
 
-pmb.define_bond(bond_type = bond_type, bond_parameters = fene_bond, particle_pairs = [['A','A']])
+pmb.define_bond(bond_type = bond_type, 
+                bond_parameters = fene_bond, 
+                particle_pairs = [['A','A']])
 
 # Parameters of the small ions
 proton_name = 'Hplus'
@@ -126,10 +138,22 @@ hydroxide_name = 'OHminus'
 sodium_name = 'Na'
 chloride_name = 'Cl'
 
-pmb.define_particle(name=proton_name, z=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=hydroxide_name,  z=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=sodium_name, z=1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=chloride_name, z=-1, sigma=1*pmb.units('reduced_length'), epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=proton_name, 
+                    z=1, 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=hydroxide_name,  
+                    z=-1, 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=sodium_name, 
+                    z=1, 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=chloride_name, 
+                    z=-1, 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters (some are read from the command line)
 c_mon_sys = args.c_mon_sys * pmb.units.mol/ pmb.units.L
@@ -178,7 +202,14 @@ excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(io
 activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
 if verbose:
     print("Setting up reactions...")
-grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, c_salt_res=c_salt_res, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, activity_coefficient=activity_coefficient_monovalent_pair, pka_set=pka_set)
+grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, 
+                                                              c_salt_res=c_salt_res, 
+                                                              proton_name=proton_name, 
+                                                              hydroxide_name=hydroxide_name, 
+                                                              salt_cation_name=sodium_name, 
+                                                              salt_anion_name=chloride_name, 
+                                                              activity_coefficient=activity_coefficient_monovalent_pair, 
+                                                              pka_set=pka_set)
 if verbose:
     print('The acid-base reaction has been sucessfully set up for ', labels)
 
