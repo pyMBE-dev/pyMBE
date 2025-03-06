@@ -51,6 +51,7 @@ parser.add_argument('--mode',
 parser.add_argument('--output',
                     type=str,
                     required= False,
+                    default="samples/time_series/weak_polyacid_hydrogel_grxmc",
                     help='output directory')
 parser.add_argument('--no_verbose',
                     action='store_false',
