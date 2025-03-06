@@ -197,9 +197,12 @@ if verbose:
 
 # Set up the reactions
 path_to_ex_pot=pmb.get_resource("parameters/salt/")
-ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/monovalent_salt_excess_chemical_potential.dat", unpack=True)
-excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
-activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
+monovalent_salt_ref_data=pd.read_csv(f"{path_to_ex_pot}/monovalent_salt_excess_chemical_potential.csv")
+ionic_strength = pmb.units.Quantity(monovalent_salt_ref_data["cs_bulk_[1/sigma^3]"].values, "1/reduced_length**3")
+excess_chemical_potential = pmb.units.Quantity(monovalent_salt_ref_data["excess_chemical_potential_[kbT]"].values, "reduced_energy")
+excess_chemical_potential_interpolated = interpolate.interp1d(ionic_strength.m_as("1/reduced_length**3"), 
+                                                                                excess_chemical_potential.m_as("reduced_energy"))
+activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
 if verbose:
     print("Setting up reactions...")
 grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, 

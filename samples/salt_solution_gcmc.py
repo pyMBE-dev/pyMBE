@@ -106,12 +106,21 @@ if verbose:
 # Set up reactions
 if args.mode == "interacting":
     path_to_ex_pot=pmb.get_resource("parameters/salt/")
-    ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/monovalent_salt_excess_chemical_potential.dat", unpack=True)
-    excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
-    activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
-    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, activity_coefficient=activity_coefficient_monovalent_pair)
+    monovalent_salt_ref_data=pd.read_csv(f"{path_to_ex_pot}/monovalent_salt_excess_chemical_potential.csv")
+    ionic_strength = pmb.units.Quantity(monovalent_salt_ref_data["cs_bulk_[1/sigma^3]"].values, "1/reduced_length**3")
+    excess_chemical_potential = pmb.units.Quantity(monovalent_salt_ref_data["excess_chemical_potential_[kbT]"].values, "reduced_energy")
+    excess_chemical_potential_interpolated = interpolate.interp1d(ionic_strength.m_as("1/reduced_length**3"), 
+                                                                                  excess_chemical_potential.m_as("reduced_energy"))
+    activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
+    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, 
+                        salt_cation_name=cation_name,
+                        salt_anion_name=anion_name, 
+                        activity_coefficient=activity_coefficient_monovalent_pair)
 elif args.mode == "ideal":
-    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, activity_coefficient=lambda x: 1.0)
+    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, 
+                        salt_cation_name=cation_name, 
+                        salt_anion_name=anion_name, 
+                        activity_coefficient=lambda x: 1.0)
 if verbose:
     print("Set up GCMC...")
 

@@ -71,6 +71,6 @@ plt.plot(data_ref["pH"].drop_duplicates(),
          label="Landsgesell et al. 2022")
 
 plt.legend(fontsize=17, loc="lower right")
-plt.savefig(f"./alpha_pH_curve.pdf", 
+plt.savefig("./alpha_pH_curve.pdf", 
             bbox_inches='tight')
 plt.close()

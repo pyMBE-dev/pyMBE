@@ -38,14 +38,16 @@ analyzed_preassure_err = pmb.units.Quantity(analyzed_data["err_mean"]["pressure"
 
 
 # Calculate pressure in the reservour
-cs_bulk = pmb.units.Quantity(data_ref[data_ref['#cs_bulk_[1/sigma^3]'].notna()]['#cs_bulk_[1/sigma^3]'].values,"1/reduced_length**3")
-excess_press = pmb.units.Quantity(data_ref[data_ref['excess_pressure_[kT/sigma^3]'].notna()]['excess_pressure_[kT/sigma^3]'].values, "reduced_energy/reduced_length**3")
+## load the monovalent salt reference data
+data_path = pmb.get_resource("parameters/salt")
+monovalent_salt_ref_data=pd.read_csv(f"{data_path}/excess_chemical_potential_excess_pressure.csv")
+cs_bulk = pmb.units.Quantity(monovalent_salt_ref_data['#cs_bulk_[1/sigma^3]'].values,"1/reduced_length**3")
+excess_press = pmb.units.Quantity(monovalent_salt_ref_data['excess_pressure_[kT/sigma^3]'].values, "reduced_energy/reduced_length**3")
 excess_press = interpolate.interp1d(cs_bulk.m_as("1/L"), 
                                     excess_press.m_as("bar"))
 p_id = 2*ref_cs*pmb.kT
 p_res = p_id + excess_press(ref_cs.m_as("1/L"))*pmb.units.bar
-p_res_ref_err = pmb.units.Quantity(data_ref[data_ref['std_error_excess_pressure_[kT/sigma^3]'].notna()]['std_error_excess_pressure_[kT/sigma^3]'].values, "reduced_energy/reduced_length**3")
-print(p_res)
+
 # Plot
 plt.rcParams["font.family"] = "serif"
 plt.tight_layout()
@@ -78,6 +80,6 @@ plt.ylabel(r"$P_{sys}-P_{res}$ [bar]", fontsize=17)
 plt.xticks(fontsize=17)
 plt.yticks(fontsize=17)
 plt.legend(fontsize=17)
-plt.savefig(f"./PV_curve.pdf", 
+plt.savefig("./PV_curve.pdf", 
             bbox_inches='tight')
 plt.close()

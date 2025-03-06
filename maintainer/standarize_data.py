@@ -62,7 +62,7 @@ files_lunkad=["Glu-HisMSDE.csv","Lys-AspMSDE.csv"]
 files_blanco=["histatin5_SoftMatter.txt"]
 files_torres = ["1f6s-10mM-torres.dat","1beb-10mM-torres.dat" ]
 files_landsgesell2020=["data_landsgesell.csv"]
-files_landsgesell2022=["equilibrium_values_gel_MD.csv","excess_chemical_potential_excess_pressure.csv","weak-gel_total_data.csv"]
+files_landsgesell2022=["equilibrium_values_gel_MD.csv","weak-gel_total_data.csv"]
 
 # Get path to the data from publication
 if filename == "landsgesell2022":
