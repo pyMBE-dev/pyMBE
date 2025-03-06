@@ -1,7 +1,7 @@
 # Structure of the samples folder
 The samples folder showcases scripts showing practical examples on how to use pyMBE to setup various systems.
 The scripts in the parent folder are general examples just to show how pyMBE works and they are not parametrized to reproduce any specific set of reference data.
-The scripts in the subfolders `Beyer2024`[^2] and `Landsgesel2022`[^3] are designed to use pyMBE to reproduce existing reference data in the literature and therefore use the same parameters as the original authors of the corresponding publications.
+The scripts in the subfolders `Beyer2024`[^2] and `Landsgesell2022`[^3] are designed to use pyMBE to reproduce existing reference data in the literature and therefore use the same parameters as the original authors of the corresponding publications.
 
 # Pipeline of the sample scripts in pyMBE
 

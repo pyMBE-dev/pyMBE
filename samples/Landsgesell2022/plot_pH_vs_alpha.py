@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(description='Plots alpha vs pH  from weak_gel.p
 parser.add_argument('--path_to_data',
                     type=str,
                     required= False,
-                    default="samples/Landsgesel2022/time_series/analyzed_data.csv",
+                    default="samples/Landsgesell2022/time_series/analyzed_data.csv",
                     help='path to the analyzed data')
 args = parser.parse_args()
 

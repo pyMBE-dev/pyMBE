@@ -239,11 +239,8 @@ for label in ["time","charge"]:
 # Production loop
 N_frame=0
 for step in tqdm.trange(N_samples):
-    
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
-    do_reaction(cpH, steps=total_ionisable_groups)
-
-    
+    do_reaction(cpH, steps=total_ionisable_groups)   
     # Get polyampholyte net charge
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
                                         molecule_name="polyampholyte",
@@ -251,7 +248,6 @@ for step in tqdm.trange(N_samples):
     
     time_series["time"].append(espresso_system.time)
     time_series["charge"].append(charge_dict["mean"])
-
     if step % N_samples_print == 0:
         N_frame+=1
         with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:

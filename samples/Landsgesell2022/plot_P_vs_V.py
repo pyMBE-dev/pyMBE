@@ -9,7 +9,7 @@ parser = argparse.ArgumentParser(description='Plots alpha vs pH  from weak_gel.p
 parser.add_argument('--path_to_data',
                     type=str,
                     required= False,
-                    default="samples/Landsgesel2022/time_series/analyzed_data.csv",
+                    default="samples/Landsgesell2022/time_series/analyzed_data.csv",
                     help='path to the analyzed data')
 args = parser.parse_args()
 
@@ -41,7 +41,7 @@ analyzed_preassure_err = pmb.units.Quantity(analyzed_data["err_mean"]["pressure"
 ## load the monovalent salt reference data
 data_path = pmb.get_resource("parameters/salt")
 monovalent_salt_ref_data=pd.read_csv(f"{data_path}/excess_chemical_potential_excess_pressure.csv")
-cs_bulk = pmb.units.Quantity(monovalent_salt_ref_data['#cs_bulk_[1/sigma^3]'].values,"1/reduced_length**3")
+cs_bulk = pmb.units.Quantity(monovalent_salt_ref_data['cs_bulk_[1/sigma^3]'].values,"1/reduced_length**3")
 excess_press = pmb.units.Quantity(monovalent_salt_ref_data['excess_pressure_[kT/sigma^3]'].values, "reduced_energy/reduced_length**3")
 excess_press = interpolate.interp1d(cs_bulk.m_as("1/L"), 
                                     excess_press.m_as("bar"))

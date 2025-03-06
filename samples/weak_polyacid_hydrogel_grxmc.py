@@ -51,7 +51,7 @@ parser.add_argument('--mode',
 parser.add_argument('--output',
                     type=str,
                     required= False,
-                    default="samples/time_series/weak_polyacid_hydrogel_grxmc",
+                    default="time_series/weak_polyacid_hydrogel_grxmc",
                     help='output directory')
 parser.add_argument('--no_verbose',
                     action='store_false',
@@ -299,7 +299,7 @@ inputs={"csalt": args.csalt_res,
 
 data_path = args.output
 if data_path is None:
-    data_path=pmb.get_resource(path="samples/Landsgesel2022")+"/time_series/"
+    data_path=pmb.get_resource(path="samples/Landsgesell2022")+"/time_series/"
 
 Path(data_path).mkdir(parents=True,
                        exist_ok=True)
