@@ -1,24 +1,83 @@
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import pandas as pd
+import argparse
+import pyMBE
+from scipy import interpolate
 
-# Load the processed data
-plot_data_1 = pd.read_csv("plot_pv_curve.csv")
-plot_data_2 = pd.read_csv("plot_ref.csv")
+parser = argparse.ArgumentParser(description='Plots alpha vs pH  from weak_gel.py and the corresponding reference data from Landsgesell2022.')
+parser.add_argument('--path_to_data',
+                    type=str,
+                    required= False,
+                    default="samples/Landsgesel2022/time_series/analyzed_data.csv",
+                    help='path to the analyzed data')
+args = parser.parse_args()
 
-L_target = plot_data_1["L/L_max"]
-p_sys_minus_p_res = plot_data_1["P_sys - P_res"]
-p_err_total = plot_data_1["P_err_total"]
+pmb = pyMBE.pymbe_library(seed=42)
 
-box_l_ref = plot_data_2["box_l"]
-p_ref = plot_data_2["p_ref"]
+# Values from Landsgesell2022
+unit_length=0.355*pmb.units.nm
+temperature=300*pmb.units.K
+pmb.set_reduced_units(unit_length=unit_length,
+                      temperature=temperature)
+ref_cs = pmb.units.Quantity(0.00134770889, "1/reduced_length**3")
+ref_pH = 5
+ref_max_L = 89.235257606948  # Maximum chain length for MPC=39
+# Read the reference data
+data_path = pmb.get_resource("testsuite/data")
+data_ref = pd.read_csv(f"{data_path}/Landsgesell2022a.csv")
+pressures_ref = pmb.units.Quantity((data_ref[(data_ref["pH"] == 5) & (data_ref["cs_bulk"] == 0.00134770889)])["total_isotropic_pressures"].values,"reduced_energy/reduced_length**3")
+box_l_ref     = data_ref[(data_ref["pH"] == 5) & (data_ref["cs_bulk"] == 0.00134770889)]["#final_box_l"].values
 
+# Read the analyzed data
+time_series_folder_path=pmb.get_resource(args.path_to_data)
+analyzed_data = pd.read_csv(time_series_folder_path, header=[0,1])
+analyzed_data = analyzed_data[(analyzed_data["csalt"]["value"] == round((ref_cs/pmb.N_A).m_as("M"),2)) & (analyzed_data["pH"]["value"] == ref_pH)]
+analyzed_preassure = pmb.units.Quantity(analyzed_data["mean"]["pressure"].values, "reduced_energy/reduced_length**3")
+analyzed_preassure_err = pmb.units.Quantity(analyzed_data["err_mean"]["pressure"].values, "reduced_energy/reduced_length**3")
+
+
+# Calculate pressure in the reservour
+cs_bulk = pmb.units.Quantity(data_ref[data_ref['#cs_bulk_[1/sigma^3]'].notna()]['#cs_bulk_[1/sigma^3]'].values,"1/reduced_length**3")
+excess_press = pmb.units.Quantity(data_ref[data_ref['excess_pressure_[kT/sigma^3]'].notna()]['excess_pressure_[kT/sigma^3]'].values, "reduced_energy/reduced_length**3")
+excess_press = interpolate.interp1d(cs_bulk.m_as("1/L"), 
+                                    excess_press.m_as("bar"))
+p_id = 2*ref_cs*pmb.kT
+p_res = p_id + excess_press(ref_cs.m_as("1/L"))*pmb.units.bar
+p_res_ref_err = pmb.units.Quantity(data_ref[data_ref['std_error_excess_pressure_[kT/sigma^3]'].notna()]['std_error_excess_pressure_[kT/sigma^3]'].values, "reduced_energy/reduced_length**3")
+print(p_res)
 # Plot
-plt.errorbar(L_target, p_sys_minus_p_res, yerr=p_err_total, fmt="o", capsize=3, elinewidth=2,
-             ecolor='tab:blue', label="pH=5, cs=0.05M")
+plt.rcParams["font.family"] = "serif"
+plt.tight_layout()
+mpl.rc('axes', linewidth=1)
+mpl.rcParams['lines.markersize'] = 5
+mpl.rcParams['lines.linewidth'] = 1.0
+
+width = 8
+height = 8
+plt.figure(figsize=(width,height), dpi=300)
+plt.grid(which='major', 
+            color='#CCCCCC', 
+            linestyle='--', 
+            linewidth=0.6)
+plt.errorbar(analyzed_data["Lfraction"]["value"], 
+             (analyzed_preassure-p_res).m_as("bar"), 
+             yerr=analyzed_preassure_err.m_as("bar"), 
+             fmt="o", 
+             capsize=3, 
+             elinewidth=2,
+             ecolor='tab:blue', 
+             label="pyMBE")
+
+plt.plot(box_l_ref/ref_max_L, 
+         (pressures_ref-p_res).m_as("bar"), 
+         marker="*",
+         label="Landsgesell et al. 2022")
 plt.xlabel(r"$L/L_{max}$", fontsize=17)
 plt.ylabel(r"$P_{sys}-P_{res}$ [bar]", fontsize=17)
 plt.xticks(fontsize=17)
 plt.yticks(fontsize=17)
-plt.plot(box_l_ref, p_ref, label="Landsgesell et al")
 plt.legend(fontsize=17)
-plt.show()
+plt.savefig(f"./PV_curve.pdf", 
+            bbox_inches='tight')
+plt.close()

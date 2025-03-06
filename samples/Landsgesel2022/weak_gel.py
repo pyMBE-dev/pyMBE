@@ -277,13 +277,13 @@ for i in tqdm(range(N_production_loops)):
     time_series["pressure"].append(espresso_system.analysis.pressure()["total"])
 
 inputs={"csalt": args.c_salt_res,
-        "Ltarget": args.L_fraction,
+        "Lfraction": args.L_fraction,
         "pH": args.pH_res,
         "pKa": args.pKa_value}
 
 data_path = args.output
 if data_path is None:
-    data_path=pmb.get_resource(path="samples/Landsgesel22a")+"/time_series/"
+    data_path=pmb.get_resource(path="samples/Landsgesel2022")+"/time_series/"
 
 Path(data_path).mkdir(parents=True,
                        exist_ok=True)
