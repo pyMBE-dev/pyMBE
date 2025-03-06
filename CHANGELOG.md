@@ -18,6 +18,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to CTest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
+- New benchmark for hydrogels, including scripts to reproduce the data `samples/Landsgesell2022/run_simulations.py` and `samples/Landsgesell2022/plot_pH_vs_alpha.py` and `samples/Landsgesell2022/plot_P_vs_V.py` (#103)
+- New sample scripts for hydrogels `samples/build_hydrogel.py` and  `samples/weak_polyacid_hydrogel_grxmc.py` (#103)
+- New methods to support building hydrogels with pyMBE `pmb.define_hydrogel`, `pmb.create_hydrogel`, `pmb.initialize_lattice_builder`, `pmb.set_chain`, `pmb.set_node`. (#103)
 - Helper method to delete entries from `pmb.df` (#112)
 - Code of conduct of our community `CODE_OF_CONDUCT.md`, adhering to the Contributor Covenant v2.1 (#104) 
 - New optional argument `backbone_vector` enabling to build molecules along an input vector using `pmb.create_molecule` and `pmb.create_pmb_object` (#99)
