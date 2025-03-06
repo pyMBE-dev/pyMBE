@@ -22,7 +22,7 @@ pmb.set_reduced_units(unit_length=unit_length,
                       temperature=temperature)
 ref_cs = pmb.units.Quantity(0.00134770889, "1/reduced_length**3")
 ref_pH = 5
-ref_max_L = 89.235257606948  # Maximum chain length for MPC=39
+ref_max_L = 89.235257606948  # Maximum chain length for mpc=39
 # Read the reference data
 data_path = pmb.get_resource("testsuite/data")
 data_ref = pd.read_csv(f"{data_path}/Landsgesell2022a.csv")

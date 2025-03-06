@@ -2340,7 +2340,7 @@ class pymbe_library():
             raise TypeError("Currently only DiamondLattice objects are supported.")
         self.lattice_builder = LatticeBuilder(lattice=diamond_lattice)
         if verbose:
-            print(f"LatticeBuilder initialized with MPC={diamond_lattice.MPC} and BOXL={diamond_lattice.BOXL}")
+            print(f"LatticeBuilder initialized with mpc={diamond_lattice.mpc} and box_l={diamond_lattice.box_l}")
         return self.lattice_builder
 
     def load_interaction_parameters(self, filename, verbose=False, overwrite=False):
@@ -2727,7 +2727,7 @@ class pymbe_library():
         molecule_name = "chain_"+node_start+"_"+node_end
         sequence = self.df[self.df['name']==molecule_name].residue_list.values [0]
         assert len(sequence) != 0 and not isinstance(sequence, str)
-        assert len(sequence) == self.lattice_builder.MPC
+        assert len(sequence) == self.lattice_builder.mpc
 
         key, reverse = self.lattice_builder._get_node_vector_pair(node_start, node_end)
         assert node_start != node_end or sequence == sequence[::-1], \
@@ -2737,8 +2737,8 @@ class pymbe_library():
         if reverse:
             sequence = sequence[::-1]
 
-        node_start_pos = np.array(list(int(x) for x in node_start.strip('[]').split()))*0.25*self.lattice_builder.BOXL
-        node_end_pos = np.array(list(int(x) for x in node_end.strip('[]').split()))*0.25*self.lattice_builder.BOXL
+        node_start_pos = np.array(list(int(x) for x in node_start.strip('[]').split()))*0.25*self.lattice_builder.box_l
+        node_end_pos = np.array(list(int(x) for x in node_end.strip('[]').split()))*0.25*self.lattice_builder.box_l
         node1 = espresso_system.part.select(lambda p: (p.pos == node_start_pos).all()).id
         node2 = espresso_system.part.select(lambda p: (p.pos == node_end_pos).all()).id
 
@@ -2747,8 +2747,8 @@ class pymbe_library():
          
         # Finding a backbone vector between node_start and node_end
         vec_between_nodes = np.array(node_positions[node2[0]]) - np.array(node_positions[node1[0]])
-        vec_between_nodes = vec_between_nodes - self.lattice_builder.BOXL * np.round(vec_between_nodes/self.lattice_builder.BOXL)
-        backbone_vector = list(vec_between_nodes/(self.lattice_builder.MPC + 1))
+        vec_between_nodes = vec_between_nodes - self.lattice_builder.box_l * np.round(vec_between_nodes/self.lattice_builder.box_l)
+        backbone_vector = list(vec_between_nodes/(self.lattice_builder.mpc + 1))
         node_start_name = self.df[(self.df["particle_id"]==node1[0]) & (self.df["pmb_type"]=="particle")]["name"].values[0]
         first_res_name = self.df[(self.df["pmb_type"]=="residue") & (self.df["name"]==sequence[0])]["central_bead"].values[0]
         l0 = self.get_bond_length(node_start_name, first_res_name, hard_check=True)
@@ -2825,7 +2825,7 @@ class pymbe_library():
         if self.lattice_builder is None:
             raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
 
-        node_position = np.array(list(int(x) for x in node.strip('[]').split()))*0.25*self.lattice_builder.BOXL
+        node_position = np.array(list(int(x) for x in node.strip('[]').split()))*0.25*self.lattice_builder.box_l
         p_id = self.create_particle(name = residue,
                          espresso_system=espresso_system,
                          number_of_particles=1,

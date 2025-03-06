@@ -24,7 +24,7 @@ from lib.handy_functions import do_reaction
 
 ##### Read command-line arguments using argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--MPC",
+parser.add_argument("--mpc",
                     type=int,
                     help="Number of monomers per chain ",
                     default=40)
@@ -32,7 +32,7 @@ parser.add_argument("--L_fraction",
                     type=float,
                     help="Target fraction of the maximum box length to achieve during the volume compression of the gel",
                     default=1)
-parser.add_argument("--c_salt_res",
+parser.add_argument("--csalt_res",
                     type=float,
                     help="Concentration of NaCl in the reservoir in mol/l.",
                     default=0.01)
@@ -40,7 +40,7 @@ parser.add_argument("--pH_res",
                     type=float,
                     help="pH-value in the reservoir.",
                     default=7)
-parser.add_argument("--pKa_value",
+parser.add_argument("--pKa",
                     type=float,
                     help="pKa-value of the hydrogel monomers",
                     default=4)
@@ -60,7 +60,7 @@ parser.add_argument('--no_verbose',
 
 args = parser.parse_args()
 mode=args.mode
-c_salt_res = args.c_salt_res * pmb.units.mol/ pmb.units.L
+c_salt_res = args.csalt_res * pmb.units.mol/ pmb.units.L
 solvent_permittivity = 78.9
 
 NodeType = "N"
@@ -73,7 +73,7 @@ pmb.define_particle(name=BeadType,
                     acidity="acidic", 
                     sigma=1*pmb.units('reduced_length'), 
                     epsilon=1*pmb.units('reduced_energy'), 
-                    pka=args.pKa_value)
+                    pka=args.pKa)
 
 pmb.define_residue(name='Res', 
                    central_bead=BeadType, 
@@ -117,8 +117,8 @@ pmb.define_particle(name=chloride_name,
                     sigma=1*pmb.units('reduced_length'), 
                     epsilon=1*pmb.units('reduced_energy'))
 
-diamond_lattice = DiamondLattice(args.MPC, bond_length)
-espresso_system = espressomd.System(box_l = [diamond_lattice.BOXL]*3)
+diamond_lattice = DiamondLattice(args.mpc, bond_length)
+espresso_system = espressomd.System(box_l = [diamond_lattice.box_l]*3)
 pmb.add_bonds_to_espresso(espresso_system = espresso_system)
 lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
 
@@ -135,7 +135,7 @@ node_labels = lattice_builder.node_labels
 chain_labels = lattice_builder.chain_labels
 reverse_node_labels = {v: k for k, v in node_labels.items()}
 chain_topology = []
-residue_list = ["Res"]*args.MPC
+residue_list = ["Res"]*args.mpc
 
 for chain_data in chain_labels.items():
     chain_label = chain_data[1]
@@ -174,12 +174,12 @@ setup_langevin_dynamics(espresso_system=espresso_system,
                         time_step=DT,
                         tune_skin=False)
 
-print("*** Force capping.. ***")
+print("*** Relaxing the system... ***")
 lj_cap = 50
 espresso_system.force_cap = lj_cap
 i=0
 while i < 100:
-    espresso_system.integrator.run(steps=500+args.MPC*2)
+    espresso_system.integrator.run(steps=500+args.mpc*2)
     i += 1
     lj_cap = lj_cap + 10
     espresso_system.force_cap = lj_cap
@@ -187,30 +187,45 @@ while i < 100:
 print("min dist",espresso_system.analysis.min_dist())
 
 espresso_system.force_cap = 0
-L_max = diamond_lattice.BOXL
+L_max = diamond_lattice.box_l
 L_target = args.L_fraction * L_max
 steps_size = 0.5
 steps_needed = int(abs((L_max - L_target)/steps_size))
 
-print("*** BOX Dimension changing... ***")
+print("*** Box dimension changing... ***")
 
 for j in tqdm(np.arange(0,steps_needed)):
-    espresso_system.change_volume_and_rescale_particles(d_new = espresso_system.box_l[0]-steps_size, dir = "xyz")
+    espresso_system.change_volume_and_rescale_particles(d_new = espresso_system.box_l[0]-steps_size, 
+                                                        dir = "xyz")
     espresso_system.integrator.run(1000)  
-espresso_system.change_volume_and_rescale_particles(d_new = L_target, dir = "xyz")
+espresso_system.change_volume_and_rescale_particles(d_new = L_target, 
+                                                    dir = "xyz")
 espresso_system.thermostat.turn_off()
-minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max_displacement=0.01, skin=0.4)
+minimize_espresso_system_energy(espresso_system=espresso_system, 
+                                Nsteps=1e4, 
+                                max_displacement=0.01, 
+                                skin=0.4)
 
 print("*** Setting up the reactions... ***")
 
 # Set up the reactions
-path_to_ex_pot=pmb.get_resource("parameters/salt/")
-ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/monovalent_salt_excess_chemical_potential.dat", unpack=True)
-excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
-activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
-pka_set = {BeadType: {"pka_value": args.pKa_value, "acidity": "acidic"}}
+path_to_ex_pot=pmb.get_resource("parameters/salt")
+monovalent_salt_ref_data=pd.read_csv(f"{path_to_ex_pot}/excess_chemical_potential_excess_pressure.csv")
+ionic_strength = pmb.units.Quantity(monovalent_salt_ref_data["cs_bulk_[1/sigma^3]"].values, "1/reduced_length**3")
+excess_chemical_potential = pmb.units.Quantity(monovalent_salt_ref_data["excess_chemical_potential_[kbT]"].values, "reduced_energy")
+excess_chemical_potential_interpolated = interpolate.interp1d(ionic_strength.m_as("1/reduced_length**3"), 
+                                                                                excess_chemical_potential.m_as("reduced_energy"))
+activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
+pka_set = {BeadType: {"pka_value": args.pKa, "acidity": "acidic"}}
 
-grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=args.pH_res, c_salt_res=c_salt_res, proton_name=proton_name, hydroxide_name=hydroxide_name, salt_cation_name=sodium_name, salt_anion_name=chloride_name, activity_coefficient=activity_coefficient_monovalent_pair, pka_set=pka_set)
+grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=args.pH_res, 
+                                                              c_salt_res=c_salt_res, 
+                                                              proton_name=proton_name, 
+                                                              hydroxide_name=hydroxide_name, 
+                                                              salt_cation_name=sodium_name, 
+                                                              salt_anion_name=chloride_name, 
+                                                              activity_coefficient=activity_coefficient_monovalent_pair, 
+                                                              pka_set=pka_set)
 
 # Setup espresso to track the ionization of the acid groups
 type_map = pmb.get_type_map()
@@ -274,13 +289,13 @@ for i in tqdm(range(N_production_loops)):
     time_series["time"].append(espresso_system.time)
 
     # Measure degree of ionization
-    time_series["alpha"].append(len(espresso_system.part.select(type=2,q=-1))/(16*args.MPC))
+    time_series["alpha"].append(len(espresso_system.part.select(type=2,q=-1))/(16*args.mpc))
     time_series["pressure"].append(espresso_system.analysis.pressure()["total"])
 
-inputs={"csalt": args.c_salt_res,
+inputs={"csalt": args.csalt_res,
         "Lfraction": args.L_fraction,
         "pH": args.pH_res,
-        "pKa": args.pKa_value}
+        "pKa": args.pKa}
 
 data_path = args.output
 if data_path is None:

@@ -24,7 +24,7 @@ from lib.lattice import DiamondLattice
 pmb = pyMBE.pymbe_library(seed=42)
 reduced_unit_set = pmb.get_reduced_units()
 # Monomers per chain
-MPC = 40
+mpc = 40
 # Define node particle
 NodeType = "node_type"
 pmb.define_particle(name=NodeType, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
@@ -48,12 +48,12 @@ pmb.define_residue(
     side_chains=[]  # Assuming no side chains for the monomer
 )
 
-residue_list = [Res1]*(MPC//2) + [Res2]*(MPC//2)
+residue_list = [Res1]*(mpc//2) + [Res2]*(mpc//2)
 
 # Defining bonds in the hydrogel for all different pairs
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
-generic_bond_length = 0.355*pmb.units.nm
-HARMONIC_parameters = {'r_0'    : generic_bond_length,
+generic_bond_l = 0.355*pmb.units.nm
+HARMONIC_parameters = {'r_0'    : generic_bond_l,
                        'k'      : generic_harmonic_constant}
 pmb.define_bond(bond_type = 'harmonic',
                         bond_parameters = HARMONIC_parameters, particle_pairs = [[BeadType1, BeadType1],
@@ -61,9 +61,9 @@ pmb.define_bond(bond_type = 'harmonic',
                                                                                 [BeadType2, BeadType2],
                                                                                 [NodeType, BeadType1],
                                                                                 [NodeType, BeadType2]])
-# Provide MPC and BOND_LENGTH to Diamond Lattice
-diamond_lattice = DiamondLattice(MPC, generic_bond_length)
-espresso_system = espressomd.System(box_l = [diamond_lattice.BOXL]*3)
+# Provide mpc and bond_l to Diamond Lattice
+diamond_lattice = DiamondLattice(mpc, generic_bond_l)
+espresso_system = espressomd.System(box_l = [diamond_lattice.box_l]*3)
 pmb.add_bonds_to_espresso(espresso_system = espresso_system)
 
 lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)

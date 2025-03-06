@@ -106,7 +106,7 @@ if verbose:
 # Set up reactions
 if args.mode == "interacting":
     path_to_ex_pot=pmb.get_resource("parameters/salt")
-    monovalent_salt_ref_data=pd.read_csv(f"{path_to_ex_pot}/monovalent_salt_excess_chemical_potential.csv")
+    monovalent_salt_ref_data=pd.read_csv(f"{path_to_ex_pot}/excess_chemical_potential_excess_pressure.csv")
     ionic_strength = pmb.units.Quantity(monovalent_salt_ref_data["cs_bulk_[1/sigma^3]"].values, "1/reduced_length**3")
     excess_chemical_potential = pmb.units.Quantity(monovalent_salt_ref_data["excess_chemical_potential_[kbT]"].values, "reduced_energy")
     excess_chemical_potential_interpolated = interpolate.interp1d(ionic_strength.m_as("1/reduced_length**3"), 

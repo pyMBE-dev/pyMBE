@@ -27,8 +27,8 @@ import espressomd
 matplotlib.use("Agg") # use a non-graphic backend
 
 pmb = pyMBE.pymbe_library(seed=42)
-MPC = 4
-BOND_LENGTH = 0.355 * pmb.units.nm
+mpc = 4
+bond_l = 0.355 * pmb.units.nm
 
 # Define node particle
 NodeType1 = "node_type1"
@@ -46,8 +46,8 @@ Res3 = "res_3"
 
 # Defining bonds in the hydrogel for all different pairs
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
-generic_bond_length = 0.355*pmb.units.nm
-HARMONIC_parameters = {'r_0'    : generic_bond_length,
+generic_bond_l = 0.355*pmb.units.nm
+HARMONIC_parameters = {'r_0'    : generic_bond_l,
                        'k'      : generic_harmonic_constant}
 
 class Test(ut.TestCase):
@@ -97,13 +97,12 @@ class Test(ut.TestCase):
                                                                                  [BeadType3, NodeType1],
                                                                                  [BeadType3, NodeType2]])
 
-    def test_lattice_setup(self):
-        
-        diamond = lib.lattice.DiamondLattice(MPC, BOND_LENGTH)
-        espresso_system = espressomd.System(box_l = [diamond.BOXL]*3)
+    def test_lattice_setup(self):        
+        diamond = lib.lattice.DiamondLattice(mpc, bond_l)
+        espresso_system = espressomd.System(box_l = [diamond.box_l]*3)
         pmb.add_bonds_to_espresso(espresso_system = espresso_system)
         np.testing.assert_raises(ValueError, pmb.set_node, "[1 1 1]", NodeType1, espresso_system)
-        np.testing.assert_raises(ValueError, pmb.set_chain, "[0 0 0]", "[1 1 1]", {0:[0,0,0],1:diamond.BOXL/4.0*np.ones(3)},espresso_system)
+        np.testing.assert_raises(ValueError, pmb.set_chain, "[0 0 0]", "[1 1 1]", {0:[0,0,0],1:diamond.box_l/4.0*np.ones(3)},espresso_system)
         lattice = pmb.initialize_lattice_builder(diamond)
         sequence = [Res3, Res1, Res2, Res1]
         # build default structure

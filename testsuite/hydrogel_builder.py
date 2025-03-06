@@ -76,9 +76,9 @@ pmb.define_bond(bond_type = 'harmonic',
                 bond_parameters = HARMONIC_parameters, particle_pairs = [[NodeType, BeadType1],
                                                                         [NodeType, BeadType2]])
 
-MPC=8
-diamond_lattice = DiamondLattice(MPC, generic_bond_length)
-box_l = diamond_lattice.BOXL
+mpc=8
+diamond_lattice = DiamondLattice(mpc, generic_bond_length)
+box_l = diamond_lattice.box_l
 espresso_system = espressomd.System(box_l = [box_l]*3)
 pmb.add_bonds_to_espresso(espresso_system = espresso_system)
 lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
@@ -108,7 +108,7 @@ node_labels = lattice_builder.node_labels
 reverse_node_labels = {v: k for k, v in node_labels.items()}
 connectivity_with_labels = {(reverse_node_labels[i], reverse_node_labels[j]) for i, j in connectivity}
 chain_topology = []
-residue_list = [Res1]*(MPC//2) + [Res2]*(MPC//2)
+residue_list = [Res1]*(mpc//2) + [Res2]*(mpc//2)
 for node_s, node_e in connectivity_with_labels:
     chain_topology.append({'node_start':node_s,
                               'node_end': node_e,
@@ -192,12 +192,12 @@ class Test(ut.TestCase):
         for _, node_id in hydrogel_info["nodes"].items():
             node_pos = espresso_system.part.by_id(int(node_id[0])).pos
             node_name_in_espresso = pmb.df[(pmb.df["pmb_type"] == "particle") & (pmb.df["particle_id"] == node_id[0])]["name"].values[0]
-            node_label = node_labels[pmb.format_node(list((node_pos*(4/lattice_builder.BOXL)).astype(int)))]
+            node_label = node_labels[pmb.format_node(list((node_pos*(4/lattice_builder.box_l)).astype(int)))]
             node_data = node_topology[node_label]
             node_name = node_data["particle_name"] 
             # Assert node's name and position are correctly set
             np.testing.assert_equal(node_name_in_espresso, node_name)
-            np.testing.assert_allclose(node_pos, np.array(node_data["lattice_index"]) * 0.25 * diamond_lattice.BOXL, atol=1e-7)
+            np.testing.assert_allclose(node_pos, np.array(node_data["lattice_index"]) * 0.25 * diamond_lattice.box_l, atol=1e-7)
 
     def test_chain_placement_and_connectivity(self):
         for molecule_id, molecule_data in hydrogel_info["chains"].items():
@@ -214,9 +214,9 @@ class Test(ut.TestCase):
             end_pos = espresso_system.part.by_id(int(node_end_id)).pos
             vec_between_nodes = end_pos - start_pos
             # Ensure that the chain is connected (check distance, should be within acceptable bond length range)
-            vec_between_nodes = vec_between_nodes -  diamond_lattice.BOXL * np.round(vec_between_nodes / diamond_lattice.BOXL)
+            vec_between_nodes = vec_between_nodes -  diamond_lattice.box_l * np.round(vec_between_nodes / diamond_lattice.box_l)
             distance_between_nodes = np.linalg.norm(vec_between_nodes)
-            np.testing.assert_allclose(distance_between_nodes, (diamond_lattice.MPC+1)*generic_bond_length.magnitude, atol=0.0000001)
+            np.testing.assert_allclose(distance_between_nodes, (diamond_lattice.mpc+1)*generic_bond_length.magnitude, atol=0.0000001)
     
     def test_all_residue_placement(self):
         def get_residue_list(chain_topology, node_start, node_end):
@@ -233,9 +233,9 @@ class Test(ut.TestCase):
             node_start_label = lattice_builder.node_labels[node_start]
             node_end_label = lattice_builder.node_labels[node_end]
             vec_between_nodes = (np.array([float(x) for x in node_end.strip('[]').split()]) -
-                                     np.array([float(x) for x in node_start.strip('[]').split()])) * 0.25 * lattice_builder.BOXL
-            vec_between_nodes = vec_between_nodes - lattice_builder.BOXL * np.round(vec_between_nodes / lattice_builder.BOXL)
-            backbone_vector = vec_between_nodes / (diamond_lattice.MPC + 1)
+                                     np.array([float(x) for x in node_start.strip('[]').split()])) * 0.25 * lattice_builder.box_l
+            vec_between_nodes = vec_between_nodes - lattice_builder.box_l * np.round(vec_between_nodes / lattice_builder.box_l)
+            backbone_vector = vec_between_nodes / (diamond_lattice.mpc + 1)
    
             # Get the list of residues (keys in chain_data, excluding node_start/node_end)
             residues_in_chain = {k: v for k, v in chain_data.items() if isinstance(k, int)}
@@ -249,7 +249,7 @@ class Test(ut.TestCase):
 
                 # Calculate the expected position of the residue's central bead
                 residue_index = list(residues_in_chain.keys()) .index(res_id)
-                expected_position = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * diamond_lattice.BOXL + (residue_index + 1) * backbone_vector
+                expected_position = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * diamond_lattice.box_l + (residue_index + 1) * backbone_vector
                 
                 # Validate that the central bead's position matches the expected position
                 np.testing.assert_allclose(central_bead_pos, expected_position, atol=1e-7)
@@ -309,7 +309,7 @@ class Test(ut.TestCase):
 
         node_ids = []
         for indice in node_labels.keys():
-            index_pos = np.array(list(int(x) for x in indice.strip('[]').split()))*0.25*lattice_builder.BOXL
+            index_pos = np.array(list(int(x) for x in indice.strip('[]').split()))*0.25*lattice_builder.box_l
             node_id = espresso_system.part.select(lambda p: (p.pos == index_pos).all()).id[0]
             node_ids.append(node_id)
 
