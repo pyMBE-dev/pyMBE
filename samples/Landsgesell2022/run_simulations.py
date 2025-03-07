@@ -29,17 +29,18 @@ for L_fraction in L_fractions:
 
 # Cases for the alpha vs pH curve
 c_salt_res=0.01
-L_fraction=0.31
-pHs = [4,6]
-
-for pH_value in pHs:
+#key = pH-value , value = equilibrium L fraction (swelling equilibrium of the get at that pH value)
+swelling_eq={4: 0.36630036630074175,
+             6: 0.5574136008913612}
+for pH_value in swelling_eq.keys():
     run_command=[sys.executable, script_path, 
                  "--mpc", str(mpc), 
                  "--pH_res", str(pH_value),
                  "--csalt_res", str(c_salt_res), 
                  "--pKa", str(pKa_value),
-                 "--L_fraction", str(L_fraction),
-                 "--mode", mode]
+                 "--L_fraction", str(swelling_eq[pH_value]),
+                 "--mode", mode,
+                 "--output", data_path]
     print(subprocess.list2cmdline(run_command))
     subprocess.check_output(run_command)
 

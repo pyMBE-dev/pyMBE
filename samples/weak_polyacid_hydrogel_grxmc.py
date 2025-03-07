@@ -279,7 +279,7 @@ for label in labels_obs:
 if mode == "long-run":
     N_production_loops = 5000
 else:
-    N_production_loops = 100
+    N_production_loops = 500
 
 for i in tqdm(range(N_production_loops)):
     espresso_system.integrator.run(steps=1000)

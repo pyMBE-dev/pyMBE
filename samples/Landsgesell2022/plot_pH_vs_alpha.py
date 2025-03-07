@@ -29,10 +29,10 @@ analyzed_data_to_plot={"pH" : [],
                        "alpha": [],
                        "alpha_err": []    
                        }
-for pH_value in data_ref["pH"].drop_duplicates():
+for pH_value in data_ref["pH"]:
     sorted_ref_df = data_ref[data_ref["pH"] == pH_value]
     reference_L_fraction = sorted_ref_df["best_L"].values[0]/sorted_ref_df["max_L"].values[0]
-    mask=(analyzed_data["pH"]["value"] == pH_value) & (abs(analyzed_data["Lfraction"]["value"] - reference_L_fraction) < 1) & (analyzed_data["csalt"]["value"] == ref_cs)
+    mask=(analyzed_data["pH"]["value"] == pH_value) & (abs(analyzed_data["Lfraction"]["value"] - reference_L_fraction) < 1e3) & (analyzed_data["csalt"]["value"] == ref_cs)
     sorted_analyzed_df = analyzed_data[mask]
     if not sorted_analyzed_df.empty:
         analyzed_data_to_plot["pH"].append(sorted_analyzed_df["pH"]["value"].values[0])
