@@ -76,6 +76,7 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
             else:
                 espresso_system.electrostatics.solver = coulomb
 
+
             # save the optimal parameters and add them by hand
 
             p3m_params = coulomb.get_params()
