@@ -12,7 +12,7 @@ mpc=40
 pKa_value=4
 # Cases for the PV curve
 c_salt_res=0.05
-L_fractions=[0.3,0.5]
+L_fractions=[0.30259595,0.50963529]
 pH_value = 5
 
 for L_fraction in L_fractions:
@@ -29,7 +29,7 @@ for L_fraction in L_fractions:
 
 # Cases for the alpha vs pH curve
 c_salt_res=0.01
-#key = pH-value , value = equilibrium L fraction (swelling equilibrium of the get at that pH value)
+#key = pH-value , value = equilibrium L fraction (swelling equilibrium of the gel at that pH value)
 swelling_eq={4: 0.36630036630074175,
              6: 0.5574136008913612}
 for pH_value in swelling_eq.keys():
