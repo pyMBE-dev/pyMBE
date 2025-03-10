@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -15,6 +15,10 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import logging
+# Create a logger for this module
+logger = logging.getLogger(__name__)
 
 def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3,verbose=True):
     """
@@ -142,32 +146,47 @@ def minimize_espresso_system_energy(espresso_system, skin=1, gamma=1, Nsteps=100
         print("\n Minimization finished \n")
     return
 
-def setup_langevin_dynamics(espresso_system, kT, SEED,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
+def setup_langevin_dynamics(espresso_system, kT, seed,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
     """
-    Sets up Langevin Dynamics in espressomd.
-    espresso_system: instance of espressmd system class
-    time_step: time s
+    Sets up Langevin Dynamics for an ESPResSo simulation system.
 
+    Parameters:
+    espresso_system(`espressomd.system.System`): system object of espressomd library.
+    kT (`pint.Quantity`): Target temperature in reduced energy units.
+    seed (int): Seed for the random number generator for the thermostat.
+    time_step (float, optional): Integration time step. Defaults to 1e-2.
+    gamma (float, optional): Damping coefficient for the Langevin thermostat. Defaults to 1.
+    tune_skin (bool, optional): Whether to optimize the skin parameter. Defaults to True.
+    min_skin (float, optional): Minimum skin value for optimization. Defaults to 1.
+    max_skin (float, optional): Maximum skin value for optimization. Defaults to None, which is handled by setting its value to box length / 2.
+    tolerance (float, optional): Tolerance for skin optimization. Defaults to 1e-3.
+    int_steps (int, optional): Number of integration steps for tuning. Defaults to 200.
+    adjust_max_skin (bool, optional): Whether to adjust the maximum skin value during tuning. Defaults to True.
     """        
-        
+    if not isinstance(seed, int):
+        raise TypeError("SEED must be an integer.")
+    if not isinstance(time_step, (float, int)) or time_step <= 0:
+        raise ValueError("time_step must be a positive number.")
+    if not isinstance(gamma, (float, int)) or gamma <= 0:
+        raise ValueError("gamma must be a positive number.")
+    if max_skin is None:
+            max_skin=espresso_system.box_l[0]/2
+    if min_skin >= max_skin:
+        raise ValueError("min_skin must be smaller than max_skin.")
     espresso_system.time_step=time_step
     espresso_system.integrator.set_vv()
-    espresso_system.thermostat.set_langevin(kT=kT.to('reduced_energy').magnitude, gamma=gamma, seed= SEED)
-
+    espresso_system.thermostat.set_langevin(kT= kT.to('reduced_energy').magnitude, 
+                                            gamma= gamma, 
+                                            seed= seed)
     # Optimize the value of skin
-
     if tune_skin:
-
-        print("\n*** Optimizing skin ... ***")
-
-        if max_skin is None:
-
-            max_skin=espresso_system.box_l[0]/2
-
-        espresso_system.cell_system.tune_skin(min_skin=min_skin, max_skin=max_skin, tol=tolerance, int_steps=int_steps, adjust_max_skin=adjust_max_skin)
-
-        print("Optimized skin value: ", espresso_system.cell_system.skin, "\n")
-
+        logging.info("*** Optimizing skin ... ***")
+        espresso_system.cell_system.tune_skin(min_skin=min_skin, 
+                                              max_skin=max_skin, 
+                                              tol=tolerance, 
+                                              int_steps=int_steps, 
+                                              adjust_max_skin=adjust_max_skin)
+        logging.info(f"Optimized skin value: {espresso_system.cell_system.skin}")
     return
 
 def get_number_of_particles(espresso_system, ptype):
