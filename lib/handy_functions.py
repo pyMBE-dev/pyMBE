@@ -43,7 +43,7 @@ def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, so
     import espressomd.version
     import numpy as np
     import scipy.constants
-    logging.info("*** Starting electrostatic interactions setup... ***")
+    logging.debug("*** Starting electrostatic interactions setup... ***")
     # Initial sanity checks
     if not hasattr(units, 'Quantity'):
         raise TypeError("Invalid 'units' argument: Expected a pint.UnitRegistry object")
@@ -68,7 +68,7 @@ def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, so
         logging.info(f"Debye kappa {KAPPA.to('nm')} = {KAPPA.to('reduced_length')}")
 
     if method == 'p3m':
-        logging.info("*** Setting up Coulomb electrostatics using the P3M method ***")
+        logging.debug("*** Setting up Coulomb electrostatics using the P3M method ***")
         coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.m_as("reduced_length * reduced_energy"), 
                                                 accuracy=accuracy,
                                                 verbose=verbose,
@@ -97,7 +97,7 @@ def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, so
                                                     tune = False)
 
     elif method == 'dh':
-        logging.info("*** Setting up Debye-Hückel electrostatics ***")
+        logging.debug("*** Setting up Debye-Hückel electrostatics ***")
         coulomb = espressomd.electrostatics.DH(prefactor = COULOMB_PREFACTOR.m_as("reduced_length * reduced_energy"), 
                                                kappa = (1./KAPPA).to('1/ reduced_length').magnitude, 
                                                r_cut = 2.5*KAPPA.to('reduced_length').magnitude)
@@ -105,7 +105,7 @@ def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, so
         espresso_system.actors.add(coulomb)
     else:
         espresso_system.electrostatics.solver = coulomb
-    logging.info("*** Electrostatics successfully added to the system ***")
+    logging.debug("*** Electrostatics successfully added to the system ***")
     return
 
 def relax_espresso_system(espresso_system, seed,gamma=1, initial_force_cap=50, Nsteps_steepest_descent=5000, max_displacement=0.1, Nmax_iter_relax=100, Nsteps_iter_relax=500):
@@ -142,7 +142,7 @@ def relax_espresso_system(espresso_system, seed,gamma=1, initial_force_cap=50, N
         raise ValueError("'max_displacement' must be positive.")
     if Nmax_iter_relax <= 0:
         raise ValueError("'Nmax_iter_relax' must be positive.")
-    logging.info("*** Relaxing the energy of the system... ***")
+    logging.debug("*** Relaxing the energy of the system... ***")
     logging.debug("*** Starting steppest descent minimization ***")
     espresso_system.thermostat.turn_off()
     espresso_system.integrator.set_steepest_descent(f_max=initial_force_cap, 
@@ -164,7 +164,7 @@ def relax_espresso_system(espresso_system, seed,gamma=1, initial_force_cap=50, N
     # Reset force cap
     espresso_system.force_cap = 0
     espresso_system.thermostat.turn_off()
-    logging.info("*** Relaxation finished ***")
+    logging.debug("*** Relaxation finished ***")
     return espresso_system.analysis.min_dist()
 
 def setup_langevin_dynamics(espresso_system, kT, seed,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
@@ -201,7 +201,7 @@ def setup_langevin_dynamics(espresso_system, kT, seed,time_step=1e-2, gamma=1, t
                                             seed= seed)
     # Optimize the value of skin
     if tune_skin:
-        logging.info("*** Optimizing skin ... ***")
+        logging.debug("*** Optimizing skin ... ***")
         espresso_system.cell_system.tune_skin(min_skin=min_skin, 
                                               max_skin=max_skin, 
                                               tol=tolerance, 
