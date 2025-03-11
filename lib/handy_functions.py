@@ -20,55 +20,56 @@ import logging
 # Create a logger for this module
 logger = logging.getLogger(__name__)
 
-def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3,verbose=True):
+def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3,verbose=False):
     """
-    Sets up electrostatic interactions in espressomd. 
+    Sets up electrostatic interactions in an ESPResSo system.
 
     Args:
-        units(`pint.UnitRegistry`): Unit registry.
-        espresso_system: instance of espressmd system class
-        kT(`float`): Thermal energy.
-        c_salt: Added salt concentration. If provided, the program outputs the debye screening length. It is a mandatory parameter for the Debye-Huckel method.
-        solvent_permittivity: Solvent relative permitivity, by default chosen per water at 298.15 K
-        method: method prefered for computing the electrostatic interactions. Currently only P3M (label = p3m) and Debye-Huckel (label = DH) are implemented
-        tune_p3m: If true (default), tunes the p3m parameters to improve efficiency
-        accuracy: desired accuracy for electrostatics, by default 1e-3
-        verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
+        units(`pint.UnitRegistry`): Unit registry for handling physical units.
+        espresso_system (`espressomd.system.System`): system object of espressomd library.
+        kT(`pint.Quantity`): Thermal energy.
+        c_salt(`pint.Quantity`): Added salt concentration. If provided, the program outputs the debye screening length. It is a mandatory parameter for the Debye-Hückel method.
+        solvent_permittivity (`float`): Solvent relative permittivity. Defaults to 78.5, correspoding to its value in water at 298.15 K.
+        method (`str`): Method for computing electrostatic interactions. Defaults to "p3m". 
+        tune_p3m (`bool`): If True, tunes P3M parameters for efficiency. Defaults to True. 
+        accuracy (`float`): Desired accuracy for electrostatics. Defaults to 1e-3.
+
+    Note:
+        `c_salt` is a mandatory argument for setting up the Debye-Hückel electrostatic potential.
+        The calculated Bjerrum length is ouput to the log. If `c_salt` is provided, the calculated Debye screening length is also output to the log.
+        Currently, the only supported electrostatic methods are P3M ("p3m") and Debye-Hückel ("dh").
     """
     import espressomd.electrostatics
     import espressomd.version
     import numpy as np
     import scipy.constants
-
-    # Initial checks
-    valid_methods_list=['p3m', 'DH']
+    logging.info("*** Starting electrostatic interactions setup... ***")
+    # Initial sanity checks
+    if not hasattr(units, 'Quantity'):
+        raise TypeError("Invalid 'units' argument: Expected a pint.UnitRegistry object")
+    valid_methods_list=['p3m', 'dh']
     if method not in valid_methods_list:
-        raise ValueError('provided an unknown label for method, valid values are', valid_methods_list)
-    if c_salt is None and method == 'DH':
+        raise ValueError('Method not supported, supported methods are', valid_methods_list)
+    if c_salt is None and method == 'dh':
         raise ValueError('Please provide the added salt concentration c_salt to setup the Debye-Huckel potential')
-
     e = scipy.constants.e * units.C
     N_A = scipy.constants.N_A / units.mol
-
-    BJERRUM_LENGTH = e.to('reduced_charge')**2 / (4 * units.pi * units.eps0 * solvent_permittivity * kT.to('reduced_energy'))
-    if verbose:
-        print(f"\n Bjerrum length {BJERRUM_LENGTH.to('nm')} = {BJERRUM_LENGTH.to('reduced_length')}")
-
-    COULOMB_PREFACTOR=BJERRUM_LENGTH.to('reduced_length') * kT.to('reduced_energy') 
-    
+    BJERRUM_LENGTH = e**2 / (4 * units.pi * units.eps0 * solvent_permittivity * kT)
+    logging.info(f" Bjerrum length {BJERRUM_LENGTH.to('nm')} = {BJERRUM_LENGTH.to('reduced_length')}")
+    COULOMB_PREFACTOR=BJERRUM_LENGTH * kT 
     if c_salt is not None:
         if c_salt.check('[substance] [length]**-3'):
             KAPPA=1./np.sqrt(8*units.pi*BJERRUM_LENGTH*N_A*c_salt)
         elif c_salt.check('[length]**-3'):
             KAPPA=1./np.sqrt(8*units.pi*BJERRUM_LENGTH*c_salt)
         else:
-            raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
-        if verbose:
-            print(f"Debye kappa {KAPPA.to('nm')} = {KAPPA.to('reduced_length')}")
+            raise ValueError('Unknown units for c_salt, supported units for salt concentration are [mol / volume] or [particle / volume]', c_salt)
+        
+        logging.info(f"Debye kappa {KAPPA.to('nm')} = {KAPPA.to('reduced_length')}")
 
     if method == 'p3m':
-
-        coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.magnitude, 
+        logging.info("*** Setting up Coulomb electrostatics using the P3M method ***")
+        coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.m_as("reduced_length * reduced_energy"), 
                                                 accuracy=accuracy,
                                                 verbose=verbose,
                                                 tune=tune_p3m)
@@ -87,84 +88,104 @@ def setup_electrostatic_interactions (units, espresso_system, kT, c_salt=None, s
                 espresso_system.actors.remove(coulomb)
             else:
                 espresso_system.electrostatics.solver = None
-            coulomb = espressomd.electrostatics.P3M(
-                                        prefactor = COULOMB_PREFACTOR.magnitude,
-                                        accuracy = accuracy,
-                                        mesh = p3m_params['mesh'],
-                                        alpha = p3m_params['alpha'] ,
-                                        cao = p3m_params['cao'],
-                                        r_cut = p3m_params['r_cut'],
-                                        tune = False
-                                        )
+            coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.m_as("reduced_length * reduced_energy"),
+                                                    accuracy = accuracy,
+                                                    mesh = p3m_params['mesh'],
+                                                    alpha = p3m_params['alpha'] ,
+                                                    cao = p3m_params['cao'],
+                                                    r_cut = p3m_params['r_cut'],
+                                                    tune = False)
 
-    elif method == 'DH':
-
-        coulomb = espressomd.electrostatics.DH(prefactor = COULOMB_PREFACTOR.magnitude, 
-                                            kappa = (1./KAPPA).to('1/ reduced_length').magnitude, 
-                                            r_cut = KAPPA.to('reduced_length').magnitude)
-
-    
+    elif method == 'dh':
+        logging.info("*** Setting up Debye-Hückel electrostatics ***")
+        coulomb = espressomd.electrostatics.DH(prefactor = COULOMB_PREFACTOR.m_as("reduced_length * reduced_energy"), 
+                                               kappa = (1./KAPPA).to('1/ reduced_length').magnitude, 
+                                               r_cut = 2.5*KAPPA.to('reduced_length').magnitude)
     if espressomd.version.friendly() == "4.2":
         espresso_system.actors.add(coulomb)
     else:
         espresso_system.electrostatics.solver = coulomb
-    if verbose:
-        print("\n Electrostatics successfully added to the system \n")
-
+    logging.info("*** Electrostatics successfully added to the system ***")
     return
 
-def minimize_espresso_system_energy(espresso_system, skin=1, gamma=1, Nsteps=10000, time_step=1e-5, max_displacement=0.1, verbose=True, reset=True):
+def relax_espresso_system(espresso_system, seed,gamma=1, initial_force_cap=50, Nsteps_steepest_descent=5000, max_displacement=0.1, Nmax_iter_relax=100, Nsteps_iter_relax=500):
     """
-    Does a steppest descent minimization to relax the system energy
+    Relaxes the energy of the given ESPResSo system by performing the following steps:
+    (1) Steepest descent energy minimization,
+    (2) Capped Langevin Dynamics run with velocity Verlet integration to relax the system.
 
-    Inputs:
-    espresso_system: instance of espressmd system class
-    skin: skin parameter for verlet list (default 2 reduced length)
-    gamma: dammping constant (Default=1 reduced length)
-    Nsteps: total number of steps of the minimization (Default=10000)
-    time_step: Time step used for the energy minimization (Default=1e-2)
-    max_displacement: maximum particle displacement allowed (Default=0.1 reduced length)
-    verbose (`bool`): switch to activate/deactivate verbose. Defaults to True.
+    Args:
+        espresso_system (`espressomd.system.System`): system object of espressomd library.
+        seed (`int`): Seed for the random number generator for the thermostat.
+        gamma (`float`, optional): Damping constant for Langevin dynamics. Defaults to  1 reduced length.
+        initial_force_cap (`float`, optional): Initial force cap for steepest descent minimization. Defaults to 50 reduced_energy/reduced_length.
+        Nsteps_steepest_descent (`int`, optional): Total number of steps for steepest descent minimization. Defaults to 5000.
+        max_displacement (`float`, optional): Maximum particle displacement allowed during minimization. Defaults to 0.1 reduced length.
+        Nmax_iter_relax (`int`, optional): Maximum number of iterations for Langevin dynamics relaxation. Defaults to 100.
+        Nsteps_iter_relax (`int`, optional): Number of steps per iteration for Langevin dynamics relaxation. Defaults to 500.
+
+    Return:
+        (`float`): minimum distance between particles in the system after the relaxation
+
+    Note:
+        The thermostat is turned off by the end of the procedure. 
+        Make sure the system is initialized properly before calling this function.
     """
-    if verbose:
-        print("\n*** Minimizing system energy... ***\n")
-    espresso_system.cell_system.skin = skin
-    espresso_system.time_step=time_step
-    if verbose:
-        print("steepest descent")
-    espresso_system.integrator.set_steepest_descent(f_max=1e-3, gamma=gamma, max_displacement=max_displacement)
-    espresso_system.integrator.run(int(Nsteps/2))
-    if verbose:
-        print("velocity verlet")
-    espresso_system.integrator.set_vv()  # to switch back to velocity Verlet
-    espresso_system.integrator.run(int(Nsteps/2))
+    # Sanity checks
+    if gamma <= 0:
+        raise ValueError("The damping constant 'gamma' must be positive.")
+    if initial_force_cap <= 0:
+        raise ValueError("The 'initial_force_cap' must be positive.")
+    if Nsteps_steepest_descent <= 0 or Nsteps_iter_relax <= 0:
+        raise ValueError("Step counts must be positive integers.")
+    if max_displacement <= 0:
+        raise ValueError("'max_displacement' must be positive.")
+    if Nmax_iter_relax <= 0:
+        raise ValueError("'Nmax_iter_relax' must be positive.")
+    logging.info("*** Relaxing the energy of the system... ***")
+    logging.debug("*** Starting steppest descent minimization ***")
     espresso_system.thermostat.turn_off()
-    # Reset the time of the system to 0
-    if reset:
-        espresso_system.time = 0.
-    if verbose:
-        print("\n Minimization finished \n")
-    return
+    espresso_system.integrator.set_steepest_descent(f_max=initial_force_cap, 
+                                                    gamma=gamma, 
+                                                    max_displacement=max_displacement)
+    espresso_system.integrator.run(Nsteps_steepest_descent)
+    logging.debug("*** Finished steppest descent minimization ***")
+    logging.debug("*** Starting Langevin Dynamics relaxation ***")
+    espresso_system.force_cap = initial_force_cap
+    espresso_system.integrator.set_vv()
+    espresso_system.thermostat.set_langevin(kT= 1, 
+                                            gamma= gamma, 
+                                            seed= seed)
+    for _ in range(Nmax_iter_relax):
+        espresso_system.integrator.run(steps=Nsteps_iter_relax)
+        espresso_system.force_cap *= 1.1 
+    logging.debug("*** Finished steppest descent minimization ***")
+    logging.info(f"*** Minimum particle distance after relaxation: {espresso_system.analysis.min_dist()} ***")
+    # Reset force cap
+    espresso_system.force_cap = 0
+    espresso_system.thermostat.turn_off()
+    logging.info("*** Relaxation finished ***")
+    return espresso_system.analysis.min_dist()
 
 def setup_langevin_dynamics(espresso_system, kT, seed,time_step=1e-2, gamma=1, tune_skin=True, min_skin=1, max_skin=None, tolerance=1e-3, int_steps=200, adjust_max_skin=True):
     """
     Sets up Langevin Dynamics for an ESPResSo simulation system.
 
-    Parameters:
-    espresso_system(`espressomd.system.System`): system object of espressomd library.
-    kT (`pint.Quantity`): Target temperature in reduced energy units.
-    seed (int): Seed for the random number generator for the thermostat.
-    time_step (float, optional): Integration time step. Defaults to 1e-2.
-    gamma (float, optional): Damping coefficient for the Langevin thermostat. Defaults to 1.
-    tune_skin (bool, optional): Whether to optimize the skin parameter. Defaults to True.
-    min_skin (float, optional): Minimum skin value for optimization. Defaults to 1.
-    max_skin (float, optional): Maximum skin value for optimization. Defaults to None, which is handled by setting its value to box length / 2.
-    tolerance (float, optional): Tolerance for skin optimization. Defaults to 1e-3.
-    int_steps (int, optional): Number of integration steps for tuning. Defaults to 200.
-    adjust_max_skin (bool, optional): Whether to adjust the maximum skin value during tuning. Defaults to True.
+    Args:
+        espresso_system (`espressomd.system.System`): system object of espressomd library.
+        kT (`pint.Quantity`): Target temperature in reduced energy units.
+        seed (`int`): Seed for the random number generator for the thermostat.
+        time_step (`float`, optional): Integration time step. Defaults to 1e-2.
+        gamma (`float`, optional): Damping coefficient for the Langevin thermostat. Defaults to 1.
+        tune_skin (`bool`, optional): Whether to optimize the skin parameter. Defaults to True.
+        min_skin (`float`, optional): Minimum skin value for optimization. Defaults to 1.
+        max_skin (`float`, optional): Maximum skin value for optimization. Defaults to None, which is handled by setting its value to box length / 2.
+        tolerance (`float`, optional): Tolerance for skin optimization. Defaults to 1e-3.
+        int_steps (`int`, optional): Number of integration steps for tuning. Defaults to 200.
+        adjust_max_skin (`bool`, optional): Whether to adjust the maximum skin value during tuning. Defaults to True.
     """        
     if not isinstance(seed, int):
-        raise TypeError("SEED must be an integer.")
+        raise TypeError("seed must be an integer.")
     if not isinstance(time_step, (float, int)) or time_step <= 0:
         raise ValueError("time_step must be a positive number.")
     if not isinstance(gamma, (float, int)) or gamma <= 0:

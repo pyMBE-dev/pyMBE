@@ -29,7 +29,7 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 #Import functions from handy_functions script 
 from lib.handy_functions import setup_electrostatic_interactions
-from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import relax_espresso_system
 from lib.handy_functions import setup_langevin_dynamics
 from lib.handy_functions import do_reaction
 from lib import analysis
@@ -88,7 +88,7 @@ inputs={"pH": args.pH,
         "pdb": args.pdb}
 
 #System Parameters 
-LANGEVIN_SEED = 77 
+langevin_seed = 77 
 
 c_salt    =  0.01  * pmb.units.mol / pmb.units.L  
 c_protein =  2e-4 * pmb.units.mol / pmb.units.L 
@@ -141,7 +141,8 @@ Path(f"{data_path}/frames").mkdir(parents=True,
                        exist_ok=True)
 
 espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude] * 3)
-
+espresso_system.time_step=dt
+espresso_system.cell_system.skin=0.4
 #Reads the VTF file of the protein model
 path_to_cg=pmb.get_resource(args.path_to_cg)
 topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
@@ -274,16 +275,17 @@ with open(f'{data_path}/frames/trajectory'+str(n_frame)+'.vtf', mode='w+t') as c
 # Setup the potential energy
 
 if WCA:
-    pmb.setup_lj_interactions (espresso_system=espresso_system)
-    minimize_espresso_system_energy (espresso_system=espresso_system)
+    pmb.setup_lj_interactions(espresso_system=espresso_system)
+    relax_espresso_system(espresso_system=espresso_system,
+                          seed=langevin_seed)
     if Electrostatics:
-        setup_electrostatic_interactions (units=pmb.units,
+        setup_electrostatic_interactions(units=pmb.units,
                                         espresso_system=espresso_system,
                                         kT=pmb.kT)
         
-setup_langevin_dynamics (espresso_system=espresso_system, 
-                                    kT = pmb.kT, 
-                                    SEED = LANGEVIN_SEED)
+setup_langevin_dynamics(espresso_system=espresso_system, 
+                        kT = pmb.kT, 
+                        seed = langevin_seed)
 
 observables_df = pd.DataFrame()
 time_step = []

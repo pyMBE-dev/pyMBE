@@ -25,6 +25,7 @@ import pyMBE
 import lib.handy_functions as hf
 import logging
 import io
+import numpy as np
 
 # Create an in-memory log stream
 log_stream = io.StringIO()
@@ -32,7 +33,7 @@ logging.basicConfig(level=logging.INFO,
                     format="%(levelname)s: %(message)s",
                     handlers=[logging.StreamHandler(log_stream)] )
 # Create instances of espresso and pyMBE
-espresso_system = espressomd.System(box_l=[10,10,10])
+espresso_system = espressomd.System(box_l=[60,60,60])
 seed = 23
 pmb = pyMBE.pymbe_library(seed=seed)
 kT = pmb.kT
@@ -48,6 +49,26 @@ langevin_inputs={"espresso_system":espresso_system,
                 "tolerance": 1e-3,
                 "int_steps": 200,
                 "adjust_max_skin": True}
+
+relax_inputs={"espresso_system":espresso_system, 
+              "gamma":1, 
+              "initial_force_cap":50, 
+              "Nsteps_steepest_descent":5000, 
+              "max_displacement":0.1, 
+              "Nmax_iter_relax":100, 
+              "Nsteps_iter_relax":500,
+              "seed": seed}
+
+electrostatics_inputs={"units": pmb.units, 
+                       "espresso_system": espresso_system, 
+                       "kT": pmb.kT, 
+                       "c_salt": None, 
+                       "solvent_permittivity":78.5, 
+                       "method": 'p3m', 
+                       "tune_p3m":True, 
+                       "accuracy":1e-3,
+                       "verbose":False}
+
 
 class Test(ut.TestCase):
     def test_exceptions_langevin_setup(self):
@@ -105,6 +126,114 @@ class Test(ut.TestCase):
         self.assertEqual(first=optimized_skin,
                          second=espresso_system.cell_system.skin,
                          msg="The optimized skin has not been set in espresso")
+        print("*** Unit test passed ***")
+    def test_exceptions_relax_espresso_system(self):
+        print("\n*** Testing exceptions in lib.handy_functions.relax_espresso_system ***")
+        broken_inputs  = relax_inputs.copy()
+        broken_inputs["gamma"] = -1
+        self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
+        broken_inputs  = relax_inputs.copy()
+        broken_inputs["initial_force_cap"] = -1
+        self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
+        broken_inputs  = relax_inputs.copy()
+        broken_inputs["Nsteps_steepest_descent"] = -1
+        self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
+        broken_inputs  = relax_inputs.copy()
+        broken_inputs["Nsteps_iter_relax"] = -1
+        self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
+        broken_inputs  = relax_inputs.copy()
+        broken_inputs["max_displacement"] = -1
+        self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
+        broken_inputs  = relax_inputs.copy()
+        broken_inputs["Nmax_iter_relax"] = -1
+        self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
+        print("*** Unit test passed ***")
+    def test_relax_espresso_system(self):
+        print("\n*** Testing relaxation done in lib.handy_functions.relax_espresso_system ***")
+        espresso_system.part.add(pos=[1,1,1])
+        espresso_system.part.add(pos=[1.15,1.15,1.15])
+        espresso_system.part.add(pos=[1.5,1.5,1.5])
+        espresso_system.part.add(pos=[2,2,2])
+        espresso_system.part.add(pos=[2.15,2.15,2.15])
+        espresso_system.part.add(pos=[1,1,1.5])
+        espresso_system.non_bonded_inter[0,0].lennard_jones.set_params(epsilon = 1, 
+                                                                       sigma = 1, 
+                                                                       cutoff = 2**(1./6.),
+                                                                       shift = "auto")
+        min_dist = hf.relax_espresso_system(**relax_inputs)
+        self.assertGreater(a=min_dist,
+                           b=1,
+                           msg="lib.handy_functions.relax_espresso_system is unable to relax a simple lj system")
+        print("*** Unit test passed ***")
+
+    def test_exceptions_electrostatics(self):
+        print("\n*** Testing exceptions in lib.handy_functions.setup_electrostatic_interactions ***")
+        broken_inputs  = electrostatics_inputs.copy()
+        broken_inputs["units"] = "pyMBE"
+        self.assertRaises(TypeError, hf.setup_electrostatic_interactions, **broken_inputs)
+        broken_inputs  = electrostatics_inputs.copy()
+        broken_inputs["method"] = "dH"
+        self.assertRaises(ValueError, hf.setup_electrostatic_interactions, **broken_inputs)
+        broken_inputs  = electrostatics_inputs.copy()
+        broken_inputs["method"] = "dh"
+        self.assertRaises(ValueError, hf.setup_electrostatic_interactions, **broken_inputs)
+        broken_inputs  = electrostatics_inputs.copy()
+        broken_inputs["c_salt"] = 10*pmb.units.nm
+        self.assertRaises(ValueError, hf.setup_electrostatic_interactions, **broken_inputs)
+        print("*** Unit test passed ***")
+    def test_setup_electrostatics(self):
+        print("\n*** Testing the setup in lib.handy_functions.setup_electrostatic_interactions ***")
+        espresso_system.part.add(pos=[1,1,1], q=1)
+        espresso_system.part.add(pos=[5.15,5.15,5.15], q=-1)
+        Bjerrum_length = pmb.e.to('reduced_charge')**2 / (4 * pmb.units.pi * pmb.units.eps0 * electrostatics_inputs["solvent_permittivity"] * electrostatics_inputs["kT"].to('reduced_energy'))
+        coloumb_prefactor=Bjerrum_length*electrostatics_inputs["kT"]
+        # Test the P3M setup
+        hf.setup_electrostatic_interactions(**electrostatics_inputs)
+        coloumb = espresso_system.actors.active_actors.copy()[0]
+        coloumb_params = coloumb.get_params()
+        self.assertEqual(first=coloumb.name(),
+                         second='Coulomb::CoulombP3M',
+                         msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong electrostatic method")
+        self.assertGreaterEqual(a=electrostatics_inputs["accuracy"],
+                                b=coloumb.accuracy,
+                                msg="lib.handy_functions.setup_electrostatic_interactions sets up the P3M method with the wrong accuracy")
+        self.assertAlmostEqual(first=coloumb_params["prefactor"],
+                                second=coloumb_prefactor.m_as("reduced_length * reduced_energy"),
+                                msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong coulomb prefactor for the P3M method")
+        self.assertEqual(first=electrostatics_inputs["tune_p3m"],
+                         second=coloumb_params["is_tuned"],
+                         msg="lib.handy_functions.setup_electrostatic_interactions does not tune the P3M method")
+        espresso_system.actors.remove(coloumb)
+        # Test the Debye–Hückel setup
+        electrostatics_inputs["method"] = "dh"
+        electrostatics_inputs["c_salt"] = pmb.units.Quantity(1, "mol/L")
+        kappa=1./np.sqrt(8*pmb.units.pi*Bjerrum_length*pmb.N_A*electrostatics_inputs["c_salt"])
+        hf.setup_electrostatic_interactions(**electrostatics_inputs)
+        dh = espresso_system.actors.active_actors.copy()[0]
+        dh_params = dh.get_params()
+        self.assertEqual(first=dh.name(),
+                         second='Coulomb::DebyeHueckel',
+                         msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong electrostatic method")
+        self.assertAlmostEqual(first=dh_params["prefactor"],
+                                second=coloumb_prefactor.m_as("reduced_length * reduced_energy"),
+                                msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong coulomb prefactor for the DH method")
+        self.assertAlmostEqual(first=dh_params["kappa"],
+                                second=(1./kappa).m_as('1/ reduced_length'),
+                                msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong Debye screening length for the DH method")
+        self.assertAlmostEqual(first=dh_params["r_cut"],
+                                second=2.5*kappa.m_as('reduced_length'),
+                                msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong cut-off for the DH method")
+        espresso_system.actors.remove(dh)
+        electrostatics_inputs["c_salt"] = pmb.units.Quantity(1, "mol/L")*pmb.N_A
+        hf.setup_electrostatic_interactions(**electrostatics_inputs)
+        dh = espresso_system.actors.active_actors.copy()[0]
+        dh_params = dh.get_params()
+        self.assertAlmostEqual(first=dh_params["kappa"],
+                                second=(1./kappa).m_as('1/ reduced_length'),
+                                msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong Debye screening length for the DH method")
+        self.assertAlmostEqual(first=dh_params["r_cut"],
+                                second=2.5*kappa.m_as('reduced_length'),
+                                msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong cut-off for the DH method")
         print("*** Unit test passed ***")
 if __name__ == "__main__":
     ut.main()
