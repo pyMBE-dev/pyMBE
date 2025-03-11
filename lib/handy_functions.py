@@ -191,7 +191,7 @@ def setup_langevin_dynamics(espresso_system, kT, seed,time_step=1e-2, gamma=1, t
     if not isinstance(gamma, (float, int)) or gamma <= 0:
         raise ValueError("gamma must be a positive number.")
     if max_skin is None:
-            max_skin=espresso_system.box_l[0]/2
+        max_skin=espresso_system.box_l[0]/2
     if min_skin >= max_skin:
         raise ValueError("min_skin must be smaller than max_skin.")
     espresso_system.time_step=time_step
