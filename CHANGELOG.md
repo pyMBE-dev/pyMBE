@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+`lib.handy_functions.setup_langevin_dynamics` now takes `seed` as input argument instead than `SEED` for coherence with the rest of the library. (#118)
 - `pd.NA` is now enforced as value for empty cells in `pmb.df`, this prevents transformation of variable types from `int` to `float` which was breaking the code when reading `pmb.df` from file (See #102). (#116)
 - The sample script `plot_HH.py` has been replaced for specific examples on how to plot data post-processed with pyMBE: `plot_branched_polyampholyte.py`, `plot_peptide.py`, and `plot_peptide_mixture_grxmc_ideal.py`. (#95)
 - Sample scripts now take the pH as an argparse input instead of looping over several pH values. This enables paralization of the sample scripts and avoids conflicts with the current post-processing pipeline. (#95)
@@ -18,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to CTest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
+- CI testing for functions in `lib.handy_functions`. (#118)
+- sanity tests for `lib.handy_functions`. (#118)
+- Use of `logging`  in `lib.handy_functions` to handle output and error logs. (#118)
+- new function to relax the espreso_system `lib.handy_functions.relax_espresso_system`
 - Helper method to delete entries from `pmb.df` (#112)
 - Code of conduct of our community `CODE_OF_CONDUCT.md`, adhering to the Contributor Covenant v2.1 (#104) 
 - New optional argument `backbone_vector` enabling to build molecules along an input vector using `pmb.create_molecule` and `pmb.create_pmb_object` (#99)
@@ -30,6 +35,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit testing for reaction methods, bonds, object serialization. (#86, #113)
 
 ### Fixed
+- docs in `lib.handy_functions`. (#118)
 - Writing and reading `pmb.df` from file does no longer change the variable type from `int` to `float` when there are empty cells in the column. (#116)
 - Espresso bond objects stored in `pmb.df` now retain the same value for the  `._bond_id` attribute as the original Espresso objects. (#116)
 - Warning handling and coverage in `setup_lj_interaction` (#112)
@@ -45,6 +51,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unsupported ESPResSo features now raise a `NotImplementedError` instead of a `ValueError`. (#113)
 
 ### Removed
+- `lib.handy_functions.minimize_espresso_system_energy` because its name was confusing (it was not only minimizing the system energy) and was changing the parameters of the integrator under the hood. (#118)
+- print statements and most of `verbose` in `lib.handy_functions`. (#118)
 - `pmb.parse_sequence_from_file` has been removed since it is no longer necesary to parse the sequence from pmb.df (#110)
 - `handy_functions.create_random_seed` no longer needed because now instances of pyMBE take the random seed as input (#111)
 - `handy_functions.visualize_espresso_system` because it was not used anywhere in the library (#111)
