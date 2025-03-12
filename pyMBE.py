@@ -192,11 +192,7 @@ class pymbe_library():
         Assigns the `molecule_id` of the pmb object given by `pmb_type`
         
         Args:
-            name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
-            pmb_type(`str`): pmb_object_type to assign the `molecule_id` 
             molecule_index(`int`): index of the current `pmb_object_type` to assign the `molecule_id`
-            used_molecules_id(`lst`): list with the `molecule_id` values already used.
-        
         Returns:
             molecule_id(`int`): Id of the molecule
         """
@@ -903,7 +899,6 @@ class pymbe_library():
 
         molecules_index = np.where(self.df['name']==name)
         molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
-        used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
         pos_index = 0 
         for molecule_index in molecule_index_list:        
             molecule_id = self.assign_molecule_id(molecule_index=molecule_index)
@@ -1089,7 +1084,6 @@ class pymbe_library():
                             number_of_copies=number_of_proteins)
         protein_index = np.where(self.df['name']==name)
         protein_index_list =list(protein_index[0])[-number_of_proteins:]
-        used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
         
         box_half=espresso_system.box_l[0]/2.0
 

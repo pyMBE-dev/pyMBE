@@ -32,6 +32,8 @@ np.testing.assert_equal(actual=output,
                         desired=0, 
                         verbose=True)
 
+print("*** Unit test passed ***")
+
 print("*** Unit test: check that define_particles() defines a set of particles correctly ***")
 
 particle_parameters={"S1":{"name":"S1",
