@@ -17,6 +17,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import pyMBE
+import io
+import sys
+import pandas as pd
 
 pmb = pyMBE.pymbe_library(seed=42)
 reduced_unit_set = pmb.get_reduced_units()
@@ -68,3 +71,50 @@ for parameter_set in molecule_parameters.values():
 
 pmb.delete_entries_in_df(entry_name="M1")
 assert pmb.df[pmb.df["name"]=="M1"].empty
+
+print("*** Unit test: test that check if the add_value_to_df() raises two warnings in default mode (verbose=True and overwrite=False)  ***")
+
+index=0
+key = ('name','')
+old_value = pmb.df.loc[index,pd.IndexSlice[key]]
+new_value='T2'
+name=pmb.df.loc[index,key]
+pmb_type=pmb.df.loc[index,('pmb_type','')]
+
+warning_output = io.StringIO()
+sys.stdout = warning_output
+pmb.add_value_to_df(index=index,key=key,new_value=new_value)
+sys.stdout = sys.__stdout__
+
+warning_input = io.StringIO()
+sys.stdout = warning_input
+print(f"WARNING: you are attempting to redefine the properties of {name} of pmb_type {pmb_type}\nWARNING: pyMBE has preserved of the entry `{key}`: old_value = {old_value}. If you want to overwrite it with new_value = {new_value}, activate the switch overwrite = True ")
+sys.stdout = sys.__stdout__
+
+assert warning_output.getvalue() == warning_input.getvalue()
+
+print("*** Unit passed ***")
+
+print("*** Unit test: test that check if the add_value_to_df() raises one warning when verbose=True and overwrite=True ***")
+
+index=0
+key = ('name','')
+old_value = pmb.df.loc[index,pd.IndexSlice[key]]
+new_value='T2'
+name=pmb.df.loc[index,key]
+pmb_type=pmb.df.loc[index,('pmb_type','')]
+
+warning_output = io.StringIO()
+sys.stdout = warning_output
+pmb.add_value_to_df(index=index,key=key,new_value=new_value,overwrite=True)
+sys.stdout = sys.__stdout__
+
+warning_input = io.StringIO()
+sys.stdout = warning_input
+print(f'WARNING: you are attempting to redefine the properties of {name} of pmb_type {pmb_type}\nWARNING: overwritting the value of the entry `{key}`: old_value = {old_value} new_value = {new_value}')
+sys.stdout = sys.__stdout__
+
+assert warning_output.getvalue() == warning_input.getvalue()
+
+print("*** Unit passed ***")
+
