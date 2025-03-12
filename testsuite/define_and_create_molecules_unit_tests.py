@@ -34,19 +34,17 @@ np.testing.assert_equal(actual=output,
 
 print("*** Unit test: check that define_particles() defines a set of particles correctly ***")
 
-sigmas=[1,2,3]
-offset=1
 particle_parameters={"S1":{"name":"S1",
-                           "sigma":sigmas[0]*pmb.units.nm,
-                           "offset":offset*pmb.units.nm,
-                           "z":0},
+                           "sigma":1*pmb.units.nm,
+                           "offset":0.5*pmb.units.nm,
+                           "z":1},
                      "S2":{"name":"S2",
-                           "sigma":sigmas[1]*pmb.units.nm,
-                           "offset":offset*pmb.units.nm,
+                           "sigma":2*pmb.units.nm,
+                           "offset":1.5*pmb.units.nm,
                            "z": 1},
                      "S3":{"name":"S3",
-                           "sigma":sigmas[2]*pmb.units.nm,
-                           "offset":offset*pmb.units.nm,
+                           "sigma":3*pmb.units.nm,
+                           "offset":2.5*pmb.units.nm,
                            "z":2}}
 pmb.define_particles(parameters=particle_parameters)
 
@@ -487,14 +485,16 @@ print("*** Unit test passed ***")
 print("*** Unit test: check that get_radius_map() provides the right amount of radii corresponding to the number of different particles in the simulation box ***")
 
 np.testing.assert_equal(actual=len(pmb.get_radius_map()),
-                        desired=len(sigmas),
+                        desired=len(particle_parameters.values()),
                         verbose=True)
 
 print("*** Unit test passed ***")
 
 print("*** Unit test: check that get_radius_map() provides the right values of the radii of the particles, which corresponds to (sigma+offset)/2 ***")
 
-desired_radii=(np.array(sigmas)+offset)/2
+desired_radii=[]
+for particle in particle_parameters.values():
+    desired_radii.append((particle['sigma'].magnitude+particle['offset'].magnitude)/2)
 
 actual_radii=[pmb.get_radius_map()[0],
                pmb.get_radius_map()[1],
