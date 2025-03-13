@@ -26,12 +26,13 @@ import lib.handy_functions as hf
 import logging
 import io
 import numpy as np
-
+import io
 # Create an in-memory log stream
 log_stream = io.StringIO()
 logging.basicConfig(level=logging.INFO, 
                     format="%(levelname)s: %(message)s",
                     handlers=[logging.StreamHandler(log_stream)] )
+
 # Create instances of espresso and pyMBE
 espresso_system = espressomd.System(box_l=[60,60,60])
 seed = 23

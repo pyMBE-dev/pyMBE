@@ -24,10 +24,9 @@ import numpy as np
 import pandas as pd
 import scipy.constants
 import scipy.optimize
-
+import logging
 
 class pymbe_library():
-
     """
     The library for the Molecular Builder for ESPResSo (pyMBE)
 
@@ -139,14 +138,13 @@ class pymbe_library():
         
         return
 
-    def add_value_to_df(self,index,key,new_value, verbose=True, non_standard_value=False, overwrite=False):
+    def add_value_to_df(self,index,key,new_value, non_standard_value=False, overwrite=False):
         """
         Adds a value to a cell in the `pmb.df` DataFrame.
 
         Args:
             index(`int`): index of the row to add the value to.
             key(`str`): the column label to add the value to.
-            verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
             non_standard_value(`bool`, optional): Switch to enable insertion of non-standard values, such as `dict` objects. Defaults to False.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False.
         """
@@ -169,17 +167,14 @@ class pymbe_library():
         idx = pd.IndexSlice
         if self.check_if_df_cell_has_a_value(index=index,key=key):
             old_value = self.df.loc[index,idx[key]]
-
             if not pd.Series([protect(old_value)]).equals(pd.Series([protect(new_value)])):
                 name=self.df.loc[index,('name','')]
                 pmb_type=self.df.loc[index,('pmb_type','')]
-                if verbose:
-                    print(f"WARNING: you are attempting to redefine the properties of {name} of pmb_type {pmb_type}")    
-                if overwrite and verbose:
-                    print(f'WARNING: overwritting the value of the entry `{key}`: old_value = {old_value} new_value = {new_value}')
+                logging.debug(f"You are attempting to redefine the properties of {name} of pmb_type {pmb_type}")    
+                if overwrite:
+                    logging.info(f'Overwritting the value of the entry `{key}`: old_value = {old_value} new_value = {new_value}')
                 if not overwrite:
-                    if verbose:
-                        print(f"WARNING: pyMBE has preserved of the entry `{key}`: old_value = {old_value}. If you want to overwrite it with new_value = {new_value}, activate the switch overwrite = True ")
+                    logging.debug(f"pyMBE has preserved of the entry `{key}`: old_value = {old_value}. If you want to overwrite it with new_value = {new_value}, activate the switch overwrite = True ")
                     return
 
         self.df.loc[index,idx[key]] = protect(new_value)
@@ -187,16 +182,12 @@ class pymbe_library():
             self.df[key] = self.df[key].apply(deprotect)
         return
     
-    def assign_molecule_id(self, name, molecule_index, pmb_type, used_molecules_id):
+    def assign_molecule_id(self, molecule_index):
         """
         Assigns the `molecule_id` of the pmb object given by `pmb_type`
         
         Args:
-            name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
-            pmb_type(`str`): pmb_object_type to assign the `molecule_id` 
             molecule_index(`int`): index of the current `pmb_object_type` to assign the `molecule_id`
-            used_molecules_id(`lst`): list with the `molecule_id` values already used.
-        
         Returns:
             molecule_id(`int`): Id of the molecule
         """
@@ -206,21 +197,11 @@ class pymbe_library():
         if self.df['molecule_id'].isnull().values.all():
             molecule_id = 0        
         else:
-            # check if a residue is part of another molecule
-            check_residue_name = self.df[self.df['residue_list'].astype(str).str.contains(name)]
-            mol_pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
-            if not check_residue_name.empty and mol_pmb_type == pmb_type:
-                for value in check_residue_name.index.to_list():                  
-                    if value not in used_molecules_id:                              
-                        molecule_id = self.df.loc[value].molecule_id.values[0]                    
-                        break
-            else:
-                molecule_id = self.df['molecule_id'].max() +1
+            molecule_id = self.df['molecule_id'].max() +1
 
         self.add_value_to_df (key=('molecule_id',''),
                                 index=int(molecule_index),
-                                new_value=molecule_id, 
-                                verbose=False)
+                                new_value=molecule_id)
 
         return molecule_id
     
@@ -627,7 +608,7 @@ class pymbe_library():
             columns_keys_to_clean(`list` of `str`, optional): List with the column keys to be cleaned. Defaults to [`particle_id`, `particle_id2`, `residue_id`, `molecule_id`].
         """   
         for column_key in columns_keys_to_clean:
-            self.add_value_to_df(key=(column_key,''),index=index,new_value=pd.NA, verbose=False)
+            self.add_value_to_df(key=(column_key,''),index=index,new_value=pd.NA)
         self.df.fillna(pd.NA, inplace=True)
         return
 
@@ -912,13 +893,9 @@ class pymbe_library():
 
         molecules_index = np.where(self.df['name']==name)
         molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
-        used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
         pos_index = 0 
         for molecule_index in molecule_index_list:        
-            molecule_id = self.assign_molecule_id(name=name,
-                                                pmb_type='molecule',
-                                                used_molecules_id=used_molecules_id,
-                                                molecule_index=molecule_index)
+            molecule_id = self.assign_molecule_id(molecule_index=molecule_index)
             molecules_info[molecule_id] = {}
             for residue in residue_list:
                 if first_residue:
@@ -944,8 +921,7 @@ class pymbe_library():
                         self.add_value_to_df(key=('molecule_id',''),
                                             index=int (index),
                                             new_value=molecule_id,
-                                            overwrite=True,
-                                            verbose=False)
+                                            overwrite=True)
                     central_bead_id = residues_info[residue_id]['central_bead_id']
                     previous_residue = residue
                     residue_position = espresso_system.part.by_id(central_bead_id).pos
@@ -973,7 +949,6 @@ class pymbe_library():
                         self.add_value_to_df(key=('molecule_id',''),
                                             index=int (index),
                                             new_value=molecule_id,
-                                            verbose=False,
                                             overwrite=True)            
                     central_bead_id = residues_info[residue_id]['central_bead_id']
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
@@ -983,7 +958,6 @@ class pymbe_library():
                     self.add_value_to_df(key=('molecule_id',''),
                                             index=int (bond_index),
                                             new_value=molecule_id,
-                                            verbose=False,
                                             overwrite=True)           
                     previous_residue_id = central_bead_id
                     previous_residue = residue                    
@@ -1039,7 +1013,7 @@ class pymbe_library():
             if fix:
                 kwargs["fix"] = 3 * [fix]
             espresso_system.part.add(**kwargs)
-            self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id, verbose=False)                  
+            self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id)                  
         return created_pid_list
 
     def create_pmb_object(self, name, number_of_objects, espresso_system, position=None, use_default_bond=False, backbone_vector=None):
@@ -1101,13 +1075,12 @@ class pymbe_library():
                             number_of_copies=number_of_proteins)
         protein_index = np.where(self.df['name']==name)
         protein_index_list =list(protein_index[0])[-number_of_proteins:]
-        used_molecules_id = self.df.molecule_id.dropna().drop_duplicates().tolist()
         
         box_half=espresso_system.box_l[0]/2.0
 
         for molecule_index in protein_index_list:     
 
-            molecule_id = self.assign_molecule_id (name=name,pmb_type='protein',used_molecules_id=used_molecules_id,molecule_index=molecule_index)
+            molecule_id = self.assign_molecule_id(molecule_index=molecule_index)
 
             protein_center = self.generate_coordinates_outside_sphere(radius = 1, 
                                                                         max_dist=box_half, 
@@ -1131,14 +1104,12 @@ class pymbe_library():
                 self.add_value_to_df(key=('residue_id',''),
                                             index=int (index),
                                             new_value=int(residue_number),
-                                            overwrite=True,
-                                            verbose=False)
+                                            overwrite=True)
 
                 self.add_value_to_df(key=('molecule_id',''),
                                         index=int (index),
                                         new_value=molecule_id,
-                                        overwrite=True,
-                                        verbose=False)
+                                        overwrite=True)
 
         return
 
@@ -1183,7 +1154,7 @@ class pymbe_library():
                 residue_id=0
             else:
                 residue_id = self.df['residue_id'].max() + 1
-            self.add_value_to_df(key=('residue_id',''),index=int (residue_index),new_value=residue_id, verbose=False)
+            self.add_value_to_df(key=('residue_id',''),index=int (residue_index),new_value=residue_id)
             # create the principal bead   
             central_bead_name = self.df.loc[self.df['name']==name].central_bead.values[0]            
             central_bead_id = self.create_particle(name=central_bead_name,
@@ -1230,7 +1201,6 @@ class pymbe_library():
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int (index),
                                         new_value=residue_id, 
-                                        verbose=False,
                                         overwrite=True)
                     side_chain_beads_ids.append(side_bead_id)
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, side_bead_id))
@@ -1240,7 +1210,6 @@ class pymbe_library():
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int (index),
                                         new_value=residue_id, 
-                                        verbose=False,
                                         overwrite=True)
 
                 elif pmb_type == 'residue':
@@ -1274,7 +1243,6 @@ class pymbe_library():
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int(index),
                                         new_value=residue_id, 
-                                        verbose=False,
                                         overwrite=True)
                     # Change the residue_id of the particles in the residue in the side chain
                     side_chain_beads_ids+=[central_bead_side_chain_id]+lateral_beads_side_chain_ids
@@ -1283,7 +1251,6 @@ class pymbe_library():
                         self.add_value_to_df(key=('residue_id',''),
                                             index=int (index),
                                             new_value=residue_id, 
-                                            verbose=False,
                                             overwrite=True)
                     espresso_system.part.by_id(central_bead_id).add_bond((bond, central_bead_side_chain_id))
                     index = self.add_bond_in_df(particle_id1=central_bead_id,
@@ -1292,14 +1259,12 @@ class pymbe_library():
                     self.add_value_to_df(key=('residue_id',''),
                                         index=int (index),
                                         new_value=residue_id, 
-                                        verbose=False,
                                         overwrite=True)
                     # Change the residue_id of the bonds in the residues in the side chain to the one of the bigger residue
                     for index in self.df[(self.df['residue_id']==residue_id_side_chain) & (self.df['pmb_type']=='bond') ].index:        
                         self.add_value_to_df(key=('residue_id',''),
                                             index=int(index),
                                             new_value=residue_id, 
-                                            verbose=False,
                                             overwrite=True)
             # Internal bookkeeping of the side chain beads ids
             residues_info[residue_id]['side_chain_ids']=side_chain_beads_ids
@@ -1507,7 +1472,7 @@ class pymbe_library():
         self.df.fillna(pd.NA, inplace=True)
         return index
 
-    def define_particle(self, name, z=0, acidity=pd.NA, pka=pd.NA, sigma=pd.NA, epsilon=pd.NA, cutoff=pd.NA, offset=pd.NA,verbose=True,overwrite=False):
+    def define_particle(self, name, z=0, acidity=pd.NA, pka=pd.NA, sigma=pd.NA, epsilon=pd.NA, cutoff=pd.NA, offset=pd.NA,overwrite=False):
         """
         Defines the properties of a particle object.
 
@@ -1520,7 +1485,6 @@ class pymbe_library():
             cutoff(`pint.Quantity`, optional): Cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to pd.NA.
             offset(`pint.Quantity`, optional): Offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to pd.NA.
             epsilon(`pint.Quantity`, optional): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe. Defaults to pd.NA.
-            verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False.
 
         Note:
@@ -1552,7 +1516,6 @@ class pymbe_library():
                 self.add_value_to_df(key=(parameter_key,''),
                                     index=index,
                                     new_value=parameters_with_dimensionality[parameter_key]["value"],
-                                    verbose=verbose,
                                     overwrite=overwrite)
 
         # Define particle acid/base properties
@@ -1560,19 +1523,17 @@ class pymbe_library():
                                 acidity=acidity, 
                                 default_charge_number=z, 
                                 pka=pka,
-                                verbose=verbose,
                                 overwrite=overwrite)
         self.df.fillna(pd.NA, inplace=True)
         return 
     
-    def define_particles(self, parameters, overwrite=False, verbose=True):
+    def define_particles(self, parameters, overwrite=False):
         '''
         Defines a particle object in pyMBE for each particle name in `particle_names`
 
         Args:
             parameters(`dict`):  dictionary with the particle parameters. 
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
-            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - parameters = {"particle_name1: {"sigma": sigma_value, "epsilon": epsilon_value, ...}, particle_name2: {...},}
@@ -1581,7 +1542,6 @@ class pymbe_library():
             return 0
         for particle_name in parameters.keys():
             parameters[particle_name]["overwrite"]=overwrite
-            parameters[particle_name]["verbose"]=verbose
             self.define_particle(**parameters[particle_name])
         return
     
@@ -1609,7 +1569,7 @@ class pymbe_library():
         self.df.fillna(pd.NA, inplace=True)
         
     
-    def define_protein(self, name,model, topology_dict, lj_setup_mode="wca", overwrite=False, verbose=True):
+    def define_protein(self, name,model, topology_dict, lj_setup_mode="wca", overwrite=False):
         """
         Defines a globular protein pyMBE object  in `pymbe.df`.
 
@@ -1619,7 +1579,6 @@ class pymbe_library():
             topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'radius': radius_value}
             lj_setup_mode(`str`): Key for the setup for the LJ potential. Defaults to "wca".
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
-            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - Currently, only `lj_setup_mode="wca"` is supported. This corresponds to setting up the WCA potential.
@@ -1656,8 +1615,7 @@ class pymbe_library():
                 sequence.append(particle_name) 
             
         self.define_particles(parameters=part_dict,
-                            overwrite=overwrite,  
-                            verbose=verbose)
+                            overwrite=overwrite)
         residue_list = self.define_AA_residues(sequence=sequence, 
                                                model=model)
         index = len(self.df)
@@ -2225,27 +2183,19 @@ class pymbe_library():
         Returns:
             type_map(`dict`): {"name": espresso_type}.
         """
-        if self.df.state_one['es_type'].isnull().values.any():         
-            df_state_one = self.df.state_one.dropna(how='all')     
-            df_state_two = self.df.state_two.dropna(how='all')  
-        else:    
-            df_state_one = self.df.state_one
-            if self.df.state_two['es_type'].isnull().values.any():
-                df_state_two = self.df.state_two.dropna(how='all')   
-            else:
-                df_state_two = self.df.state_two
+        df_state_one = self.df.state_one.dropna(how='all')     
+        df_state_two = self.df.state_two.dropna(how='all')  
         state_one = pd.Series (df_state_one.es_type.values,index=df_state_one.label)
         state_two = pd.Series (df_state_two.es_type.values,index=df_state_two.label)
         type_map  = pd.concat([state_one,state_two],axis=0).to_dict()
         return type_map
 
-    def load_interaction_parameters(self, filename, verbose=False, overwrite=False):
+    def load_interaction_parameters(self, filename, overwrite=False):
         """
         Loads the interaction parameters stored in `filename` into `pmb.df`
         
         Args:
             filename(`str`): name of the file to be read
-            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to False.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
         """
         without_units = ['z','es_type']
@@ -2274,7 +2224,6 @@ class pymbe_library():
                                 offset=not_required_attributes.pop('offset'),
                                 cutoff=not_required_attributes.pop('cutoff'),
                                 epsilon=not_required_attributes.pop('epsilon'),
-                                verbose=verbose,
                                 overwrite=overwrite)
             elif object_type == 'residue':
                 self.define_residue(**param_dict)
@@ -2311,13 +2260,12 @@ class pymbe_library():
             
         return
     
-    def load_pka_set(self, filename, verbose=False, overwrite=True):
+    def load_pka_set(self, filename, overwrite=True):
         """
         Loads the pka_set stored in `filename` into `pmb.df`.
         
         Args:
             filename(`str`): name of the file with the pka set to be loaded. Expected format is {name:{"acidity": acidity, "pka_value":pka_value}}.
-            verbose (`bool`, optional): Switch to activate/deactivate verbose. Defaults to False.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to True. 
         """
         with open(filename, 'r') as f:
@@ -2332,7 +2280,6 @@ class pymbe_library():
             self.set_particle_acidity(name=key, 
                                       acidity=acidity, 
                                       pka=pka_value, 
-                                      verbose=verbose, 
                                       overwrite=overwrite)
         return
 
@@ -2608,7 +2555,7 @@ class pymbe_library():
 
         return list_of_particles_in_residue
 
-    def set_particle_acidity(self, name, acidity=pd.NA, default_charge_number=0, pka=pd.NA, verbose=True, overwrite=True):
+    def set_particle_acidity(self, name, acidity=pd.NA, default_charge_number=0, pka=pd.NA, overwrite=True):
         """
         Sets the particle acidity including the charges in each of its possible states. 
 
@@ -2617,7 +2564,6 @@ class pymbe_library():
             acidity(`str`): Identifies whether the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to None.
             default_charge_number (`int`): Charge number of the particle. Defaults to 0.
             pka(`float`, optional):  If `particle` is an acid or a base, it defines its pka-value. Defaults to pandas.NA.
-            verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
             overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
      
         Note:
@@ -2643,68 +2589,56 @@ class pymbe_library():
                 self.add_value_to_df(key=('pka',''),
                                     index=index,
                                     new_value=pka, 
-                                    verbose=verbose,
                                     overwrite=overwrite)
             
             self.add_value_to_df(key=('acidity',''),
                                  index=index,
                                  new_value=acidity, 
-                                 verbose=verbose,
                                  overwrite=overwrite) 
             if not self.check_if_df_cell_has_a_value(index=index,key=('state_one','es_type')):
                 self.add_value_to_df(key=('state_one','es_type'),
                                      index=index,
                                      new_value=self.propose_unused_type(), 
-                                     verbose=verbose,
                                      overwrite=overwrite)  
             if pd.isna(self.df.loc [self.df['name']  == name].acidity.iloc[0]):
                 self.add_value_to_df(key=('state_one','z'),
                                      index=index,
                                      new_value=default_charge_number, 
-                                     verbose=verbose,
                                      overwrite=overwrite)
                 self.add_value_to_df(key=('state_one','label'),
                                      index=index,
                                      new_value=name, 
-                                     verbose=verbose,
                                     overwrite=overwrite)
             else:
                 protonated_label = f'{name}H'
                 self.add_value_to_df(key=('state_one','label'),
                                      index=index,
                                      new_value=protonated_label, 
-                                     verbose=verbose,
                                     overwrite=overwrite)
                 self.add_value_to_df(key=('state_two','label'),
                                      index=index,
                                      new_value=name, 
-                                     verbose=verbose,
                                     overwrite=overwrite)
                 if not self.check_if_df_cell_has_a_value(index=index,key=('state_two','es_type')):
                     self.add_value_to_df(key=('state_two','es_type'),
                                          index=index,
                                          new_value=self.propose_unused_type(), 
-                                         verbose=verbose,
                                          overwrite=overwrite)
                 if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'acidic':        
                     self.add_value_to_df(key=('state_one','z'),
                                          index=index,new_value=0, 
-                                         verbose=verbose,
                                          overwrite=overwrite)
                     self.add_value_to_df(key=('state_two','z'),
                                          index=index,
                                          new_value=-1, 
-                                         verbose=verbose,
                                          overwrite=overwrite)
                 elif self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'basic':
                     self.add_value_to_df(key=('state_one','z'),
                                          index=index,new_value=+1, 
-                                         verbose=verbose,
                                          overwrite=overwrite)
                     self.add_value_to_df(key=('state_two','z'),
                                          index=index,
                                          new_value=0, 
-                                         verbose=verbose,
                                          overwrite=overwrite)   
         self.df.fillna(pd.NA, inplace=True)
         return
