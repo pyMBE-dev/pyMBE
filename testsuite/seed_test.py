@@ -36,8 +36,8 @@ def build_peptide_in_espresso(seed):
     # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
     path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
     path_to_pka=pmb.get_resource("parameters/pka_sets/CRC1991.json")
-    pmb.load_interaction_parameters(filename=path_to_interactions, verbose=False) 
-    pmb.load_pka_set(path_to_pka, verbose=False)
+    pmb.load_interaction_parameters(filename=path_to_interactions) 
+    pmb.load_pka_set(path_to_pka)
 
     # Defines the peptide in the pyMBE data frame
     peptide_name = 'generic_peptide'

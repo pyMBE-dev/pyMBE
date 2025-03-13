@@ -51,6 +51,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unsupported ESPResSo features now raise a `NotImplementedError` instead of a `ValueError`. (#113)
 
 ### Removed
+- `verbose` optional argument has been deprecated in most of pyMBE methods. Now the module `loggins` is used instead for handling pyMBE's logs. (#119)
 - `lib.handy_functions.minimize_espresso_system_energy` because its name was confusing (it was not only minimizing the system energy) and was changing the parameters of the integrator under the hood. (#118)
 - print statements and most of `verbose` in `lib.handy_functions`. (#118)
 - `pmb.parse_sequence_from_file` has been removed since it is no longer necesary to parse the sequence from pmb.df (#110)

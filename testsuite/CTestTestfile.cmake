@@ -47,6 +47,7 @@ pymbe_add_test(PATH peptide_tests.py LABELS long beyer2024 THREADS 2)
 pymbe_add_test(PATH weak_polyelectrolyte_dialysis_test.py LABELS long beyer2024)
 
 # unit tests
+pymbe_add_test(PATH test_in_out_pmb_df.py)
 pymbe_add_test(PATH serialization_test.py)
 pymbe_add_test(PATH test_global_variables.py)
 pymbe_add_test(PATH lj_tests.py)
