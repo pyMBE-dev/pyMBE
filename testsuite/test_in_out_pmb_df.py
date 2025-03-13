@@ -25,7 +25,7 @@ import re
 
 # Create an in-memory log stream
 log_stream = io.StringIO()
-logging.basicConfig(level=logging.INFO, 
+logging.basicConfig(level=logging.DEBUG, 
                     format="%(levelname)s: %(message)s",
                     handlers=[logging.StreamHandler(log_stream)])
 
