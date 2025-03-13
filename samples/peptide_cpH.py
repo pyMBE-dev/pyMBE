@@ -128,7 +128,8 @@ pmb.define_particle(name=anion_name,
 
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
-
+espresso_system.time_step=dt
+espresso_system.cell_system.skin=0.4
 # Add all bonds to espresso system
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
