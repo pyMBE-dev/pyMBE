@@ -197,8 +197,8 @@ print("*** Box dimension changing... ***")
 for j in tqdm(np.arange(0,steps_needed)):
     espresso_system.change_volume_and_rescale_particles(d_new = espresso_system.box_l[0]-steps_size, 
                                                         dir = "xyz")
-    espresso_system.integrator.run(1000)  
-espresso_system.change_volume_and_rescale_particles(d_new = L_target, 
+    espresso_system.integrator.run(1000)
+    espresso_system.change_volume_and_rescale_particles(d_new = L_target,
                                                     dir = "xyz")
 espresso_system.thermostat.turn_off()
 minimize_espresso_system_energy(espresso_system=espresso_system, 
@@ -264,7 +264,6 @@ print("*** Running warmup with electrostatics ***")
 for i in tqdm(range(N_warmup_loops)):
     espresso_system.integrator.run(steps=1000)
     do_reaction(grxmc,100)
-    
 
 
 # Main loop
@@ -278,8 +277,10 @@ for label in labels_obs:
 
 if mode == "long-run":
     N_production_loops = 5000
-else:
+elif mode == "test":
     N_production_loops = 500
+else:
+    N_production_loops = 100
 
 for i in tqdm(range(N_production_loops)):
     espresso_system.integrator.run(steps=1000)
