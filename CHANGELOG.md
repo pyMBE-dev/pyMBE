@@ -35,7 +35,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unit testing for reaction methods, bonds, object serialization. (#86, #113)
 
 ### Fixed
-- docs in `lib.handy_functions`. (#118)
+- Occassional crashes when the user provided `backbone_vector` as list instead than a `ndarray` in `pmb.create_molecule()`  (#120)
+- Docs in `lib.handy_functions`. (#118)
 - Writing and reading `pmb.df` from file does no longer change the variable type from `int` to `float` when there are empty cells in the column. (#116)
 - Espresso bond objects stored in `pmb.df` now retain the same value for the  `._bond_id` attribute as the original Espresso objects. (#116)
 - Warning handling and coverage in `setup_lj_interaction` (#112)
