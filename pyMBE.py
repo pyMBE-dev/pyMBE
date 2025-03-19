@@ -881,6 +881,8 @@ class pymbe_library():
                 raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
         if number_of_molecules <= 0:
             return 0
+        if backbone_vector is not None:
+            backbone_vector = np.array(backbone_vector)
         self.check_if_name_is_defined_in_df(name=name,
                                             pmb_type_to_be_defined='molecule')
             
@@ -1135,7 +1137,8 @@ class pymbe_library():
                             number_of_copies=1)
         residues_index = np.where(self.df['name']==name)
         residue_index_list =list(residues_index[0])[-1:]
-
+        if backbone_vector is not None:
+            backbone_vector = np.array(backbone_vector)
         # search for defined particle and residue names
         particle_and_residue_df = self.df.loc[(self.df['pmb_type']== "particle") | (self.df['pmb_type']== "residue")]
         particle_and_residue_names = particle_and_residue_df["name"].tolist()
