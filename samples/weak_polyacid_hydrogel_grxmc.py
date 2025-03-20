@@ -198,8 +198,7 @@ for j in tqdm(np.arange(0,steps_needed)):
     espresso_system.change_volume_and_rescale_particles(d_new = espresso_system.box_l[0]-steps_size, 
                                                         dir = "xyz")
     espresso_system.integrator.run(1000)
-    espresso_system.change_volume_and_rescale_particles(d_new = L_target,
-                                                    dir = "xyz")
+    
 espresso_system.thermostat.turn_off()
 minimize_espresso_system_energy(espresso_system=espresso_system, 
                                 Nsteps=1e4, 
