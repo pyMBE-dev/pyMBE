@@ -62,7 +62,7 @@ mode=args.mode
 verbose=args.no_verbose
 
 
-LANGEVIN_SEED = 100
+langevin_seed = 100
 dt = 0.01
 solvent_permitivity = 78.3
 
@@ -145,7 +145,8 @@ L = volume ** (1./3.) # Side of the simulation box
 
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
-
+espresso_system.time_step=dt
+espresso_system.cell_system.skin=0.4
 # Add all bonds to espresso system
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
@@ -187,19 +188,19 @@ if verbose:
 #Setup the potential energy
 pmb.setup_lj_interactions (espresso_system=espresso_system,
                             warnings=verbose)
-hf.minimize_espresso_system_energy (espresso_system=espresso_system,
-                                    verbose=verbose)
+hf.relax_espresso_system(espresso_system=espresso_system,
+                          seed=langevin_seed)
 hf.setup_electrostatic_interactions(units=pmb.units,
                                     espresso_system=espresso_system,
                                     kT=pmb.kT,
                                     verbose=verbose)
-hf.minimize_espresso_system_energy (espresso_system=espresso_system,
-                                    verbose=verbose)
+hf.relax_espresso_system(espresso_system=espresso_system,
+                          seed=langevin_seed)
 
 
 hf.setup_langevin_dynamics(espresso_system=espresso_system,
                             kT = pmb.kT,
-                            SEED = LANGEVIN_SEED,
+                            seed = langevin_seed,
                             time_step=dt,
                             tune_skin=False)
 

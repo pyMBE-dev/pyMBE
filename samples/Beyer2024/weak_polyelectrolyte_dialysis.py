@@ -38,7 +38,7 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convenience
 from lib.handy_functions import setup_electrostatic_interactions
-from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import relax_espresso_system
 from lib.handy_functions import setup_langevin_dynamics
 from lib.handy_functions import do_reaction
 
@@ -96,8 +96,8 @@ pmb.set_reduced_units(unit_length=0.355*pmb.units.nm)
 solvent_permittivity = 78.9
 
 # Integration parameters
-DT = 0.01
-LANGEVIN_SEED = 42
+dt = 0.01
+langevin_seed = 42
 
 # Parameters of the polyacid model
 Chain_length = 50
@@ -172,6 +172,8 @@ if verbose:
 
 # Create an instance of an espresso system
 espresso_system = espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
+espresso_system.time_step=dt
+espresso_system.cell_system.skin=0.4
 if verbose:
     print("Created espresso object")
 
@@ -228,13 +230,14 @@ grxmc.set_non_interacting_type (type=non_interacting_type)
 #Set up the interactions
 pmb.setup_lj_interactions(espresso_system=espresso_system)
 
-# Minimzation
-minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max_displacement=0.01, skin=0.4)
+# Relax the system
+relax_espresso_system(espresso_system=espresso_system, 
+                      seed=langevin_seed)
 setup_langevin_dynamics(espresso_system=espresso_system, 
-                                    kT = pmb.kT, 
-                                    SEED = LANGEVIN_SEED,
-                                    time_step=DT,
-                                    tune_skin=False)
+                        kT = pmb.kT, 
+                        seed = langevin_seed,
+                        time_step=dt,
+                        tune_skin=False)
 if verbose:
     print("Running warmup without electrostatics")
 for i in tqdm.trange(100, disable=not verbose):
@@ -244,14 +247,16 @@ for i in tqdm.trange(100, disable=not verbose):
 setup_electrostatic_interactions(units=pmb.units,
                                 espresso_system=espresso_system,
                                 kT=pmb.kT,
-                                solvent_permittivity=solvent_permittivity)
+                                solvent_permittivity=solvent_permittivity,
+                                verbose=verbose)
 espresso_system.thermostat.turn_off()
-minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max_displacement=0.01, skin=0.4)
+relax_espresso_system(espresso_system=espresso_system,
+                      seed=langevin_seed)
 setup_langevin_dynamics(espresso_system=espresso_system, 
-                                    kT = pmb.kT, 
-                                    SEED = LANGEVIN_SEED,
-                                    time_step=DT,
-                                    tune_skin=False)
+                        kT = pmb.kT, 
+                        seed = langevin_seed,
+                        time_step=dt,
+                        tune_skin=False)
 
 if verbose:
     print("Running warmup with electrostatics")

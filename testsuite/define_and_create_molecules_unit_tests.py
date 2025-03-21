@@ -32,16 +32,22 @@ np.testing.assert_equal(actual=output,
                         desired=0, 
                         verbose=True)
 
+print("*** Unit test passed ***")
+
 print("*** Unit test: check that define_particles() defines a set of particles correctly ***")
-particle_parameters={"S1":{"name": "S1",
-                            "sigma":1*pmb.units.nm,
-                            "z":0},
-                    "S2":{"name": "S2",
-                            "sigma":2*pmb.units.nm,
-                            "z": 1},
-                    "S3":{"name": "S3",
-                            "sigma":3*pmb.units.nm,
-                            "z":2}}
+
+particle_parameters={"S1":{"name":"S1",
+                           "sigma":1*pmb.units.nm,
+                           "offset":0.5*pmb.units.nm,
+                           "z":1},
+                     "S2":{"name":"S2",
+                           "sigma":2*pmb.units.nm,
+                           "offset":1.5*pmb.units.nm,
+                           "z": 1},
+                     "S3":{"name":"S3",
+                           "sigma":3*pmb.units.nm,
+                           "offset":2.5*pmb.units.nm,
+                           "z":2}}
 pmb.define_particles(parameters=particle_parameters)
 
 for particle_name in particle_parameters.keys():
@@ -470,3 +476,54 @@ np.testing.assert_equal(actual=len(espresso_system.part.all()),
                         desired=starting_number_of_particles, 
                         verbose=True)
 print("*** Unit test passed ***")
+
+print("*** Unit test: check that get_particle_id_map() raises a ValueError if the user provides the name of an object that is not a particle ***")
+
+# If a bond_object is passed then the ValueError should be raised
+
+input_parameters={"object_name": 'default' }
+np.testing.assert_raises(ValueError, pmb.get_particle_id_map, **input_parameters)
+
+print("*** Unit test passed ***")
+
+print("*** Unit test: check that get_radius_map() provides the right amount of radii corresponding to the number of different particles in the simulation box ***")
+
+np.testing.assert_equal(actual=len(pmb.get_radius_map()),
+                        desired=len(particle_parameters.values()),
+                        verbose=True)
+
+print("*** Unit test passed ***")
+
+print("*** Unit test: check that get_radius_map() provides the right values of the radii of the particles, which corresponds to (sigma+offset)/2 ***")
+
+desired_radii=[]
+for particle in particle_parameters.values():
+    desired_radii.append((particle['sigma'].magnitude+particle['offset'].magnitude)/2)
+
+actual_radii=[pmb.get_radius_map()[0],
+               pmb.get_radius_map()[1],
+               pmb.get_radius_map()[2],]
+
+np.testing.assert_equal(actual=actual_radii,
+                        desired=desired_radii,
+                        verbose=True)
+
+print("*** Unit test passed ***")
+
+print("*** Unit test: check that the default value for the argument 'dimensionless' in get_radius_map() is True ***")
+
+np.testing.assert_equal(actual=isinstance(pmb.get_radius_map()[0],float),
+                        desired=True,
+                        verbose=True)
+
+print("*** Unit test passed ***")
+
+print("*** Unit test: check that if the argument 'dimensionless' is False in get_radius_map() then we obtain the corresponding units ***")
+
+
+np.testing.assert_equal(actual=pmb.get_radius_map(dimensionless=False)[0].dimensionality,
+                        desired=pmb.units.nm.dimensionality,
+                        verbose=True)
+
+print("*** Unit test passed ***")
+

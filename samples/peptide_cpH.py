@@ -30,7 +30,7 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convenience
 from lib.handy_functions import setup_electrostatic_interactions
-from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import relax_espresso_system
 from lib.handy_functions import setup_langevin_dynamics
 from lib.handy_functions import do_reaction
 from lib.analysis import built_output_name
@@ -67,7 +67,7 @@ pH_value = args.pH
 N_samples = 1000 # to make the demonstration quick, we set this to a very low value
 MD_steps_per_sample = 100 # to make the demonstration quick, we set this to a very low value
 N_samples_print = 10  # Write the full trajectory data every X samples
-LANGEVIN_SEED = 100
+langevin_seed = 100
 dt = 0.01
 solvent_permitivity = 78.3
 verbose=args.no_verbose
@@ -128,7 +128,8 @@ pmb.define_particle(name=anion_name,
 
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
-
+espresso_system.time_step=dt
+espresso_system.cell_system.skin=0.4
 # Add all bonds to espresso system
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
@@ -189,8 +190,8 @@ if not ideal:
                                 warnings=verbose)
     if verbose:
         print('Minimize energy before adding electrostatics')
-    minimize_espresso_system_energy (espresso_system=espresso_system,
-                                    verbose=verbose)
+    relax_espresso_system(espresso_system=espresso_system,
+                          seed=langevin_seed)
     if verbose:
         print('Setup and tune electrostatics (this can take a few seconds)')
     setup_electrostatic_interactions(units=pmb.units,
@@ -199,14 +200,14 @@ if not ideal:
                                     verbose=verbose)
     if verbose:
         print('Minimize energy after adding electrostatics')
-    minimize_espresso_system_energy (espresso_system=espresso_system,
-                                    verbose=verbose)
+    relax_espresso_system(espresso_system=espresso_system,
+                          seed=langevin_seed)
 
 if verbose:
     print('Setup Langeving dynamics')
 setup_langevin_dynamics(espresso_system=espresso_system, 
                         kT = pmb.kT, 
-                        SEED = LANGEVIN_SEED,
+                        seed = langevin_seed,
                         time_step=dt,
                         tune_skin=False)
 # for this example, we use a hard-coded skin value; In general it should be optimized by tuning

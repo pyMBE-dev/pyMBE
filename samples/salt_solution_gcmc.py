@@ -28,6 +28,12 @@ import tqdm
 # Import pyMBE
 import pyMBE
 from lib import analysis
+#Import functions from handy_functions script 
+from lib.handy_functions import relax_espresso_system
+from lib.handy_functions import setup_electrostatic_interactions
+from lib.handy_functions import setup_langevin_dynamics
+from lib.handy_functions import get_number_of_particles
+from lib.handy_functions import do_reaction
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -61,22 +67,13 @@ inputs={"csalt": args.c_salt_res,
 
 verbose=args.no_verbose
 
-#Import functions from handy_functions script 
-from lib.handy_functions import minimize_espresso_system_energy
-from lib.handy_functions import setup_electrostatic_interactions
-from lib.handy_functions import setup_langevin_dynamics
-from lib.handy_functions import get_number_of_particles
-from lib.handy_functions import do_reaction
-
-
-
 # Units and general parameters
 pmb.set_reduced_units(unit_length=0.355*pmb.units.nm)
 solvent_permittivity = 78.9
 
 # Integration parameters
-DT = 0.01
-LANGEVIN_SEED = 42
+dt = 0.01
+langevin_seed = 42
 
 # Define salt
 cation_name = 'Na'
@@ -135,19 +132,21 @@ non_interacting_type = max(type_map.values())+1
 RE.set_non_interacting_type(type=non_interacting_type)
 print('The non interacting type is set to ', non_interacting_type)
 
-espresso_system.time_step = DT
-
+espresso_system.time_step = dt
+# for this example, we use a hard-coded skin value; In general it should be optimized by tuning
+espresso_system.cell_system.skin=0.4
 if args.mode == "interacting":
     #Set up the short-range interactions
     pmb.setup_lj_interactions(espresso_system=espresso_system)
 
 # Minimzation
-minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max_displacement=0.01, skin=0.4)
+relax_espresso_system(espresso_system=espresso_system,
+                      seed=langevin_seed)
 setup_langevin_dynamics(espresso_system=espresso_system, 
-                                    kT = pmb.kT, 
-                                    SEED = LANGEVIN_SEED,
-                                    time_step=DT,
-                                    tune_skin=False)
+                        kT = pmb.kT, 
+                        seed = langevin_seed,
+                        time_step=dt,
+                        tune_skin=False)
 
 if verbose:
     print("Running warmup without electrostatics")
@@ -162,12 +161,13 @@ if args.mode == "interacting":
                                     solvent_permittivity=solvent_permittivity)
 
 espresso_system.thermostat.turn_off()
-minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max_displacement=0.01, skin=0.4)
+relax_espresso_system(espresso_system=espresso_system,
+                      seed=langevin_seed)
 setup_langevin_dynamics(espresso_system=espresso_system, 
-                                    kT = pmb.kT, 
-                                    SEED = LANGEVIN_SEED,
-                                    time_step=DT,
-                                    tune_skin=False)
+                        kT = pmb.kT, 
+                        seed = langevin_seed,
+                        time_step=dt,
+                        tune_skin=False)
 
 if verbose:
     print("Running warmup with electrostatics")
