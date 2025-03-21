@@ -1,47 +1,22 @@
-#
-# Copyright (C) 2024 pyMBE-dev team
-#
-# This file is part of pyMBE.
-#
-# pyMBE is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# pyMBE is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
-#######################################################
-# Loading modules 
-#######################################################
-
-# Load python modules
 import espressomd
 from pathlib import Path
 import numpy as np
 import pandas as pd
-import tqdm
+from tqdm import tqdm
 from scipy import interpolate
 import argparse
-
-# Import pyMBE
+from lib.lattice import DiamondLattice
 import pyMBE
 from lib import analysis
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
-# Load some functions from the handy_scripts library for convenience
+# Load some functions from the handy_scripts library for convinience
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import relax_espresso_system
 from lib.handy_functions import setup_langevin_dynamics
 from lib.handy_functions import do_reaction
-
 
 #######################################################
 # Setting parameters for the simulation
@@ -49,21 +24,25 @@ from lib.handy_functions import do_reaction
 
 ##### Read command-line arguments using argparse
 parser = argparse.ArgumentParser()
-parser.add_argument("--c_salt_res", 
-                    type=float, 
+parser.add_argument("--mpc",
+                    type=int,
+                    help="Number of monomers per chain ",
+                    default=40)
+parser.add_argument("--L_fraction",
+                    type=float,
+                    help="Target fraction of the maximum box length to achieve during the volume compression of the gel",
+                    default=1)
+parser.add_argument("--csalt_res",
+                    type=float,
                     help="Concentration of NaCl in the reservoir in mol/l.",
                     default=0.01)
-parser.add_argument("--c_mon_sys", 
-                    type=float, 
-                    help="Concentration of acid monomers in the system in mol/l.",
-                    default=0.01)
-parser.add_argument("--pH_res", 
-                    type=float, 
+parser.add_argument("--pH_res",
+                    type=float,
                     help="pH-value in the reservoir.",
                     default=7)
-parser.add_argument("--pKa_value", 
-                    type=float, 
-                    help="pKa-value of the polyacid monomers.",
+parser.add_argument("--pKa",
+                    type=float,
+                    help="pKa-value of the hydrogel monomers",
                     default=4)
 parser.add_argument('--mode',
                     type=str,
@@ -72,65 +51,47 @@ parser.add_argument('--mode',
 parser.add_argument('--output',
                     type=str,
                     required= False,
+                    default="time_series/weak_polyacid_hydrogel_grxmc",
                     help='output directory')
-parser.add_argument('--no_verbose', 
-                    action='store_false', 
+parser.add_argument('--no_verbose',
+                    action='store_false',
                     help="Switch to deactivate verbose",
                     default=True)
+
 args = parser.parse_args()
-
-# Inputs
-inputs={"csalt": args.c_salt_res,
-        "cmon": args.c_mon_sys,
-        "pH": args.pH_res,
-        "pKa": args.pKa_value}
 mode=args.mode
-valid_modes=["short-run","long-run", "test"]
-verbose=args.no_verbose
-
-if mode not in valid_modes:
-    raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
-
-# Units and general parameters
-pmb.set_reduced_units(unit_length=0.355*pmb.units.nm)
+c_salt_res = args.csalt_res * pmb.units.mol/ pmb.units.L
 solvent_permittivity = 78.9
+seed=42
+NodeType = "N"
+pmb.define_particle(name=NodeType, 
+                    sigma=1*pmb.units('reduced_length'), 
+                    epsilon=1*pmb.units('reduced_energy'))
 
-# Integration parameters
-dt = 0.01
-langevin_seed = 42
-
-# Parameters of the polyacid model
-Chain_length = 50
-if mode == "test":
-    N_chains = 2
-else:
-    N_chains = 16
-polyacid_name = 'polyacid'
-
-# Add the polyacid to the pmb instance
-pmb.define_particle(name='A', 
-                    acidity='acidic', 
+BeadType = "C"
+pmb.define_particle(name=BeadType, 
+                    acidity="acidic", 
                     sigma=1*pmb.units('reduced_length'), 
                     epsilon=1*pmb.units('reduced_energy'), 
-                    pka=args.pKa_value)
-pmb.define_residue(name='rA', 
-                   central_bead="A", 
-                   side_chains=[])
-pmb.define_molecule(name=polyacid_name, 
-                    residue_list=['rA']*Chain_length)
+                    pka=args.pKa)
 
+pmb.define_residue(name='Res', 
+                   central_bead=BeadType, 
+                   side_chains=[])
 
 bond_type = 'FENE'
+bond_length = 0.966 * pmb.units("reduced_length")
 fene_spring_constant = 30 * pmb.units('reduced_energy / reduced_length**2')
 fene_r_max = 1.5 * pmb.units('reduced_length')
+fene_r0 = 0 * pmb.units('reduced_length')
 
 fene_bond = {'k'      : fene_spring_constant,
-             'd_r_max': fene_r_max, 
-            }
+             'd_r_max': fene_r_max,
+             "r_0": fene_r0}
 
 pmb.define_bond(bond_type = bond_type, 
                 bond_parameters = fene_bond, 
-                particle_pairs = [['A','A']])
+                particle_pairs = [[BeadType,NodeType],[BeadType, BeadType]])
 
 # Parameters of the small ions
 proton_name = 'Hplus'
@@ -142,7 +103,7 @@ pmb.define_particle(name=proton_name,
                     z=1, 
                     sigma=1*pmb.units('reduced_length'), 
                     epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=hydroxide_name,  
+pmb.define_particle(name=hydroxide_name, 
                     z=-1, 
                     sigma=1*pmb.units('reduced_length'), 
                     epsilon=1*pmb.units('reduced_energy'))
@@ -155,47 +116,87 @@ pmb.define_particle(name=chloride_name,
                     sigma=1*pmb.units('reduced_length'), 
                     epsilon=1*pmb.units('reduced_energy'))
 
-# System parameters (some are read from the command line)
-c_mon_sys = args.c_mon_sys * pmb.units.mol/ pmb.units.L
-c_salt_res = args.c_salt_res * pmb.units.mol/ pmb.units.L
-pH_res = args.pH_res 
-pka_set = {'A': {"pka_value": args.pKa_value, "acidity": "acidic"}}
-volume = N_chains * Chain_length/(pmb.N_A*c_mon_sys)
-L = volume ** (1./3.)
-if verbose:
-    print("Box length:", L.to('reduced_length').magnitude)
+diamond_lattice = DiamondLattice(args.mpc, bond_length)
+espresso_system = espressomd.System(box_l = [diamond_lattice.box_l]*3)
+pmb.add_bonds_to_espresso(espresso_system = espresso_system)
+lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
 
+# Setting up node topology
+indices = diamond_lattice.indices
+node_topology = []
 
-#######################################################
-# Setting up the espresso system
-#######################################################
+for index in range(len(indices)):
+    node_topology.append({"particle_name": NodeType,
+                          "lattice_index": indices[index]})
 
-# Create an instance of an espresso system
-espresso_system = espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
-espresso_system.time_step=dt
-espresso_system.cell_system.skin=0.4
-if verbose:
-    print("Created espresso object")
+# Setting up chain topology
+node_labels = lattice_builder.node_labels
+chain_labels = lattice_builder.chain_labels
+reverse_node_labels = {v: k for k, v in node_labels.items()}
+chain_topology = []
+residue_list = ["Res"]*args.mpc
 
-# Add all bonds to espresso system
-pmb.add_bonds_to_espresso(espresso_system=espresso_system)
-if verbose:
-    print("Added bonds")
+for chain_data in chain_labels.items():
+    chain_label = chain_data[1]
+    node_label_pair = chain_data[0]
+    node_label_s, node_label_e = [int(x) for x in node_label_pair.strip("()").split(",")]
+    chain_topology.append({'node_start':reverse_node_labels[node_label_s],
+                              'node_end': reverse_node_labels[node_label_e],
+                              'residue_list':residue_list})
 
-# Create molecules and ions in the espresso system
-pmb.create_pmb_object(name=polyacid_name, 
-                      number_of_objects=N_chains, 
-                      espresso_system=espresso_system)
-pmb.create_counterions(object_name=polyacid_name, 
+pmb.define_hydrogel("my_hydrogel", node_topology, chain_topology)
+hydrogel_info = pmb.create_hydrogel("my_hydrogel", espresso_system)
+
+pmb.create_counterions(object_name="my_hydrogel", 
                        cation_name=proton_name, 
                        anion_name=hydroxide_name, 
                        espresso_system=espresso_system)
+
+print("*** Finished adding counterions ***")
+
 c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system, 
                                           cation_name=sodium_name, 
                                           anion_name=chloride_name, 
                                           c_salt=c_salt_res)
-if verbose:
-    print("Created molecules")
+
+print(f"Salt concentration {c_salt_calculated} added")
+
+print("*** Setting LJ interactions ***")
+
+dt = 0.01  # Timestep 
+espresso_system.time_step = dt
+pmb.setup_lj_interactions(espresso_system=espresso_system)
+
+setup_langevin_dynamics(espresso_system=espresso_system,
+                        kT = pmb.kT,
+                        seed = seed,
+                        time_step=dt,
+                        tune_skin=False)
+
+print("*** Relaxing the system... ***")
+relax_espresso_system(espresso_system=espresso_system,
+                      seed=seed,
+                      Nsteps_iter_relax=10000)
+
+espresso_system.force_cap = 0
+L_max = diamond_lattice.box_l
+L_target = args.L_fraction * L_max
+steps_size = 0.5
+steps_needed = int(abs((L_max - L_target)/steps_size))
+
+print("*** Box dimension changing... ***")
+
+for j in tqdm(np.arange(0,steps_needed)):
+    espresso_system.change_volume_and_rescale_particles(d_new = espresso_system.box_l[0]-steps_size, 
+                                                        dir = "xyz")
+    espresso_system.integrator.run(1000)
+    
+relax_espresso_system(espresso_system=espresso_system,
+                      seed=seed,
+                      Nsteps_iter_relax=10000,
+                      max_displacement=0.01)
+
+print("*** Setting up the reactions... ***")
 
 # Set up the reactions
 path_to_ex_pot=pmb.get_resource("parameters/salt")
@@ -205,9 +206,9 @@ excess_chemical_potential = pmb.units.Quantity(monovalent_salt_ref_data["excess_
 excess_chemical_potential_interpolated = interpolate.interp1d(ionic_strength.m_as("1/reduced_length**3"), 
                                                                                 excess_chemical_potential.m_as("reduced_energy"))
 activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
-if verbose:
-    print("Setting up reactions...")
-grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, 
+pka_set = {BeadType: {"pka_value": args.pKa, "acidity": "acidic"}}
+
+grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=args.pH_res, 
                                                               c_salt_res=c_salt_res, 
                                                               proton_name=proton_name, 
                                                               hydroxide_name=hydroxide_name, 
@@ -215,8 +216,6 @@ grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res,
                                                               salt_anion_name=chloride_name, 
                                                               activity_coefficient=activity_coefficient_monovalent_pair, 
                                                               pka_set=pka_set)
-if verbose:
-    print('The acid-base reaction has been sucessfully set up for ', labels)
 
 # Setup espresso to track the ionization of the acid groups
 type_map = pmb.get_type_map()
@@ -227,52 +226,44 @@ espresso_system.setup_type_map(type_list = types)
 non_interacting_type = max(type_map.values())+1
 grxmc.set_non_interacting_type (type=non_interacting_type)
 
-#Set up the interactions
-pmb.setup_lj_interactions(espresso_system=espresso_system)
-
-# Relax the system
-relax_espresso_system(espresso_system=espresso_system, 
-                      seed=langevin_seed)
-setup_langevin_dynamics(espresso_system=espresso_system, 
-                        kT = pmb.kT, 
-                        seed = langevin_seed,
-                        time_step=dt,
-                        tune_skin=False)
-if verbose:
-    print("Running warmup without electrostatics")
-for i in tqdm.trange(100, disable=not verbose):
+for i in tqdm(range(100)):
     espresso_system.integrator.run(steps=1000)
-    do_reaction(grxmc, steps=1000)
+    do_reaction(grxmc,1000)
 
 setup_electrostatic_interactions(units=pmb.units,
-                                espresso_system=espresso_system,
-                                kT=pmb.kT,
-                                solvent_permittivity=solvent_permittivity,
-                                verbose=verbose)
+                                 espresso_system=espresso_system,
+                                 kT=pmb.kT,
+                                 solvent_permittivity=solvent_permittivity)
+
 espresso_system.thermostat.turn_off()
-relax_espresso_system(espresso_system=espresso_system,
-                      seed=langevin_seed)
-setup_langevin_dynamics(espresso_system=espresso_system, 
-                        kT = pmb.kT, 
-                        seed = langevin_seed,
+relax_espresso_system(espresso_system=espresso_system, 
+                      Nsteps_iter_relax=10000, 
+                      max_displacement=0.1,
+                      seed=seed)
+
+setup_langevin_dynamics(espresso_system=espresso_system,
+                        kT = pmb.kT,
+                        seed = seed,
                         time_step=dt,
                         tune_skin=False)
 
-if verbose:
-    print("Running warmup with electrostatics")
+print("*** before electrostatics ***")
+
 if mode == "long-run":
     N_warmup_loops = 1000
 else:
     N_warmup_loops = 100
-for i in tqdm.trange(N_warmup_loops, disable=not verbose):
+
+print("*** Running warmup with electrostatics ***")
+for i in tqdm(range(N_warmup_loops)):
     espresso_system.integrator.run(steps=1000)
-    do_reaction(grxmc, steps=100)
+    do_reaction(grxmc,100)
 
 
 # Main loop
 print("Started production run.")
 
-labels_obs=["time", "alpha"]
+labels_obs=["time", "alpha", "pressure"]
 time_series={}
 
 for label in labels_obs:
@@ -280,27 +271,36 @@ for label in labels_obs:
 
 if mode == "long-run":
     N_production_loops = 5000
+elif mode == "test":
+    N_production_loops = 500
 else:
     N_production_loops = 100
-for i in tqdm.trange(N_production_loops, disable=not verbose):
+
+for i in tqdm(range(N_production_loops)):
     espresso_system.integrator.run(steps=1000)
-    do_reaction(grxmc, steps=100)
+    do_reaction(grxmc,200)
 
     # Measure time
     time_series["time"].append(espresso_system.time)
 
     # Measure degree of ionization
-    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, molecule_name=polyacid_name, dimensionless=True)
-    time_series["alpha"].append(np.abs(charge_dict["mean"])/Chain_length)
+    time_series["alpha"].append(len(espresso_system.part.select(type=2,q=-1))/(16*args.mpc))
+    time_series["pressure"].append(espresso_system.analysis.pressure()["total"])
+
+inputs={"csalt": args.csalt_res,
+        "Lfraction": args.L_fraction,
+        "pH": args.pH_res,
+        "pKa": args.pKa}
 
 data_path = args.output
 if data_path is None:
-    data_path=pmb.get_resource(path="samples/Beyer2024")+"/time_series/grxmc"
+    data_path=pmb.get_resource(path="samples/Landsgesell2022")+"/time_series/"
 
-Path(data_path).mkdir(parents=True, 
+Path(data_path).mkdir(parents=True,
                        exist_ok=True)
 
 time_series=pd.DataFrame(time_series)
 filename=analysis.built_output_name(input_dict=inputs)
 
 time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
+

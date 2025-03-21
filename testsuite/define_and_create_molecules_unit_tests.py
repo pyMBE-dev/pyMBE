@@ -106,6 +106,7 @@ molecule_parameters={"M1":{"name": "M1",
                     "M2":{"name": "M2",
                     "residue_list": ["R1","R2","R3"]}}
 
+
 for parameter_set in molecule_parameters.values():
     pmb.define_molecule(**parameter_set)
 
@@ -183,6 +184,7 @@ print("*** Unit test: check that create_residue() creates a simple residue into 
 bond_type = 'harmonic'
 bond = {'r_0'    : 0.4*pmb.units.nm,
         'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
+
 
 pmb.define_default_bond(bond_type = bond_type,
                         bond_parameters = bond)
