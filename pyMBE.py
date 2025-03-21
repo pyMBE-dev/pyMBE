@@ -2283,15 +2283,17 @@ class pymbe_library():
         type_map  = pd.concat([state_one,state_two],axis=0).to_dict()
         return type_map
 
-    def initialize_lattice_builder(self, diamond_lattice, verbose=False):
+    def initialize_lattice_builder(self, diamond_lattice):
         """
         Initialize the lattice builder with the DiamondLattice object.
+
+        Args:
+            diamond_lattice(`DiamondLattice`): DiamondLattice object from the `lib/lattice` module to be used in the LatticeBuilder.
         """
         if not isinstance(diamond_lattice, DiamondLattice):
             raise TypeError("Currently only DiamondLattice objects are supported.")
         self.lattice_builder = LatticeBuilder(lattice=diamond_lattice)
-        if verbose:
-            print(f"LatticeBuilder initialized with mpc={diamond_lattice.mpc} and box_l={diamond_lattice.box_l}")
+        logging.info(f"LatticeBuilder initialized with mpc={diamond_lattice.mpc} and box_l={diamond_lattice.box_l}")
         return self.lattice_builder
 
 
@@ -2739,12 +2741,10 @@ class pymbe_library():
         self.add_value_to_df(key=('molecule_id',''),
                         index=int(bond_index1),
                         new_value=molecule_id,
-                        verbose=False,
                         overwrite=True)
         self.add_value_to_df(key=('residue_id',''),
                             index=int (bond_index1),
                             new_value=residue_ids[0],
-                            verbose=False,
                             overwrite=True)
         bond_index2 = self.add_bond_in_df(particle_id1=node2[0],
                                     particle_id2=chain_ids[-1],
@@ -2752,12 +2752,10 @@ class pymbe_library():
         self.add_value_to_df(key=('molecule_id',''),
                         index=int(bond_index2),
                         new_value=molecule_id,
-                        verbose=False,
                         overwrite=True)
         self.add_value_to_df(key=('residue_id',''),
                         index=int (bond_index2),
                         new_value=residue_ids[-1],
-                        verbose=False,
                         overwrite=True)
         return chain_molecule_info
     

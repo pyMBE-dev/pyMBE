@@ -14,7 +14,7 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convinience
 from lib.handy_functions import setup_electrostatic_interactions
-from lib.handy_functions import minimize_espresso_system_energy
+from lib.handy_functions import relax_espresso_system
 from lib.handy_functions import setup_langevin_dynamics
 from lib.handy_functions import do_reaction
 
@@ -62,7 +62,7 @@ args = parser.parse_args()
 mode=args.mode
 c_salt_res = args.csalt_res * pmb.units.mol/ pmb.units.L
 solvent_permittivity = 78.9
-
+seed=42
 NodeType = "N"
 pmb.define_particle(name=NodeType, 
                     sigma=1*pmb.units('reduced_length'), 
@@ -87,8 +87,7 @@ fene_r0 = 0 * pmb.units('reduced_length')
 
 fene_bond = {'k'      : fene_spring_constant,
              'd_r_max': fene_r_max,
-             "r_0": fene_r0,
-            }
+             "r_0": fene_r0}
 
 pmb.define_bond(bond_type = bond_type, 
                 bond_parameters = fene_bond, 
@@ -164,27 +163,20 @@ print(f"Salt concentration {c_salt_calculated} added")
 
 print("*** Setting LJ interactions ***")
 
-DT = 0.01  # Timestep 
-espresso_system.time_step = DT
+dt = 0.01  # Timestep 
+espresso_system.time_step = dt
 pmb.setup_lj_interactions(espresso_system=espresso_system)
 
 setup_langevin_dynamics(espresso_system=espresso_system,
                         kT = pmb.kT,
-                        SEED = 87643,
-                        time_step=DT,
+                        seed = seed,
+                        time_step=dt,
                         tune_skin=False)
 
 print("*** Relaxing the system... ***")
-lj_cap = 50
-espresso_system.force_cap = lj_cap
-i=0
-while i < 100:
-    espresso_system.integrator.run(steps=500+args.mpc*2)
-    i += 1
-    lj_cap = lj_cap + 10
-    espresso_system.force_cap = lj_cap
-
-print("min dist",espresso_system.analysis.min_dist())
+relax_espresso_system(espresso_system=espresso_system,
+                      seed=seed,
+                      Nsteps_iter_relax=10000)
 
 espresso_system.force_cap = 0
 L_max = diamond_lattice.box_l
@@ -199,11 +191,10 @@ for j in tqdm(np.arange(0,steps_needed)):
                                                         dir = "xyz")
     espresso_system.integrator.run(1000)
     
-espresso_system.thermostat.turn_off()
-minimize_espresso_system_energy(espresso_system=espresso_system, 
-                                Nsteps=1e4, 
-                                max_displacement=0.01, 
-                                skin=0.4)
+relax_espresso_system(espresso_system=espresso_system,
+                      seed=seed,
+                      Nsteps_iter_relax=10000,
+                      max_displacement=0.01)
 
 print("*** Setting up the reactions... ***")
 
@@ -240,17 +231,21 @@ for i in tqdm(range(100)):
     do_reaction(grxmc,1000)
 
 setup_electrostatic_interactions(units=pmb.units,
-                                espresso_system=espresso_system,
-                                kT=pmb.kT,
-                                solvent_permittivity=solvent_permittivity)
+                                 espresso_system=espresso_system,
+                                 kT=pmb.kT,
+                                 solvent_permittivity=solvent_permittivity)
+
 espresso_system.thermostat.turn_off()
-minimize_espresso_system_energy(espresso_system=espresso_system, Nsteps=1e4, max_displacement=0.01, skin=0.4)
+relax_espresso_system(espresso_system=espresso_system, 
+                      Nsteps_iter_relax=10000, 
+                      max_displacement=0.1,
+                      seed=seed)
 
 setup_langevin_dynamics(espresso_system=espresso_system,
-                                    kT = pmb.kT,
-                                    SEED = 7653,
-                                    time_step=DT,
-                                    tune_skin=False)
+                        kT = pmb.kT,
+                        seed = seed,
+                        time_step=dt,
+                        tune_skin=False)
 
 print("*** before electrostatics ***")
 

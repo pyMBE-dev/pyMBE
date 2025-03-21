@@ -141,7 +141,7 @@ class HydrogelTest(ut.TestCase):
 
         # Compare titration curve values
         with self.subTest(msg=f"Testing titration curve for c_salt_res={titration_test_cases['c_salt_res']}"):
-            for pH, ref_L in titration_test_cases["swelling_eq"].items():
+            for pH, _ in titration_test_cases["swelling_eq"].items():
                 data_ref_filtered = data_ref[np.isclose(data_ref['cs'], titration_test_cases["c_salt_res"])].sort_values(by="pH")
                 ref_alpha = data_ref_filtered[data_ref_filtered["pH"] == pH]["alpha"].values[0]
                 titration_key = frozenset({('c_salt_res', titration_test_cases['c_salt_res']),
