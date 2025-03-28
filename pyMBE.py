@@ -881,6 +881,14 @@ class pymbe_library():
                 raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
         if number_of_molecules <= 0:
             return 0
+        # Generate an arbitrary random unit vector
+        if backbone_vector is None:
+            backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
+                                                    radius=1, 
+                                                    n_samples=1,
+                                                    on_surface=True)[0]
+        else:
+            backbone_vector = np.array(backbone_vector)
         self.check_if_name_is_defined_in_df(name=name,
                                             pmb_type_to_be_defined='molecule')
             
@@ -904,12 +912,7 @@ class pymbe_library():
                     else:
                         for item in list_of_first_residue_positions:
                             residue_position = [np.array(list_of_first_residue_positions[pos_index])]
-                    # Generate an arbitrary random unit vector
-                    if backbone_vector is None:
-                        backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
-                                                                radius=1, 
-                                                                n_samples=1,
-                                                                on_surface=True)[0]
+                    
                     residues_info = self.create_residue(name=residue,
                                                         espresso_system=espresso_system, 
                                                         central_bead_position=residue_position,  
@@ -1135,7 +1138,6 @@ class pymbe_library():
                             number_of_copies=1)
         residues_index = np.where(self.df['name']==name)
         residue_index_list =list(residues_index[0])[-1:]
-
         # search for defined particle and residue names
         particle_and_residue_df = self.df.loc[(self.df['pmb_type']== "particle") | (self.df['pmb_type']== "residue")]
         particle_and_residue_names = particle_and_residue_df["name"].tolist()
@@ -1171,8 +1173,7 @@ class pymbe_library():
             # create the lateral beads  
             side_chain_list = self.df.loc[self.df.index[residue_index]].side_chains.values[0]
             side_chain_beads_ids = []
-            for side_chain_element in side_chain_list:
-                
+            for side_chain_element in side_chain_list:  
                 pmb_type = self.df[self.df['name']==side_chain_element].pmb_type.values[0] 
                 if pmb_type == 'particle':
                     bond = self.search_bond(particle_name1=central_bead_name, 
@@ -1190,7 +1191,7 @@ class pymbe_library():
                                                                  n_samples=1,
                                                                  on_surface=True)[0]
                     else:
-                        bead_position=central_bead_position+self.generate_trial_perpendicular_vector(vector=backbone_vector,
+                        bead_position=central_bead_position+self.generate_trial_perpendicular_vector(vector=np.array(backbone_vector),
                                                                                                     magnitude=l0)
                     
                     side_bead_id = self.create_particle(name=side_chain_element, 
