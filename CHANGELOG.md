@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to CTest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
+- Optional argument `params` in `lib.handy_functions.setup_electrostatic_interactions` enabling the user to easilly tune parameters for the electrostatic solvers. (#121)
 - CI testing for functions in `lib.handy_functions`. (#118)
 - sanity tests for `lib.handy_functions`. (#118)
 - Use of `logging`  in `lib.handy_functions` to handle output and error logs. (#118)

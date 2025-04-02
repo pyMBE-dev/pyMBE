@@ -15,6 +15,7 @@ The following people have contributed to pyMBE (Github username, Name, current a
 - 1234somesh, Somesh Kurahatti (University of Stuttgart, Germany)
 - amartise, Albert Martinez-Serra (Royal College of Surgeons, Ireland) 
 - mariusaarsten, Marius Aarsten (Norwegian University of Science and Tecnology, Norway)
+- TommyTraan, Duy Tommy Tran (Norwegian University of Science and Tecnology, Norway)
 - Zitzeronion, Stefan Zitz (Research Center Pharmaceutical Engineering, Austria)
 
 ## Early testers of the library
