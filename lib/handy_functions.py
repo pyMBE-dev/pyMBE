@@ -18,7 +18,7 @@
 
 import logging
 
-def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3,verbose=False):
+def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3, params=None, verbose=False):
     """
     Sets up electrostatic interactions in an ESPResSo system.
 
@@ -65,12 +65,16 @@ def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, so
         
         logging.info(f"Debye kappa {KAPPA.to('nm')} = {KAPPA.to('reduced_length')}")
 
+    if params is None:
+        params = {}
+
     if method == 'p3m':
         logging.debug("*** Setting up Coulomb electrostatics using the P3M method ***")
         coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.m_as("reduced_length * reduced_energy"), 
                                                 accuracy=accuracy,
                                                 verbose=verbose,
-                                                tune=tune_p3m)
+                                                tune=tune_p3m,
+                                                **params)
 
         if tune_p3m:
             espresso_system.time_step=0.01
@@ -96,9 +100,14 @@ def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, so
 
     elif method == 'dh':
         logging.debug("*** Setting up Debye-Hückel electrostatics ***")
+        if params:
+            r_cut = params['r_cut']
+        else:
+            r_cut = 3*KAPPA.to('reduced_length').magnitude
+            
         coulomb = espressomd.electrostatics.DH(prefactor = COULOMB_PREFACTOR.m_as("reduced_length * reduced_energy"), 
                                                kappa = (1./KAPPA).to('1/ reduced_length').magnitude, 
-                                               r_cut = 2.5*KAPPA.to('reduced_length').magnitude)
+                                               r_cut = r_cut)
     if espressomd.version.friendly() == "4.2":
         espresso_system.actors.add(coulomb)
     else:
