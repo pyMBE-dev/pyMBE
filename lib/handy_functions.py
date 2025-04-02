@@ -24,13 +24,15 @@ def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, so
 
     Args:
         units(`pint.UnitRegistry`): Unit registry for handling physical units.
-        espresso_system (`espressomd.system.System`): system object of espressomd library.
+        espresso_system(`espressomd.system.System`): system object of espressomd library.
         kT(`pint.Quantity`): Thermal energy.
         c_salt(`pint.Quantity`): Added salt concentration. If provided, the program outputs the debye screening length. It is a mandatory parameter for the Debye-Hückel method.
         solvent_permittivity (`float`): Solvent relative permittivity. Defaults to 78.5, correspoding to its value in water at 298.15 K.
-        method (`str`): Method for computing electrostatic interactions. Defaults to "p3m". 
-        tune_p3m (`bool`): If True, tunes P3M parameters for efficiency. Defaults to True. 
-        accuracy (`float`): Desired accuracy for electrostatics. Defaults to 1e-3.
+        method(`str`): Method for computing electrostatic interactions. Defaults to "p3m". 
+        tune_p3m(`bool`): If True, tunes P3M parameters for efficiency. Defaults to True. 
+        accuracy(`float`): Desired accuracy for electrostatics. Defaults to 1e-3.
+        params(`dict`): Additional parameters for the electrostatic method. For P3M, it can include 'mesh', 'alpha', 'cao' and `r_cut`. For Debye-Hückel, it can include 'r_cut'.
+        verbose(`bool`): If True, enables verbose output for P3M tuning. Defaults to False.
 
     Note:
         `c_salt` is a mandatory argument for setting up the Debye-Hückel electrostatic potential.

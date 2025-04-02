@@ -205,6 +205,21 @@ class Test(ut.TestCase):
                          second=coloumb_params["is_tuned"],
                          msg="lib.handy_functions.setup_electrostatic_interactions does not tune the P3M method")
         espresso_system.actors.remove(coloumb)
+        ## Test the setup the P3M method without tuning it with some input parameters
+        electrostatics_inputs["tune_p3m"] = False
+        electrostatics_inputs["params"] = {"mesh": [8, 8, 8], 
+                                           "cao": 5, 
+                                           "alpha": 1.1265e+01,
+                                           "r_cut": 1}
+        hf.setup_electrostatic_interactions(**electrostatics_inputs)
+        coloumb = espresso_system.actors.active_actors.copy()[0]
+        coloumb_params = coloumb.get_params()
+        for param in electrostatics_inputs["params"]:
+            self.assertEqual(first=electrostatics_inputs["params"][param],
+                             second=coloumb_params[param],
+                             msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong P3M parameters")
+        espresso_system.actors.remove(coloumb)
+        electrostatics_inputs["params"] = None
         # Test the Debye–Hückel setup
         electrostatics_inputs["method"] = "dh"
         electrostatics_inputs["c_salt"] = pmb.units.Quantity(1, "mol/L")
@@ -222,7 +237,7 @@ class Test(ut.TestCase):
                                 second=(1./kappa).m_as('1/ reduced_length'),
                                 msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong Debye screening length for the DH method")
         self.assertAlmostEqual(first=dh_params["r_cut"],
-                                second=2.5*kappa.m_as('reduced_length'),
+                                second=3*kappa.m_as('reduced_length'),
                                 msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong cut-off for the DH method")
         espresso_system.actors.remove(dh)
         electrostatics_inputs["c_salt"] = pmb.units.Quantity(1, "mol/L")*pmb.N_A
@@ -233,7 +248,16 @@ class Test(ut.TestCase):
                                 second=(1./kappa).m_as('1/ reduced_length'),
                                 msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong Debye screening length for the DH method")
         self.assertAlmostEqual(first=dh_params["r_cut"],
-                                second=2.5*kappa.m_as('reduced_length'),
+                                second=3*kappa.m_as('reduced_length'),
+                                msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong cut-off for the DH method")
+        espresso_system.actors.remove(dh)
+        # Test a non-default cut-off
+        electrostatics_inputs["params"] = {"r_cut": 3}
+        hf.setup_electrostatic_interactions(**electrostatics_inputs)
+        dh = espresso_system.actors.active_actors.copy()[0]
+        dh_params = dh.get_params()
+        self.assertAlmostEqual(first=dh_params["r_cut"],
+                                second=electrostatics_inputs["params"]["r_cut"],
                                 msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong cut-off for the DH method")
         print("*** Unit test passed ***")
 if __name__ == "__main__":
