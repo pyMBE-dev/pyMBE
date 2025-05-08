@@ -332,7 +332,8 @@ class Test(ut.TestCase):
         ]["name"].iloc[0]
         
         all_not_na = filtered_df['bond_object'].notna().all()
-        np.testing.assert_(all_not_na, "Bond object is not defined near nodes")
+        
+        assert all_not_na, "Bond object is not defined near nodes"
         
         central_bead_name_near_node_start = pmb.df[pmb.df["particle_id"]==central_bead_near_node_start]["name"].values[0]
         central_bead_name_near_node_end = pmb.df[pmb.df["particle_id"]==central_bead_near_node_end]["name"].values[0]
