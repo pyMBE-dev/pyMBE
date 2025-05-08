@@ -181,7 +181,7 @@ relax_espresso_system(espresso_system=espresso_system,
 espresso_system.force_cap = 0
 L_max = diamond_lattice.box_l
 L_target = args.L_fraction * L_max
-steps_size = 0.5
+steps_size = 0.1
 steps_needed = int(abs((L_max - L_target)/steps_size))
 
 print("*** Box dimension changing... ***")

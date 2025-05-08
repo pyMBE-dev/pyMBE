@@ -124,8 +124,7 @@ hydrogel_info = pmb.create_hydrogel(hydrogel_name, espresso_system)
 
 def compare_node_maps(map1, map2):
     # Ensure lengths are the same
-    if len(map1) != len(map2):
-        return False
+    np.testing.assert_equal(len(map1), len(map2))
     
     # Sort lists by lattice_index to ensure correct comparison
     map1_sorted = sorted(map1, key=lambda x: tuple(x["lattice_index"]))
@@ -133,12 +132,12 @@ def compare_node_maps(map1, map2):
     
     # Compare each node's details
     for node1, node2 in zip(map1_sorted, map2_sorted):
-        if node1["particle_name"] != node2["particle_name"]:
-            return False
-        if not np.array_equal(np.array(node1["lattice_index"]), np.array(node2["lattice_index"])):
-            return False
-    
-    return True
+        np.testing.assert_equal(node1["particle_name"], 
+                                node2["particle_name"])
+        np.testing.assert_equal(node1["lattice_index"],
+                                node2["lattice_index"])
+        
+    return 
 
 def parse_string_to_array(string):
     """
@@ -152,8 +151,7 @@ def compare_chain_maps(chain_topology_1, chain_topology_2):
     """
     Compare two chain topology maps by checking if they have the same set of edges with corresponding residue lists.
     """
-    if len(chain_topology_1) != len(chain_topology_2):
-        return False  # Different number of edges
+    np.testing.assert_equal(len(chain_topology_1), len(chain_topology_2))
 
     # Convert string coordinates to arrays and sort lists by (node_start, node_end)
     def preprocess_chain(chain_topology):
@@ -171,13 +169,15 @@ def compare_chain_maps(chain_topology_1, chain_topology_2):
 
     # Compare edges one by one
     for edge1, edge2 in zip(chain_topology_1, chain_topology_2):
-        if not np.array_equal(edge1['node_start'], edge2['node_start']) or not np.array_equal(edge1['node_end'], edge2['node_end']):
-            return False  # Nodes do not match
+        np.testing.assert_equal(edge1['node_start'].tolist(), 
+                                edge2['node_start'].tolist())
+        np.testing.assert_equal(edge1['node_end'].tolist(), 
+                                edge2['node_end'].tolist())
+        # Check if the residue lists are the same
+        np.testing.assert_equal(edge1['residue_list'], 
+                                edge2['residue_list'])
 
-        if edge1['residue_list'] != edge2['residue_list']:
-            return False  # Residue lists do not match
-
-    return True  # All edges match
+    return # All edges match
 
 class Test(ut.TestCase):
  
@@ -226,10 +226,11 @@ class Test(ut.TestCase):
                 if (np.array_equal(parse_string_to_array(edge['node_start']), node_start_array) and
                    np.array_equal(parse_string_to_array(edge['node_end']), node_end_array)):
                     return edge['residue_list']
-            return None
+        
         for _, chain_data in hydrogel_info["chains"].items():
-            node_start = chain_data["node_start"]
-            node_end = chain_data["node_end"]
+            residue_in_chain = chain_data.copy()
+            node_start = residue_in_chain.pop("node_start")
+            node_end = residue_in_chain.pop("node_end")
             node_start_label = lattice_builder.node_labels[node_start]
             node_end_label = lattice_builder.node_labels[node_end]
             vec_between_nodes = (np.array([float(x) for x in node_end.strip('[]').split()]) -
@@ -237,18 +238,14 @@ class Test(ut.TestCase):
             vec_between_nodes = vec_between_nodes - lattice_builder.box_l * np.round(vec_between_nodes / lattice_builder.box_l)
             backbone_vector = vec_between_nodes / (diamond_lattice.mpc + 1)
    
-            # Get the list of residues (keys in chain_data, excluding node_start/node_end)
-            residues_in_chain = {k: v for k, v in chain_data.items() if isinstance(k, int)}
-             
-            # Loop through each residue in the chain
-            for (res_id, res_data) in residues_in_chain.items():
+            for (res_id, res_data) in residue_in_chain.items():
                 central_bead_id = res_data["central_bead_id"]
                 
                 # Get the position of the central bead from the espresso system 
                 central_bead_pos = espresso_system.part.by_id(central_bead_id).pos
 
                 # Calculate the expected position of the residue's central bead
-                residue_index = list(residues_in_chain.keys()) .index(res_id)
+                residue_index = list(residue_in_chain.keys()) .index(res_id)
                 expected_position = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * diamond_lattice.box_l + (residue_index + 1) * backbone_vector
                 
                 # Validate that the central bead's position matches the expected position
@@ -284,8 +281,8 @@ class Test(ut.TestCase):
 
     def test_hydrogel_definitions_in_df(self):
         # Verify node_map and chain_map are correctly added
-        assert compare_node_maps(pmb.df.loc[pmb.df["name"] == hydrogel_name, "node_map"].values[0], node_topology)
-        assert compare_chain_maps(pmb.df.loc[pmb.df["name"] == hydrogel_name, "chain_map"].values[0], chain_topology)
+        compare_node_maps(pmb.df.loc[pmb.df["name"] == hydrogel_name, "node_map"].values[0], node_topology)
+        compare_chain_maps(pmb.df.loc[pmb.df["name"] == hydrogel_name, "chain_map"].values[0], chain_topology)
         for chain_id in chain_topology:
             molecule_name = f"chain_{chain_id['node_start']}_{chain_id['node_end']}"
             assert molecule_name in pmb.df["name"].values
@@ -335,8 +332,7 @@ class Test(ut.TestCase):
         ]["name"].iloc[0]
         
         all_not_na = filtered_df['bond_object'].notna().all()
-        if not all_not_na:
-            raise ValueError("Bond object is not defined near nodes")
+        np.testing.assert_(all_not_na, "Bond object is not defined near nodes")
         
         central_bead_name_near_node_start = pmb.df[pmb.df["particle_id"]==central_bead_near_node_start]["name"].values[0]
         central_bead_name_near_node_end = pmb.df[pmb.df["particle_id"]==central_bead_near_node_end]["name"].values[0]
@@ -345,15 +341,7 @@ class Test(ut.TestCase):
             possible_bond_names = [NodeType+"-"+BeadType1, BeadType1+"-"+NodeType]
             assert bond_name_node_start in possible_bond_names
 
-        elif central_bead_name_near_node_start == BeadType2:
-            possible_bond_names = [NodeType+"-"+BeadType2, BeadType2+"-"+NodeType]
-            assert bond_name_node_start in possible_bond_names
-
-        if central_bead_name_near_node_end == BeadType1:
-            possible_bond_names = [NodeType+"-"+BeadType1, BeadType1+"-"+NodeType]
-            assert bond_name_node_end in possible_bond_names
-
-        elif central_bead_name_near_node_end == BeadType2:
+        if central_bead_name_near_node_end == BeadType2:
             possible_bond_names = [NodeType+"-"+BeadType2, BeadType2+"-"+NodeType]
             assert bond_name_node_end in possible_bond_names
         

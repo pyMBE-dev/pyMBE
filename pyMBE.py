@@ -892,7 +892,7 @@ class pymbe_library():
                 hydrogel_info["chains"][molecule_id] = molecule_info[molecule_id]
                 hydrogel_info["chains"][molecule_id]["node_start"]=node_s
                 hydrogel_info["chains"][molecule_id]["node_end"]=node_e
-        return hydrogel_info;
+        return hydrogel_info
 
 
     def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False):
@@ -953,13 +953,6 @@ class pymbe_library():
                         for item in list_of_first_residue_positions:
                             residue_position = [np.array(list_of_first_residue_positions[pos_index])]
                             
-                    # Generate an arbitrary random unit vector
-                    if backbone_vector is None:
-                        backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
-                                                                radius=1,
-                                                                n_samples=1,
-                                                                on_surface=True)[0]
-
                     residues_info = self.create_residue(name=residue,
                                                         espresso_system=espresso_system, 
                                                         central_bead_position=residue_position,  
@@ -2166,7 +2159,7 @@ class pymbe_library():
             id_map(`dict`): dict of the structure {"all": [all_ids_with_object_name], "residue_map": {res_id: [particle_ids_in_res_id]}, "molecule_map": {mol_id: [particle_ids_in_mol_id]}, }
         '''
         object_type = self.df.loc[self.df['name']== object_name].pmb_type.values[0]
-        valid_types = ["particle", "molecule", "residue", "protein", "hydrogel"]
+        valid_types = ["particle", "molecule", "residue", "protein"]
         if object_type not in valid_types:
             raise ValueError(f"{object_name} is of pmb_type {object_type}, which is not supported by this function. Supported types are {valid_types}")
         id_list = []
@@ -2193,15 +2186,6 @@ class pymbe_library():
                 id_list+=res_id_list
         elif object_type == 'particle':
             id_list = self.df.loc[self.df['name']== object_name].particle_id.dropna().tolist()
-        elif object_type == "hydrogel":
-            mol_ids = self.df[(self.df["pmb_type"] == "molecule") &
-            (self.df["name"].str.match(r"^chain_\[\d+ \d+ \d+\]_\[\d+ \d+ \d+\]$"))].molecule_id.dropna().tolist()
-            for mol_id in mol_ids:
-                res_ids = set(self.df.loc[(self.df["molecule_id"]==mol_id) & (self.df["pmb_type"]=="particle")].residue_id.dropna().tolist())
-                res_map=do_res_map(res_ids=res_ids)
-                mol_list=self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
-                id_list+=mol_list
-                mol_map[mol_id]=mol_list
         return {"all": id_list, "molecule_map": mol_map, "residue_map": res_map}
 
     def get_pka_set(self):
@@ -2673,10 +2657,14 @@ class pymbe_library():
         """
         Set a chain between two nodes.
         Args:
-            node_start(`str`): Start node label, e.g. ``[0 0 0]`` for the node at the origin.
-            node_end(`str`): End node label, e.g. ``[1 1 1]`` for the first node along the diagonal.
-            node_positions(`dict`): 
+            node_start(`str`): name of the starting node particle at which the first residue of the chain will be attached. 
+            node_end(`str`): name of the ending node particle at which the last residue of the chain will be attached.
+            node_positions(`dict`): dictionary with the positions of the nodes. The keys are the node names and the values are the positions.
             espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
+
+        Note:
+        For example, if the chain is defined between node_start = ``[0 0 0]`` and node_end = ``[1 1 1]``, the chain will be placed between these two nodes.
+        The chain will be placed in the direction of the vector between `node_start` and `node_end`. 
         """
         if self.lattice_builder is None:
             raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
@@ -2770,10 +2758,11 @@ class pymbe_library():
         """
         Set a node residue type.
         Args:
-            node(`str`): Node label, e.g. ``[0 0 0]`` for the node at the origin.
-            residue(`str`): Node residue label.
+            node(`str`): name of the node particle.
+            residue(`str`): name of the residue label.
         Returns:
-
+            node_position(`list`): Position of the node in the lattice.
+            p_id(`int`): Particle ID of the node.
         """
         if self.lattice_builder is None:
             raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
