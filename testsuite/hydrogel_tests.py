@@ -87,7 +87,7 @@ def run_simulation(single_case, test_type):
 
 class HydrogelTest(ut.TestCase):
     
-    def test_hydrogel(self):
+    def test_pressure(self):
         test_cases = [
             {"c_salt_res": pressure_test_cases["c_salt_res"],
             "pH": pH,
@@ -143,8 +143,8 @@ class HydrogelTest(ut.TestCase):
         ]
         with multiprocessing.Pool(processes=2) as pool:
             results = dict(pool.starmap(run_simulation, [(tc, "titration") for tc in test_cases]))
-        rtol = 0.3
-        atol = 0.3
+        rtol = 0.05
+        atol = 0.05
         data_path = pmb.get_resource("testsuite/data")
         data_ref = pd.read_csv(f"{data_path}/Landsgesell2022a.csv")
 

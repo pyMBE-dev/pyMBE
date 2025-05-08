@@ -147,13 +147,6 @@ for chain_data in chain_labels.items():
 pmb.define_hydrogel("my_hydrogel", node_topology, chain_topology)
 hydrogel_info = pmb.create_hydrogel("my_hydrogel", espresso_system)
 
-pmb.create_counterions(object_name="my_hydrogel", 
-                       cation_name=proton_name, 
-                       anion_name=hydroxide_name, 
-                       espresso_system=espresso_system)
-
-print("*** Finished adding counterions ***")
-
 c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system, 
                                           cation_name=sodium_name, 
                                           anion_name=chloride_name, 
@@ -190,7 +183,11 @@ for j in tqdm(np.arange(0,steps_needed)):
     espresso_system.change_volume_and_rescale_particles(d_new = espresso_system.box_l[0]-steps_size, 
                                                         dir = "xyz")
     espresso_system.integrator.run(1000)
-    
+
+# Just to make sure that the system has the target size
+espresso_system.change_volume_and_rescale_particles(d_new = L_target, 
+                                                    dir = "xyz")
+
 relax_espresso_system(espresso_system=espresso_system,
                       seed=seed,
                       Nsteps_iter_relax=10000,

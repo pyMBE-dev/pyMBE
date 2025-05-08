@@ -251,7 +251,8 @@ setup_electrostatic_interactions(units=pmb.units,
                                 verbose=verbose)
 espresso_system.thermostat.turn_off()
 relax_espresso_system(espresso_system=espresso_system,
-                      seed=langevin_seed)
+                      seed=langevin_seed,
+                      max_displacement=0.01)
 setup_langevin_dynamics(espresso_system=espresso_system, 
                         kT = pmb.kT, 
                         seed = langevin_seed,

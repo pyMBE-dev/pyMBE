@@ -39,6 +39,7 @@ function(pymbe_add_test)
 endfunction()
 
 # functional tests, e.g. long simulations and ensemble averages
+pymbe_add_test(PATH hydrogel_tests.py LABELS long THREADS 2)
 pymbe_add_test(PATH cph_ideal_tests.py LABELS long THREADS 2)
 pymbe_add_test(PATH grxmc_ideal_tests.py LABELS long THREADS 2)
 pymbe_add_test(PATH gcmc_tests.py LABELS long)

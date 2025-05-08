@@ -101,8 +101,8 @@ class Test(ut.TestCase):
         diamond = lib.lattice.DiamondLattice(mpc, bond_l)
         espresso_system = espressomd.System(box_l = [diamond.box_l]*3)
         pmb.add_bonds_to_espresso(espresso_system = espresso_system)
-        np.testing.assert_raises(ValueError, pmb.set_node, "[1 1 1]", NodeType1, espresso_system)
-        np.testing.assert_raises(ValueError, pmb.set_chain, "[0 0 0]", "[1 1 1]", {0:[0,0,0],1:diamond.box_l/4.0*np.ones(3)},espresso_system)
+        np.testing.assert_raises(ValueError, pmb.create_hydrogel_node, "[1 1 1]", NodeType1, espresso_system)
+        np.testing.assert_raises(ValueError, pmb.create_hydrogel_chain, "[0 0 0]", "[1 1 1]", {0:[0,0,0],1:diamond.box_l/4.0*np.ones(3)},espresso_system)
         lattice = pmb.initialize_lattice_builder(diamond)
         sequence = [Res3, Res1, Res2, Res1]
         # build default structure
@@ -117,13 +117,13 @@ class Test(ut.TestCase):
         assert lattice.get_node("[1 1 1]") == "default_linker"
         assert lattice.get_node("[0 0 0]") == "default_linker"
 
-        pos_node1 = pmb.set_node("[1 1 1]", NodeType1, espresso_system=espresso_system)
+        pos_node1 = pmb.create_hydrogel_node("[1 1 1]", NodeType1, espresso_system=espresso_system)
         np.testing.assert_equal(actual = lattice.get_node("[1 1 1]"), desired = NodeType1, verbose=True)
-        pos_node2 = pmb.set_node("[0 0 0]", NodeType2, espresso_system=espresso_system)
+        pos_node2 = pmb.create_hydrogel_node("[0 0 0]", NodeType2, espresso_system=espresso_system)
         np.testing.assert_equal(actual = lattice.get_node("[0 0 0]"), desired = NodeType2, verbose=True)
-        pos_node3 = pmb.set_node("[2 2 0]", NodeType2, espresso_system=espresso_system)
+        pos_node3 = pmb.create_hydrogel_node("[2 2 0]", NodeType2, espresso_system=espresso_system)
         np.testing.assert_equal(actual = lattice.get_node("[2 2 0]"), desired = NodeType2, verbose=True)
-        _,_ = pmb.set_node("[3 1 3]", NodeType1, espresso_system=espresso_system)
+        _,_ = pmb.create_hydrogel_node("[3 1 3]", NodeType1, espresso_system=espresso_system)
         np.testing.assert_equal(actual = lattice.get_node("[3 1 3]"), desired = NodeType1, verbose=True)
 
         node_positions={}
@@ -137,18 +137,18 @@ class Test(ut.TestCase):
         # define molecule in forward direction
         molecule_name = "chain_[1 1 1]_[0 0 0]"
         pmb.define_molecule(name=molecule_name, residue_list=sequence)
-        pmb.set_chain("[1 1 1]", "[0 0 0]", node_positions, espresso_system=espresso_system)
+        pmb.create_hydrogel_chain("[1 1 1]", "[0 0 0]", node_positions, espresso_system=espresso_system)
         np.testing.assert_equal(actual = lattice.get_chain("[1 1 1]", "[0 0 0]"), desired = sequence, verbose=True)
         np.testing.assert_equal(actual = lattice.get_chain("[0 0 0]", "[1 1 1]"), desired = sequence[::-1], verbose=True)
         # set chain before set node
         molecule_name = "chain_[3 1 3]_[0 0 0]"
         pmb.define_molecule(name=molecule_name, residue_list=sequence)
-        np.testing.assert_raises(ValueError, pmb.set_chain, "[3 1 3]", "[0 0 0]", node_positions, espresso_system)
+        np.testing.assert_raises(ValueError, pmb.create_hydrogel_chain, "[3 1 3]", "[0 0 0]", node_positions, espresso_system)
 
         # define custom chain in reverse direction
         molecule_name = "chain_[0 0 0]_[1 1 1]"
         pmb.define_molecule(name=molecule_name, residue_list=sequence)
-        pmb.set_chain("[0 0 0]", "[1 1 1]", node_positions, espresso_system=espresso_system)
+        pmb.create_hydrogel_chain("[0 0 0]", "[1 1 1]", node_positions, espresso_system=espresso_system)
         np.testing.assert_equal(lattice.get_chain("[1 1 1]", "[0 0 0]"), sequence[::-1])
         np.testing.assert_equal(lattice.get_chain("[0 0 0]", "[1 1 1]"), sequence)
 
@@ -157,14 +157,14 @@ class Test(ut.TestCase):
         molecule_name = "chain_[0 0 0]_[2 2 0]"
         pmb.define_molecule(name=molecule_name, residue_list=sequence)
         np.testing.assert_raises(AssertionError, 
-                         pmb.set_chain, 
+                         pmb.create_hydrogel_chain, 
                          "[0 0 0]", "[2 2 0]", node_positions, espresso_system=espresso_system)
 
         # define custom chain that loops
         molecule_name = "chain_[0 0 0]_[0 0 0]"
         pmb.define_molecule(name=molecule_name, residue_list=sequence)
         np.testing.assert_raises(AssertionError,
-                         pmb.set_chain,
+                         pmb.create_hydrogel_chain,
                          "[0 0 0]", "[0 0 0]", node_positions, espresso_system=espresso_system)
 
         lattice.set_colormap(self.colormap)

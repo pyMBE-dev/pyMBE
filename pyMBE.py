@@ -877,7 +877,7 @@ class pymbe_library():
         for node_info in node_topology:
             node_index = node_info["lattice_index"]
             node_name = node_info["particle_name"]
-            node_pos, node_id = self.set_node(self.format_node(node_index), node_name, espresso_system)
+            node_pos, node_id = self.create_hydrogel_node(self.format_node(node_index), node_name, espresso_system)
             hydrogel_info["nodes"][self.format_node(node_index)]=node_id
             node_positions[node_id[0]]=node_pos
         
@@ -887,13 +887,138 @@ class pymbe_library():
         for chain_info in chain_topology:
             node_s = chain_info["node_start"]
             node_e = chain_info["node_end"]
-            molecule_info = self.set_chain(node_s, node_e, node_positions, espresso_system)
+            molecule_info = self.create_hydrogel_chain(node_s, node_e, node_positions, espresso_system)
             for molecule_id in molecule_info:
                 hydrogel_info["chains"][molecule_id] = molecule_info[molecule_id]
                 hydrogel_info["chains"][molecule_id]["node_start"]=node_s
                 hydrogel_info["chains"][molecule_id]["node_end"]=node_e
         return hydrogel_info
 
+    def create_hydrogel_chain(self, node_start, node_end, node_positions, espresso_system):
+        """
+        Creates a chain between two nodes of a hydrogel.
+
+        Args:
+            node_start(`str`): name of the starting node particle at which the first residue of the chain will be attached. 
+            node_end(`str`): name of the ending node particle at which the last residue of the chain will be attached.
+            node_positions(`dict`): dictionary with the positions of the nodes. The keys are the node names and the values are the positions.
+            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
+
+        Note:
+            For example, if the chain is defined between node_start = ``[0 0 0]`` and node_end = ``[1 1 1]``, the chain will be placed between these two nodes.
+            The chain will be placed in the direction of the vector between `node_start` and `node_end`. 
+        """
+        if self.lattice_builder is None:
+            raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
+
+        molecule_name = "chain_"+node_start+"_"+node_end
+        sequence = self.df[self.df['name']==molecule_name].residue_list.values [0]
+        assert len(sequence) != 0 and not isinstance(sequence, str)
+        assert len(sequence) == self.lattice_builder.mpc
+
+        key, reverse = self.lattice_builder._get_node_vector_pair(node_start, node_end)
+        assert node_start != node_end or sequence == sequence[::-1], \
+            (f"chain cannot be defined between '{node_start}' and '{node_end}' since it "
+            "would form a loop with a non-symmetric sequence (under-defined stereocenter)")
+
+        if reverse:
+            sequence = sequence[::-1]
+
+        node_start_pos = np.array(list(int(x) for x in node_start.strip('[]').split()))*0.25*self.lattice_builder.box_l
+        node_end_pos = np.array(list(int(x) for x in node_end.strip('[]').split()))*0.25*self.lattice_builder.box_l
+        node1 = espresso_system.part.select(lambda p: (p.pos == node_start_pos).all()).id
+        node2 = espresso_system.part.select(lambda p: (p.pos == node_end_pos).all()).id
+
+        if not node1[0] in node_positions or not node2[0] in node_positions:
+            raise ValueError("Set node position before placing a chain between them")
+         
+        # Finding a backbone vector between node_start and node_end
+        vec_between_nodes = np.array(node_positions[node2[0]]) - np.array(node_positions[node1[0]])
+        vec_between_nodes = vec_between_nodes - self.lattice_builder.box_l * np.round(vec_between_nodes/self.lattice_builder.box_l)
+        backbone_vector = list(vec_between_nodes/(self.lattice_builder.mpc + 1))
+        node_start_name = self.df[(self.df["particle_id"]==node1[0]) & (self.df["pmb_type"]=="particle")]["name"].values[0]
+        first_res_name = self.df[(self.df["pmb_type"]=="residue") & (self.df["name"]==sequence[0])]["central_bead"].values[0]
+        l0 = self.get_bond_length(node_start_name, first_res_name, hard_check=True)
+        chain_molecule_info = self.create_molecule(
+                name=molecule_name,  # Use the name defined earlier
+                number_of_molecules=1,  # Creating one chain
+                espresso_system=espresso_system,
+                list_of_first_residue_positions=[list(np.array(node_positions[node1[0]]) + np.array(backbone_vector))],#Start at the first node
+                backbone_vector=np.array(backbone_vector)/l0,
+                use_default_bond=False  # Use defaut bonds between monomers
+            )
+        # Collecting ids of beads of the chain/molecule
+        chain_ids = []
+        residue_ids = []
+        for molecule_id in chain_molecule_info:
+            for residue_id in chain_molecule_info[molecule_id]:
+                residue_ids.append(residue_id)
+                bead_id = chain_molecule_info[molecule_id][residue_id]['central_bead_id']
+                chain_ids.append(bead_id)
+
+        self.lattice_builder.chains[key] = sequence
+        # Search bonds between nodes and chain ends
+        BeadType_near_to_node_start = self.df[(self.df["residue_id"] == residue_ids[0]) & (self.df["central_bead"].notnull())]["central_bead"].drop_duplicates().iloc[0]
+        BeadType_near_to_node_end = self.df[(self.df["residue_id"] == residue_ids[-1]) & (self.df["central_bead"].notnull())]["central_bead"].drop_duplicates().iloc[0]
+        bond_node1_first_monomer = self.search_bond(particle_name1 = self.lattice_builder.nodes[node_start],
+                                                    particle_name2 = BeadType_near_to_node_start,
+                                                    hard_check=False,
+                                                    use_default_bond=False)
+        bond_node2_last_monomer = self.search_bond(particle_name1 = self.lattice_builder.nodes[node_end],
+                                                    particle_name2 = BeadType_near_to_node_end,
+                                                    hard_check=False,
+                                                    use_default_bond=False)
+
+        espresso_system.part.by_id(node1[0]).add_bond((bond_node1_first_monomer, chain_ids[0]))
+        espresso_system.part.by_id(node2[0]).add_bond((bond_node2_last_monomer, chain_ids[-1]))
+        # Add bonds to data frame
+        bond_index1 = self.add_bond_in_df(particle_id1=node1[0],
+                                    particle_id2=chain_ids[0],
+                                    use_default_bond=False)
+        self.add_value_to_df(key=('molecule_id',''),
+                        index=int(bond_index1),
+                        new_value=molecule_id,
+                        overwrite=True)
+        self.add_value_to_df(key=('residue_id',''),
+                            index=int (bond_index1),
+                            new_value=residue_ids[0],
+                            overwrite=True)
+        bond_index2 = self.add_bond_in_df(particle_id1=node2[0],
+                                    particle_id2=chain_ids[-1],
+                                    use_default_bond=False)
+        self.add_value_to_df(key=('molecule_id',''),
+                        index=int(bond_index2),
+                        new_value=molecule_id,
+                        overwrite=True)
+        self.add_value_to_df(key=('residue_id',''),
+                        index=int (bond_index2),
+                        new_value=residue_ids[-1],
+                        overwrite=True)
+        return chain_molecule_info
+    
+    def create_hydrogel_node(self, node_index, node_name, espresso_system):
+        """
+        Set a node residue type.
+        
+        Args:
+            node_index(`str`): Lattice node index in the form of a string, e.g. "[0 0 0]".
+            node_name(`str`): name of the node particle defined in pyMBE.
+        Returns:
+            node_position(`list`): Position of the node in the lattice.
+            p_id(`int`): Particle ID of the node.
+        """
+        if self.lattice_builder is None:
+            raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
+
+        node_position = np.array(list(int(x) for x in node_index.strip('[]').split()))*0.25*self.lattice_builder.box_l
+        p_id = self.create_particle(name = node_name,
+                         espresso_system=espresso_system,
+                         number_of_particles=1,
+                         position = [node_position])
+        key = self.lattice_builder._get_node_by_label(node_index)
+        self.lattice_builder.nodes[key] = node_name
+
+        return node_position.tolist(), p_id
 
     def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False):
         """
@@ -2653,129 +2778,7 @@ class pymbe_library():
 
         return list_of_particles_in_residue
 
-    def set_chain(self, node_start, node_end, node_positions, espresso_system):
-        """
-        Set a chain between two nodes.
-        Args:
-            node_start(`str`): name of the starting node particle at which the first residue of the chain will be attached. 
-            node_end(`str`): name of the ending node particle at which the last residue of the chain will be attached.
-            node_positions(`dict`): dictionary with the positions of the nodes. The keys are the node names and the values are the positions.
-            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
-
-        Note:
-        For example, if the chain is defined between node_start = ``[0 0 0]`` and node_end = ``[1 1 1]``, the chain will be placed between these two nodes.
-        The chain will be placed in the direction of the vector between `node_start` and `node_end`. 
-        """
-        if self.lattice_builder is None:
-            raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
-
-        molecule_name = "chain_"+node_start+"_"+node_end
-        sequence = self.df[self.df['name']==molecule_name].residue_list.values [0]
-        assert len(sequence) != 0 and not isinstance(sequence, str)
-        assert len(sequence) == self.lattice_builder.mpc
-
-        key, reverse = self.lattice_builder._get_node_vector_pair(node_start, node_end)
-        assert node_start != node_end or sequence == sequence[::-1], \
-            (f"chain cannot be defined between '{node_start}' and '{node_end}' since it "
-            "would form a loop with a non-symmetric sequence (under-defined stereocenter)")
-
-        if reverse:
-            sequence = sequence[::-1]
-
-        node_start_pos = np.array(list(int(x) for x in node_start.strip('[]').split()))*0.25*self.lattice_builder.box_l
-        node_end_pos = np.array(list(int(x) for x in node_end.strip('[]').split()))*0.25*self.lattice_builder.box_l
-        node1 = espresso_system.part.select(lambda p: (p.pos == node_start_pos).all()).id
-        node2 = espresso_system.part.select(lambda p: (p.pos == node_end_pos).all()).id
-
-        if not node1[0] in node_positions or not node2[0] in node_positions:
-            raise ValueError("Set node position before placing a chain between them")
          
-        # Finding a backbone vector between node_start and node_end
-        vec_between_nodes = np.array(node_positions[node2[0]]) - np.array(node_positions[node1[0]])
-        vec_between_nodes = vec_between_nodes - self.lattice_builder.box_l * np.round(vec_between_nodes/self.lattice_builder.box_l)
-        backbone_vector = list(vec_between_nodes/(self.lattice_builder.mpc + 1))
-        node_start_name = self.df[(self.df["particle_id"]==node1[0]) & (self.df["pmb_type"]=="particle")]["name"].values[0]
-        first_res_name = self.df[(self.df["pmb_type"]=="residue") & (self.df["name"]==sequence[0])]["central_bead"].values[0]
-        l0 = self.get_bond_length(node_start_name, first_res_name, hard_check=True)
-        chain_molecule_info = self.create_molecule(
-                name=molecule_name,  # Use the name defined earlier
-                number_of_molecules=1,  # Creating one chain
-                espresso_system=espresso_system,
-                list_of_first_residue_positions=[list(np.array(node_positions[node1[0]]) + np.array(backbone_vector))],#Start at the first node
-                backbone_vector=np.array(backbone_vector)/l0,
-                use_default_bond=False  # Use defaut bonds between monomers
-            )
-        # Collecting ids of beads of the chain/molecule
-        chain_ids = []
-        residue_ids = []
-        for molecule_id in chain_molecule_info:
-            for residue_id in chain_molecule_info[molecule_id]:
-                residue_ids.append(residue_id)
-                bead_id = chain_molecule_info[molecule_id][residue_id]['central_bead_id']
-                chain_ids.append(bead_id)
-
-        self.lattice_builder.chains[key] = sequence
-        # Search bonds between nodes and chain ends
-        BeadType_near_to_node_start = self.df[(self.df["residue_id"] == residue_ids[0]) & (self.df["central_bead"].notnull())]["central_bead"].drop_duplicates().iloc[0]
-        BeadType_near_to_node_end = self.df[(self.df["residue_id"] == residue_ids[-1]) & (self.df["central_bead"].notnull())]["central_bead"].drop_duplicates().iloc[0]
-        bond_node1_first_monomer = self.search_bond(particle_name1 = self.lattice_builder.nodes[node_start],
-                                                    particle_name2 = BeadType_near_to_node_start,
-                                                    hard_check=False,
-                                                    use_default_bond=False)
-        bond_node2_last_monomer = self.search_bond(particle_name1 = self.lattice_builder.nodes[node_end],
-                                                    particle_name2 = BeadType_near_to_node_end,
-                                                    hard_check=False,
-                                                    use_default_bond=False)
-
-        espresso_system.part.by_id(node1[0]).add_bond((bond_node1_first_monomer, chain_ids[0]))
-        espresso_system.part.by_id(node2[0]).add_bond((bond_node2_last_monomer, chain_ids[-1]))
-        # Add bonds to data frame
-        bond_index1 = self.add_bond_in_df(particle_id1=node1[0],
-                                    particle_id2=chain_ids[0],
-                                    use_default_bond=False)
-        self.add_value_to_df(key=('molecule_id',''),
-                        index=int(bond_index1),
-                        new_value=molecule_id,
-                        overwrite=True)
-        self.add_value_to_df(key=('residue_id',''),
-                            index=int (bond_index1),
-                            new_value=residue_ids[0],
-                            overwrite=True)
-        bond_index2 = self.add_bond_in_df(particle_id1=node2[0],
-                                    particle_id2=chain_ids[-1],
-                                    use_default_bond=False)
-        self.add_value_to_df(key=('molecule_id',''),
-                        index=int(bond_index2),
-                        new_value=molecule_id,
-                        overwrite=True)
-        self.add_value_to_df(key=('residue_id',''),
-                        index=int (bond_index2),
-                        new_value=residue_ids[-1],
-                        overwrite=True)
-        return chain_molecule_info
-    
-    def set_node(self, node, residue, espresso_system):
-        """
-        Set a node residue type.
-        Args:
-            node(`str`): name of the node particle.
-            residue(`str`): name of the residue label.
-        Returns:
-            node_position(`list`): Position of the node in the lattice.
-            p_id(`int`): Particle ID of the node.
-        """
-        if self.lattice_builder is None:
-            raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
-
-        node_position = np.array(list(int(x) for x in node.strip('[]').split()))*0.25*self.lattice_builder.box_l
-        p_id = self.create_particle(name = residue,
-                         espresso_system=espresso_system,
-                         number_of_particles=1,
-                         position = [node_position])
-        key = self.lattice_builder._get_node_by_label(node)
-        self.lattice_builder.nodes[key] = residue
-
-        return node_position.tolist(), p_id     
 
     def set_particle_acidity(self, name, acidity=pd.NA, default_charge_number=0, pka=pd.NA, overwrite=True):
         """
