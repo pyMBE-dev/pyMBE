@@ -152,7 +152,7 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                           anion_name=chloride_name, 
                                           c_salt=c_salt_res)
 
-print(f"Salt concentration {c_salt_calculated} added")
+print(f"Salt concentration {c_salt_calculated.to('mol/L')} added")
 
 print("*** Setting LJ interactions ***")
 
@@ -169,9 +169,8 @@ setup_langevin_dynamics(espresso_system=espresso_system,
 print("*** Relaxing the system... ***")
 relax_espresso_system(espresso_system=espresso_system,
                       seed=seed,
-                      Nsteps_iter_relax=10000)
+                      Nsteps_iter_relax=1000)
 
-espresso_system.force_cap = 0
 L_max = diamond_lattice.box_l
 L_target = args.L_fraction * L_max
 steps_size = 0.1
@@ -187,13 +186,12 @@ for j in tqdm(np.arange(0,steps_needed)):
 # Just to make sure that the system has the target size
 espresso_system.change_volume_and_rescale_particles(d_new = L_target, 
                                                     dir = "xyz")
-
 relax_espresso_system(espresso_system=espresso_system,
                       seed=seed,
-                      Nsteps_iter_relax=10000,
+                      Nsteps_iter_relax=1000,
                       max_displacement=0.01)
 
-print("*** Setting up the reactions... ***")
+print("*** Setting up the GRxMC method and electrostatics... ***")
 
 # Set up the reactions
 path_to_ex_pot=pmb.get_resource("parameters/salt")
@@ -203,7 +201,8 @@ excess_chemical_potential = pmb.units.Quantity(monovalent_salt_ref_data["excess_
 excess_chemical_potential_interpolated = interpolate.interp1d(ionic_strength.m_as("1/reduced_length**3"), 
                                                                                 excess_chemical_potential.m_as("reduced_energy"))
 activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
-pka_set = {BeadType: {"pka_value": args.pKa, "acidity": "acidic"}}
+pka_set = {BeadType: {"pka_value": args.pKa, 
+                      "acidity": "acidic"}}
 
 grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=args.pH_res, 
                                                               c_salt_res=c_salt_res, 
@@ -232,33 +231,18 @@ setup_electrostatic_interactions(units=pmb.units,
                                  kT=pmb.kT,
                                  solvent_permittivity=solvent_permittivity)
 
-espresso_system.thermostat.turn_off()
-relax_espresso_system(espresso_system=espresso_system, 
-                      Nsteps_iter_relax=10000, 
-                      max_displacement=0.1,
-                      seed=seed)
-
-setup_langevin_dynamics(espresso_system=espresso_system,
-                        kT = pmb.kT,
-                        seed = seed,
-                        time_step=dt,
-                        tune_skin=False)
-
-print("*** before electrostatics ***")
-
 if mode == "long-run":
     N_warmup_loops = 1000
 else:
     N_warmup_loops = 100
 
-print("*** Running warmup with electrostatics ***")
+print("*** Running warmup with electrostatics... ***")
 for i in tqdm(range(N_warmup_loops)):
     espresso_system.integrator.run(steps=1000)
     do_reaction(grxmc,100)
 
-
 # Main loop
-print("Started production run.")
+print("*** Starting production run... ***")
 
 labels_obs=["time", "alpha", "pressure"]
 time_series={}

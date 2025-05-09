@@ -39,13 +39,13 @@ function(pymbe_add_test)
 endfunction()
 
 # functional tests, e.g. long simulations and ensemble averages
-pymbe_add_test(PATH hydrogel_tests.py LABELS long THREADS 2)
 pymbe_add_test(PATH cph_ideal_tests.py LABELS long THREADS 2)
 pymbe_add_test(PATH grxmc_ideal_tests.py LABELS long THREADS 2)
 pymbe_add_test(PATH gcmc_tests.py LABELS long)
 pymbe_add_test(PATH globular_protein_functional_tests.py LABELS long beyer2024 THREADS 2)
 pymbe_add_test(PATH peptide_tests.py LABELS long beyer2024 THREADS 2)
 pymbe_add_test(PATH weak_polyelectrolyte_dialysis_test.py LABELS long beyer2024)
+pymbe_add_test(PATH hydrogel_tests.py LABELS long THREADS 2)
 
 # unit tests
 pymbe_add_test(PATH test_in_out_pmb_df.py)
