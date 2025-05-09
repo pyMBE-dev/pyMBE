@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 import scipy.constants
 import scipy.optimize
+from lib.lattice import LatticeBuilder, DiamondLattice
 import logging
 
 class pymbe_library():
@@ -81,6 +82,7 @@ class pymbe_library():
                                Kw=Kw, 
                                verbose=False)
         self.setup_df()
+        self.lattice_builder = None
         return
 
     def add_bond_in_df(self, particle_id1, particle_id2, use_default_bond=False):
@@ -133,6 +135,7 @@ class pymbe_library():
             bond_list = bond_df.bond_object.values.tolist()
             for bond in bond_list:
                 espresso_system.bonded_inter.add(bond)
+
         else:
             print ('WARNING: There are no bonds defined in pymbe.df')
         
@@ -625,7 +628,7 @@ class pymbe_library():
 
         columns_with_units = ['sigma', 'epsilon', 'cutoff', 'offset']
 
-        columns_with_list_or_dict = ['residue_list','side_chains', 'parameters_of_the_potential','sequence']
+        columns_with_list_or_dict = ['residue_list','side_chains', 'parameters_of_the_potential','sequence', 'chain_map', 'node_map']
 
         for column_name in columns_dtype_int:
             df[column_name] = df[column_name].astype(pd.Int64Dtype())
@@ -854,7 +857,169 @@ class pymbe_library():
             for name in counterion_number.keys():
                 print(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
+
+    def create_hydrogel(self, name, espresso_system):
+        """ 
+        creates the hydrogel `name` in espresso_system
+        Args:
+            name(`str`): Label of the hydrogel to be created. `name` must be defined in the `pmb.df`
+            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
+
+        Returns:
+            hydrogel_info(`dict`):  {"name":hydrogel_name, "chains": {chain_id1: {residue_id1: {'central_bead_id': central_bead_id, 'side_chain_ids': [particle_id1,...]},...,"node_start":node_start,"node_end":node_end}, chain_id2: {...},...}, "nodes":{node1:[node1_id],...}}     
+        """
+        if not self.check_if_name_is_defined_in_df(name=name, pmb_type_to_be_defined='hydrogel'):
+            raise ValueError(f"Hydrogel with name '{name}' is not defined in the DataFrame.")
+        hydrogel_info={"name":name, "chains":{}, "nodes":{}}
+        # placing nodes
+        node_positions = {}
+        node_topology = self.df[self.df["name"]==name]["node_map"].iloc[0]
+        for node_info in node_topology:
+            node_index = node_info["lattice_index"]
+            node_name = node_info["particle_name"]
+            node_pos, node_id = self.create_hydrogel_node(self.format_node(node_index), node_name, espresso_system)
+            hydrogel_info["nodes"][self.format_node(node_index)]=node_id
+            node_positions[node_id[0]]=node_pos
         
+        # Placing chains between nodes
+        # Looping over all the 16 chains
+        chain_topology = self.df[self.df["name"]==name]["chain_map"].iloc[0]
+        for chain_info in chain_topology:
+            node_s = chain_info["node_start"]
+            node_e = chain_info["node_end"]
+            molecule_info = self.create_hydrogel_chain(node_s, node_e, node_positions, espresso_system)
+            for molecule_id in molecule_info:
+                hydrogel_info["chains"][molecule_id] = molecule_info[molecule_id]
+                hydrogel_info["chains"][molecule_id]["node_start"]=node_s
+                hydrogel_info["chains"][molecule_id]["node_end"]=node_e
+        return hydrogel_info
+
+    def create_hydrogel_chain(self, node_start, node_end, node_positions, espresso_system):
+        """
+        Creates a chain between two nodes of a hydrogel.
+
+        Args:
+            node_start(`str`): name of the starting node particle at which the first residue of the chain will be attached. 
+            node_end(`str`): name of the ending node particle at which the last residue of the chain will be attached.
+            node_positions(`dict`): dictionary with the positions of the nodes. The keys are the node names and the values are the positions.
+            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
+
+        Note:
+            For example, if the chain is defined between node_start = ``[0 0 0]`` and node_end = ``[1 1 1]``, the chain will be placed between these two nodes.
+            The chain will be placed in the direction of the vector between `node_start` and `node_end`. 
+        """
+        if self.lattice_builder is None:
+            raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
+
+        molecule_name = "chain_"+node_start+"_"+node_end
+        sequence = self.df[self.df['name']==molecule_name].residue_list.values [0]
+        assert len(sequence) != 0 and not isinstance(sequence, str)
+        assert len(sequence) == self.lattice_builder.mpc
+
+        key, reverse = self.lattice_builder._get_node_vector_pair(node_start, node_end)
+        assert node_start != node_end or sequence == sequence[::-1], \
+            (f"chain cannot be defined between '{node_start}' and '{node_end}' since it "
+            "would form a loop with a non-symmetric sequence (under-defined stereocenter)")
+
+        if reverse:
+            sequence = sequence[::-1]
+
+        node_start_pos = np.array(list(int(x) for x in node_start.strip('[]').split()))*0.25*self.lattice_builder.box_l
+        node_end_pos = np.array(list(int(x) for x in node_end.strip('[]').split()))*0.25*self.lattice_builder.box_l
+        node1 = espresso_system.part.select(lambda p: (p.pos == node_start_pos).all()).id
+        node2 = espresso_system.part.select(lambda p: (p.pos == node_end_pos).all()).id
+
+        if not node1[0] in node_positions or not node2[0] in node_positions:
+            raise ValueError("Set node position before placing a chain between them")
+         
+        # Finding a backbone vector between node_start and node_end
+        vec_between_nodes = np.array(node_positions[node2[0]]) - np.array(node_positions[node1[0]])
+        vec_between_nodes = vec_between_nodes - self.lattice_builder.box_l * np.round(vec_between_nodes/self.lattice_builder.box_l)
+        backbone_vector = list(vec_between_nodes/(self.lattice_builder.mpc + 1))
+        node_start_name = self.df[(self.df["particle_id"]==node1[0]) & (self.df["pmb_type"]=="particle")]["name"].values[0]
+        first_res_name = self.df[(self.df["pmb_type"]=="residue") & (self.df["name"]==sequence[0])]["central_bead"].values[0]
+        l0 = self.get_bond_length(node_start_name, first_res_name, hard_check=True)
+        chain_molecule_info = self.create_molecule(
+                name=molecule_name,  # Use the name defined earlier
+                number_of_molecules=1,  # Creating one chain
+                espresso_system=espresso_system,
+                list_of_first_residue_positions=[list(np.array(node_positions[node1[0]]) + np.array(backbone_vector))],#Start at the first node
+                backbone_vector=np.array(backbone_vector)/l0,
+                use_default_bond=False  # Use defaut bonds between monomers
+            )
+        # Collecting ids of beads of the chain/molecule
+        chain_ids = []
+        residue_ids = []
+        for molecule_id in chain_molecule_info:
+            for residue_id in chain_molecule_info[molecule_id]:
+                residue_ids.append(residue_id)
+                bead_id = chain_molecule_info[molecule_id][residue_id]['central_bead_id']
+                chain_ids.append(bead_id)
+
+        self.lattice_builder.chains[key] = sequence
+        # Search bonds between nodes and chain ends
+        BeadType_near_to_node_start = self.df[(self.df["residue_id"] == residue_ids[0]) & (self.df["central_bead"].notnull())]["central_bead"].drop_duplicates().iloc[0]
+        BeadType_near_to_node_end = self.df[(self.df["residue_id"] == residue_ids[-1]) & (self.df["central_bead"].notnull())]["central_bead"].drop_duplicates().iloc[0]
+        bond_node1_first_monomer = self.search_bond(particle_name1 = self.lattice_builder.nodes[node_start],
+                                                    particle_name2 = BeadType_near_to_node_start,
+                                                    hard_check=False,
+                                                    use_default_bond=False)
+        bond_node2_last_monomer = self.search_bond(particle_name1 = self.lattice_builder.nodes[node_end],
+                                                    particle_name2 = BeadType_near_to_node_end,
+                                                    hard_check=False,
+                                                    use_default_bond=False)
+
+        espresso_system.part.by_id(node1[0]).add_bond((bond_node1_first_monomer, chain_ids[0]))
+        espresso_system.part.by_id(node2[0]).add_bond((bond_node2_last_monomer, chain_ids[-1]))
+        # Add bonds to data frame
+        bond_index1 = self.add_bond_in_df(particle_id1=node1[0],
+                                    particle_id2=chain_ids[0],
+                                    use_default_bond=False)
+        self.add_value_to_df(key=('molecule_id',''),
+                        index=int(bond_index1),
+                        new_value=molecule_id,
+                        overwrite=True)
+        self.add_value_to_df(key=('residue_id',''),
+                            index=int (bond_index1),
+                            new_value=residue_ids[0],
+                            overwrite=True)
+        bond_index2 = self.add_bond_in_df(particle_id1=node2[0],
+                                    particle_id2=chain_ids[-1],
+                                    use_default_bond=False)
+        self.add_value_to_df(key=('molecule_id',''),
+                        index=int(bond_index2),
+                        new_value=molecule_id,
+                        overwrite=True)
+        self.add_value_to_df(key=('residue_id',''),
+                        index=int (bond_index2),
+                        new_value=residue_ids[-1],
+                        overwrite=True)
+        return chain_molecule_info
+    
+    def create_hydrogel_node(self, node_index, node_name, espresso_system):
+        """
+        Set a node residue type.
+        
+        Args:
+            node_index(`str`): Lattice node index in the form of a string, e.g. "[0 0 0]".
+            node_name(`str`): name of the node particle defined in pyMBE.
+        Returns:
+            node_position(`list`): Position of the node in the lattice.
+            p_id(`int`): Particle ID of the node.
+        """
+        if self.lattice_builder is None:
+            raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
+
+        node_position = np.array(list(int(x) for x in node_index.strip('[]').split()))*0.25*self.lattice_builder.box_l
+        p_id = self.create_particle(name = node_name,
+                         espresso_system=espresso_system,
+                         number_of_particles=1,
+                         position = [node_position])
+        key = self.lattice_builder._get_node_by_label(node_index)
+        self.lattice_builder.nodes[key] = node_name
+
+        return node_position.tolist(), p_id
+
     def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False):
         """
         Creates `number_of_molecules` molecule of type `name` into `espresso_system` and bookkeeps them into `pmb.df`.
@@ -912,7 +1077,7 @@ class pymbe_library():
                     else:
                         for item in list_of_first_residue_positions:
                             residue_position = [np.array(list_of_first_residue_positions[pos_index])]
-                    
+                            
                     residues_info = self.create_residue(name=residue,
                                                         espresso_system=espresso_system, 
                                                         central_bead_position=residue_position,  
@@ -932,7 +1097,7 @@ class pymbe_library():
                     first_residue = False          
                 else:                    
                     previous_central_bead_name=self.df[self.df['name']==previous_residue].central_bead.values[0]
-                    new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]       
+                    new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]
                     bond = self.search_bond(particle_name1=previous_central_bead_name, 
                                             particle_name2=new_central_bead_name, 
                                             hard_check=True, 
@@ -941,6 +1106,7 @@ class pymbe_library():
                                             particle_name2=new_central_bead_name, 
                                             hard_check=True, 
                                             use_default_bond=use_default_bond)                
+                    
                     residue_position = residue_position+backbone_vector*l0
                     residues_info = self.create_residue(name=residue, 
                                                         espresso_system=espresso_system, 
@@ -1193,7 +1359,7 @@ class pymbe_library():
                     else:
                         bead_position=central_bead_position+self.generate_trial_perpendicular_vector(vector=np.array(backbone_vector),
                                                                                                     magnitude=l0)
-                    
+                     
                     side_bead_id = self.create_particle(name=side_chain_element, 
                                                                     espresso_system=espresso_system,
                                                                     position=[bead_position], 
@@ -1280,19 +1446,13 @@ class pymbe_library():
         Returns:
             variable_with_units(`obj`): variable with units using the pyMBE UnitRegistry.
         """        
-        
         if isinstance(variable, dict):
-
             value=variable.pop('value')
             units=variable.pop('units')
-
         elif isinstance(variable, str):
-
             value = float(re.split(r'\s+', variable)[0])
             units = re.split(r'\s+', variable)[1]
-        
         variable_with_units=value*self.units(units)
-
         return variable_with_units 
 
     def define_AA_residues(self, sequence, model):
@@ -1352,14 +1512,12 @@ class pymbe_library():
         '''
 
         bond_object=self.create_bond_in_espresso(bond_type, bond_parameters)
-
-        
         for particle_name1, particle_name2 in particle_pairs:
 
             lj_parameters=self.get_lj_parameters(particle_name1 = particle_name1,
                                                  particle_name2 = particle_name2,
                                                  combining_rule = 'Lorentz-Berthelot')
-
+      
             l0 = self.calculate_initial_bond_length(bond_object = bond_object,
                                                     bond_type   = bond_type,
                                                     epsilon     = lj_parameters["epsilon"],
@@ -1434,6 +1592,52 @@ class pymbe_library():
                             new_value    = bond_object.get_params(),
                             non_standard_value=True)
         self.df.fillna(pd.NA, inplace=True)
+        return
+    
+    def define_hydrogel(self, name, node_map, chain_map):
+        """
+        Defines a pyMBE object of type `hydrogel` in `pymbe.df`.
+
+        Args:
+            name(`str`): Unique label that identifies the `hydrogel`.
+            node_map(`list of ict`): [{"particle_name": , "lattice_index": }, ... ]
+            chain_map(`list of dict`): [{"node_start": , "node_end": , "residue_list": , ... ]
+        """
+        node_indices = {tuple(entry['lattice_index']) for entry in node_map}
+        diamond_indices = {tuple(row) for row in self.lattice_builder.lattice.indices}
+        if node_indices != diamond_indices:
+            raise ValueError(f"Incomplete hydrogel: A diamond lattice must contain exactly 8 lattice indices, {diamond_indices} ")
+        
+        chain_map_connectivity = set()
+        for entry in chain_map:
+            start = self.lattice_builder.node_labels[entry['node_start']]
+            end = self.lattice_builder.node_labels[entry['node_end']]
+            chain_map_connectivity.add((start,end))
+
+        if self.lattice_builder.lattice.connectivity != chain_map_connectivity:
+            raise ValueError("Incomplete hydrogel: A diamond lattice must contain correct 16 lattice index pairs")
+
+        if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='hydrogel'):
+            return
+
+        index = len(self.df)
+        self.df.at [index, "name"] = name
+        self.df.at [index, "pmb_type"] = "hydrogel"
+        self.add_value_to_df(index = index,
+                        key = ('node_map',''),
+                        new_value = node_map,
+                        non_standard_value=True)
+        self.add_value_to_df(index = index,
+                        key = ('chain_map',''),
+                        new_value = chain_map,
+                        non_standard_value=True)
+        for chain_label in chain_map:
+            node_start = chain_label["node_start"]
+            node_end = chain_label["node_end"]
+            residue_list = chain_label['residue_list']
+            # Molecule name
+            molecule_name = "chain_"+node_start+"_"+node_end
+            self.define_molecule(name=molecule_name, residue_list=residue_list)
         return
 
     def define_molecule(self, name, residue_list):
@@ -1877,6 +2081,10 @@ class pymbe_library():
                     return column_name_value
         return None
 
+    def format_node(self, node_list):
+        return "[" + " ".join(map(str, node_list)) + "]"
+
+
     def generate_coordinates_outside_sphere(self, center, radius, max_dist, n_samples):
         """
         Generates coordinates outside a sphere centered at `center`.
@@ -2190,6 +2398,20 @@ class pymbe_library():
         state_two = pd.Series (df_state_two.es_type.values,index=df_state_two.label)
         type_map  = pd.concat([state_one,state_two],axis=0).to_dict()
         return type_map
+
+    def initialize_lattice_builder(self, diamond_lattice):
+        """
+        Initialize the lattice builder with the DiamondLattice object.
+
+        Args:
+            diamond_lattice(`DiamondLattice`): DiamondLattice object from the `lib/lattice` module to be used in the LatticeBuilder.
+        """
+        if not isinstance(diamond_lattice, DiamondLattice):
+            raise TypeError("Currently only DiamondLattice objects are supported.")
+        self.lattice_builder = LatticeBuilder(lattice=diamond_lattice)
+        logging.info(f"LatticeBuilder initialized with mpc={diamond_lattice.mpc} and box_l={diamond_lattice.box_l}")
+        return self.lattice_builder
+
 
     def load_interaction_parameters(self, filename, overwrite=False):
         """
@@ -2555,6 +2777,8 @@ class pymbe_library():
                 list_of_particles_in_residue.append(side_chain)
 
         return list_of_particles_in_residue
+
+         
 
     def set_particle_acidity(self, name, acidity=pd.NA, default_charge_number=0, pka=pd.NA, overwrite=True):
         """
@@ -3164,8 +3388,11 @@ class pymbe_library():
             'parameters_of_the_potential':{
                 '': object},
             'l0': {
-                '': object},
-            }
+                '': float},
+            'node_map':{
+                '':object},
+            'chain_map':{
+                '':object}}
         
         self.df = pd.DataFrame(columns=pd.MultiIndex.from_tuples([(col_main, col_sub) for col_main, sub_cols in columns_dtypes.items() for col_sub in sub_cols.keys()]))
         
@@ -3252,7 +3479,6 @@ class pymbe_library():
                                 non_standard_value=True)
         if non_parametrized_labels and warnings:
             warnings.warn(f'The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.',UserWarning) 
- 
         return
 
     def write_pmb_df (self, filename):
