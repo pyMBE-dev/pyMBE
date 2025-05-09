@@ -45,6 +45,7 @@ pymbe_add_test(PATH gcmc_tests.py LABELS long)
 pymbe_add_test(PATH globular_protein_functional_tests.py LABELS long beyer2024 THREADS 2)
 pymbe_add_test(PATH peptide_tests.py LABELS long beyer2024 THREADS 2)
 pymbe_add_test(PATH weak_polyelectrolyte_dialysis_test.py LABELS long beyer2024)
+pymbe_add_test(PATH hydrogel_tests.py LABELS long THREADS 2)
 
 # unit tests
 pymbe_add_test(PATH test_in_out_pmb_df.py)
@@ -70,3 +71,4 @@ pymbe_add_test(PATH reaction_methods_unit_tests.py)
 pymbe_add_test(PATH determine_reservoir_concentrations_unit_test.py)
 pymbe_add_test(PATH globular_protein_unit_tests.py)
 pymbe_add_test(PATH lattice_builder.py)
+pymbe_add_test(PATH hydrogel_builder.py)

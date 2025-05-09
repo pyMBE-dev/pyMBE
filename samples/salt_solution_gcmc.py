@@ -93,19 +93,31 @@ if verbose:
     print("Created espresso object")
 
 # Add salt
-c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,cation_name=cation_name,anion_name=anion_name,c_salt=0.5*c_salt_res)
+c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
+                                          cation_name=cation_name,
+                                          anion_name=anion_name,
+                                          c_salt=0.5*c_salt_res)
 if verbose:
     print("Added salt")
 
 # Set up reactions
 if args.mode == "interacting":
-    path_to_ex_pot=pmb.get_resource("testsuite/data/src/")
-    ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data, bjerrums, excess_chemical_potential_monovalent_pairs_in_bulk_data_error =np.loadtxt(f"{path_to_ex_pot}/excess_chemical_potential.dat", unpack=True)
-    excess_chemical_potential_monovalent_pair_interpolated = interpolate.interp1d(ionic_strength, excess_chemical_potential_monovalent_pairs_in_bulk_data)
-    activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_monovalent_pair_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
-    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, activity_coefficient=activity_coefficient_monovalent_pair)
+    path_to_ex_pot=pmb.get_resource("parameters/salt")
+    monovalent_salt_ref_data=pd.read_csv(f"{path_to_ex_pot}/excess_chemical_potential_excess_pressure.csv")
+    ionic_strength = pmb.units.Quantity(monovalent_salt_ref_data["cs_bulk_[1/sigma^3]"].values, "1/reduced_length**3")
+    excess_chemical_potential = pmb.units.Quantity(monovalent_salt_ref_data["excess_chemical_potential_[kbT]"].values, "reduced_energy")
+    excess_chemical_potential_interpolated = interpolate.interp1d(ionic_strength.m_as("1/reduced_length**3"), 
+                                                                                  excess_chemical_potential.m_as("reduced_energy"))
+    activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
+    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, 
+                        salt_cation_name=cation_name,
+                        salt_anion_name=anion_name, 
+                        activity_coefficient=activity_coefficient_monovalent_pair)
 elif args.mode == "ideal":
-    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, salt_cation_name=cation_name, salt_anion_name=anion_name, activity_coefficient=lambda x: 1.0)
+    RE = pmb.setup_gcmc(c_salt_res=c_salt_res, 
+                        salt_cation_name=cation_name, 
+                        salt_anion_name=anion_name, 
+                        activity_coefficient=lambda x: 1.0)
 if verbose:
     print("Set up GCMC...")
 

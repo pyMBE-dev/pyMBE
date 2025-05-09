@@ -19,7 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to CTest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
-- Optional argument `params` in `lib.handy_functions.setup_electrostatic_interactions` enabling the user to easilly tune parameters for the electrostatic solvers. (#121)
+- New benchmark for hydrogels, including scripts to reproduce the data `samples/Landsgesell2022/run_simulations.py` and `samples/Landsgesell2022/plot_pH_vs_alpha.py` and `samples/Landsgesell2022/plot_P_vs_V.py` (#103)
+- New sample scripts for hydrogels `samples/build_hydrogel.py` and  `samples/weak_polyacid_hydrogel_grxmc.py` (#103)
+- New methods to support building hydrogels with pyMBE `pmb.define_hydrogel`, `pmb.create_hydrogel`, `pmb.initialize_lattice_builder`, `pmb.create_hydrogel_chain`, `pmb.create_hydrogel_node`. (#103)
 - CI testing for functions in `lib.handy_functions`. (#118)
 - sanity tests for `lib.handy_functions`. (#118)
 - Use of `logging`  in `lib.handy_functions` to handle output and error logs. (#118)
