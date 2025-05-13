@@ -365,3 +365,48 @@ np.testing.assert_equal(actual=pmb_metal_charge_number_map,
                     desired=metal_charge_number_map, 
                     verbose=True)
 print("*** Unit test passed ***\n")
+
+
+print("*** Unit test: check that define_AA_residues()")
+
+test_sequence = ['c','n', 'G','V', 'I', 'L', 'E', 'Q', 'D', 'N', 'H', 'W', 'F', 'Y', 'R', 'K', 'S', 'T', 'M', 'A', 'G', 'P', 'C' ]
+
+
+valid_protein_model = ['1beadAA', '2beadAA']
+
+output =['AA-c', 'AA-n', 'AA-G', 'AA-V', 'AA-I', 'AA-L', 'AA-E', 'AA-Q', 'AA-D', 'AA-N', 'AA-H', 'AA-W', 'AA-F', 'AA-Y', 'AA-R', 'AA-K', 'AA-S', 'AA-T', 'AA-M', 'AA-A', 'AA-G', 'AA-P', 'AA-C']
+
+for protein_model in valid_protein_model:
+
+    pmb_residue_list = pmb.define_AA_residues(sequence= test_sequence,
+                                        model = protein_model)
+
+    np.testing.assert_equal(actual=pmb_residue_list, 
+                            desired=output, 
+                            verbose=True)
+
+
+
+print("*** Unit test passed ***")
+
+print("*** Unit test: check that define_peptide() raises a ValueError if a wrong model key is provided")
+
+input_parameters = {'name': 'generic_peptide',
+                    'sequence': 'EEEEEEE',
+                    'model': '3beadAA' }
+
+np.testing.assert_raises(ValueError, pmb.protein_sequence_parser, **input_parameters)
+
+
+input_parameters = {'name': 'generic_peptide',
+                    'sequence': 'EEEEEEE',
+                    'model': 'beadAA' }
+
+np.testing.assert_raises(ValueError, pmb.protein_sequence_parser, **input_parameters)
+
+print("*** Unit test passed ***")
+
+
+print("*** Unit test: check that search_particles_in_residue()")
+
+print("*** Unit test passed ***")
