@@ -148,3 +148,11 @@ np.testing.assert_almost_equal(center_of_mass, center_of_mass_ref)
 
 print("*** Unit test passed ***")
 
+print("*** Unit test: Check that center_molecule_in_simulation_box raises a Value Error if a wrong molecule_id is provided***")
+
+input_parameters = {"molecule_id": 20 ,
+                    "espresso_system":espresso_system}
+
+np.testing.assert_raises(ValueError, pmb.center_molecule_in_simulation_box, **input_parameters)
+
+print("*** Unit test passed ***")
