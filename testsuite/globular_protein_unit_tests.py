@@ -421,5 +421,43 @@ for residue_name in list_of_residues:
         np.testing.assert_equal(actual=list_of_particles_in_residue, 
                                 desired=['CA', residue], 
                                 verbose=True)
-                                
+        
+                               
+print("*** Unit test passed ***")
+
+print("*** Unit test: check that search_particles_in_residue() returns the correct list of residues for nested residues case")
+
+pmb.define_particle(
+    name = "I",
+    sigma = 1*pmb.units('reduced_length'),
+    epsilon = 1*pmb.units('reduced_energy'))
+    
+# Acidic particle
+pmb.define_particle(
+    name = "A",
+    sigma = 1*pmb.units('reduced_length'),
+    epsilon = 1*pmb.units('reduced_energy'))
+    
+# Basic particle
+pmb.define_particle(
+    name = "B",
+    sigma = 1*pmb.units('reduced_length'),
+    epsilon = 1*pmb.units('reduced_energy'))
+
+pmb.define_residue(
+    name = "Res_1",
+    central_bead = "I",
+    side_chains = ["A","B"])
+    
+pmb.define_residue(
+    name = "Res_2",
+    central_bead = "I",
+    side_chains = ["Res_1"])
+
+list_of_particles_in_residue= pmb.search_particles_in_residue(residue_name = "Res_2")
+
+np.testing.assert_equal(actual=list_of_particles_in_residue, 
+                                desired=['I', 'I', 'A', 'B'], 
+                                verbose=True)
+
 print("*** Unit test passed ***")
