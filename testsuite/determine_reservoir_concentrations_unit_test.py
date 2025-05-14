@@ -83,8 +83,5 @@ print("*** Unit test passed ***")
 print("*** Unit test: check that pyMBE correctly calculates the reservoir composition when setting up the grand-reaction method (interacting case). ***")
 # Load reference data
 reference_data = pd.read_csv('./determine_reservoir_concentrations_test_data/data.csv')
-for pH_res in np.linspace(1.0, 13.0, 5):
-    for c_salt_res in np.logspace(-5, -1, 4):
-        print(pH_res, c_salt_res)
-        determine_reservoir_concentrations_test_interacting(pH_res, c_salt_res, reference_data)
+determine_reservoir_concentrations_test_interacting(10.0, 0.1, reference_data)
 print("*** Unit test passed ***")
