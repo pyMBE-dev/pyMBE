@@ -1759,8 +1759,8 @@ class pymbe_library():
             sequence (`string`): Sequence of the `peptide`.
             model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
         """
-        if self.check_if_name_is_defined_in_df(name = name, pmb_type_to_be_defined='peptide'):
-            return
+        self.check_if_name_is_defined_in_df(name = name, pmb_type_to_be_defined='peptide')
+
         valid_keys = ['1beadAA','2beadAA']
         if model not in valid_keys:
             raise ValueError('Invalid label for the peptide model, please choose between 1beadAA or 2beadAA')
@@ -1841,8 +1841,8 @@ class pymbe_library():
             central_bead(`str`): `name` of the `particle` to be placed as central_bead of the `residue`.
             side_chains(`list` of `str`): List of `name`s of the pmb_objects to be placed as side_chains of the `residue`. Currently, only pmb_objects of type `particle`s or `residue`s are supported.
         """
-        if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='residue'):
-            return
+        self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='residue')
+        
         index = len(self.df)
         self.df.at [index, 'name'] = name
         self.df.at [index,'pmb_type'] = 'residue'
