@@ -2156,9 +2156,9 @@ class pymbe_library():
             (`lst`): Orthogonal vector with the same magnitude as the input vector.
         """ 
         np_vec = np.array(vector) 
-        np_vec /= np.linalg.norm(np_vec) 
         if np.all(np_vec == 0):
             raise ValueError('Zero vector')
+        np_vec /= np.linalg.norm(np_vec) 
         # Generate a random vector 
         random_vector = self.generate_random_points_in_a_sphere(radius=1, 
                                                                 center=[0,0,0],
