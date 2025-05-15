@@ -55,6 +55,11 @@ def check_if_different_perpendicular_vectors_are_generated(vector,magnitude,n=50
 
 
 print("*** generate_trial_perpendicular_vector unit tests ***")
+print("*** Unit test: Check that the function raises a ValueError when provided a zero vector  ***")
+input_parameters={"vector": [0,0,0],
+                   "magnitude":1.0}
+np.testing.assert_raises(ValueError, pmb.generate_trial_perpendicular_vector, **input_parameters)
+print("*** Unit test passed ***")
 print("*** Unit test: Check that the function creates perpendicular vectors to an arbitrary vector of the same magnitude  ***")
 vector = pmb.generate_random_points_in_a_sphere(center=[0,0,0],
                                                 radius=1, 

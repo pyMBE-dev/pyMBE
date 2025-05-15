@@ -51,18 +51,40 @@ class Test(ut.TestCase):
                 model = model)
 
         with self.subTest(msg="Check Henderson-Hasselbalch equation"):
+            # Check case where no pH_list is provided
+            Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1")
+            Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2")
+
+            data_path = pmb.get_resource(path=self.data_root)
+            ref_data_HH = np.loadtxt(f"{data_path}/HH_no_pH_list.csv", delimiter=",")
+            np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,:])
+            np.testing.assert_allclose(Z_HH_2, ref_data_HH[1,:])
+
+
+            # Check case where pH_list is provided
             pH_range = np.linspace(2, 12, num=200)
             Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1",
                                       pH_list = pH_range)
             Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2",
                                       pH_list = pH_range)
 
-            data_path = pmb.get_resource(path=self.data_root)
             ref_data_HH = np.loadtxt(f"{data_path}/HH.csv", delimiter=",")
             np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,:])
             np.testing.assert_allclose(Z_HH_2, ref_data_HH[1,:])
 
         with self.subTest(msg="Check Henderson-Hasselbalch equation + Donnan"):
+            # Check case where no pH_list is provided
+            HH_Donnan_dict = pmb.calculate_HH_Donnan(
+                    c_macro = {"peptide_1": pep1_concentration,
+                               "peptide_2": pep2_concentration},
+                    c_salt = c_salt)
+
+            ref_data_HH_Donnan = np.loadtxt(f"{data_path}/HH_Donnan_no_pH_list.csv", delimiter=",")
+            np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_1"], ref_data_HH_Donnan[0,:])
+            np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_2"], ref_data_HH_Donnan[1,:])
+
+
+            # Check case where pH_list is provided
             HH_Donnan_dict = pmb.calculate_HH_Donnan(
                     c_macro = {"peptide_1": pep1_concentration,
                                "peptide_2": pep2_concentration},
