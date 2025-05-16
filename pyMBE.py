@@ -111,7 +111,7 @@ class pymbe_library():
         if name in self.df['name'].unique():
             current_object_type = self.df[self.df['name']==name].pmb_type.values[0]
             if current_object_type != pmb_type_to_be_defined:
-                    raise ValueError (f"The name {name} is already defined in the df with a pmb_type = {current_object_type}, pymMBE does not support objects with the same name but different pmb_types")
+                raise ValueError (f"The name {name} is already defined in the df with a pmb_type = {current_object_type}, pymMBE does not support objects with the same name but different pmb_types")
 
 
     def _check_supported_molecule(self, molecule_name,valid_pmb_types):
@@ -3512,7 +3512,6 @@ class pymbe_library():
 
         """
         from itertools import combinations_with_replacement
-        import warnings
         implemented_combining_rules = ['Lorentz-Berthelot']
         compulsory_parameters_in_df = ['sigma','epsilon']
         # Sanity check
