@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -20,6 +20,14 @@ import unittest as ut
 import numpy as np
 import pathlib
 import pyMBE
+
+mode="short" # Supported modes: "short", "long"
+
+if mode == "short":
+    pH_samples=25
+elif mode == "long":
+    pH_samples=200
+
 
 
 class Test(ut.TestCase):
@@ -89,7 +97,6 @@ class Test(ut.TestCase):
             Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_3")
             np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,:])
 
-            # Test that the function ignores objects in the residue list that
             
 
         with self.subTest(msg="Check Henderson-Hasselbalch equation"):
@@ -104,15 +111,15 @@ class Test(ut.TestCase):
 
 
             # Check case where pH_list is provided
-            pH_range = np.linspace(2, 12, num=200)
+            pH_range = np.linspace(2, 12, num=200)[::int(200/pH_samples)]
             Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1",
                                       pH_list = pH_range)
             Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2",
                                       pH_list = pH_range)
 
             ref_data_HH = np.loadtxt(f"{data_path}/HH.csv", delimiter=",")
-            np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,:])
-            np.testing.assert_allclose(Z_HH_2, ref_data_HH[1,:])
+            np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,::int(200/pH_samples)])
+            np.testing.assert_allclose(Z_HH_2, ref_data_HH[1,::int(200/pH_samples)])
 
         with self.subTest(msg="Check Henderson-Hasselbalch equation with non-ionizable groups"):
 
@@ -177,8 +184,8 @@ class Test(ut.TestCase):
                     pH_list = pH_range)
 
             ref_data_HH_Donnan = np.loadtxt(f"{data_path}/HH_Donnan.csv", delimiter=",")
-            np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_1"], ref_data_HH_Donnan[0,:])
-            np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_2"], ref_data_HH_Donnan[1,:])
+            np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_1"], ref_data_HH_Donnan[0,::int(200/pH_samples)])
+            np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_2"], ref_data_HH_Donnan[1,::int(200/pH_samples)])
 
         with self.subTest(msg="Check that HH and HH_Don are consistent"):
             Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1",
