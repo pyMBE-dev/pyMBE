@@ -118,17 +118,16 @@ def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, so
     logging.debug("*** Electrostatics successfully added to the system ***")
     return
 
-def relax_espresso_system(espresso_system, seed,gamma=1, initial_force_cap=50, Nsteps_steepest_descent=5000, max_displacement=0.1, Nmax_iter_relax=100, Nsteps_iter_relax=500):
+def relax_espresso_system(espresso_system, seed,gamma=1, Nsteps_steepest_descent=5000, max_displacement=0.1, Nmax_iter_relax=100, Nsteps_iter_relax=500):
     """
     Relaxes the energy of the given ESPResSo system by performing the following steps:
     (1) Steepest descent energy minimization,
-    (2) Capped Langevin Dynamics run with velocity Verlet integration to relax the system.
-
+    (2) A series of Langevin Dynamics runs with decreasing damping constant.
+    
     Args:
         espresso_system (`espressomd.system.System`): system object of espressomd library.
         seed (`int`): Seed for the random number generator for the thermostat.
         gamma (`float`, optional): Damping constant for Langevin dynamics. Defaults to  1 reduced length.
-        initial_force_cap (`float`, optional): Initial force cap for steepest descent minimization. Defaults to 50 reduced_energy/reduced_length.
         Nsteps_steepest_descent (`int`, optional): Total number of steps for steepest descent minimization. Defaults to 5000.
         max_displacement (`float`, optional): Maximum particle displacement allowed during minimization. Defaults to 0.1 reduced length.
         Nmax_iter_relax (`int`, optional): Maximum number of iterations for Langevin dynamics relaxation. Defaults to 100.
@@ -144,8 +143,6 @@ def relax_espresso_system(espresso_system, seed,gamma=1, initial_force_cap=50, N
     # Sanity checks
     if gamma <= 0:
         raise ValueError("The damping constant 'gamma' must be positive.")
-    if initial_force_cap <= 0:
-        raise ValueError("The 'initial_force_cap' must be positive.")
     if Nsteps_steepest_descent <= 0 or Nsteps_iter_relax <= 0:
         raise ValueError("Step counts must be positive integers.")
     if max_displacement <= 0:
@@ -155,25 +152,27 @@ def relax_espresso_system(espresso_system, seed,gamma=1, initial_force_cap=50, N
     logging.debug("*** Relaxing the energy of the system... ***")
     logging.debug("*** Starting steppest descent minimization ***")
     espresso_system.thermostat.turn_off()
-    espresso_system.integrator.set_steepest_descent(f_max=initial_force_cap, 
+    espresso_system.integrator.set_steepest_descent(f_max=50,
                                                     gamma=gamma, 
                                                     max_displacement=max_displacement)
     espresso_system.integrator.run(Nsteps_steepest_descent)
     logging.debug("*** Finished steppest descent minimization ***")
     logging.debug("*** Starting Langevin Dynamics relaxation ***")
-    espresso_system.force_cap = initial_force_cap
     espresso_system.integrator.set_vv()
     espresso_system.thermostat.set_langevin(kT= 1, 
                                             gamma= gamma, 
                                             seed= seed)
+    gamma = 100
     for _ in range(Nmax_iter_relax):
-        espresso_system.integrator.run(steps=Nsteps_iter_relax)
-        espresso_system.force_cap *= 1.1 
+        espresso_system.integrator.set_vv()
+        espresso_system.thermostat.set_langevin(kT= 1, 
+                                            gamma= gamma, 
+                                            seed= seed)
+        gamma *= 0.9
+        espresso_system.thermostat.turn_off()
+        
     logging.debug("*** Finished steppest descent minimization ***")
     logging.info(f"*** Minimum particle distance after relaxation: {espresso_system.analysis.min_dist()} ***")
-    # Reset force cap
-    espresso_system.force_cap = 0
-    espresso_system.thermostat.turn_off()
     logging.debug("*** Relaxation finished ***")
     return espresso_system.analysis.min_dist()
 
