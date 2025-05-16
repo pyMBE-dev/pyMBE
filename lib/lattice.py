@@ -240,7 +240,33 @@ class LatticeBuilder:
         assert isinstance(colormap, dict)
         self.colormap = colormap.copy()
         self.colormap_sorted_names = list(self.colormap.keys())
-
+    
+    def set_chain(self, node_start, node_end, sequence):
+        """
+        Set a chain between two nodes.
+        Args:
+            node_start(`str`): Start node label, e.g. ``[0 0 0]`` for the node at the origin.
+            node_end(`str`): End node label, e.g. ``[1 1 1]`` for the first node along the diagonal.
+            sequence(`list`): Sequence of residue labels.
+        """
+        assert len(sequence) != 0 and not isinstance(sequence, str)
+        key, reverse = self._get_node_vector_pair(node_start, node_end)
+        assert node_start != node_end or sequence == sequence[::-1], \
+            (f"chain cannot be defined between '{node_start}' and '{node_end}' since it "
+            "would form a loop with a non-symmetric sequence (under-defined stereocenter)")
+        if reverse:
+            sequence = sequence[::-1]
+        self.chains[key] = sequence
+    
+    def set_node(self, node, residue):
+        """
+        Set a node residue type.
+        Args:
+            node(`str`): Node label, e.g. ``[0 0 0]`` for the node at the origin.
+            residue(`str`): Node residue label.
+        """
+        key = self._get_node_by_label(node)
+        self.nodes[key] = residue
 
 class DiamondLattice:
     """
@@ -255,7 +281,6 @@ class DiamondLattice:
                     (2, 5), (3, 6), (4, 7), (5, 0),
                     (5, 3), (5, 4), (6, 0), (6, 2),
                     (6, 4), (7, 0), (7, 2), (7, 3)}
-
     def __init__(self,mpc,bond_l):
         if not isinstance(mpc, int) or mpc <= 0:
             raise ValueError("mpc must be a non-zero positive integer.")

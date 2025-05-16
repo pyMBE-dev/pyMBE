@@ -159,14 +159,12 @@ pmb.create_pmb_object(name=sequence,
 pmb.create_counterions(object_name=sequence,
                     cation_name=cation_name,
                     anion_name=anion_name,
-                    espresso_system=espresso_system,
-                    verbose=verbose)
+                    espresso_system=espresso_system)
 
 c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                      cation_name=cation_name,
                      anion_name=anion_name,
-                     c_salt=c_salt,
-                    verbose=verbose)
+                     c_salt=c_salt)
 
 cpH, labels = pmb.setup_cpH(counter_ion=cation_name,
                                                 constant_pH=pH)
@@ -186,8 +184,7 @@ if verbose:
     print(f"The non-interacting type is set to {non_interacting_type}")
 
 #Setup the potential energy
-pmb.setup_lj_interactions (espresso_system=espresso_system,
-                            warnings=verbose)
+pmb.setup_lj_interactions (espresso_system=espresso_system)
 hf.relax_espresso_system(espresso_system=espresso_system,
                           seed=langevin_seed)
 hf.setup_electrostatic_interactions(units=pmb.units,

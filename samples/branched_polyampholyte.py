@@ -165,14 +165,12 @@ pmb.create_pmb_object(name="polyampholyte",
 pmb.create_counterions(object_name="polyampholyte",
                        cation_name=cation_name,
                        anion_name=anion_name,
-                       espresso_system=espresso_system,
-                       verbose=verbose)
+                       espresso_system=espresso_system)
 
 c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                           cation_name=cation_name,
                                           anion_name=anion_name,
-                                          c_salt=c_salt,
-                                          verbose=verbose)
+                                          c_salt=c_salt)
 
 #List of ionisable groups
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
@@ -204,8 +202,7 @@ if not ideal:
     ##Setup the potential energy
     if verbose:
         print('Setup LJ interaction (this can take a few seconds)')
-    pmb.setup_lj_interactions (espresso_system=espresso_system,
-                                warnings=verbose)
+    pmb.setup_lj_interactions (espresso_system=espresso_system)
     if verbose:
         print('Minimize energy before adding electrostatics')
     relax_espresso_system(espresso_system=espresso_system,

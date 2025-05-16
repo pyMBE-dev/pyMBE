@@ -61,8 +61,7 @@ Path("./frames").mkdir(parents=True,
                        exist_ok=True)
 
 # Simulation parameters
-pmb.set_reduced_units(unit_length=0.4*pmb.units.nm, 
-                    verbose=False)
+pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 pH_value = args.pH
 N_samples = 1000 # to make the demonstration quick, we set this to a very low value
 MD_steps_per_sample = 100 # to make the demonstration quick, we set this to a very low value
@@ -142,16 +141,14 @@ pmb.create_pmb_object(name=peptide_name,
 pmb.create_counterions(object_name=peptide_name,
                         cation_name=cation_name,
                         anion_name=anion_name,
-                        espresso_system=espresso_system,
-                        verbose=verbose) 
+                        espresso_system=espresso_system) 
 
 # check what is the actual salt concentration in the box
 # if the number of salt ions is a small integer, then the actual and desired salt concentration may significantly differ
 c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                         cation_name=cation_name,
                                         anion_name=anion_name,
-                                        c_salt=c_salt,
-                                        verbose=verbose)
+                                        c_salt=c_salt)
 
 with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
@@ -186,8 +183,7 @@ if not ideal:
     ##Setup the potential energy
     if verbose:
         print('Setup LJ interaction (this can take a few seconds)')
-    pmb.setup_lj_interactions (espresso_system=espresso_system,
-                                warnings=verbose)
+    pmb.setup_lj_interactions (espresso_system=espresso_system)
     if verbose:
         print('Minimize energy before adding electrostatics')
     relax_espresso_system(espresso_system=espresso_system,

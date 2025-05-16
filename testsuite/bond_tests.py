@@ -21,9 +21,16 @@ import pyMBE
 import numpy as np
 import unittest as ut
 import json.decoder
-import contextlib
 import json
 import io
+import logging
+
+
+# Create an in-memory log stream
+log_stream = io.StringIO()
+logging.basicConfig(level=logging.INFO, 
+                    format="%(levelname)s: %(message)s",
+                    handlers=[logging.StreamHandler(log_stream)] )
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -134,12 +141,11 @@ class Test(ut.TestCase):
         bond = {'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
                 'd_r_max': 0.8 * pmb.units.nm}
 
-        with contextlib.redirect_stdout(io.StringIO()) as f:
-            pmb.define_bond(bond_type = bond_type,
+        pmb.define_bond(bond_type = bond_type,
                             bond_parameters = bond,
                             particle_pairs = [['A', 'A']])
-            self.assertEqual(f.getvalue(), 'WARNING: No value provided for r_0. Defaulting to r_0 = 0\n')
-
+        log_contents = log_stream.getvalue()
+        self.assertIn("no value provided for r_0. Defaulting to r_0 = 0", log_contents)  
         bond['r_0'] = 0. * pmb.units.nm
         bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[2]
         self.check_bond_setup(bond_object=bond_object,
@@ -240,9 +246,9 @@ class Test(ut.TestCase):
         pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
         pmb.define_particle(name='B', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
 
-        with contextlib.redirect_stdout(io.StringIO()) as f:
-            pmb.add_bonds_to_espresso(None)
-            self.assertEqual(f.getvalue(), 'WARNING: There are no bonds defined in pymbe.df\n')
+        pmb.add_bonds_to_espresso(None)
+        log_contents = log_stream.getvalue()
+        assert "there are no bonds defined in pymbe.df" in log_contents
 
         bond_type_1 = 'harmonic'
         bond_1 = {'r_0'    : 0.4 * pmb.units.nm,
@@ -286,13 +292,17 @@ class Test(ut.TestCase):
         self.assertIsNone(pmb.find_bond_key('A', 'B'))
         self.assertIsNone(pmb.find_bond_key('B', 'A'))
         self.assertIsNone(pmb.find_bond_key('Z', 'Z'))
-
-        # check bond retrieval
-        with contextlib.redirect_stdout(io.StringIO()) as f:
-            self.assertIsNone(pmb.search_bond('A', 'B', hard_check=False))
-            self.assertEqual(f.getvalue(), 'Bond not defined between particles A and B\n')
+        self.assertEqual(pmb.find_bond_key('A', 'B', use_default_bond=True), 'default')
+        
+        self.assertIsNone(pmb.search_bond('A', 'B', hard_check=False))
+        log_contents = log_stream.getvalue()
+        self.assertIn("Bond not defined between particles A and B", log_contents)
+        
         with self.assertRaises(ValueError):
             pmb.search_bond('A', 'B', use_default_bond=True)
+
+        with self.assertRaises(ValueError):
+            pmb.search_bond('A', 'B' , hard_check=True)
 
         # check invalid bond index
         pmb.add_value_to_df(key=('particle_id',''), new_value=10,
@@ -307,9 +317,11 @@ class Test(ut.TestCase):
                                bond_object_1.r_0, delta=1e-7)
         self.assertAlmostEqual(pmb.get_bond_length('B', 'B'),
                                bond_object_2.r_0, delta=1e-7)
-        with contextlib.redirect_stdout(io.StringIO()) as f:
-            self.assertIsNone(pmb.get_bond_length('A', 'B'))
-            self.assertEqual(f.getvalue(), 'Bond not defined between particles A and B\n')
+        self.assertIsNone(pmb.get_bond_length('A', 'B'))
+        log_contents = log_stream.getvalue()
+        self.assertIn("Bond not defined between particles A and B", log_contents)
+        with self.assertRaises(ValueError):
+            pmb.get_bond_length('A', 'B', hard_check=True)
 
 
 if __name__ == '__main__':

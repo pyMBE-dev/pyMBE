@@ -26,8 +26,7 @@ def build_peptide_in_espresso(seed):
     pmb = pyMBE.pymbe_library(seed=seed)
 
     # Simulation parameters
-    pmb.set_reduced_units(unit_length=0.4*pmb.units.nm,
-                          verbose=False)
+    pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
     # Peptide parameters
     sequence = 'EEEEEEE'

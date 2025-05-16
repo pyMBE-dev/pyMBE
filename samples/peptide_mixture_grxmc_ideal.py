@@ -68,8 +68,7 @@ Path("./frames").mkdir(parents=True,
 # Simulation parameters
 verbose=args.no_verbose
 pmb.set_reduced_units(unit_length=0.4*pmb.units.nm, 
-                      Kw=1e-14,
-                      verbose=verbose)
+                      Kw=1e-14)
 N_samples = 1000 # to make the demonstration quick, we set this to a very low value
 MD_steps_per_sample = 1000
 N_samples_print = 1000  # Write the trajectory every 100 samples
@@ -187,37 +186,30 @@ if args.mode == 'standard':
     pmb.create_counterions(object_name=peptide1,
                            cation_name=proton_name,
                            anion_name=hydroxide_name,
-                           espresso_system=espresso_system,
-                           verbose=verbose) # Create counterions for the peptide chains with sequence 1
+                           espresso_system=espresso_system) # Create counterions for the peptide chains with sequence 1
     pmb.create_counterions(object_name=peptide2,
                            cation_name=proton_name,
                            anion_name=hydroxide_name,
-                           espresso_system=espresso_system,
-                           verbose=verbose) # Create counterions for the peptide chains with sequence 2
+                           espresso_system=espresso_system) # Create counterions for the peptide chains with sequence 2
 
     c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                               cation_name=sodium_name,
                                               anion_name=chloride_name,
-                                              c_salt=c_salt,
-                                              verbose=verbose)
+                                              c_salt=c_salt)
 elif args.mode == 'unified':
     pmb.create_counterions(object_name=peptide1, 
                            cation_name=cation_name,
                            anion_name=anion_name,
-                           espresso_system=espresso_system,
-                           verbose=verbose) # Create counterions for the peptide chains with sequence 1
+                           espresso_system=espresso_system) # Create counterions for the peptide chains with sequence 1
     pmb.create_counterions(object_name=peptide2, 
                            cation_name=cation_name,
                            anion_name=anion_name,
-                           espresso_system=espresso_system,
-                           verbose=verbose) # Create counterions for the peptide chains with sequence 2
+                           espresso_system=espresso_system) # Create counterions for the peptide chains with sequence 2
 
     c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                               cation_name=cation_name,
                                               anion_name=anion_name,
-                                              c_salt=c_salt,
-                                              verbose=verbose)
-
+                                              c_salt=c_salt)
 
 with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
