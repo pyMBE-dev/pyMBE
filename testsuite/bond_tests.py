@@ -145,10 +145,7 @@ class Test(ut.TestCase):
                             bond_parameters = bond,
                             particle_pairs = [['A', 'A']])
         log_contents = log_stream.getvalue()
-        assert "no value provided for r_0. Defaulting to r_0 = 0" in log_contents
-
-
-
+        self.assertIn("no value provided for r_0. Defaulting to r_0 = 0", log_contents)  
         bond['r_0'] = 0. * pmb.units.nm
         bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[2]
         self.check_bond_setup(bond_object=bond_object,
@@ -299,7 +296,7 @@ class Test(ut.TestCase):
         
         self.assertIsNone(pmb.search_bond('A', 'B', hard_check=False))
         log_contents = log_stream.getvalue()
-        assert "Bond not defined between particles A and B" in log_contents
+        self.assertIn("Bond not defined between particles A and B", log_contents)
         
         with self.assertRaises(ValueError):
             pmb.search_bond('A', 'B', use_default_bond=True)
@@ -322,7 +319,7 @@ class Test(ut.TestCase):
                                bond_object_2.r_0, delta=1e-7)
         self.assertIsNone(pmb.get_bond_length('A', 'B'))
         log_contents = log_stream.getvalue()
-        assert "Bond not defined between particles A and B" in log_contents
+        self.assertIn("Bond not defined between particles A and B", log_contents)
         with self.assertRaises(ValueError):
             pmb.get_bond_length('A', 'B', hard_check=True)
 

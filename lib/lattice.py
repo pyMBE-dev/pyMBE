@@ -281,8 +281,6 @@ class DiamondLattice:
                     (2, 5), (3, 6), (4, 7), (5, 0),
                     (5, 3), (5, 4), (6, 0), (6, 2),
                     (6, 4), (7, 0), (7, 2), (7, 3)}
-    mpc = None
-    box_l = None
     def __init__(self,mpc,bond_l):
         if not isinstance(mpc, int) or mpc <= 0:
             raise ValueError("mpc must be a non-zero positive integer.")

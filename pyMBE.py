@@ -89,8 +89,6 @@ class pymbe_library():
 
         Args:
             name(`str`): label to check if defined in `pmb.df`.
-            pmb_type_to_be_defined(`str`): pmb object type corresponding to `name`.
-            hard_check(`bool`, optional): If `True`, the raises a ValueError  if `pmb_type_to_be_defined` is already defined in `pmb.df` with a different pmb_type. Defaults to `True`.
 
         Returns:
             `bool`: `True` for success, `False` otherwise.
@@ -3034,7 +3032,7 @@ class pymbe_library():
         charge_number_map = self.get_charge_number_map()
         for name in pka_set.keys():
             if not self._check_if_name_is_defined_in_df(name):
-                logging.warning('The acid-base reaction of ' + name +' has not been set up because its particle type is not defined in the pyMBE DataFrame.')
+                logging.warning(f'The acid-base reaction of {name} has not been set up because its particle type is not defined in the pyMBE DataFrame.')
                 continue
             gamma=10**-pka_set[name]['pka_value']
             state_one_type   = self.df.loc[self.df['name']==name].state_one.es_type.values[0]

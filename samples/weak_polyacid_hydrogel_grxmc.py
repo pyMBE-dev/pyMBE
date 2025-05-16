@@ -157,16 +157,16 @@ dt = 0.01  # Timestep
 espresso_system.time_step = dt
 pmb.setup_lj_interactions(espresso_system=espresso_system)
 
+print("*** Relaxing the system... ***")
+relax_espresso_system(espresso_system=espresso_system,
+                      seed=seed,
+                      Nsteps_iter_relax=1000)
+
 setup_langevin_dynamics(espresso_system=espresso_system,
                         kT = pmb.kT,
                         seed = seed,
                         time_step=dt,
                         tune_skin=False)
-
-print("*** Relaxing the system... ***")
-relax_espresso_system(espresso_system=espresso_system,
-                      seed=seed,
-                      Nsteps_iter_relax=1000)
 
 L_max = diamond_lattice.box_l
 L_target = args.L_fraction * L_max
@@ -179,7 +179,7 @@ for j in tqdm(np.arange(0,steps_needed)):
     espresso_system.change_volume_and_rescale_particles(d_new = espresso_system.box_l[0]-steps_size, 
                                                         dir = "xyz")
     espresso_system.integrator.run(1000)
-
+    print(f"step {j+1} of {steps_needed} done")
 # Just to make sure that the system has the target size
 espresso_system.change_volume_and_rescale_particles(d_new = L_target, 
                                                     dir = "xyz")
