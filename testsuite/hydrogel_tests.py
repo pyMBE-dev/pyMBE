@@ -16,8 +16,7 @@ pmb = pyMBE.pymbe_library(seed=42)
 unit_length=0.355*pmb.units.nm
 temperature=300*pmb.units.K
 pmb.set_reduced_units(unit_length=unit_length,
-                      temperature=temperature,
-                      verbose=False)
+                      temperature=temperature)
 
 root = pathlib.Path(__file__).parent.parent.resolve()
 data_root = root / "testsuite" / "hydrogel_tests_data"
@@ -71,7 +70,6 @@ def run_simulation(single_case, test_type):
             "--L_fraction", str(L_fraction),
             "--pH_res", str(pH),
             "--mode", "test",
-            "--no_verbose",
             "--output", time_series_path
         ]
         subprocess.check_output(run_command)

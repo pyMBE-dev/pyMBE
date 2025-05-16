@@ -33,8 +33,7 @@ pmb = pyMBE.pymbe_library(seed=42)
 print ('*** Unit tests: read and write from pyMBE dataframe ***')
 
 # Simulation parameters
-pmb.set_reduced_units(unit_length=0.4*pmb.units.nm,
-                      verbose=False)
+pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 
 # Define particles
 pmb.define_particle(

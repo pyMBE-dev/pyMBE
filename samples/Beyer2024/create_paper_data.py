@@ -208,8 +208,7 @@ if plot:
     
         pmb.define_protein (name=protein_pdb, 
                             topology_dict=topology_dict, 
-                            model = '2beadAA',
-                            verbose= False)
+                            model = '2beadAA')
 
         pH_range_HH = np.linspace(2, 7, num=1000)
         

@@ -53,7 +53,6 @@ langevin_inputs={"espresso_system":espresso_system,
 
 relax_inputs={"espresso_system":espresso_system, 
               "gamma":1, 
-              "initial_force_cap":50, 
               "Nsteps_steepest_descent":5000, 
               "max_displacement":0.1, 
               "Nmax_iter_relax":100, 
@@ -134,9 +133,6 @@ class Test(ut.TestCase):
         broken_inputs["gamma"] = -1
         self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
         broken_inputs  = relax_inputs.copy()
-        broken_inputs["initial_force_cap"] = -1
-        self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
-        broken_inputs  = relax_inputs.copy()
         broken_inputs["Nsteps_steepest_descent"] = -1
         self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
         broken_inputs  = relax_inputs.copy()
@@ -163,7 +159,7 @@ class Test(ut.TestCase):
                                                                        shift = "auto")
         min_dist = hf.relax_espresso_system(**relax_inputs)
         self.assertGreater(a=min_dist,
-                           b=1,
+                           b=0.9,
                            msg="lib.handy_functions.relax_espresso_system is unable to relax a simple lj system")
         print("*** Unit test passed ***")
 

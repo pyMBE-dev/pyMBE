@@ -412,10 +412,13 @@ for residue_name in list_of_residues:
     residue = residue_name.replace('AA-','')
 
     list_of_particles_in_residue= pmb.search_particles_in_residue(residue_name = residue_name)
-
-    if residue in ['c', 'n', 'G']:        
+    if residue in ['c', 'n']:        
         np.testing.assert_equal(actual=list_of_particles_in_residue, 
                                 desired=[residue], 
+                                verbose=True)
+    elif residue == "G":
+        np.testing.assert_equal(actual=list_of_particles_in_residue, 
+                                desired=[], 
                                 verbose=True)
     else:
         np.testing.assert_equal(actual=list_of_particles_in_residue, 
@@ -460,4 +463,15 @@ np.testing.assert_equal(actual=list_of_particles_in_residue,
                                 desired=['I', 'I', 'A', 'B'], 
                                 verbose=True)
 
+print("*** Unit test passed ***")
+
+print("*** Unit test: Check that create_protein() does not create any protein for an undefined protein name ***")
+starting_number_of_particles=len(espresso_system.part.all())
+pmb.create_protein(name="undefined_protein",
+                    number_of_proteins=1,
+                    espresso_system=espresso_system,
+                    topology_dict=topology_dict)
+np.testing.assert_equal(actual=len(espresso_system.part.all()), 
+                        desired=starting_number_of_particles, 
+                        verbose=True)
 print("*** Unit test passed ***")
