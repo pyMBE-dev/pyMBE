@@ -19,6 +19,15 @@
 import numpy as np
 import espressomd
 from lib.handy_functions import get_number_of_particles
+import logging
+import io
+
+# Create an in-memory log stream
+log_stream = io.StringIO()
+logging.basicConfig(level=logging.INFO, 
+                    format="%(levelname)s: %(message)s",
+                    handlers=[logging.StreamHandler(log_stream)] )
+
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library(seed=42)
@@ -46,15 +55,14 @@ espresso_system.setup_type_map(type_list=type_map.values())
 
 #### Unit tests for the added salt
 
-def check_salt_concentration(espresso_system,cation_name,anion_name,c_salt,N_SALT_ION_PAIRS, verbose=False):
+def check_salt_concentration(espresso_system,cation_name,anion_name,c_salt,N_SALT_ION_PAIRS):
     charge_number_map=pmb.get_charge_number_map()
     type_map=pmb.get_type_map()
     espresso_system.setup_type_map(type_list=type_map.values())
     c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                             cation_name=cation_name,
                                             anion_name=anion_name,
-                                            c_salt=c_salt,
-                                            verbose=verbose)
+                                            c_salt=c_salt)
 
     np.testing.assert_equal(get_number_of_particles(espresso_system, type_map[cation_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[anion_name]]))
     np.testing.assert_equal(get_number_of_particles(espresso_system, type_map[anion_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[cation_name]]))
@@ -65,8 +73,7 @@ check_salt_concentration(espresso_system=espresso_system,
                         cation_name="Na",
                         anion_name="Cl",
                         c_salt=c_salt_input,
-                        N_SALT_ION_PAIRS=N_SALT_ION_PAIRS,
-                        verbose=True)
+                        N_SALT_ION_PAIRS=N_SALT_ION_PAIRS)
 print("*** Unit test passed***")
 print("*** Unit test: test that create_added_salt works for a 2:1 salt (CaCl_2-like) ***")
 check_salt_concentration(espresso_system=espresso_system,
@@ -125,6 +132,22 @@ input_parameters={"cation_name":"Na",
 np.testing.assert_raises(ValueError, pmb.create_added_salt, **input_parameters)
 print("*** Unit test passed ***")
 
+# Test that no salt ions are created if the wrong object names are provided
+pmb.create_added_salt(espresso_system=espresso_system,
+                            cation_name="X",
+                            anion_name="Cl",
+                            c_salt=c_salt_part)
+log_contents = log_stream.getvalue()
+assert "Object with name 'X' is not defined in the DataFrame, no ions will be created." in log_contents
+
+# Test that no salt ions are created if the wrong object names are provided
+pmb.create_added_salt(espresso_system=espresso_system,
+                            cation_name="Na",
+                            anion_name="X",
+                            c_salt=c_salt_part)
+log_contents = log_stream.getvalue()
+assert "Object with name 'X' is not defined in the DataFrame, no ions will be created." in log_contents
+
 ### Unit tests for the counter ions:
 
 
@@ -171,7 +194,7 @@ def setup_molecules():
     pmb.define_molecule(name=molecule_name, 
                         residue_list = ['R1']*2+['R2']*3)
 
-def test_counterions(molecule_name, cation_name, anion_name, espresso_system, expected_numbers,verbose=False):
+def test_counterions(molecule_name, cation_name, anion_name, espresso_system, expected_numbers):
     setup_molecules()
     pmb.create_molecule(name=molecule_name,
                         number_of_molecules= 2,
@@ -180,8 +203,7 @@ def test_counterions(molecule_name, cation_name, anion_name, espresso_system, ex
     pmb.create_counterions(object_name=molecule_name,
                             cation_name=cation_name,
                             anion_name=anion_name,
-                            espresso_system=espresso_system,
-                            verbose=verbose)
+                            espresso_system=espresso_system)
     espresso_system.setup_type_map(type_list=type_map.values())
     np.testing.assert_equal(get_number_of_particles(espresso_system, type_map[cation_name]),expected_numbers[cation_name])
     np.testing.assert_equal(get_number_of_particles(espresso_system, type_map[anion_name]),expected_numbers[anion_name])
@@ -196,8 +218,7 @@ test_counterions(molecule_name='positive_polyampholyte',
                 anion_name="Cl", 
                 espresso_system=espresso_system, 
                 expected_numbers={"Na":4,
-                                  "Cl":6},
-                verbose=True)
+                                  "Cl":6})
 
 print("*** Unit test passed ***")
 
@@ -275,9 +296,47 @@ pmb.create_molecule(name='neutral_molecule',
 pmb.create_counterions(object_name='neutral_molecule',
                             cation_name="Na",
                             anion_name="Cl",
-                            espresso_system=espresso_system,
-                            verbose=False)
+                            espresso_system=espresso_system)
+
+
 espresso_system.setup_type_map(type_list=type_map.values())
 np.testing.assert_equal(get_number_of_particles(espresso_system, type_map["Na"]),0)
 np.testing.assert_equal(get_number_of_particles(espresso_system, type_map["Cl"]),0)
+
+# Assert that no counterions are created if the wrong object names are provided
+pmb.create_counterions(object_name='test',
+                            cation_name="Na",
+                            anion_name="Cl",
+                            espresso_system=espresso_system)
+
+log_contents = log_stream.getvalue()
+assert "Object with name 'test' is not defined in the DataFrame, no counterions will be created." in log_contents
+
+
+pmb.create_counterions(object_name='isoelectric_polyampholyte',
+                            cation_name="Z",
+                            anion_name="Cl",
+                            espresso_system=espresso_system)
+
+log_contents = log_stream.getvalue()
+assert "Object with name 'Z' is not defined in the DataFrame, no counterions will be created." in log_contents
+
+pmb.create_counterions(object_name='isoelectric_polyampholyte',
+                            cation_name="Na",
+                            anion_name="X",
+                            espresso_system=espresso_system)
+log_contents = log_stream.getvalue()
+assert "Object with name 'X' is not defined in the DataFrame, no counterions will be created." in log_contents
+
+input_parameters={"object_name":'isoelectric_polyampholyte',
+                "cation_name":"isoelectric_polyampholyte",
+                "anion_name":"Cl",
+                "espresso_system":espresso_system}
+np.testing.assert_raises(ValueError, pmb.create_counterions, **input_parameters)
+input_parameters={"object_name":'isoelectric_polyampholyte',
+                "cation_name":"Na",
+                "anion_name":'isoelectric_polyampholyte',
+                "espresso_system":espresso_system}
+np.testing.assert_raises(ValueError, pmb.create_counterions, **input_parameters)
+
 print("*** Unit test passed ***")

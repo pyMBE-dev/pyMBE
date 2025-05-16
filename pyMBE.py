@@ -17,7 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import re
-import sys
 import json
 import pint
 import numpy as np
@@ -79,11 +78,77 @@ class pymbe_library():
         self.set_reduced_units(unit_length=unit_length, 
                                unit_charge=unit_charge,
                                temperature=temperature, 
-                               Kw=Kw, 
-                               verbose=False)
+                               Kw=Kw)
         self.setup_df()
         self.lattice_builder = None
         return
+
+    def _check_if_name_is_defined_in_df(self, name):
+        """
+        Checks if `name` is defined in `pmb.df`.
+
+        Args:
+            name(`str`): label to check if defined in `pmb.df`.
+            pmb_type_to_be_defined(`str`): pmb object type corresponding to `name`.
+            hard_check(`bool`, optional): If `True`, the raises a ValueError  if `pmb_type_to_be_defined` is already defined in `pmb.df` with a different pmb_type. Defaults to `True`.
+
+        Returns:
+            `bool`: `True` for success, `False` otherwise.
+        """
+        return name in self.df['name'].unique()
+          
+    def _check_if_multiple_pmb_types_for_name(self, name, pmb_type_to_be_defined):
+        """
+        Checks if `name` is defined in `pmb.df` with multiple pmb_types.
+
+        Args:
+            name(`str`): label to check if defined in `pmb.df`.
+            pmb_type_to_be_defined(`str`): pmb object type corresponding to `name`.
+
+        Returns:
+            `bool`: `True` for success, `False` otherwise.
+        """
+        if name in self.df['name'].unique():
+            current_object_type = self.df[self.df['name']==name].pmb_type.values[0]
+            if current_object_type != pmb_type_to_be_defined:
+                    raise ValueError (f"The name {name} is already defined in the df with a pmb_type = {current_object_type}, pymMBE does not support objects with the same name but different pmb_types")
+
+
+    def _check_supported_molecule(self, molecule_name,valid_pmb_types):
+        """
+        Checks if the molecule name `molecule_name` is supported by a method of pyMBE.
+
+        Args:
+            molecule_name(`str`): pmb object type to be checked.
+            valid_pmb_types(`list` of `str`): List of valid pmb types supported by the method.
+
+        Returns:
+            pmb_type(`str`): pmb_type of the molecule.
+        """
+        pmb_type=self.df.loc[self.df['name']==molecule_name].pmb_type.values[0]
+        if pmb_type not in valid_pmb_types:
+            raise ValueError("The pyMBE object with name {molecule_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
+        return pmb_type
+
+    def _check_if_name_has_right_type(self, name, expected_pmb_type, hard_check=True):
+        """
+        Checks if `name` is of the expected pmb type.
+
+        Args:
+            name(`str`): label to check if defined in `pmb.df`.
+            expected_pmb_type(`str`): pmb object type corresponding to `name`.
+            hard_check(`bool`, optional): If `True`, the raises a ValueError  if `name` is corresponds to an objected defined in the pyMBE DataFrame under a different object type than `expected_pmb_type`.
+
+        Returns:
+            `bool`: `True` for success, `False` otherwise.
+        """
+        pmb_type=self.df.loc[self.df['name']==name].pmb_type.values[0]
+        if pmb_type == expected_pmb_type:
+            return True
+        else:
+            if hard_check:
+                raise ValueError(f"The name {name} has been defined in the pyMBE DataFrame with a pmb_type = {pmb_type}. This function only supports pyMBE objects with pmb_type = {expected_pmb_type}")
+            return False
 
     def add_bond_in_df(self, particle_id1, particle_id2, use_default_bond=False):
         """
@@ -135,10 +200,8 @@ class pymbe_library():
             bond_list = bond_df.bond_object.values.tolist()
             for bond in bond_list:
                 espresso_system.bonded_inter.add(bond)
-
         else:
-            print ('WARNING: There are no bonds defined in pymbe.df')
-        
+            logging.warning('there are no bonds defined in pymbe.df')
         return
 
     def add_value_to_df(self,index,key,new_value, non_standard_value=False, overwrite=False):
@@ -248,48 +311,40 @@ class pymbe_library():
             - If no `pka_set` is given, the pKa values are taken from `pmb.df`
             - This function should only be used for single-phase systems. For two-phase systems `pmb.calculate_HH_Donnan`  should be used.
         """
+        self._check_if_name_is_defined_in_df(name=molecule_name)
+        self._check_supported_molecule(molecule_name=molecule_name,
+                                       valid_pmb_types=["molecule","peptide","protein"])
         if pH_list is None:
             pH_list=np.linspace(2,12,50)
         if pka_set is None:
-            pka_set=self.get_pka_set() 
+            pka_set=self.get_pka_set()
+        index = self.df.loc[self.df['name'] == molecule_name].index[0].item() 
+        residue_list = self.df.at [index,('residue_list','')].copy()
+        particles_in_molecule = []
+        for residue in residue_list:
+            list_of_particles_in_residue = self.search_particles_in_residue(residue)
+            if len(list_of_particles_in_residue) == 0:
+                logging.warning(f"The residue {residue} has no particles defined in the pyMBE DataFrame, it will be ignored.")
+                continue
+            particles_in_molecule += list_of_particles_in_residue
+        if len(particles_in_molecule) == 0:
+            return [None]*len(pH_list)
         self.check_pka_set(pka_set=pka_set)
         charge_number_map = self.get_charge_number_map()
         Z_HH=[]
         for pH_value in pH_list:    
             Z=0
-            index = self.df.loc[self.df['name'] == molecule_name].index[0].item() 
-            residue_list = self.df.at [index,('residue_list','')]
-            sequence = self.df.at [index,('sequence','')]
-            if np.any(pd.isnull(sequence)):
-                # Molecule has no sequence
-                for residue in residue_list:
-                    list_of_particles_in_residue = self.search_particles_in_residue(residue)
-                    for particle in list_of_particles_in_residue:
-                        if particle in pka_set.keys():
-                            if pka_set[particle]['acidity'] == 'acidic':
-                                psi=-1
-                            elif pka_set[particle]['acidity']== 'basic':
-                                psi=+1
-                            else:
-                                psi=0
-                            Z+=psi/(1+10**(psi*(pH_value-pka_set[particle]['pka_value'])))                      
-                Z_HH.append(Z)
-            else:
-                # Molecule has a sequence
-                for name in sequence:
-                    if name in pka_set.keys():
-                        if pka_set[name]['acidity'] == 'acidic':
-                            psi=-1
-                        elif pka_set[name]['acidity']== 'basic':
-                            psi=+1
-                        else:
-                            psi=0
-                        Z+=psi/(1+10**(psi*(pH_value-pka_set[name]['pka_value'])))
-                    else:
-                        state_one_type = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
-                        Z+=charge_number_map[state_one_type]
-                Z_HH.append(Z)
-
+            for particle in particles_in_molecule:
+                if particle in pka_set.keys():
+                    if pka_set[particle]['acidity'] == 'acidic':
+                        psi=-1
+                    elif pka_set[particle]['acidity']== 'basic':
+                        psi=+1
+                    Z+=psi/(1+10**(psi*(pH_value-pka_set[particle]['pka_value'])))                      
+                else:
+                    state_one_type = self.df.loc[self.df['name']==particle].state_one.es_type.values[0]
+                    Z+=charge_number_map[state_one_type]
+            Z_HH.append(Z)
         return Z_HH
 
     def calculate_HH_Donnan(self, c_macro, c_salt, pH_list=None, pka_set=None):
@@ -429,10 +484,8 @@ class pymbe_library():
             - The net charge of the molecule is averaged over all molecules of type `name` 
             - The net charge of each particle type is averaged over all particle of the same type in all molecules of type `name`
         '''        
-        valid_pmb_types = ["molecule", "protein"]
-        pmb_type=self.df.loc[self.df['name']==molecule_name].pmb_type.values[0]
-        if pmb_type not in valid_pmb_types:
-            raise ValueError("The pyMBE object with name {molecule_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
+        self._check_supported_molecule(molecule_name=molecule_name,
+                                        valid_pmb_types=["molecule","protein","peptide"])
 
         id_map = self.get_particle_id_map(object_name=molecule_name)
         def create_charge_map(espresso_system,id_map,label):
@@ -554,24 +607,7 @@ class pymbe_library():
             warnings.simplefilter("ignore")
             return not pd.isna(self.df.loc[index, idx[key]])
 
-    def check_if_name_is_defined_in_df(self, name, pmb_type_to_be_defined):
-        """
-        Checks if `name` is defined in `pmb.df`.
-
-        Args:
-            name(`str`): label to check if defined in `pmb.df`.
-            pmb_type_to_be_defined(`str`): pmb object type corresponding to `name`.
-
-        Returns:
-            `bool`: `True` for success, `False` otherwise.
-        """
-        if name in self.df['name'].unique():
-            current_object_type = self.df[self.df['name']==name].pmb_type.values[0]
-            if current_object_type != pmb_type_to_be_defined:
-                raise ValueError (f"The name {name} is already defined in the df with a pmb_type = {current_object_type}, pymMBE does not support objects with the same name but different pmb_types")
-            return True            
-        else:
-            return False
+    
 
     def check_if_metal_ion(self,key):
         """
@@ -709,7 +745,7 @@ class pymbe_library():
                 self.df = pd.concat ([self.df,df_by_name_repeated], ignore_index=True)
         return
 
-    def create_added_salt (self, espresso_system, cation_name, anion_name, c_salt, verbose=True):    
+    def create_added_salt(self, espresso_system, cation_name, anion_name, c_salt):    
         """
         Creates a `c_salt` concentration of `cation_name` and `anion_name` ions into the `espresso_system`.
 
@@ -718,11 +754,18 @@ class pymbe_library():
             cation_name(`str`): `name` of a particle with a positive charge.
             anion_name(`str`): `name` of a particle with a negative charge.
             c_salt(`float`): Salt concentration.
-            verbose(`bool`): switch to activate/deactivate verbose. Defaults to True.
             
         Returns:
             c_salt_calculated(`float`): Calculated salt concentration added to `espresso_system`.
         """
+        for name in [cation_name, anion_name]:
+            if not self._check_if_name_is_defined_in_df(name=name):
+                logging.warning(f"Object with name '{name}' is not defined in the DataFrame, no ions will be created.")
+                return
+        self._check_if_name_has_right_type(name=cation_name, 
+                                           expected_pmb_type="particle") 
+        self._check_if_name_has_right_type(name=anion_name,
+                                           expected_pmb_type="particle") 
         cation_name_charge = self.df.loc[self.df['name']==cation_name].state_one.z.values[0]
         anion_name_charge = self.df.loc[self.df['name']==anion_name].state_one.z.values[0]     
         if cation_name_charge <= 0:
@@ -743,11 +786,10 @@ class pymbe_library():
         N_anion = N_ions*abs(cation_name_charge)
         self.create_particle(espresso_system=espresso_system, name=cation_name, number_of_particles=N_cation)
         self.create_particle(espresso_system=espresso_system, name=anion_name, number_of_particles=N_anion)
-        if verbose:
-            if c_salt_calculated.check('[substance] [length]**-3'):
-                print(f"\n Added salt concentration of {c_salt_calculated.to('mol/L')} given by {N_cation} cations and {N_anion} anions")
-            elif c_salt_calculated.check('[length]**-3'):
-                print(f"\n Added salt concentration of {c_salt_calculated.to('reduced_length**-3')} given by {N_cation} cations and {N_anion} anions")
+        if c_salt_calculated.check('[substance] [length]**-3'):
+            logging.info(f"added salt concentration of {c_salt_calculated.to('mol/L')} given by {N_cation} cations and {N_anion} anions")
+        elif c_salt_calculated.check('[length]**-3'):
+            logging.info(f"added salt concentration of {c_salt_calculated.to('reduced_length**-3')} given by {N_cation} cations and {N_anion} anions")
         return c_salt_calculated
 
     def create_bond_in_espresso(self, bond_type, bond_parameters):
@@ -796,7 +838,7 @@ class pymbe_library():
             if 'r_0' in bond_parameters:
                 bond_length        = bond_parameters['r_0'].to('reduced_length').magnitude
             else:
-                print("WARNING: No value provided for r_0. Defaulting to r_0 = 0")
+                logging.warning("no value provided for r_0. Defaulting to r_0 = 0")
                 bond_length=0
             if 'd_r_max' in bond_parameters:
                 max_bond_stret = bond_parameters['d_r_max'].to('reduced_length')
@@ -810,7 +852,7 @@ class pymbe_library():
         return bond_object
 
 
-    def create_counterions(self, object_name, cation_name, anion_name, espresso_system,verbose=True):
+    def create_counterions(self, object_name, cation_name, anion_name, espresso_system):
         """
         Creates particles of `cation_name` and `anion_name` in `espresso_system` to counter the net charge of `pmb_object`.
         
@@ -819,11 +861,23 @@ class pymbe_library():
             espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
             cation_name(`str`): `name` of a particle with a positive charge.
             anion_name(`str`): `name` of a particle with a negative charge.
-            verbose(`bool`): switch to activate/deactivate verbose. Defaults to True.
 
         Returns: 
             counterion_number(`dict`): {"name": number}
-        """
+
+        Note:
+            This function currently does not support the creation of counterions for hydrogels.
+        """ 
+        for name in [object_name, cation_name, anion_name]:
+            if not self._check_if_name_is_defined_in_df(name=name):
+                logging.warning(f"Object with name '{name}' is not defined in the DataFrame, no counterions will be created.")
+                return
+        for name in [cation_name, anion_name]:
+            self._check_if_name_has_right_type(name=name, expected_pmb_type="particle")
+        self._check_supported_molecule(molecule_name=object_name,
+                                        valid_pmb_types=["molecule","peptide","protein"])
+        
+
         cation_charge = self.df.loc[self.df['name']==cation_name].state_one.z.iloc[0]
         anion_charge = self.df.loc[self.df['name']==anion_name].state_one.z.iloc[0]
         object_ids = self.get_particle_id_map(object_name=object_name)["all"]
@@ -852,10 +906,9 @@ class pymbe_library():
             self.create_particle(espresso_system=espresso_system, name=anion_name, number_of_particles=counterion_number[anion_name])
         else:
             counterion_number[anion_name] = 0
-        if verbose:
-            print('The following counter-ions have been created: ')
-            for name in counterion_number.keys():
-                print(f'Ion type: {name} created number: {counterion_number[name]}')
+        logging.info('the following counter-ions have been created: ')
+        for name in counterion_number.keys():
+            logging.info(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
 
     def create_hydrogel(self, name, espresso_system):
@@ -868,8 +921,11 @@ class pymbe_library():
         Returns:
             hydrogel_info(`dict`):  {"name":hydrogel_name, "chains": {chain_id1: {residue_id1: {'central_bead_id': central_bead_id, 'side_chain_ids': [particle_id1,...]},...,"node_start":node_start,"node_end":node_end}, chain_id2: {...},...}, "nodes":{node1:[node1_id],...}}     
         """
-        if not self.check_if_name_is_defined_in_df(name=name, pmb_type_to_be_defined='hydrogel'):
-            raise ValueError(f"Hydrogel with name '{name}' is not defined in the DataFrame.")
+        if not self._check_if_name_is_defined_in_df(name=name):
+            logging.warning(f"Hydrogel with name '{name}' is not defined in the DataFrame, no hydrogel will be created.")
+            return
+        self._check_if_name_has_right_type(name=name, 
+                                           expected_pmb_type="hydrogel")
         hydrogel_info={"name":name, "chains":{}, "nodes":{}}
         # placing nodes
         node_positions = {}
@@ -1034,7 +1090,15 @@ class pymbe_library():
 
         Returns:
             molecules_info(`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
+
+        Note:
+            Despite its name, this function can be used to create both molecules and peptides.    
         """
+        if not self._check_if_name_is_defined_in_df(name=name):
+            logging.warning(f"Molecule with name '{name}' is not defined in the pyMBE DataFrame, no molecule will be created.")
+            return {}
+        if number_of_molecules <= 0:
+            return {}
         if list_of_first_residue_positions is not None:
             for item in list_of_first_residue_positions:
                 if not isinstance(item, list):
@@ -1044,8 +1108,11 @@ class pymbe_library():
 
             if len(list_of_first_residue_positions) != number_of_molecules:
                 raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
-        if number_of_molecules <= 0:
-            return 0
+        
+        # This function works for both molecules and peptides
+        if not self._check_if_name_has_right_type(name=name,  expected_pmb_type="molecule", hard_check=False):
+            self._check_if_name_has_right_type(name=name, expected_pmb_type="peptide")
+        
         # Generate an arbitrary random unit vector
         if backbone_vector is None:
             backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
@@ -1054,8 +1121,8 @@ class pymbe_library():
                                                     on_surface=True)[0]
         else:
             backbone_vector = np.array(backbone_vector)
-        self.check_if_name_is_defined_in_df(name=name,
-                                            pmb_type_to_be_defined='molecule')
+
+        
             
         first_residue = True
         molecules_info = {}
@@ -1151,8 +1218,11 @@ class pymbe_library():
         """       
         if number_of_particles <=0:
             return []
-        self.check_if_name_is_defined_in_df(name=name,
-                                       pmb_type_to_be_defined='particle')
+        if not self._check_if_name_is_defined_in_df(name=name):
+            logging.warning(f"Particle with name '{name}' is not defined in the pyMBE DataFrame, no particle will be created.")
+            return []
+        self._check_if_name_has_right_type(name=name,
+                                           expected_pmb_type="particle")
         # Copy the data of the particle `number_of_particles` times in the `df`
         self.copy_df_entry(name=name,
                           column_name='particle_id',
@@ -1200,10 +1270,9 @@ class pymbe_library():
         Note:
             - If no `position` is given, particles will be created in random positions. For bonded particles, they will be created at a distance equal to the bond length. 
         """
-        allowed_objects=['particle','residue','molecule']
-        pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
-        if pmb_type not in allowed_objects:
-            raise ValueError('Object type not supported, supported types are ', allowed_objects)
+        pmb_type = self._check_supported_molecule(molecule_name=name,
+                                        valid_pmb_types=["molecule","particle","residue","peptide"])
+        
         if pmb_type == 'particle':
             self.create_particle(name=name, 
                                 number_of_particles=number_of_objects, 
@@ -1215,7 +1284,7 @@ class pymbe_library():
                                 central_bead_position=position,
                                 use_default_bond=use_default_bond,
                                 backbone_vector=backbone_vector)
-        elif pmb_type == 'molecule':
+        elif pmb_type in ['molecule','peptide']:
             self.create_molecule(name=name, 
                                 number_of_molecules=number_of_objects, 
                                 espresso_system=espresso_system, 
@@ -1237,8 +1306,11 @@ class pymbe_library():
 
         if number_of_proteins <=0:
             return
-        self.check_if_name_is_defined_in_df(name=name,
-                                        pmb_type_to_be_defined='protein')
+        if not self._check_if_name_is_defined_in_df(name=name):
+            logging.warning(f"Protein with name '{name}' is not defined in the pyMBE DataFrame, no protein will be created.")
+            return
+        self._check_if_name_has_right_type(name=name,
+                                           expected_pmb_type="protein")
         self.copy_df_entry(name=name,
                             column_name='molecule_id',
                             number_of_copies=number_of_proteins)
@@ -1296,8 +1368,12 @@ class pymbe_library():
         Returns:
             residues_info(`dict`): {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
         """
-        self.check_if_name_is_defined_in_df(name=name,
-                                            pmb_type_to_be_defined='residue')
+        if not self._check_if_name_is_defined_in_df(name=name):
+            logging.warning(f"Residue with name '{name}' is not defined in the pyMBE DataFrame, no residue will be created.")
+            return
+        self._check_if_name_has_right_type(name=name,
+                                           expected_pmb_type="residue")
+        
         # Copy the data of a residue in the `df
         self.copy_df_entry(name=name,
                             column_name='residue_id',
@@ -1526,8 +1602,10 @@ class pymbe_library():
                                                     offset      = lj_parameters["offset"],)
             index = len(self.df)
             for label in [f'{particle_name1}-{particle_name2}', f'{particle_name2}-{particle_name1}']:
-                self.check_if_name_is_defined_in_df(name=label, pmb_type_to_be_defined="bond")
-            self.df.at [index,'name']= f'{particle_name1}-{particle_name2}'
+                self._check_if_multiple_pmb_types_for_name(name=label, pmb_type_to_be_defined="bond")
+            name=f'{particle_name1}-{particle_name2}'
+            self._check_if_multiple_pmb_types_for_name(name=name, pmb_type_to_be_defined="bond")    
+            self.df.at [index,'name']= name
             self.df.at [index,'bond_object'] = bond_object
             self.df.at [index,'l0'] = l0
             self.add_value_to_df(index=index,
@@ -1575,8 +1653,9 @@ class pymbe_library():
                                                 cutoff      = cutoff,
                                                 offset      = offset)
 
-        if self.check_if_name_is_defined_in_df(name='default',pmb_type_to_be_defined='bond'):
-            return
+        self._check_if_multiple_pmb_types_for_name(name='default',
+                                                   pmb_type_to_be_defined='bond')
+         
         if len(self.df.index) != 0:
             index = max(self.df.index)+1
         else:
@@ -1617,8 +1696,9 @@ class pymbe_library():
         if self.lattice_builder.lattice.connectivity != chain_map_connectivity:
             raise ValueError("Incomplete hydrogel: A diamond lattice must contain correct 16 lattice index pairs")
 
-        if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='hydrogel'):
-            return
+        self._check_if_multiple_pmb_types_for_name(name=name,
+                                                   pmb_type_to_be_defined='hydrogel')
+        
 
         index = len(self.df)
         self.df.at [index, "name"] = name
@@ -1648,8 +1728,9 @@ class pymbe_library():
             name(`str`): Unique label that identifies the `molecule`.
             residue_list(`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.  
         """
-        if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='molecule'):
-            return
+        self._check_if_multiple_pmb_types_for_name(name=name,
+                                                   pmb_type_to_be_defined='molecule')
+        
         index = len(self.df)
         self.df.at [index,'name'] = name
         self.df.at [index,'pmb_type'] = 'molecule'
@@ -1668,7 +1749,7 @@ class pymbe_library():
             index(`int`): Index of the particle in pmb.df  
         """
 
-        if self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='particle'):
+        if  self._check_if_name_is_defined_in_df(name=name):
             index = self.df[self.df['name']==name].index[0]                                   
         else:
             index = len(self.df)
@@ -1701,6 +1782,8 @@ class pymbe_library():
             - For more information on `sigma`, `epsilon`, `cutoff` and `offset` check `pmb.setup_lj_interactions()`.
         """ 
         index=self.define_particle_entry_in_df(name=name)
+        self._check_if_multiple_pmb_types_for_name(name=name,
+                                                   pmb_type_to_be_defined='particle')
         
         # If `cutoff` and `offset` are not defined, default them to the following values
         if pd.isna(cutoff):
@@ -1759,7 +1842,8 @@ class pymbe_library():
             sequence (`string`): Sequence of the `peptide`.
             model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
         """
-        self.check_if_name_is_defined_in_df(name = name, pmb_type_to_be_defined='peptide')
+        self._check_if_multiple_pmb_types_for_name(name = name, 
+                                                   pmb_type_to_be_defined='peptide')
 
         valid_keys = ['1beadAA','2beadAA']
         if model not in valid_keys:
@@ -1771,6 +1855,7 @@ class pymbe_library():
         index = self.df.loc[self.df['name'] == name].index.item() 
         self.df.at [index,'model'] = model
         self.df.at [index,('sequence','')] = clean_sequence
+        self.df.at [index,'pmb_type'] = "peptide"
         self.df.fillna(pd.NA, inplace=True)
         
     
@@ -1790,6 +1875,8 @@ class pymbe_library():
         """
 
         # Sanity checks
+        self._check_if_multiple_pmb_types_for_name(name = name,
+                                                   pmb_type_to_be_defined='protein')
         valid_model_keys = ['1beadAA','2beadAA']
         valid_lj_setups = ["wca"]
         if model not in valid_model_keys:
@@ -1841,7 +1928,8 @@ class pymbe_library():
             central_bead(`str`): `name` of the `particle` to be placed as central_bead of the `residue`.
             side_chains(`list` of `str`): List of `name`s of the pmb_objects to be placed as side_chains of the `residue`. Currently, only pmb_objects of type `particle`s or `residue`s are supported.
         """
-        self.check_if_name_is_defined_in_df(name=name,pmb_type_to_be_defined='residue')
+        self._check_if_multiple_pmb_types_for_name(name=name,
+                                                   pmb_type_to_be_defined='residue')
         
         index = len(self.df)
         self.df.at [index, 'name'] = name
@@ -1873,10 +1961,9 @@ class pymbe_library():
         Note:
             - If `name`  is a object_type=`particle`, only the matching particles that are not part of bigger objects (e.g. `residue`, `molecule`) will be destroyed. To destroy particles in such objects, destroy the bigger object instead.
         """
-        allowed_objects = ['particle','residue','molecule']
-        pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
-        if pmb_type not in allowed_objects:
-            raise ValueError('Object type not supported, supported types are ', allowed_objects)
+        pmb_type = self._check_supported_molecule(molecule_name=name,
+                                       valid_pmb_types= ['particle','residue','molecule',"peptide"])
+        
         if pmb_type == 'particle':
             particles_index = self.df.index[(self.df['name'] == name) & (self.df['residue_id'].isna()) 
                                                   & (self.df['molecule_id'].isna())]
@@ -1894,10 +1981,10 @@ class pymbe_library():
                 for particle_id in particle_ids_list:
                     espresso_system.part.by_id(particle_id).remove()
                     self.df= self.df.drop(self.df[self.df['particle_id']==particle_id].index)    
-        if pmb_type == 'molecule':
-            molecules_id = self.df.loc[self.df['name']== name].molecule_id.to_list()
+        if pmb_type in ['molecule',"peptide"]:
+            molecules_id = self.df.loc[self.df['name']== name].molecule_id.dropna().to_list()
             for molecule_id in molecules_id:
-                molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type']=="molecule")].name.values[0]
+                molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type']==pmb_type)].name.values[0]
                 particle_ids_list = self.get_particle_id_map(object_name=molecule_name)["all"]
                 self.df = self.df.drop(self.df[self.df['molecule_id'] == molecule_id].index)
                 for particle_id in particle_ids_list:
@@ -1991,10 +2078,9 @@ class pymbe_library():
         Note:
             - It requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
         '''
-        print ('enable_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
-        pmb_type = self.df.loc[self.df['name']==name].pmb_type.values[0]
-        if pmb_type != 'protein':
-            raise ValueError (f'The pmb_type: {pmb_type} is not currently supported. The supported pmb_type is: protein')
+        logging.info('enable_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
+        self._check_supported_molecule(molecule_name=name,
+                                        valid_pmb_types= ['protein'])
         molecule_ids_list = self.df.loc[self.df['name']==name].molecule_id.to_list()
         for molecule_id in molecule_ids_list:    
             particle_ids_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
@@ -2196,10 +2282,11 @@ class pymbe_library():
         if bond_key:
             return self.df[self.df['name']==bond_key].l0.values[0]
         else:
-            print(f"Bond not defined between particles {particle_name1} and {particle_name2}")
+            msg = f"Bond not defined between particles {particle_name1} and {particle_name2}"
             if hard_check:
-                sys.exit(1)
+                raise ValueError(msg)     
             else:
+                logging.warning(msg)
                 return
 
     def get_charge_number_map(self):
@@ -2283,10 +2370,8 @@ class pymbe_library():
         Returns:
             id_map(`dict`): dict of the structure {"all": [all_ids_with_object_name], "residue_map": {res_id: [particle_ids_in_res_id]}, "molecule_map": {mol_id: [particle_ids_in_mol_id]}, }
         '''
-        object_type = self.df.loc[self.df['name']== object_name].pmb_type.values[0]
-        valid_types = ["particle", "molecule", "residue", "protein"]
-        if object_type not in valid_types:
-            raise ValueError(f"{object_name} is of pmb_type {object_type}, which is not supported by this function. Supported types are {valid_types}")
+        object_type=self._check_supported_molecule(molecule_name=object_name,
+                                                   valid_pmb_types= ['particle','residue','molecule',"peptide","protein"])
         id_list = []
         mol_map = {}
         res_map = {}
@@ -2295,7 +2380,7 @@ class pymbe_library():
                 res_list=self.df.loc[(self.df['residue_id']== res_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
                 res_map[res_id]=res_list
             return res_map
-        if object_type in ['molecule', 'protein']:
+        if object_type in ['molecule', 'protein', 'peptide']:
             mol_ids = self.df.loc[self.df['name']== object_name].molecule_id.dropna().tolist()
             for mol_id in mol_ids:
                 res_ids = set(self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle") ].residue_id.dropna().tolist())
@@ -2649,7 +2734,7 @@ class pymbe_library():
             - If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
         """
 
-        print (f'Loading protein coarse grain model file: {filename}')
+        logging.info(f'Loading protein coarse grain model file: {filename}')
 
         coord_list = []
         particles_dict = {}
@@ -2735,17 +2820,17 @@ class pymbe_library():
                                     particle_name2=particle_name2, 
                                     use_default_bond=use_default_bond)
         if use_default_bond:
-            if not self.check_if_name_is_defined_in_df(name="default",pmb_type_to_be_defined='bond'):
+            if not self._check_if_name_is_defined_in_df(name="default"):
                 raise ValueError(f"use_default_bond is set to {use_default_bond} but no default bond has been defined. Please define a default bond with pmb.define_default_bond")
         if bond_key:
             return self.df[self.df['name']==bond_key].bond_object.values[0]
         else:
-            print(f"Bond not defined between particles {particle_name1} and {particle_name2}")
+            msg= f"Bond not defined between particles {particle_name1} and {particle_name2}"
             if hard_check:
-                sys.exit(1)
+                raise ValueError(msg)
             else:
-                return
-
+                logging.warning(msg)
+            return None
     def search_particles_in_residue(self, residue_name):
         '''
         Searches for all particles in a given residue of name `residue_name`.
@@ -2758,27 +2843,34 @@ class pymbe_library():
 
         Note:
             - The function returns a name per particle in residue, i.e. if there are multiple particles with the same type `list_of_particles_in_residue` will have repeated items.
- 
+            - The function will return an empty list if the residue is not defined in `pmb.df`.
+            - The function will return an empty list if the particles are not defined in the pyMBE DataFrame.
         '''
+        if not self._check_if_name_is_defined_in_df(name=residue_name):
+            logging.warning(f"Residue {residue_name} not defined in pmb.df")
+            return []
+        self._check_if_name_has_right_type(name=residue_name, expected_pmb_type="residue")
         index_residue = self.df.loc[self.df['name'] == residue_name].index[0].item() 
         central_bead = self.df.at [index_residue, ('central_bead', '')]
-        list_of_side_chains = self.df.at [index_residue, ('side_chains', '')]
-
+        list_of_side_chains = self.df.at[index_residue, ('side_chains', '')]
         list_of_particles_in_residue = []
-        list_of_particles_in_residue.append(central_bead)
-
-        for side_chain in list_of_side_chains: 
-            object_type = self.df[self.df['name']==side_chain].pmb_type.values[0]
-
-            if object_type == "residue":
-                list_of_particles_in_side_chain_residue = self.search_particles_in_residue(side_chain)
-                list_of_particles_in_residue += list_of_particles_in_side_chain_residue
-            elif object_type == "particle":
-                list_of_particles_in_residue.append(side_chain)
-
-        return list_of_particles_in_residue
-
-         
+        if central_bead is not pd.NA:
+            if self._check_if_name_is_defined_in_df(name=central_bead):
+                if self._check_if_name_has_right_type(name=central_bead, expected_pmb_type="particle", hard_check=False):
+                    list_of_particles_in_residue.append(central_bead)
+        if list_of_side_chains is not pd.NA:
+            for side_chain in list_of_side_chains:
+                if self._check_if_name_is_defined_in_df(name=side_chain): 
+                    object_type = self.df[self.df['name']==side_chain].pmb_type.values[0]
+                else:
+                    continue
+                if object_type == "residue":
+                    list_of_particles_in_side_chain_residue = self.search_particles_in_residue(side_chain)
+                    list_of_particles_in_residue += list_of_particles_in_side_chain_residue
+                elif object_type == "particle":
+                    if side_chain is not pd.NA:
+                        list_of_particles_in_residue.append(side_chain)
+        return list_of_particles_in_residue        
 
     def set_particle_acidity(self, name, acidity=pd.NA, default_charge_number=0, pka=pd.NA, overwrite=True):
         """
@@ -2805,7 +2897,7 @@ class pymbe_library():
                 raise ValueError(f"pKa not provided for particle with name {name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
             if acidity == "inert":
                 acidity = pd.NA
-                print("Deprecation warning: the keyword 'inert' for acidity has been replaced by setting acidity = pd.NA. For backwards compatibility, acidity has been set to pd.NA. Support for `acidity = 'inert'` may be deprecated in future releases of pyMBE")
+                logging.warning("the keyword 'inert' for acidity has been replaced by setting acidity = pd.NA. For backwards compatibility, acidity has been set to pd.NA. Support for `acidity = 'inert'` may be deprecated in future releases of pyMBE")
 
         self.define_particle_entry_in_df(name=name)
         
@@ -2868,7 +2960,7 @@ class pymbe_library():
         self.df.fillna(pd.NA, inplace=True)
         return
     
-    def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None, Kw=None, verbose=True):
+    def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None, Kw=None):
         """
         Sets the set of reduced units used by pyMBE.units and it prints it.
 
@@ -2877,7 +2969,6 @@ class pymbe_library():
             unit_charge(`pint.Quantity`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
             temperature(`pint.Quantity`,optional): Temperature of the system, defined using the `pmb.units` UnitRegistry. Defaults to None. 
             Kw(`pint.Quantity`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
-            verbose(`bool`, optional): Switch to activate/deactivate verbose. Defaults to True.
 
         Note:
             - If no `temperature` is given, a value of 298.15 K is assumed by default.
@@ -2904,8 +2995,7 @@ class pymbe_library():
         self.units.define(f'reduced_energy = {self.kT} ')
         self.units.define(f'reduced_length = {unit_length}')
         self.units.define(f'reduced_charge = {unit_charge}')
-        if verbose:        
-            print(self.get_reduced_units())
+        logging.info(self.get_reduced_units())
         return
 
     def setup_cpH (self, counter_ion, constant_pH, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
@@ -2943,8 +3033,8 @@ class pymbe_library():
         sucessfull_reactions_labels=[]
         charge_number_map = self.get_charge_number_map()
         for name in pka_set.keys():
-            if self.check_if_name_is_defined_in_df(name,pmb_type_to_be_defined='particle') is False :
-                print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in the type map.')
+            if not self._check_if_name_is_defined_in_df(name):
+                logging.warning('The acid-base reaction of ' + name +' has not been set up because its particle type is not defined in the pyMBE DataFrame.')
                 continue
             gamma=10**-pka_set[name]['pka_value']
             state_one_type   = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
@@ -3171,8 +3261,8 @@ class pymbe_library():
         sucessful_reactions_labels=[]
         charge_number_map = self.get_charge_number_map()
         for name in pka_set.keys():
-            if self.check_if_name_is_defined_in_df(name,pmb_type_to_be_defined='particle') is False :
-                print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in the type map.')
+            if not self._check_if_name_is_defined_in_df(name):
+                logging.warning(f'The acid-base reaction of {name} has not been set up because its particle type is not defined in the dataframe.')
                 continue
 
             Ka = (10**-pka_set[name]['pka_value'] * self.units.mol/self.units.l).to('1/(N_A * reduced_length**3)')
@@ -3299,8 +3389,8 @@ class pymbe_library():
         sucessful_reactions_labels=[]
         charge_number_map = self.get_charge_number_map()
         for name in pka_set.keys():
-            if self.check_if_name_is_defined_in_df(name,pmb_type_to_be_defined='particle') is False :
-                print('WARNING: the acid-base reaction of ' + name +' has not been set up because its espresso type is not defined in the type map.')
+            if not self._check_if_name_is_defined_in_df(name):
+                logging.warning(f'The acid-base reaction of {name} has not been set up because its particle type is not defined in the dataframe.')
                 continue
 
             Ka = 10**-pka_set[name]['pka_value'] * self.units.mol/self.units.l
@@ -3405,7 +3495,7 @@ class pymbe_library():
                 
         return columns_names
 
-    def setup_lj_interactions(self, espresso_system, shift_potential=True, combining_rule='Lorentz-Berthelot', warnings=True):
+    def setup_lj_interactions(self, espresso_system, shift_potential=True, combining_rule='Lorentz-Berthelot'):
         """
         Sets up the Lennard-Jones (LJ) potential between all pairs of particle types with values for `sigma`, `offset`, and `epsilon` stored in `pymbe.df`.
 
@@ -3477,8 +3567,8 @@ class pymbe_library():
                                 key=('parameters_of_the_potential',''),
                                 new_value=lj_params,
                                 non_standard_value=True)
-        if non_parametrized_labels and warnings:
-            warnings.warn(f'The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.',UserWarning) 
+        if non_parametrized_labels:
+            logging.warning(f'The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.')
         return
 
     def write_pmb_df (self, filename):

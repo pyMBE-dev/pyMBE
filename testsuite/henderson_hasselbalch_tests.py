@@ -50,6 +50,48 @@ class Test(ut.TestCase):
                 sequence = sequence2,
                 model = model)
 
+        with self.subTest(msg="Test edge cases"):
+            # reference data
+            data_path = pmb.get_resource(path=self.data_root)
+            ref_data_HH = np.loadtxt(f"{data_path}/HH_no_pH_list.csv", delimiter=",")
+            
+            # Test that the function returns a list of None when no residues are defined 
+            pH_values = [0, 14]
+            pmb.define_molecule(name = "test",
+                                residue_list = [])
+            Z_HH = pmb.calculate_HH(molecule_name = "test",
+                                      pH_list = pH_values)
+            np.testing.assert_array_equal(Z_HH, 
+                                          [None]*len(pH_values))
+            
+            pmb.define_molecule(name = "mol1",
+                                residue_list=["TT"])
+            Z_HH = pmb.calculate_HH(molecule_name = "mol1",
+                                      pH_list = pH_values)
+            np.testing.assert_array_equal(Z_HH, 
+                                          [None]*len(pH_values))
+
+            # Test that the function ignores residues with undefined particles
+            pmb.define_residue(name = "RT",
+                               central_bead="T",
+                               side_chains=["TT"])
+            pmb.define_molecule(name = "mol2",
+                                residue_list=["RT"])
+            Z_HH = pmb.calculate_HH(molecule_name = "mol2",
+                                      pH_list = pH_values)
+            np.testing.assert_array_equal(Z_HH, 
+                                          [None]*len(pH_values))
+
+            # Test that the function ignores undefined residues when other residues are defined
+            pmb.define_peptide(name = "peptide_3",
+                                sequence =sequence1+"T",
+                                model= model)
+            Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_3")
+            np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,:])
+
+            # Test that the function ignores objects in the residue list that
+            
+
         with self.subTest(msg="Check Henderson-Hasselbalch equation"):
             # Check case where no pH_list is provided
             Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1")
@@ -71,6 +113,49 @@ class Test(ut.TestCase):
             ref_data_HH = np.loadtxt(f"{data_path}/HH.csv", delimiter=",")
             np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,:])
             np.testing.assert_allclose(Z_HH_2, ref_data_HH[1,:])
+
+        with self.subTest(msg="Check Henderson-Hasselbalch equation with non-ionizable groups"):
+
+            # Define additional non-ionizable groups
+            pmb.define_particle(name = "N0",
+                                z=0,
+                                )
+            pmb.define_particle(name = "N1",
+                                z=1,
+                                )
+            path_to_pka=pmb.get_resource("parameters/pka_sets/Nozaki1967.json")
+            pmb.load_pka_set(path_to_pka)
+            pmb.define_residue(name = "RD",
+                               central_bead="D",
+                               side_chains=[])
+            pmb.define_residue(name = "RH",
+                               central_bead="H",
+                               side_chains=[])
+            pmb.define_residue(name = "RN0",
+                               central_bead="N0",
+                               side_chains=[])
+            pmb.define_residue(name = "RN1",
+                               central_bead="N1",
+                               side_chains=[])
+
+            # Load the reference data
+            data_path = pmb.get_resource(path=self.data_root)
+            ref_data_HH = np.loadtxt(f"{data_path}/HH_no_pH_list.csv", delimiter=",")
+        
+
+            # Check the case with non-ionizable groups without charge
+            pmb.define_molecule(name = "mol_1",
+                                residue_list = 5*["RD"] + 8*["RH"] + 3*["RN0"])
+            Z_HH_1 = pmb.calculate_HH(molecule_name = "mol_1")
+            np.testing.assert_allclose(Z_HH_1, 
+                                       ref_data_HH[0,:])
+           
+            # Check the case with non-ionizable groups with charge
+            pmb.define_molecule(name = "mol_2",
+                                residue_list = 5*["RD"] + 8*["RH"] + 3*["RN1"])
+            Z_HH_2 = pmb.calculate_HH(molecule_name = "mol_2")
+            np.testing.assert_allclose(Z_HH_2, 
+                                       ref_data_HH[0,:]+3)
 
         with self.subTest(msg="Check Henderson-Hasselbalch equation + Donnan"):
             # Check case where no pH_list is provided
@@ -95,7 +180,7 @@ class Test(ut.TestCase):
             np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_1"], ref_data_HH_Donnan[0,:])
             np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_2"], ref_data_HH_Donnan[1,:])
 
-        with self.subTest(msg="Check HH and HH_Don are consistentn"):
+        with self.subTest(msg="Check that HH and HH_Don are consistent"):
             Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1",
                                       pH_list = HH_Donnan_dict["pH_system_list"])
             Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2",

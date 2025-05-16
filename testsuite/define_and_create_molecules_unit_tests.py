@@ -161,6 +161,7 @@ print("*** Unit test passed ***")
 
 print("*** Unit test: check that create_particle() does not create any particle for number_of_particles <= 0  ***")
 starting_number_of_particles=len(espresso_system.part.all())
+
 for number_of_particles in [0, -1]:
     retval = pmb.create_particle(name="S1",
                                  espresso_system=espresso_system,
@@ -171,6 +172,18 @@ np.testing.assert_equal(actual=len(espresso_system.part.all()),
                         desired=starting_number_of_particles, 
                         verbose=True)
 print("*** Unit test passed ***")
+
+print("*** Unit test: check that create_particle() does not create any particle if one provides an undefined name  ***")
+pmb.create_particle(name="S23",
+                    espresso_system=espresso_system,
+                    number_of_particles=1)
+    
+# If no particles have been created, only two particles should be in the system (from the previous test)
+np.testing.assert_equal(actual=len(espresso_system.part.all()), 
+                        desired=starting_number_of_particles, 
+                        verbose=True)
+print("*** Unit test passed ***")
+
 
 print("*** Unit test: check that create_particle() raises a ValueError if the user provides the name of an object that is not a particle ***")
 input_parameters={"name": "R2",
@@ -330,6 +343,16 @@ input_parameters={"name": "test",
                  "espresso_system": espresso_system}
 np.testing.assert_raises(ValueError, pmb.create_residue, **input_parameters)
 print("*** Unit test passed ***")
+print("*** Unit test: check that create_residue() does not create any residue if name is not defined in the pmb.df ***")
+starting_number_of_particles=len(espresso_system.part.all())
+pmb.create_residue(name="R51",
+                    espresso_system=espresso_system,
+                    use_default_bond=True)
+# If no particles have been created, the number of particles should be the same as before
+np.testing.assert_equal(actual=len(espresso_system.part.all()), 
+                        desired=starting_number_of_particles, 
+                        verbose=True)
+
 # Additional unit tests for define_molecule are in create_molecule_position_test
 print("*** Unit test: check that create_molecule() creates a simple molecule into the espresso_system with the properties defined in pmb.df  ***")
 
@@ -472,6 +495,18 @@ pmb.create_molecule(name="M2",
                     espresso_system=espresso_system,
                     use_default_bond=True)
 # If no particles have been created, only two particles should be in the system (from the previous test)
+np.testing.assert_equal(actual=len(espresso_system.part.all()), 
+                        desired=starting_number_of_particles, 
+                        verbose=True)
+print("*** Unit test passed ***")
+
+print("*** Unit test: check that create_molecule() does not create any molecule if one provides an undefined name  ***")
+
+starting_number_of_particles=len(espresso_system.part.all())
+pmb.create_molecule(name="M23",
+                    number_of_molecules=1,
+                    espresso_system=espresso_system,
+                    use_default_bond=True)
 np.testing.assert_equal(actual=len(espresso_system.part.all()), 
                         desired=starting_number_of_particles, 
                         verbose=True)

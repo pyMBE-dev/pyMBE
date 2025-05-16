@@ -53,10 +53,7 @@ parser.add_argument('--output',
                     required= False,
                     default="time_series/weak_polyacid_hydrogel_grxmc",
                     help='output directory')
-parser.add_argument('--no_verbose',
-                    action='store_false',
-                    help="Switch to deactivate verbose",
-                    default=True)
+
 
 args = parser.parse_args()
 mode=args.mode
