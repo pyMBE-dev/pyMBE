@@ -136,6 +136,10 @@ with tempfile.TemporaryDirectory() as tmp_directory:
     pmb.write_pmb_df (filename = df_filename)
     # Read the same pyMBE df from a csv a load it in pyMBE
     read_df = pmb.read_pmb_df(filename = df_filename)
+    # Write the pyMBE DF to a txt file
+    df_filename_test = f"{tmp_directory}/df-example_molecule.txt"
+    pmb.write_pmb_df (filename = df_filename_test)
+    np.testing.assert_raises(ValueError, pmb.read_pmb_df, df_filename_test)
 
 stored_df['node_map'] = stored_df['node_map'].astype(object)
 stored_df['chain_map'] = stored_df['chain_map'].astype(object)
