@@ -3510,11 +3510,7 @@ class pymbe_library():
 
         """
         from itertools import combinations_with_replacement
-        implemented_combining_rules = ['Lorentz-Berthelot']
         compulsory_parameters_in_df = ['sigma','epsilon']
-        # Sanity check
-        if combining_rule not in implemented_combining_rules:
-            raise ValueError('In the current version of pyMBE, the only combinatorial rules implemented are ', implemented_combining_rules)
         shift=0
         if shift_potential:
             shift="auto"
