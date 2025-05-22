@@ -207,4 +207,12 @@ for label in lj_labels:
         raise Exception("*** Unit Test failed ***")
 
 print("*** Unit test passed ***")
+
+print("*** Unit test: test that get_lj_parameters() rasie the ValueError when the combination rule is not Loretz-Berthelot ***")
+
+input_params = {"particle_name1":"A", "particle_name2":"B", "combining_rule":"Geometric"}
+np.testing.assert_raises(ValueError, pmb.get_lj_parameters, **input_params)
+
+print("*** All unit tests passed ***")
+
 print("*** All unit tests passed ***")
