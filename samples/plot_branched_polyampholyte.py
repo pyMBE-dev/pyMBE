@@ -77,7 +77,7 @@ pmb.define_residue(
 # Define the molecule
 pmb.define_molecule(
     name = "polyampholyte",
-    residue_list = 5*["Res_1"] + 5*["Res_2"])
+    residue_list = 2*["Res_1"] + ["Res_2"] + 2*["Res_1"] + 2*["Res_2"])
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 if args.mode == "plot":
