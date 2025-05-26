@@ -58,6 +58,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unsupported ESPResSo features now raise a `NotImplementedError` instead of a `ValueError`. (#113)
 
 ### Removed
+- `tutorials/solution_tutorial.ipynb` to avoid code repetition. Instead, the exercise in `pyMBE_tutorial.ipynb` has been adapted to match one of the example in `samples/branched_polyampholyte.py`. (#130)
 - `verbose` optional argument has been deprecated in most of pyMBE methods, except those where is needed to silence verbose from ESPResSo. Now the module `loggins` is used instead for handling pyMBE's logs. (#119)
 - `lib.handy_functions.minimize_espresso_system_energy` because its name was confusing (it was not only minimizing the system energy) and was changing the parameters of the integrator under the hood. (#118)
 - print statements and most of `verbose` in `lib.handy_functions`. (#118)
