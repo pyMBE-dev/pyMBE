@@ -231,7 +231,7 @@ The relevant references are provided as metadata in the corresponding files.
 
 ## License
 
-Copyright (C) 2023-2024 pyMBE-dev team
+Copyright (C) 2023-2025 pyMBE-dev team
 
 pyMBE is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by
