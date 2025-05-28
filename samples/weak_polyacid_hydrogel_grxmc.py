@@ -2,7 +2,7 @@ import espressomd
 from pathlib import Path
 import numpy as np
 import pandas as pd
-from tqdm import tqdm
+import tqdm
 from scipy import interpolate
 import argparse
 from lib.lattice import DiamondLattice
@@ -175,7 +175,7 @@ steps_needed = int(abs((L_max - L_target)/steps_size))
 
 print("*** Box dimension changing... ***")
 
-for j in tqdm(np.arange(0,steps_needed)):
+for j in tqdm.trange(steps_needed):
     espresso_system.change_volume_and_rescale_particles(d_new = espresso_system.box_l[0]-steps_size, 
                                                         dir = "xyz")
     espresso_system.integrator.run(1000)
@@ -219,7 +219,7 @@ espresso_system.setup_type_map(type_list = types)
 non_interacting_type = max(type_map.values())+1
 grxmc.set_non_interacting_type (type=non_interacting_type)
 
-for i in tqdm(range(100)):
+for i in tqdm.trange(100):
     espresso_system.integrator.run(steps=1000)
     do_reaction(grxmc,1000)
 
@@ -234,7 +234,7 @@ else:
     N_warmup_loops = 100
 
 print("*** Running warmup with electrostatics... ***")
-for i in tqdm(range(N_warmup_loops)):
+for i in tqdm.trange(N_warmup_loops):
     espresso_system.integrator.run(steps=1000)
     do_reaction(grxmc,100)
 
@@ -254,7 +254,7 @@ elif mode == "test":
 else:
     N_production_loops = 100
 
-for i in tqdm(range(N_production_loops)):
+for i in tqdm.trange(N_production_loops):
     espresso_system.integrator.run(steps=1000)
     do_reaction(grxmc,200)
 

@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+import os
 import sys
 import pathlib
 import tempfile
@@ -44,11 +45,6 @@ mode = "test"
 mpc = 40
 ref_max_L = 89.235257606948
 ref_cs = pmb.units.Quantity(0.00134770889, "1/reduced_length**3")
-boltzmann_constant = 1.38065e-23
-temperature_in_kelvin = 300
-kT_SI = boltzmann_constant * temperature_in_kelvin
-sigma_in_meter = 3.55e-10
-conv_p = kT_SI / (sigma_in_meter ** 3) / 1e5
 
 # Test cases separated into pressure and titration tests
 pressure_test_cases = {
@@ -91,7 +87,7 @@ def run_simulation(single_case, test_type):
             "--mode", "test",
             "--output", time_series_path
         ]
-        subprocess.check_output(run_command)
+        subprocess.check_output(run_command, env={**os.environ, 'TQDM_DISABLE': '1'})
 
         result_key = frozenset({
             "pH": pH,

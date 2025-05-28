@@ -68,7 +68,8 @@ parser.add_argument("--pKa_value",
 parser.add_argument('--mode',
                     type=str,
                     default= "short-run",
-                    help='sets for how long the simulation runs, valid modes are {valid_modes}')
+                    choices=["short-run","long-run", "test"],
+                    help='sets for how long the simulation runs')
 parser.add_argument('--output',
                     type=str,
                     required= False,
@@ -85,11 +86,7 @@ inputs={"csalt": args.c_salt_res,
         "pH": args.pH_res,
         "pKa": args.pKa_value}
 mode=args.mode
-valid_modes=["short-run","long-run", "test"]
 verbose=args.no_verbose
-
-if mode not in valid_modes:
-    raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
 # Units and general parameters
 pmb.set_reduced_units(unit_length=0.355*pmb.units.nm)

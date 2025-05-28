@@ -25,26 +25,6 @@ import argparse
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
-# Expected inputs
-supported_filenames=["data_landsgesell.csv",
-                     "Glu-HisMSDE.csv",
-                     "Lys-AspMSDE.csv",
-                     "histatin5_SoftMatter.txt",
-                     "1beb-10mM-torres.dat",
-                     "1f6s-10mM-torres.dat",
-                     "landsgesell2022"]
-
-
-parser = argparse.ArgumentParser(description='Script to standarize the data from various authors')
-parser.add_argument('--src_filename', 
-                    type=str, 
-                    required= True,  
-                    help='File name from testsuite/data/src. Currently supported {supported_filenames}')
-args = parser.parse_args()
-
-# Inputs
-filename=args.src_filename
-
 # Outputs
 output_filenames={"data_landsgesell.csv": "Landsgesell2020a.csv",
                   "Lys-AspMSDE.csv": "Lunkad2021a.csv",
@@ -54,9 +34,16 @@ output_filenames={"data_landsgesell.csv": "Landsgesell2020a.csv",
                   "1f6s-10mM-torres.dat": "Torres2022.csv",
                   "landsgesell2022": "Landsgesell2022a.csv"}
 
-# Sanity checks
-if filename not in supported_filenames:
-    ValueError(f"Filename {filename} not supported, supported files are {supported_filenames}")
+parser = argparse.ArgumentParser(description='Script to standarize the data from various authors')
+parser.add_argument('--src_filename', 
+                    type=str, 
+                    required= True,  
+                    choices=output_filenames.keys(),
+                    help='File name from testsuite/data/src')
+args = parser.parse_args()
+
+# Inputs
+filename=args.src_filename
 
 files_lunkad=["Glu-HisMSDE.csv","Lys-AspMSDE.csv"]
 files_blanco=["histatin5_SoftMatter.txt"]
