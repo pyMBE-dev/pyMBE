@@ -12,7 +12,7 @@ from lib import analysis
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
-# Load some functions from the handy_scripts library for convinience
+# Load some functions from the handy_scripts library for convenience
 from lib.handy_functions import setup_electrostatic_interactions
 from lib.handy_functions import relax_espresso_system
 from lib.handy_functions import setup_langevin_dynamics

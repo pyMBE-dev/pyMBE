@@ -200,7 +200,7 @@ if not ideal:
                           seed=langevin_seed)
 
 if verbose:
-    print('Setup Langeving dynamics')
+    print('Setup Langevin dynamics')
 setup_langevin_dynamics(espresso_system=espresso_system, 
                         kT = pmb.kT, 
                         seed = langevin_seed,
