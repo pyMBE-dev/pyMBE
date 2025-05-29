@@ -197,7 +197,7 @@ class Test(ut.TestCase):
             node_name = node_data["particle_name"] 
             # Assert node's name and position are correctly set
             np.testing.assert_equal(node_name_in_espresso, node_name)
-            np.testing.assert_allclose(node_pos, np.array(node_data["lattice_index"]) * 0.25 * diamond_lattice.box_l, atol=1e-7)
+            np.testing.assert_allclose(np.copy(node_pos), np.array(node_data["lattice_index"]) * 0.25 * diamond_lattice.box_l, atol=1e-7)
 
     def test_chain_placement_and_connectivity(self):
         for molecule_id, molecule_data in hydrogel_info["chains"].items():
@@ -249,7 +249,7 @@ class Test(ut.TestCase):
                 expected_position = np.array([float(x) for x in node_start.strip('[]').split()]) * 0.25 * diamond_lattice.box_l + (residue_index + 1) * backbone_vector
                 
                 # Validate that the central bead's position matches the expected position
-                np.testing.assert_allclose(central_bead_pos, expected_position, atol=1e-7)
+                np.testing.assert_allclose(np.copy(central_bead_pos), expected_position, atol=1e-7)
                 expected_node_start = reverse_node_labels[node_start_label]
                 expected_node_end = reverse_node_labels[node_end_label]
                 expected_res_name = get_residue_list(chain_topology, expected_node_start, expected_node_end)[residue_index]
@@ -272,10 +272,10 @@ class Test(ut.TestCase):
         incomplete_chain_map = [{"node_start": "[0 0 0]", "node_end":"[1 1 1]" , "residue_list": residue_list}]
         np.testing.assert_raises(ValueError, pmb.define_hydrogel, "test_hydrogel", incomplete_node_map, chain_topology)
         np.testing.assert_raises(ValueError, pmb.define_hydrogel, "test_hydrogel", node_topology, incomplete_chain_map)
-        # Check that two hydrogels with the same name cannot be defined in the dataframe
+        # Check that two hydrogels with the same name can be defined in the dataframe
         pmb.define_hydrogel(hydrogel_name,node_topology, chain_topology)
         hydrogel_count = len(pmb.df[pmb.df["name"] == hydrogel_name])
-        assert hydrogel_count == 1, f"Hydrogel '{hydrogel_name}' should not be redefined."
+        assert hydrogel_count == 2, f"Hydrogel '{hydrogel_name}' should be redefined."
         assert hydrogel_name in pmb.df["name"].values
         assert pmb.df.loc[pmb.df["name"] == hydrogel_name, "pmb_type"].values[0] == "hydrogel"
 
@@ -289,7 +289,9 @@ class Test(ut.TestCase):
         #####-- Invalid hydrogel name --#####
         # Test if create_hydrogel raises an exception when provided with invalid data
         print("*** Unit Test: Check invalid inputs for create_hydrogel ***")
-        np.testing.assert_raises(ValueError, pmb.create_hydrogel, "invalid_hydrogel", espresso_system)
+        with self.assertLogs(level='WARNING') as cm:
+            pmb.create_hydrogel("invalid_hydrogel", espresso_system)
+            self.assertEqual(cm.output, ["WARNING:root:Hydrogel with name 'invalid_hydrogel' is not defined in the DataFrame, no hydrogel will be created."])
         print("*** Invalid Input Test Passed ***")
         # Check if the molecules (chains) are correctly stored in the hydrogel data
         for ((molecule_id, molecule_data),_) in zip(hydrogel_info["chains"].items(),chain_topology):
@@ -347,10 +349,6 @@ class Test(ut.TestCase):
             assert bond_name_node_end in possible_bond_names
         
         print("*** Unit Test passed ***")
-        
+
 if __name__ == "__main__":
-    ut.main(exit=False)
-
-
-
-
+    ut.main()

@@ -28,18 +28,24 @@ import subprocess
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
-valid_fig_labels=["7a", "7b", "7c", "8a", "8b", "9"]
-valid_modes=["short-run","long-run", "test"]
+fig_data = {"7a": "Lunkad2021a.csv",
+            "7b": "Lunkad2021b.csv",
+            "7c": "Blanco2020a.csv",
+            "8a": "Torres2022.csv",
+            "8b": "Torres2017.csv",
+            "9": "Landsgesell2020a.csv"}
 
 parser = argparse.ArgumentParser(description='Script to create the data from Beyer2024')
 parser.add_argument('--fig_label', 
                     type=str, 
                     required= True,  
-                    help=f'Label of the corresponding figure in Beyer2024, currently supported: {valid_fig_labels}')
+                    choices=fig_data.keys(),
+                    help='Label of the corresponding figure in Beyer2024')
 parser.add_argument('--mode', 
                     type=str, 
                     default= "long-run",  
-                    help='Sets for how long the simulation runs, valid modes are {valid_modes}')
+                    choices=["short-run","long-run", "test"],
+                    help='Sets for how long the simulation runs')
 parser.add_argument('--plot', action='store_true', help="Switch to plot the data")
 args = parser.parse_args()
 
@@ -47,13 +53,6 @@ args = parser.parse_args()
 fig_label=args.fig_label
 mode=args.mode
 plot=args.plot
-# Sanity checks
-if fig_label not in valid_fig_labels:
-    raise ValueError(f"The figure label {fig_label} is not supported. Supported figure labels are {valid_fig_labels}")
-
-
-if mode not in valid_modes:
-    raise ValueError(f"Mode {mode} is not currently supported, valid modes are {valid_modes}")
 
 ## Peptide plots (Fig. 7)
 labels_fig7=["7a", "7b", "7c"]
@@ -162,22 +161,7 @@ if plot:
             pmb.load_interaction_parameters(par_path)
 
     # Load ref data    
-    if fig_label == "7a":
-        ref_path=pmb.get_resource("testsuite/data/Lunkad2021a.csv")
-    elif fig_label == "7b":
-        ref_path=pmb.get_resource("testsuite/data/Lunkad2021b.csv")
-    elif fig_label == "7c":
-        ref_path=pmb.get_resource("testsuite/data/Blanco2020a.csv")
-    elif fig_label == "8a":
-        ref_path=pmb.get_resource("testsuite/data/Torres2022.csv")
-    elif fig_label == "8b":
-        ref_path=pmb.get_resource("testsuite/data/Torres2017.csv")
-    elif fig_label == "9":
-        ref_path=pmb.get_resource("testsuite/data/Landsgesell2020a.csv")
-    else:
-        raise RuntimeError()
-
-    ref_data=analysis.read_csv_file(path=ref_path)
+    ref_data=analysis.read_csv_file(path=pmb.get_resource(f"testsuite/data/{fig_data[fig_label]}"))
 
     # Calculate and plot Henderson-Hasselbalch (HH)
     if fig_label in labels_fig7:

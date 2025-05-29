@@ -4,7 +4,7 @@ The following people have contributed to pyMBE (Github username, Name, current a
 ## Admins
 - jngrad, Jean-Noël Grad (University of Stuttgart, Germany)
 - kosovan, Peter Košovan (Charles University, Czech Republic)
-- pm-blanco, Pablo M. Blanco (Norwegian University of Science and Tecnology, Norway)
+- pm-blanco, Pablo M. Blanco (Norwegian University of Science and Technology, Norway)
 
 ## Tier-0 Contributors
 - davidbbeyer, David Beyer (University of Stuttgart, Germany)
@@ -14,8 +14,8 @@ The following people have contributed to pyMBE (Github username, Name, current a
 ## Tier-1 Contributors
 - 1234somesh, Somesh Kurahatti (University of Stuttgart, Germany)
 - amartise, Albert Martinez-Serra (Royal College of Surgeons, Ireland) 
-- mariusaarsten, Marius Aarsten (Norwegian University of Science and Tecnology, Norway)
-- TommyTraan, Duy Tommy Tran (Norwegian University of Science and Tecnology, Norway)
+- mariusaarsten, Marius Aarsten (Norwegian University of Science and Technology, Norway)
+- TommyTraan, Duy Tommy Tran (Norwegian University of Science and Technology, Norway)
 - Zitzeronion, Stefan Zitz (Research Center Pharmaceutical Engineering, Austria)
 
 ## Early testers of the library

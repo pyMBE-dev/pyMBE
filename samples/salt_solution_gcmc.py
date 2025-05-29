@@ -130,7 +130,7 @@ print(type_map)
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
 RE.set_non_interacting_type(type=non_interacting_type)
-print('The non interacting type is set to ', non_interacting_type)
+print(f'The non interacting type is set to {non_interacting_type}')
 
 espresso_system.time_step = dt
 # for this example, we use a hard-coded skin value; In general it should be optimized by tuning

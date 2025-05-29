@@ -26,7 +26,7 @@ import pandas as pd
 import pyMBE
 pmb = pyMBE.pymbe_library(seed=42)
 
-parser = argparse.ArgumentParser(description='Plots the titration data from peptide_mixture_grxmc_ideal.py and the corresponding analytical solution.')
+parser = argparse.ArgumentParser(description='Plots the titration data from peptide_cpH.py and the corresponding analytical solution.')
 parser.add_argument('--sequence',
                     type=str,
                     default= 'EEEEDDDD', 

@@ -143,9 +143,11 @@ with tempfile.TemporaryDirectory() as tmp_directory:
 
 stored_df['node_map'] = stored_df['node_map'].astype(object)
 stored_df['chain_map'] = stored_df['chain_map'].astype(object)
+stored_df['l0'] = stored_df['l0'].astype(object)
 
 read_df['node_map'] = read_df['node_map'].astype(object)
 read_df['chain_map'] = read_df['chain_map'].astype(object)
+read_df['l0'] = read_df['l0'].astype(object)
 
 # Preprocess data for the Unit Test
 # The espresso bond object must be converted to a dict in order to compare them using assert_frame_equal

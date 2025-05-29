@@ -94,9 +94,14 @@ class Test(ut.TestCase):
         ## Test setup of the integrator
         self.assertEqual(first=langevin_inputs["time_step"],
                          second=espresso_system.time_step,
-                         msg="The input time step in `lib.handy_functions.setup_langevin_dynamics` is not consisted with the one in the espresso simulation System")
+                         msg="The input time step in `lib.handy_functions.setup_langevin_dynamics` is not consistent with the one in the espresso simulation System")
         ## Test setup of the thermostat
-        thermostat_setup=espresso_system.thermostat.get_state()[0]
+        if espressomd.version.friendly() == "4.2":
+            thermostat_setup=espresso_system.thermostat.get_state()[0]
+        else:
+            thermostat_setup=espresso_system.thermostat.langevin.get_params()
+            thermostat_setup["kT"] = espresso_system.thermostat.kT
+            thermostat_setup["type"] = "LANGEVIN"
         self.assertEqual(first="LANGEVIN",
                          second=thermostat_setup["type"],
                          msg="`lib.handy_functions.setup_langevin_dynamics` is setting a different thermostat than Langevin")
@@ -106,9 +111,10 @@ class Test(ut.TestCase):
         self.assertEqual(first=langevin_inputs["seed"],
                          second=thermostat_setup["seed"],
                          msg="`lib.handy_functions.setup_langevin_dynamics` is setting a different seed than the input one")
-        self.assertEqual(first=[langevin_inputs["gamma"]]*3,
-                         second=thermostat_setup["gamma"],
-                         msg="`lib.handy_functions.setup_langevin_dynamics` is setting a different seed than the input one")
+        np.testing.assert_allclose(
+             [langevin_inputs["gamma"]]*3,
+             np.copy(thermostat_setup["gamma"]),
+             err_msg="`lib.handy_functions.setup_langevin_dynamics` is setting a different seed than the input one")
         print("*** Unit test passed ***")
         print("\n*** Testing optimization of skin in lib.handy_functions.setup_langevin_dynamics ***")
         espresso_system.thermostat.turn_off()
@@ -183,51 +189,67 @@ class Test(ut.TestCase):
         espresso_system.part.add(pos=[1,1,1], q=1)
         espresso_system.part.add(pos=[5.15,5.15,5.15], q=-1)
         Bjerrum_length = pmb.e.to('reduced_charge')**2 / (4 * pmb.units.pi * pmb.units.eps0 * electrostatics_inputs["solvent_permittivity"] * electrostatics_inputs["kT"].to('reduced_energy'))
-        coloumb_prefactor=Bjerrum_length*electrostatics_inputs["kT"]
+        coulomb_prefactor=Bjerrum_length*electrostatics_inputs["kT"]
         # Test the P3M setup
         hf.setup_electrostatic_interactions(**electrostatics_inputs)
-        coloumb = espresso_system.actors.active_actors.copy()[0]
-        coloumb_params = coloumb.get_params()
-        self.assertEqual(first=coloumb.name(),
+        if espressomd.version.friendly() == "4.2":
+            coulomb = espresso_system.actors.active_actors.copy()[0]
+        else:
+            coulomb = espresso_system.electrostatics.solver
+        coulomb_params = coulomb.get_params()
+        self.assertEqual(first=coulomb.name(),
                          second='Coulomb::CoulombP3M',
                          msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong electrostatic method")
         self.assertGreaterEqual(a=electrostatics_inputs["accuracy"],
-                                b=coloumb.accuracy,
+                                b=coulomb.accuracy,
                                 msg="lib.handy_functions.setup_electrostatic_interactions sets up the P3M method with the wrong accuracy")
-        self.assertAlmostEqual(first=coloumb_params["prefactor"],
-                                second=coloumb_prefactor.m_as("reduced_length * reduced_energy"),
+        self.assertAlmostEqual(first=coulomb_params["prefactor"],
+                                second=coulomb_prefactor.m_as("reduced_length * reduced_energy"),
                                 msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong coulomb prefactor for the P3M method")
         self.assertEqual(first=electrostatics_inputs["tune_p3m"],
-                         second=coloumb_params["is_tuned"],
+                         second=coulomb_params["is_tuned"],
                          msg="lib.handy_functions.setup_electrostatic_interactions does not tune the P3M method")
-        espresso_system.actors.remove(coloumb)
-        ## Test the setup the P3M method without tuning it with some input parameters
+        if espressomd.version.friendly() == "4.2":
+            espresso_system.actors.remove(coulomb)
+        else:
+            coulomb = espresso_system.electrostatics.solver = None
+        ## Test the setup of the P3M method without tuning it with some input parameters
         electrostatics_inputs["tune_p3m"] = False
         electrostatics_inputs["params"] = {"mesh": [8, 8, 8], 
                                            "cao": 5, 
                                            "alpha": 1.1265e+01,
                                            "r_cut": 1}
         hf.setup_electrostatic_interactions(**electrostatics_inputs)
-        coloumb = espresso_system.actors.active_actors.copy()[0]
-        coloumb_params = coloumb.get_params()
+        if espressomd.version.friendly() == "4.2":
+            coulomb = espresso_system.actors.active_actors.copy()[0]
+        else:
+            coulomb = espresso_system.electrostatics.solver
+        coulomb_params = coulomb.get_params()
         for param in electrostatics_inputs["params"]:
-            self.assertEqual(first=electrostatics_inputs["params"][param],
-                             second=coloumb_params[param],
-                             msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong P3M parameters")
-        espresso_system.actors.remove(coloumb)
+            np.testing.assert_allclose(
+                 np.copy(electrostatics_inputs["params"][param]),
+                 np.copy(coulomb_params[param]),
+                 err_msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong P3M parameters")
+        if espressomd.version.friendly() == "4.2":
+            espresso_system.actors.remove(coulomb)
+        else:
+            coulomb = espresso_system.electrostatics.solver = None
         electrostatics_inputs["params"] = None
         # Test the Debye–Hückel setup
         electrostatics_inputs["method"] = "dh"
         electrostatics_inputs["c_salt"] = pmb.units.Quantity(1, "mol/L")
         kappa=1./np.sqrt(8*pmb.units.pi*Bjerrum_length*pmb.N_A*electrostatics_inputs["c_salt"])
         hf.setup_electrostatic_interactions(**electrostatics_inputs)
-        dh = espresso_system.actors.active_actors.copy()[0]
+        if espressomd.version.friendly() == "4.2":
+            dh = espresso_system.actors.active_actors.copy()[0]
+        else:
+            dh = espresso_system.electrostatics.solver
         dh_params = dh.get_params()
         self.assertEqual(first=dh.name(),
                          second='Coulomb::DebyeHueckel',
                          msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong electrostatic method")
         self.assertAlmostEqual(first=dh_params["prefactor"],
-                                second=coloumb_prefactor.m_as("reduced_length * reduced_energy"),
+                                second=coulomb_prefactor.m_as("reduced_length * reduced_energy"),
                                 msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong coulomb prefactor for the DH method")
         self.assertAlmostEqual(first=dh_params["kappa"],
                                 second=(1./kappa).m_as('1/ reduced_length'),
@@ -235,10 +257,16 @@ class Test(ut.TestCase):
         self.assertAlmostEqual(first=dh_params["r_cut"],
                                 second=3*kappa.m_as('reduced_length'),
                                 msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong cut-off for the DH method")
-        espresso_system.actors.remove(dh)
+        if espressomd.version.friendly() == "4.2":
+            espresso_system.actors.remove(dh)
+        else:
+            coulomb = espresso_system.electrostatics.solver = None
         electrostatics_inputs["c_salt"] = pmb.units.Quantity(1, "mol/L")*pmb.N_A
         hf.setup_electrostatic_interactions(**electrostatics_inputs)
-        dh = espresso_system.actors.active_actors.copy()[0]
+        if espressomd.version.friendly() == "4.2":
+            dh = espresso_system.actors.active_actors.copy()[0]
+        else:
+            dh = espresso_system.electrostatics.solver
         dh_params = dh.get_params()
         self.assertAlmostEqual(first=dh_params["kappa"],
                                 second=(1./kappa).m_as('1/ reduced_length'),
@@ -246,11 +274,17 @@ class Test(ut.TestCase):
         self.assertAlmostEqual(first=dh_params["r_cut"],
                                 second=3*kappa.m_as('reduced_length'),
                                 msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong cut-off for the DH method")
-        espresso_system.actors.remove(dh)
+        if espressomd.version.friendly() == "4.2":
+            espresso_system.actors.remove(dh)
+        else:
+            coulomb = espresso_system.electrostatics.solver = None
         # Test a non-default cut-off
         electrostatics_inputs["params"] = {"r_cut": 3}
         hf.setup_electrostatic_interactions(**electrostatics_inputs)
-        dh = espresso_system.actors.active_actors.copy()[0]
+        if espressomd.version.friendly() == "4.2":
+            dh = espresso_system.actors.active_actors.copy()[0]
+        else:
+            dh = espresso_system.electrostatics.solver
         dh_params = dh.get_params()
         self.assertAlmostEqual(first=dh_params["r_cut"],
                                 second=electrostatics_inputs["params"]["r_cut"],
