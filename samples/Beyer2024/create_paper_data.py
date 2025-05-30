@@ -18,7 +18,7 @@
 
 # Import pyMBE and other libraries
 import pyMBE
-from lib import analysis
+from pyMBE.lib import analysis
 from pathlib import Path
 import sys
 import numpy as np
@@ -49,6 +49,8 @@ parser.add_argument('--mode',
 parser.add_argument('--plot', action='store_true', help="Switch to plot the data")
 args = parser.parse_args()
 
+samples_path = Path(__file__).parent
+
 # Inputs
 fig_label=args.fig_label
 mode=args.mode
@@ -58,7 +60,7 @@ plot=args.plot
 labels_fig7=["7a", "7b", "7c"]
 
 if fig_label in labels_fig7:
-    script_path=pmb.get_resource("samples/Beyer2024/peptide.py")
+    script_path=samples_path / "Beyer2024" / "peptide.py"
     if fig_label == "7a":
         sequence="K"*5+"D"*5
     elif fig_label == "7b":
@@ -77,21 +79,21 @@ if fig_label in labels_fig7:
 labels_fig8=["8a", "8b"]
 
 if fig_label in labels_fig8:
-    script_path=pmb.get_resource("samples/Beyer2024/globular_protein.py")
+    script_path=samples_path / "Beyer2024" / "globular_protein.py"
     pH_range = np.linspace(2, 7, num=11)
     run_command_common=[sys.executable, script_path, "--mode", mode, "--no_verbose"]
     pdb_codes={"8a":"1f6s",
                "8b": "1beb"}
     protein_pdb=pdb_codes[fig_label]
-    path_to_cg = f"parameters/globular_proteins/{protein_pdb}.vtf"
+    path_to_cg = pmb.root / "parameters" / "globular_proteins" / f"{protein_pdb}.vtf"
     for pH in pH_range:        
-        run_command=run_command_common + ["--pH", str(pH),"--pdb", protein_pdb, "--path_to_cg", path_to_cg]
+        run_command=run_command_common + ["--pH", str(pH),"--pdb", protein_pdb, "--path_to_cg", str(path_to_cg)]
         print(subprocess.list2cmdline(run_command))
         subprocess.check_output(run_command)   
 
 ## Weak polyelectrolyte dialysis plot (Fig. 9)
 if fig_label == "9": 
-    script_path=pmb.get_resource("samples/Beyer2024/weak_polyelectrolyte_dialysis.py")
+    script_path=samples_path / "Beyer2024" / "weak_polyelectrolyte_dialysis.py"
     pH_range = np.linspace(1, 13, num=13)
     c_salt_res = 0.01 * pmb.units.mol/pmb.units.L
     for pH in pH_range:
@@ -101,21 +103,20 @@ if fig_label == "9":
 
 # Analyze all time series
 if fig_label in labels_fig7:
-    time_series_folder_path=pmb.get_resource("samples/Beyer2024/time_series/peptides")
+    time_series_folder_path=samples_path / "Beyer2024" / "time_series" / "peptides"
     
 if fig_label in labels_fig8:    
-    time_series_folder_path=pmb.get_resource("samples/Beyer2024/time_series/globular_protein")
+    time_series_folder_path=samples_path / "Beyer2024" / "time_series" / "globular_protein"
     
 if fig_label == "9":
-    time_series_folder_path=pmb.get_resource("samples/Beyer2024/time_series/grxmc")
+    time_series_folder_path=samples_path / "Beyer2024" / "time_series" / "grxmc"
 
 data=analysis.analyze_time_series(path_to_datafolder=time_series_folder_path)
 
 # Store mean values and other statistics
-data_path=pmb.get_resource("samples/Beyer2024/")+"data"
-Path(data_path).mkdir(parents=True, 
-                       exist_ok=True)
-data.to_csv(f"{data_path}/fig{fig_label}.csv")
+data_path=samples_path / "Beyer2024" / "data"
+data_path.mkdir(parents=True, exist_ok=True)
+data.to_csv(data_path / f"fig{fig_label}.csv")
 
 if plot:
     # Plot the data
@@ -151,17 +152,17 @@ if plot:
 
     # Load pka set
     if fig_label in ["7a","7b"]:
-        pka_path=pmb.get_resource("parameters/pka_sets/CRC1991.json")
+        pka_path=pmb.root / "parameters" / "pka_sets" / "CRC1991.json"
         pmb.load_pka_set (filename=pka_path)
     elif fig_label in ["7c", "8a", "8b"]:
-        pka_path=pmb.get_resource("parameters/pka_sets/Nozaki1967.json")
+        pka_path=pmb.root / "parameters" / "pka_sets" / "Nozaki1967.json"
         pmb.load_pka_set (filename=pka_path)
         if fig_label == "7c":
-            par_path=pmb.get_resource("parameters/peptides/Blanco2021.json")
+            par_path=pmb.root / "parameters" / "peptides" / "Blanco2021.json"
             pmb.load_interaction_parameters(par_path)
 
     # Load ref data    
-    ref_data=analysis.read_csv_file(path=pmb.get_resource(f"testsuite/data/{fig_data[fig_label]}"))
+    ref_data=analysis.read_csv_file(path=Path(__file__).parent / "data" / fig_data[fig_label])
 
     # Calculate and plot Henderson-Hasselbalch (HH)
     if fig_label in labels_fig7:
@@ -187,7 +188,7 @@ if plot:
         elif fig_label == "8b":
             protein_pdb = '1beb'
     
-        path_to_cg=pmb.get_resource(f"parameters/globular_proteins/{protein_pdb}.vtf")
+        path_to_cg=pmb.root / "parameters" / "globular_proteins" / f"{protein_pdb}.vtf"
         topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
     
         pmb.define_protein (name=protein_pdb, 
@@ -323,10 +324,9 @@ if plot:
         plt.xticks([2,4,6,8,10,12])
 
     # Save plot
-    fig_path=pmb.get_resource("samples/Beyer2024")+"/figs"
-    Path(fig_path).mkdir(parents=True, 
-                       exist_ok=True)
+    fig_path=samples_path / "Beyer2024" / "figs"
+    fig_path.mkdir(parents=True, exist_ok=True)
     plt.legend(frameon=False, loc="lower left", fontsize=9, bbox_to_anchor=(0,1.02,1,0.2), mode="expand", borderaxespad=0, ncol=2)
-    plt.savefig(f"{fig_path}/{fig_label}.pdf", 
+    plt.savefig(fig_path / f"{fig_label}.pdf",
                 bbox_inches='tight')
     plt.close()

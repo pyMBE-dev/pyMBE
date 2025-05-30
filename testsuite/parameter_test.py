@@ -29,26 +29,25 @@ pmb = pyMBE.pymbe_library(seed=42)
 
 print("*** Unit test: check that the different pKa sets are correctly formatted ***")
 
-pymbe_root = pathlib.Path(pyMBE.__file__).parent
-pka_root = pymbe_root / "parameters" / "pka_sets"
+data_root = pathlib.Path(__file__).parent / "test_parameters"
+params_root = pathlib.Path(pyMBE.__file__).parent / "parameters"
+pka_root = params_root / "pka_sets"
+peptides_root = params_root / "peptides"
 
 for path in pka_root.glob("*.json"):
     print(f"Checking {path.stem}")
-    path_to_pka = pmb.get_resource(path.relative_to(pymbe_root).as_posix())
-    assert pathlib.Path(path_to_pka) == path
-    pmb.load_pka_set(path_to_pka)
+    pmb.load_pka_set(path)
 
 print("*** Test passed ***")
 
 print("*** Unit test: check that the order to execute load_pka_set() and load_interaction_parameters does not change the resulting parameters in pmb.df ***")
-
-path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
-path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
+path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021.json"
+path_to_pka=pmb.root / "parameters" / "pka_sets" / "Hass2015.json"
 
 # First order of loading parameters
 pmb.setup_df() # clear the pmb_df
-pmb.load_interaction_parameters (filename=path_to_interactions) 
-pmb.load_pka_set(filename=path_to_pka)
+pmb.load_interaction_parameters (filename=peptides_root / "Lunkad2021.json")
+pmb.load_pka_set(filename=pka_root / "Hass2015.json")
 df_1 = pmb.df.copy()
 df_1 = df_1.sort_values(by="name").reset_index(drop=True)
 # Drop espresso types (they depend on the order of loading)
@@ -76,8 +75,7 @@ print("*** Test passed ***")
 
 print("*** Unit test: check that  load_interaction_parameters loads FENE bonds correctly ***")
 pmb.setup_df() # clear the pmb_df
-path_to_interactions=pmb.get_resource("testsuite/test_parameters/test_FENE.json")
-pmb.load_interaction_parameters (filename=path_to_interactions) 
+pmb.load_interaction_parameters (filename=data_root / "test_FENE.json")
 
 expected_parameters = {'r_0' : 0.4*pmb.units.nm,
                         'k'  : 400 * pmb.units('reduced_energy / reduced_length**2'),
@@ -96,8 +94,7 @@ print("*** Test passed ***")
 print("*** Unit test: check that  load_interaction_parameters loads residue, molecule and peptide objects correctly ***")
 
 pmb.setup_df() # clear the pmb_df
-path_to_interactions=pmb.get_resource("testsuite/test_parameters/test_molecules.json")
-pmb.load_interaction_parameters (filename=path_to_interactions)
+pmb.load_interaction_parameters (filename=data_root / "test_molecules.json")
 
 expected_residue_parameters={"central_bead":  "A", "side_chains": ["B","C"] }
 expected_molecule_parameters={"residue_list":   ["R1","R1", "R1"]}
@@ -125,14 +122,12 @@ np.testing.assert_equal(actual=frozenset(pmb.df[pmb.df.name == "P1"].model.value
 print("*** Test passed ***")
 print("*** Unit test: check that  load_interaction_parameters raises a ValueError if one loads a data set with an unknown pmb_type ***")
 pmb.setup_df() # clear the pmb_df
-path_to_interactions=pmb.get_resource("testsuite/test_parameters/test_non_valid_object.json")
-input_parameters={"filename":path_to_interactions}
+input_parameters={"filename": data_root / "test_non_valid_object.json"}
 np.testing.assert_raises(ValueError, pmb.load_interaction_parameters, **input_parameters)
 print("*** Test passed ***")
 print("*** Unit test: check that  load_interaction_parameters raises a ValueError if one loads a bond not supported by pyMBE ***")
 pmb.setup_df() # clear the pmb_df
-path_to_interactions=pmb.get_resource("testsuite/test_parameters/test_non_valid_bond.json")
-input_parameters={"filename":path_to_interactions}
+input_parameters={"filename": data_root / "test_non_valid_bond.json"}
 np.testing.assert_raises(ValueError, pmb.load_interaction_parameters, **input_parameters)
 print("*** Test passed ***")
 print("*** Unit test: check that  check_pka_set raises a ValueError if data is missing important fields ***")

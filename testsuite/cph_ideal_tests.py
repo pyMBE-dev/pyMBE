@@ -33,7 +33,7 @@ import pandas as pd
 import unittest as ut
 import numpy as np
 
-root = pathlib.Path(__file__).parent.parent.resolve()
+root = pathlib.Path(__file__).parent.parent
 
 def kernel(pH_value,temp_dir_path,sample_path):
     """

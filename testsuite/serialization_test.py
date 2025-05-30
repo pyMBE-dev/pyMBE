@@ -21,7 +21,7 @@ import unittest as ut
 import numpy as np
 import pandas as pd
 import pyMBE
-import lib.analysis
+import pyMBE.lib.analysis
 import scipy.constants
 
 
@@ -44,9 +44,9 @@ class Serialization(ut.TestCase):
 
     def test_parameters_to_path(self):
         params = {"kT": 2., "phi": -np.pi, "n": 3, "fene": True, "name": "pep"}
-        name = lib.analysis.built_output_name(params)
+        name = pyMBE.lib.analysis.built_output_name(params)
         self.assertEqual(name, "kT_2_phi_-3.14_n_3_fene_True_name_pep")
-        params_out = lib.analysis.get_params_from_file_name(name)
+        params_out = pyMBE.lib.analysis.get_params_from_file_name(name)
         params_ref = {"kT": "2", "phi": "-3.14", "n": "3",
                       "fene": "True", "name": "pep"}
         self.assertEqual(params_out, params_ref)

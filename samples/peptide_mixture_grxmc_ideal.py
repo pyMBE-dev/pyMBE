@@ -23,8 +23,8 @@ import pandas as pd
 import argparse
 from espressomd.io.writer import vtf
 import pyMBE
-from lib.analysis import built_output_name
-from lib.handy_functions import do_reaction
+from pyMBE.lib.analysis import built_output_name
+from pyMBE.lib.handy_functions import do_reaction
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -54,16 +54,16 @@ parser.add_argument('--pH',
                     default=7,
                     help='pH of the solution')
 parser.add_argument('--output',
-                    type=str,
+                    type=Path,
                     required= False,
-                    default="samples/time_series/peptide_mixture_grxmc_ideal",
+                    default=Path(__file__).parent / "time_series" / "peptide_mixture_grxmc_ideal",
                     help='output directory')
 parser.add_argument('--no_verbose', action='store_false', help="Switch to deactivate verbose",default=True)
 args = parser.parse_args()
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
-Path("./frames").mkdir(parents=True, 
-                       exist_ok=True)
+frames_path = args.output / "frames"
+frames_path.mkdir(parents=True, exist_ok=True)
 
 # Simulation parameters
 verbose=args.no_verbose
@@ -94,8 +94,8 @@ if args.test:
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 # Note that this parameterization only includes some of the natural aminoacids
 # For the other aminoacids the user needs to use  a parametrization including all the aminoacids in the peptide sequence
-path_to_pka=pmb.get_resource("parameters/pka_sets/Hass2015.json")
-path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
+path_to_pka=pmb.root / "parameters" / "pka_sets" / "Hass2015.json"
+path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021.json"
 
 pmb.load_interaction_parameters(filename=path_to_interactions) 
 pmb.load_pka_set(path_to_pka)
@@ -211,7 +211,7 @@ elif args.mode == 'unified':
                                               anion_name=anion_name,
                                               c_salt=c_salt)
 
-with open('frames/trajectory0.vtf', mode='w+t') as coordinates:
+with open(frames_path / "trajectory0.vtf", mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
     vtf.writevcf(espresso_system, coordinates)
 
@@ -255,7 +255,7 @@ if verbose:
 espresso_system.time_step = dt
 
 #Save the initial state
-with open('frames/trajectory1.vtf', mode='w+t') as coordinates:
+with open(frames_path / "trajectory1.vtf", mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
     vtf.writevcf(espresso_system, coordinates)
 
@@ -296,14 +296,13 @@ for step in range(N_samples):
     time_series["xi_plus"].append(xi_plus)
     if step % N_samples_print == 0:
         N_frame+=1
-        with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
+        with open(frames_path / f"trajectory{N_frame}.vtf", mode='w+t') as coordinates:
             vtf.writevsf(espresso_system, coordinates)
             vtf.writevcf(espresso_system, coordinates)
 
 # Store time series
-data_path=pmb.get_resource(path=args.output)
-Path(data_path).mkdir(parents=True, 
-                       exist_ok=True)
+data_path=args.output
+data_path.mkdir(parents=True, exist_ok=True)
 time_series=pd.DataFrame(time_series)
 
 filename=built_output_name(input_dict={"mode":args.mode,
@@ -311,5 +310,5 @@ filename=built_output_name(input_dict={"mode":args.mode,
                                        "sequence2": sequence2,
                                        "pH":pH_value})
 
-time_series.to_csv(f"{data_path}/{filename}_time_series.csv",
+time_series.to_csv(data_path / f"{filename}_time_series.csv",
                     index=False)

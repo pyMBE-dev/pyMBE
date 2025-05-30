@@ -21,6 +21,7 @@ import espressomd
 import pyMBE
 import re
 import json
+import pathlib
 from pint import UnitRegistry, Quantity
 
 ureg = UnitRegistry()
@@ -52,10 +53,9 @@ if mode not in valid_modes:
 
 print("*** Unit test: check that read_protein_vtf_in_df() loads the protein topology correctly ***")
 
-filename = "testsuite/tests_data/protein_topology_dict.json"
-path_to_cg=pmb.get_resource(f'parameters/globular_proteins/{protein_pdb}.vtf')
+path_to_parfile = pathlib.Path(__file__).parent / "tests_data" / "protein_topology_dict.json"
+path_to_cg=pmb.root / "parameters" / "globular_proteins" / f"{protein_pdb}.vtf"
 topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
-path_to_parfile=pmb.get_resource(filename)
 
 if mode == "save":
     with open (path_to_parfile, "w") as output:
@@ -149,7 +149,7 @@ print("*** Unit test: check that create_protein() creates all the particles in t
 espresso_system=espressomd.System(box_l = [Box_L.to('reduced_length').magnitude] * 3)
 
 # Here we upload the pka set from the reference_parameters folder
-path_to_pka=pmb.get_resource('parameters/pka_sets/Nozaki1967.json') 
+path_to_pka=pmb.root / "parameters" / "pka_sets" / "Nozaki1967.json"
 pmb.load_pka_set(filename=path_to_pka)
 
 pmb.create_protein(name=protein_pdb,
