@@ -22,7 +22,7 @@
 import unittest as ut
 import espressomd
 import pyMBE
-import lib.handy_functions as hf
+import pyMBE.lib.handy_functions as hf
 import logging
 import io
 import numpy as np

@@ -21,6 +21,7 @@ import pyMBE
 import numpy as np
 import pandas as pd
 import argparse 
+import pathlib
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -51,13 +52,15 @@ files_torres = ["1f6s-10mM-torres.dat","1beb-10mM-torres.dat" ]
 files_landsgesell2020=["data_landsgesell.csv"]
 files_landsgesell2022=["equilibrium_values_gel_MD.csv","weak-gel_total_data.csv"]
 
+data_path = pathlib.Path(__file__).parent.parent / "testsuite" / "data"
+
 # Get path to the data from publication
 if filename == "landsgesell2022":
     ref_paths=[]
-    for file in files_landsgesell2022:
-        ref_paths.append(pmb.get_resource(f"testsuite/data/src/{file}"))
+    for name in files_landsgesell2022:
+        ref_paths.append(data_path / "src" / name)
 else:
-    ref_path=pmb.get_resource(f"testsuite/data/src/{filename}")
+    ref_path=data_path / "src" / filename
 
 
 if filename in files_lunkad:
@@ -104,6 +107,5 @@ if filename in files_lunkad+files_blanco+files_torres:
                       "charge_error": Z_ref_err})
 
 # Store the data
-data_path=pmb.get_resource("testsuite/data")
-data.to_csv(f"{data_path}/{output_filenames[filename]}", 
+data.to_csv(data_path / output_filenames[filename],
             index=False)

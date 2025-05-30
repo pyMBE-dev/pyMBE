@@ -19,7 +19,7 @@
 import pyMBE
 import espressomd
 import matplotlib.pyplot as plt
-from lib.lattice import DiamondLattice
+from pyMBE.lib.lattice import DiamondLattice
 
 pmb = pyMBE.pymbe_library(seed=42)
 reduced_unit_set = pmb.get_reduced_units()

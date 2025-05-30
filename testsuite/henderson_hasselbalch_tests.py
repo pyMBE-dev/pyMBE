@@ -25,7 +25,7 @@ mode="short" # Supported modes: "short", "long"
 pH_samples=25 # If more through testing is needed, set to 200
 
 class Test(ut.TestCase):
-    data_root = pathlib.Path(__file__).parent.resolve() / "henderson_hasselbalch_tests_data"
+    data_root = pathlib.Path(__file__).parent / "henderson_hasselbalch_tests_data"
 
     def test(self):
         pmb = pyMBE.pymbe_library(seed=42)
@@ -40,7 +40,7 @@ class Test(ut.TestCase):
         model = '1beadAA'
 
         # Load pKa-values
-        path_to_pka=pmb.get_resource("parameters/pka_sets/Nozaki1967.json")
+        path_to_pka=pmb.root / "parameters" / "pka_sets" / "Nozaki1967.json"
         pmb.load_pka_set(path_to_pka)
 
         # Define the peptides in the pyMBE data frame
@@ -54,8 +54,7 @@ class Test(ut.TestCase):
 
         with self.subTest(msg="Test edge cases"):
             # reference data
-            data_path = pmb.get_resource(path=self.data_root)
-            ref_data_HH = np.loadtxt(f"{data_path}/HH_no_pH_list.csv", delimiter=",")
+            ref_data_HH = np.loadtxt(self.data_root / "HH_no_pH_list.csv", delimiter=",")
             
             # Test that the function returns a list of None when no residues are defined 
             pH_values = [0, 14]
@@ -98,8 +97,7 @@ class Test(ut.TestCase):
             Z_HH_1 = pmb.calculate_HH(molecule_name = "peptide_1")
             Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2")
 
-            data_path = pmb.get_resource(path=self.data_root)
-            ref_data_HH = np.loadtxt(f"{data_path}/HH_no_pH_list.csv", delimiter=",")
+            ref_data_HH = np.loadtxt(self.data_root / "HH_no_pH_list.csv", delimiter=",")
             np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,:])
             np.testing.assert_allclose(Z_HH_2, ref_data_HH[1,:])
 
@@ -111,7 +109,7 @@ class Test(ut.TestCase):
             Z_HH_2 = pmb.calculate_HH(molecule_name = "peptide_2",
                                       pH_list = pH_range)
 
-            ref_data_HH = np.loadtxt(f"{data_path}/HH.csv", delimiter=",")
+            ref_data_HH = np.loadtxt(self.data_root / "HH.csv", delimiter=",")
             np.testing.assert_allclose(Z_HH_1, ref_data_HH[0,::200//pH_samples])
             np.testing.assert_allclose(Z_HH_2, ref_data_HH[1,::200//pH_samples])
 
@@ -124,7 +122,7 @@ class Test(ut.TestCase):
             pmb.define_particle(name = "N1",
                                 z=1,
                                 )
-            path_to_pka=pmb.get_resource("parameters/pka_sets/Nozaki1967.json")
+            path_to_pka=pmb.root / "parameters" / "pka_sets" / "Nozaki1967.json"
             pmb.load_pka_set(path_to_pka)
             pmb.define_residue(name = "RD",
                                central_bead="D",
@@ -140,8 +138,7 @@ class Test(ut.TestCase):
                                side_chains=[])
 
             # Load the reference data
-            data_path = pmb.get_resource(path=self.data_root)
-            ref_data_HH = np.loadtxt(f"{data_path}/HH_no_pH_list.csv", delimiter=",")
+            ref_data_HH = np.loadtxt(self.data_root / "HH_no_pH_list.csv", delimiter=",")
         
 
             # Check the case with non-ionizable groups without charge
@@ -165,7 +162,7 @@ class Test(ut.TestCase):
                                "peptide_2": pep2_concentration},
                     c_salt = c_salt)
 
-            ref_data_HH_Donnan = np.loadtxt(f"{data_path}/HH_Donnan_no_pH_list.csv", delimiter=",")
+            ref_data_HH_Donnan = np.loadtxt(self.data_root / "HH_Donnan_no_pH_list.csv", delimiter=",")
             np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_1"], ref_data_HH_Donnan[0,:])
             np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_2"], ref_data_HH_Donnan[1,:])
 
@@ -177,7 +174,7 @@ class Test(ut.TestCase):
                     c_salt = c_salt,
                     pH_list = pH_range)
 
-            ref_data_HH_Donnan = np.loadtxt(f"{data_path}/HH_Donnan.csv", delimiter=",")
+            ref_data_HH_Donnan = np.loadtxt(self.data_root / "HH_Donnan.csv", delimiter=",")
             np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_1"], ref_data_HH_Donnan[0,::200//pH_samples])
             np.testing.assert_allclose(HH_Donnan_dict["charges_dict"]["peptide_2"], ref_data_HH_Donnan[1,::200//pH_samples])
 

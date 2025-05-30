@@ -5,18 +5,18 @@ import pandas as pd
 import tqdm
 from scipy import interpolate
 import argparse
-from lib.lattice import DiamondLattice
+from pyMBE.lib.lattice import DiamondLattice
 import pyMBE
-from lib import analysis
+from pyMBE.lib import analysis
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convenience
-from lib.handy_functions import setup_electrostatic_interactions
-from lib.handy_functions import relax_espresso_system
-from lib.handy_functions import setup_langevin_dynamics
-from lib.handy_functions import do_reaction
+from pyMBE.lib.handy_functions import setup_electrostatic_interactions
+from pyMBE.lib.handy_functions import relax_espresso_system
+from pyMBE.lib.handy_functions import setup_langevin_dynamics
+from pyMBE.lib.handy_functions import do_reaction
 
 #######################################################
 # Setting parameters for the simulation
@@ -47,11 +47,12 @@ parser.add_argument("--pKa",
 parser.add_argument('--mode',
                     type=str,
                     default= "short-run",
-                    help='sets for how long the simulation runs, valid modes are {valid_modes}')
+                    choices=["long-run", "short-run", "test"],
+                    help='sets for how long the simulation runs')
 parser.add_argument('--output',
-                    type=str,
+                    type=Path,
                     required= False,
-                    default="time_series/weak_polyacid_hydrogel_grxmc",
+                    default=Path(__file__).parent / "time_series" / "weak_polyacid_hydrogel_grxmc",
                     help='output directory')
 
 
@@ -191,7 +192,7 @@ relax_espresso_system(espresso_system=espresso_system,
 print("*** Setting up the GRxMC method and electrostatics... ***")
 
 # Set up the reactions
-path_to_ex_pot=pmb.get_resource("parameters/salt")
+path_to_ex_pot=pmb.root / "parameters" / "salt"
 monovalent_salt_ref_data=pd.read_csv(f"{path_to_ex_pot}/excess_chemical_potential_excess_pressure.csv")
 ionic_strength = pmb.units.Quantity(monovalent_salt_ref_data["cs_bulk_[1/sigma^3]"].values, "1/reduced_length**3")
 excess_chemical_potential = pmb.units.Quantity(monovalent_salt_ref_data["excess_chemical_potential_[kbT]"].values, "reduced_energy")
@@ -271,14 +272,10 @@ inputs={"csalt": args.csalt_res,
         "pKa": args.pKa}
 
 data_path = args.output
-if data_path is None:
-    data_path=pmb.get_resource(path="samples/Landsgesell2022")+"/time_series/"
-
-Path(data_path).mkdir(parents=True,
-                       exist_ok=True)
+data_path.mkdir(parents=True, exist_ok=True)
 
 time_series=pd.DataFrame(time_series)
 filename=analysis.built_output_name(input_dict=inputs)
 
-time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
+time_series.to_csv(data_path / f"{filename}_time_series.csv", index=False)
 

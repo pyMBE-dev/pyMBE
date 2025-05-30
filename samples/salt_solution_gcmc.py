@@ -27,13 +27,13 @@ import tqdm
 
 # Import pyMBE
 import pyMBE
-from lib import analysis
+from pyMBE.lib import analysis
 #Import functions from handy_functions script 
-from lib.handy_functions import relax_espresso_system
-from lib.handy_functions import setup_electrostatic_interactions
-from lib.handy_functions import setup_langevin_dynamics
-from lib.handy_functions import get_number_of_particles
-from lib.handy_functions import do_reaction
+from pyMBE.lib.handy_functions import relax_espresso_system
+from pyMBE.lib.handy_functions import setup_electrostatic_interactions
+from pyMBE.lib.handy_functions import setup_langevin_dynamics
+from pyMBE.lib.handy_functions import get_number_of_particles
+from pyMBE.lib.handy_functions import do_reaction
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -52,9 +52,9 @@ parser.add_argument('--mode',
                     choices=["ideal", "interacting"],
                     help='Set if an ideal or interacting system is simulated.')
 parser.add_argument('--output',
-                    type=str,
+                    type=Path,
                     required= False,
-                    default="time_series/salt_solution_gcmc",
+                    default=Path(__file__).parent / "time_series" / "salt_solution_gcmc",
                     help='output directory')
 parser.add_argument('--no_verbose', 
                     action='store_false', 
@@ -102,8 +102,7 @@ if verbose:
 
 # Set up reactions
 if args.mode == "interacting":
-    path_to_ex_pot=pmb.get_resource("parameters/salt")
-    monovalent_salt_ref_data=pd.read_csv(f"{path_to_ex_pot}/excess_chemical_potential_excess_pressure.csv")
+    monovalent_salt_ref_data=pd.read_csv(pmb.root / "parameters" / "salt" / "excess_chemical_potential_excess_pressure.csv")
     ionic_strength = pmb.units.Quantity(monovalent_salt_ref_data["cs_bulk_[1/sigma^3]"].values, "1/reduced_length**3")
     excess_chemical_potential = pmb.units.Quantity(monovalent_salt_ref_data["excess_chemical_potential_[kbT]"].values, "reduced_energy")
     excess_chemical_potential_interpolated = interpolate.interp1d(ionic_strength.m_as("1/reduced_length**3"), 
@@ -199,14 +198,13 @@ for i in tqdm.trange(N_production_loops, disable=not verbose):
     time_series["c_salt"].append((number_of_ion_pairs/(volume * pmb.N_A)).magnitude)
 
 data_path = args.output
-Path(data_path).mkdir(parents=True, 
-                       exist_ok=True)
+data_path.mkdir(parents=True, exist_ok=True)
 
 time_series=pd.DataFrame(time_series)
 filename=analysis.built_output_name(input_dict=inputs)
 
-time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
+time_series.to_csv(data_path / f"{filename}_time_series.csv", index=False)
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
 #Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df(filename=f'{data_path}/df.csv')
+pmb.write_pmb_df(filename=data_path / "df.csv")

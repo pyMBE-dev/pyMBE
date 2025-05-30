@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 import numpy as np
-import lib.lattice
+import pyMBE.lib.lattice
 import unittest as ut
 import matplotlib
 import matplotlib.pyplot as plt
@@ -98,7 +98,7 @@ class Test(ut.TestCase):
                                                                                  [BeadType3, NodeType2]])
 
     def test_lattice_setup(self):        
-        diamond = lib.lattice.DiamondLattice(mpc, bond_l)
+        diamond = pyMBE.lib.lattice.DiamondLattice(mpc, bond_l)
         espresso_system = espressomd.System(box_l = [diamond.box_l]*3)
         pmb.add_bonds_to_espresso(espresso_system = espresso_system)
         np.testing.assert_raises(ValueError, pmb.create_hydrogel_node, "[1 1 1]", NodeType1, espresso_system)

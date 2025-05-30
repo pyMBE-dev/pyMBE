@@ -18,7 +18,7 @@
 
 import numpy as np
 import espressomd
-from lib.handy_functions import get_number_of_particles
+from pyMBE.lib.handy_functions import get_number_of_particles
 import logging
 import io
 

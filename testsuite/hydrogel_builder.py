@@ -19,7 +19,7 @@
 import numpy as np
 import unittest as ut
 import pyMBE
-from lib.lattice import DiamondLattice
+from pyMBE.lib.lattice import DiamondLattice
 import espressomd
 
 pmb = pyMBE.pymbe_library(seed=42)
