@@ -33,8 +33,8 @@ def build_peptide_in_espresso(seed):
     model = '2beadAA'  # Model with 2 beads per each aminoacid
 
     # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-    path_to_interactions=pmb.get_resource("parameters/peptides/Lunkad2021.json")
-    path_to_pka=pmb.get_resource("parameters/pka_sets/CRC1991.json")
+    path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021.json"
+    path_to_pka=pmb.root / "parameters" / "pka_sets" / "CRC1991.json"
     pmb.load_interaction_parameters(filename=path_to_interactions) 
     pmb.load_pka_set(path_to_pka)
 

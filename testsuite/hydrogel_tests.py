@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 from scipy import interpolate
 import unittest as ut
-from lib import analysis
+from pyMBE.lib import analysis
 import pyMBE
 
 pmb = pyMBE.pymbe_library(seed=42)
@@ -38,7 +38,7 @@ temperature=300*pmb.units.K
 pmb.set_reduced_units(unit_length=unit_length,
                       temperature=temperature)
 
-root = pathlib.Path(__file__).parent.parent.resolve()
+root = pathlib.Path(__file__).parent.parent
 data_root = root / "testsuite" / "hydrogel_tests_data"
 script_path = root / "samples" / "weak_polyacid_hydrogel_grxmc.py"
 mode = "test"
@@ -112,15 +112,13 @@ class HydrogelTest(ut.TestCase):
         rtol = 0.4  # Relative tolerance
         atol = 0.4  # Absolute tolerance
 
-        data_path = pmb.get_resource("testsuite/data")
-        data_ref = pd.read_csv(f"{data_path}/Landsgesell2022a.csv")
+        data_ref = pd.read_csv(root / "testsuite" / "data" / "Landsgesell2022a.csv")
 
         # Compare pressure values
         with self.subTest(msg=f"Testing pressure for c_salt_res={pressure_test_cases['c_salt_res']}"):
             pressures_ref = pmb.units.Quantity((data_ref[(data_ref["pH"] == 5) & (data_ref["cs_bulk"] == 0.00134770889)])["total_isotropic_pressures"].values,"reduced_energy/reduced_length**3")
             box_l_ref = data_ref[(data_ref["pH"] == 5) & (data_ref["cs_bulk"] == 0.00134770889)]["#final_box_l"].values
-            data_path = pmb.get_resource("parameters/salt")
-            monovalent_salt_ref_data=pd.read_csv(f"{data_path}/excess_chemical_potential_excess_pressure.csv")
+            monovalent_salt_ref_data=pd.read_csv(pmb.root / "parameters" / "salt" / "excess_chemical_potential_excess_pressure.csv")
             cs_bulk = pmb.units.Quantity(monovalent_salt_ref_data['cs_bulk_[1/sigma^3]'].values,"1/reduced_length**3")
             excess_press = pmb.units.Quantity(monovalent_salt_ref_data['excess_pressure_[kT/sigma^3]'].values, "reduced_energy/reduced_length**3")
             excess_press = interpolate.interp1d(cs_bulk.m_as("1/L"),
@@ -158,8 +156,7 @@ class HydrogelTest(ut.TestCase):
             results = dict(pool.starmap(run_simulation, [(tc, "titration") for tc in test_cases]))
         rtol = 0.05
         atol = 0.05
-        data_path = pmb.get_resource("testsuite/data")
-        data_ref = pd.read_csv(f"{data_path}/Landsgesell2022a.csv")
+        data_ref = pd.read_csv(root / "testsuite" / "data" / "Landsgesell2022a.csv")
 
         with self.subTest(msg=f"Testing titration curve for c_salt_res={titration_test_cases['c_salt_res']}"):
             for case in test_cases:

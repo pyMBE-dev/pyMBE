@@ -26,11 +26,11 @@ from espressomd.io.writer import vtf
 import pyMBE
 
 # Load some functions from the handy_scripts library for convenience
-from lib.handy_functions import setup_langevin_dynamics
-from lib.handy_functions import relax_espresso_system
-from lib.handy_functions import setup_electrostatic_interactions
-from lib.handy_functions import do_reaction
-from lib.analysis import built_output_name
+from pyMBE.lib.handy_functions import setup_langevin_dynamics
+from pyMBE.lib.handy_functions import relax_espresso_system
+from pyMBE.lib.handy_functions import setup_electrostatic_interactions
+from pyMBE.lib.handy_functions import do_reaction
+from pyMBE.lib.analysis import built_output_name
 
 # Create an instance of pyMBE library
 
@@ -43,9 +43,9 @@ parser.add_argument('--pH',
                     default=7,
                     help='pH of the solution')
 parser.add_argument('--output',
-                    type=str,
+                    type=Path,
                     required= False,
-                    default="samples/time_series/branched_polyampholyte",
+                    default=Path(__file__).parent / "time_series" / "branched_polyampholyte",
                     help='output directory')
 parser.add_argument('--test', 
                     default=False, 
@@ -55,8 +55,8 @@ parser.add_argument('--no_verbose', action='store_false', help="Switch to deacti
 args = parser.parse_args()
 
 # The trajectories of the simulations will be stored using espresso built-up functions in separed files in the folder 'frames'
-Path("./frames").mkdir(parents=True, 
-                       exist_ok=True)
+frames_path = args.output / "frames"
+frames_path.mkdir(parents=True, exist_ok=True)
 
 # Simulation parameters
 pH_value = args.pH
@@ -249,14 +249,13 @@ for step in tqdm.trange(N_samples):
     time_series["charge"].append(charge_dict["mean"])
     if step % N_samples_print == 0:
         N_frame+=1
-        with open(f'frames/trajectory{N_frame}.vtf', mode='w+t') as coordinates:
+        with open(frames_path / f"trajectory{N_frame}.vtf", mode='w+t') as coordinates:
             vtf.writevsf(espresso_system, coordinates)
             vtf.writevcf(espresso_system, coordinates)
 
 # Store time series
-data_path=pmb.get_resource(path=args.output)
-Path(data_path).mkdir(parents=True, 
-                       exist_ok=True)
+data_path=args.output
+data_path.mkdir(parents=True, exist_ok=True)
 time_series=pd.DataFrame(time_series)
 filename=built_output_name(input_dict={"pH":pH_value})
-time_series.to_csv(f"{data_path}/{filename}_time_series.csv", index=False)
+time_series.to_csv(data_path / f"{filename}_time_series.csv", index=False)

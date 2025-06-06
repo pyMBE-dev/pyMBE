@@ -23,12 +23,13 @@ import matplotlib as mpl
 import pyMBE
 import pandas as pd
 import argparse
+import pathlib
 
 parser = argparse.ArgumentParser(description='Plots alpha vs pH  from weak_gel.py and the corresponding reference data from Landsgesell2022.')
 parser.add_argument('--path_to_data',
-                    type=str,
+                    type=pathlib.Path,
                     required= False,
-                    default="samples/Landsgesell2022/time_series/analyzed_data.csv",
+                    default=pathlib.Path(__file__).parent / "time_series" / "analyzed_data.csv",
                     help='path to the analyzed data')
 args = parser.parse_args()
 
@@ -37,13 +38,12 @@ pmb = pyMBE.pymbe_library(seed=42)
 ref_cs = 0.01
 
 # Read the reference data
-data_path = pmb.get_resource("testsuite/data")
-data_ref = pd.read_csv(f"{data_path}/Landsgesell2022a.csv")
+data_path = pathlib.Path(__file__).parent.parent.parent / "testsuite" / "data"
+data_ref = pd.read_csv(data_path / "Landsgesell2022a.csv")
 data_ref['cs'] = pd.to_numeric(data_ref['cs'], errors='coerce')
 data_ref = data_ref[np.isclose(data_ref['cs'], ref_cs)].sort_values(by="pH")
 # Read the analyzed time series
-time_series_folder_path=pmb.get_resource(args.path_to_data)
-analyzed_data = pd.read_csv(time_series_folder_path, header=[0,1])
+analyzed_data = pd.read_csv(args.path_to_data, header=[0,1])
 analyzed_data_to_plot={"pH" : [],
                        "alpha": [],
                        "alpha_err": []    
