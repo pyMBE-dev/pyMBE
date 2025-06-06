@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- Parameter sets (pKa values and force field-related parameters) from previous work are now belong to the pyMBE package and are directly accesible from the root path of the package. For example, the path to the Lunkad2021 data set can be accessed as `pmb.root / "parameters" / "peptides" / "Lunkad2021.json"`. (#132)
 - Peptide molecules have now their own pyMBE type pmb_type = "peptide" instead that sharing type with custom molecules pmb_type = "molecule". (#126)
 - Unified exception handling, soft errors and internal information messages are now handled by loggins and hard errors by raise statements. (#126)
 - `lib.handy_functions.setup_langevin_dynamics` now takes `seed` as input argument instead than `SEED` for coherence with the rest of the library. (#118)
@@ -58,6 +59,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unsupported ESPResSo features now raise a `NotImplementedError` instead of a `ValueError`. (#113)
 
 ### Removed
+- `pmb.get_resource()` is no longer needed because pyMBE has been restructured as a package and therefore all of its resources are internally accessible. (#135)
+- `lib/create_cg_from_pdb.py` because it was not covered by CI testing and it was imposing a too restrictive coarse-graning of globular proteins to be used for the general public. Future development plans include substituting this functunality for a more general parser. (#135)
 - `tutorials/solution_tutorial.ipynb` to avoid code repetition. Instead, the exercise in `pyMBE_tutorial.ipynb` has been adapted to match one of the example in `samples/branched_polyampholyte.py`. (#130)
 - `verbose` optional argument has been deprecated in most of pyMBE methods, except those where is needed to silence verbose from ESPResSo. Now the module `loggins` is used instead for handling pyMBE's logs. (#119)
 - `lib.handy_functions.minimize_espresso_system_energy` because its name was confusing (it was not only minimizing the system energy) and was changing the parameters of the integrator under the hood. (#118)
