@@ -10,11 +10,19 @@ permissions:
 
 jobs:
   samples:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: ${{ github.event_name == 'schedule' && github.repository == 'pyMBE-dev/pyMBE' || github.event_name != 'schedule' }}
     env:
       FI_PROVIDER: "^psm3,psm3;ofi_rxd"
       OMPI_MCA_mtl_ofi_provider_exclude: psm3
+    strategy:
+      matrix:
+        espresso:
+          - version: "4.2.2"
+            eessi: ESPResSo/4.2.2-foss-2023a
+          - version: "5.0-dev"
+            eessi: ESPResSo/8aa60cecd56cdd10ab62042c567552f347374f36-foss-2023b
+    name: ubuntu - ESPResSo ${{ matrix.espresso.version }}
     steps:
       - name: Setup EESSI
         uses: eessi/github-action-eessi@v3
@@ -26,7 +34,7 @@ jobs:
         uses: ./.github/actions/dependencies
         with:
           modules: |-
-            ESPResSo/4.2.2-foss-2023a
+            ${{ matrix.espresso.eessi }}
       - name: Run testsuite
         run: |
           module restore pymbe
