@@ -122,8 +122,8 @@ def relax_espresso_system(espresso_system, seed, gamma=1e-3, Nsteps_steepest_des
     """
     Relaxes the energy of the given ESPResSo system by performing the following steps:
     (1) Steepest descent energy minimization,
-    (2) A series of Langevin Dynamics runs with increasing damping constant.
-    
+    (2) A series of Langevin Dynamics runs with exponentially increasing damping constant, capped at gamma=10.
+
     Args:
         espresso_system (`espressomd.system.System`): system object of espressomd library.
         seed (`int`): Seed for the random number generator for the thermostat.
@@ -162,7 +162,9 @@ def relax_espresso_system(espresso_system, seed, gamma=1e-3, Nsteps_steepest_des
     for _ in range(Nmax_iter_relax):
         espresso_system.integrator.set_vv()
         espresso_system.thermostat.set_langevin(kT=1., gamma=gamma, seed=seed)
+        espresso_system.integrator.run(Nsteps_iter_relax)
         gamma *= 1.1
+        gamma = min(10., gamma)
         espresso_system.thermostat.turn_off()
 
     logging.debug("*** Finished Langevin Dynamics relaxation ***")

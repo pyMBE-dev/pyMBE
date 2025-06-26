@@ -20,6 +20,7 @@
 
 import unittest as ut
 import espressomd
+import espressomd.version
 import pyMBE
 import pyMBE.lib.handy_functions as hf
 import logging
@@ -51,7 +52,7 @@ langevin_inputs={"espresso_system":espresso_system,
                 "adjust_max_skin": True}
 
 relax_inputs={"espresso_system":espresso_system, 
-              "gamma":1, 
+              "gamma":0.01,
               "Nsteps_steepest_descent":5000, 
               "max_displacement":0.1, 
               "Nmax_iter_relax":100, 
@@ -70,6 +71,15 @@ electrostatics_inputs={"units": pmb.units,
 
 
 class Test(ut.TestCase):
+
+    def setUp(self):
+        espresso_system.time_step = 1e-2
+        espresso_system.cell_system.skin = 5.
+
+    def tearDown(self):
+        espresso_system.part.clear()
+        espresso_system.non_bonded_inter.reset()
+
     def test_exceptions_langevin_setup(self):
         """Test exceptions in :func:`lib.handy_functions.setup_langevin_dynamics`"""
         broken_inputs  = langevin_inputs.copy()

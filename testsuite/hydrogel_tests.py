@@ -96,10 +96,10 @@ def run_simulation(single_case, test_type):
         }.items())
 
         data = analysis.analyze_time_series(path_to_datafolder=time_series_path)
-        return (result_key, data)
+    return (result_key, data)
 
 class HydrogelTest(ut.TestCase):
-    
+
     def test_pressure(self):
         test_cases = [
             {"c_salt_res": pressure_test_cases["c_salt_res"],
@@ -110,7 +110,6 @@ class HydrogelTest(ut.TestCase):
         with multiprocessing.Pool(processes=2) as pool:
             results = dict(pool.starmap(run_simulation, [(tc, "pressure") for tc in test_cases]))
         rtol = 0.4  # Relative tolerance
-        atol = 0.4  # Absolute tolerance
 
         data_ref = pd.read_csv(root / "testsuite" / "data" / "Landsgesell2022a.csv")
 
@@ -141,8 +140,8 @@ class HydrogelTest(ut.TestCase):
                 test_pressure_value = test_pressure.iloc[0]  # or test_pressure.item()
                 test_pressure = pmb.units.Quantity(test_pressure_value, "reduced_energy/reduced_length**3")
                 p_sys_minus_p_res = test_pressure.m_as("bar") - p_res.m_as("bar")
-                np.testing.assert_allclose(p_sys_minus_p_res, pressure_ref, rtol=rtol, atol=atol)
-            
+                np.testing.assert_allclose(p_sys_minus_p_res, pressure_ref, rtol=rtol, atol=1e-5)
+
     def test_titration(self):
         test_cases = [
             {
@@ -155,7 +154,6 @@ class HydrogelTest(ut.TestCase):
         with multiprocessing.Pool(processes=2) as pool:
             results = dict(pool.starmap(run_simulation, [(tc, "titration") for tc in test_cases]))
         rtol = 0.05
-        atol = 0.05
         data_ref = pd.read_csv(root / "testsuite" / "data" / "Landsgesell2022a.csv")
 
         for case in test_cases:
@@ -172,8 +170,7 @@ class HydrogelTest(ut.TestCase):
                 mask = np.isclose(results[key][("pH", "value")].astype(float), float(pH), atol=1e-5)
                 test_alpha = results[key][mask][("mean", "alpha")]
                 test_alpha_val = test_alpha.iloc[0]
-                np.testing.assert_allclose(test_alpha_val, ref_alpha, rtol=rtol, atol=atol)
+                np.testing.assert_allclose(test_alpha_val, ref_alpha, rtol=rtol, atol=1e-5)
 
 if __name__ == "__main__":
     ut.main()
-

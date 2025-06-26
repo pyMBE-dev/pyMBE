@@ -180,7 +180,7 @@ pmb.setup_lj_interactions(espresso_system=espresso_system)
 print("*** Relaxing the system... ***")
 relax_espresso_system(espresso_system=espresso_system,
                       seed=seed,
-                      Nsteps_iter_relax=1000)
+                      Nsteps_iter_relax=100)
 
 setup_langevin_dynamics(espresso_system=espresso_system,
                         kT = pmb.kT,
@@ -198,13 +198,13 @@ print("*** Box progressive rescaling... ***")
 for j in tqdm.trange(steps_needed):
     espresso_system.change_volume_and_rescale_particles(
         d_new=espresso_system.box_l[0] - steps_size, dir="xyz")
-    espresso_system.integrator.run(1000)
+    espresso_system.integrator.run(500)
 # Just to make sure that the system has the target size
 espresso_system.change_volume_and_rescale_particles(
     d_new=L_target, dir="xyz")
 relax_espresso_system(espresso_system=espresso_system,
                       seed=seed,
-                      Nsteps_iter_relax=1000,
+                      Nsteps_iter_relax=100,
                       max_displacement=0.01)
 
 print("*** Setting up the GRxMC method and electrostatics... ***")
