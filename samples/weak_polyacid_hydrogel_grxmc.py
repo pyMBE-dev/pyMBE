@@ -1,3 +1,22 @@
+#
+# Copyright (C) 2025 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import espressomd
 from pathlib import Path
 import numpy as np
@@ -174,16 +193,15 @@ L_target = args.L_fraction * L_max
 steps_size = 0.1
 steps_needed = int(abs((L_max - L_target)/steps_size))
 
-print("*** Box dimension changing... ***")
+print("*** Box progressive rescaling... ***")
 
 for j in tqdm.trange(steps_needed):
-    espresso_system.change_volume_and_rescale_particles(d_new = espresso_system.box_l[0]-steps_size, 
-                                                        dir = "xyz")
+    espresso_system.change_volume_and_rescale_particles(
+        d_new=espresso_system.box_l[0] - steps_size, dir="xyz")
     espresso_system.integrator.run(1000)
-    print(f"step {j+1} of {steps_needed} done")
 # Just to make sure that the system has the target size
-espresso_system.change_volume_and_rescale_particles(d_new = L_target, 
-                                                    dir = "xyz")
+espresso_system.change_volume_and_rescale_particles(
+    d_new=L_target, dir="xyz")
 relax_espresso_system(espresso_system=espresso_system,
                       seed=seed,
                       Nsteps_iter_relax=1000,

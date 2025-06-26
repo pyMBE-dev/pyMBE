@@ -115,17 +115,17 @@ class HydrogelTest(ut.TestCase):
         data_ref = pd.read_csv(root / "testsuite" / "data" / "Landsgesell2022a.csv")
 
         # Compare pressure values
-        with self.subTest(msg=f"Testing pressure for c_salt_res={pressure_test_cases['c_salt_res']}"):
-            pressures_ref = pmb.units.Quantity((data_ref[(data_ref["pH"] == 5) & (data_ref["cs_bulk"] == 0.00134770889)])["total_isotropic_pressures"].values,"reduced_energy/reduced_length**3")
-            box_l_ref = data_ref[(data_ref["pH"] == 5) & (data_ref["cs_bulk"] == 0.00134770889)]["#final_box_l"].values
-            monovalent_salt_ref_data=pd.read_csv(pmb.root / "parameters" / "salt" / "excess_chemical_potential_excess_pressure.csv")
-            cs_bulk = pmb.units.Quantity(monovalent_salt_ref_data['cs_bulk_[1/sigma^3]'].values,"1/reduced_length**3")
-            excess_press = pmb.units.Quantity(monovalent_salt_ref_data['excess_pressure_[kT/sigma^3]'].values, "reduced_energy/reduced_length**3")
-            excess_press = interpolate.interp1d(cs_bulk.m_as("1/L"),
-                                    excess_press.m_as("bar"))
-            p_id = 2*ref_cs*pmb.kT
-            p_res = p_id + excess_press(ref_cs.m_as("1/L"))*pmb.units.bar
-            for case in test_cases:
+        pressures_ref = pmb.units.Quantity((data_ref[(data_ref["pH"] == 5) & (data_ref["cs_bulk"] == 0.00134770889)])["total_isotropic_pressures"].values,"reduced_energy/reduced_length**3")
+        box_l_ref = data_ref[(data_ref["pH"] == 5) & (data_ref["cs_bulk"] == 0.00134770889)]["#final_box_l"].values
+        monovalent_salt_ref_data=pd.read_csv(pmb.root / "parameters" / "salt" / "excess_chemical_potential_excess_pressure.csv")
+        cs_bulk = pmb.units.Quantity(monovalent_salt_ref_data['cs_bulk_[1/sigma^3]'].values,"1/reduced_length**3")
+        excess_press = pmb.units.Quantity(monovalent_salt_ref_data['excess_pressure_[kT/sigma^3]'].values, "reduced_energy/reduced_length**3")
+        excess_press = interpolate.interp1d(cs_bulk.m_as("1/L"),
+                                excess_press.m_as("bar"))
+        p_id = 2*ref_cs*pmb.kT
+        p_res = p_id + excess_press(ref_cs.m_as("1/L"))*pmb.units.bar
+        for case in test_cases:
+            with self.subTest(msg=f"Testing pressure for pH={case['pH']}, L_fraction={case['L_fraction']}, c_salt_res={case['c_salt_res']}"):
                 L_fraction = case["L_fraction"]
                 pH = case["pH"]
                 key = frozenset({
@@ -158,8 +158,8 @@ class HydrogelTest(ut.TestCase):
         atol = 0.05
         data_ref = pd.read_csv(root / "testsuite" / "data" / "Landsgesell2022a.csv")
 
-        with self.subTest(msg=f"Testing titration curve for c_salt_res={titration_test_cases['c_salt_res']}"):
-            for case in test_cases:
+        for case in test_cases:
+            with self.subTest(msg=f"Testing titration curve for pH={case['pH']}, L_fraction={case['L_fraction']}, c_salt_res={case['c_salt_res']}"):
                 pH = case["pH"]
                 key = frozenset({
                     "pH": pH,

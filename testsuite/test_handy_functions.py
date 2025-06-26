@@ -16,8 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Tests that the utility functions in lib/handy_functions work properly
-# Import pyMBE and other libraries
+"""Test that the utility functions in lib/handy_functions work properly."""
 
 import unittest as ut
 import espressomd
@@ -25,8 +24,8 @@ import pyMBE
 import pyMBE.lib.handy_functions as hf
 import logging
 import io
+import re
 import numpy as np
-import io
 # Create an in-memory log stream
 log_stream = io.StringIO()
 logging.basicConfig(level=logging.INFO, 
@@ -72,7 +71,7 @@ electrostatics_inputs={"units": pmb.units,
 
 class Test(ut.TestCase):
     def test_exceptions_langevin_setup(self):
-        print("\n*** Testing exceptions in lib.handy_functions.setup_langevin_dynamics ***")
+        """Test exceptions in :func:`lib.handy_functions.setup_langevin_dynamics`"""
         broken_inputs  = langevin_inputs.copy()
         broken_inputs["seed"] = "pyMBE"
         self.assertRaises(TypeError, hf.setup_langevin_dynamics, **broken_inputs)
@@ -86,10 +85,9 @@ class Test(ut.TestCase):
         broken_inputs["min_skin"] = 10
         broken_inputs["max_skin"] = 1
         self.assertRaises(ValueError, hf.setup_langevin_dynamics, **broken_inputs)
-        print("*** Unit test passed ***")
+
     def test_langevin_setup(self):
-        import re
-        print("\n*** Testing setup in lib.handy_functions.setup_langevin_dynamics ***")
+        """Test :func:`lib.handy_functions.setup_langevin_dynamics`"""
         hf.setup_langevin_dynamics(**langevin_inputs)
         ## Test setup of the integrator
         self.assertEqual(first=langevin_inputs["time_step"],
@@ -115,15 +113,12 @@ class Test(ut.TestCase):
              [langevin_inputs["gamma"]]*3,
              np.copy(thermostat_setup["gamma"]),
              err_msg="`lib.handy_functions.setup_langevin_dynamics` is setting a different seed than the input one")
-        print("*** Unit test passed ***")
-        print("\n*** Testing optimization of skin in lib.handy_functions.setup_langevin_dynamics ***")
+
         espresso_system.thermostat.turn_off()
         espresso_system.part.add(pos=[1,1,1])
         espresso_system.part.add(pos=[2,2,2])
-        espresso_system.non_bonded_inter[0,0].lennard_jones.set_params(epsilon = 1, 
-                                                                       sigma = 1, 
-                                                                       cutoff = 3,
-                                                                       shift = "auto")
+        espresso_system.non_bonded_inter[0,0].lennard_jones.set_params(
+            epsilon = 1, sigma = 1, cutoff = 3, shift = "auto")
         langevin_inputs_opt_skin  = langevin_inputs.copy() 
         langevin_inputs_opt_skin["tune_skin"] = True
         hf.setup_langevin_dynamics(**langevin_inputs_opt_skin)
@@ -132,9 +127,9 @@ class Test(ut.TestCase):
         self.assertEqual(first=optimized_skin,
                          second=espresso_system.cell_system.skin,
                          msg="The optimized skin has not been set in espresso")
-        print("*** Unit test passed ***")
+
     def test_exceptions_relax_espresso_system(self):
-        print("\n*** Testing exceptions in lib.handy_functions.relax_espresso_system ***")
+        """Test exceptions in :func:`lib.handy_functions.relax_espresso_system`"""
         broken_inputs  = relax_inputs.copy()
         broken_inputs["gamma"] = -1
         self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
@@ -150,27 +145,24 @@ class Test(ut.TestCase):
         broken_inputs  = relax_inputs.copy()
         broken_inputs["Nmax_iter_relax"] = -1
         self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
-        print("*** Unit test passed ***")
+
     def test_relax_espresso_system(self):
-        print("\n*** Testing relaxation done in lib.handy_functions.relax_espresso_system ***")
+        """Test :func:`lib.handy_functions.relax_espresso_system`"""
         espresso_system.part.add(pos=[1,1,1])
         espresso_system.part.add(pos=[1.15,1.15,1.15])
         espresso_system.part.add(pos=[1.5,1.5,1.5])
         espresso_system.part.add(pos=[2,2,2])
         espresso_system.part.add(pos=[2.15,2.15,2.15])
         espresso_system.part.add(pos=[1,1,1.5])
-        espresso_system.non_bonded_inter[0,0].lennard_jones.set_params(epsilon = 1, 
-                                                                       sigma = 1, 
-                                                                       cutoff = 2**(1./6.),
-                                                                       shift = "auto")
+        espresso_system.non_bonded_inter[0,0].lennard_jones.set_params(
+            epsilon = 1, sigma = 1, cutoff = 2**(1./6.), shift = "auto")
         min_dist = hf.relax_espresso_system(**relax_inputs)
         self.assertGreater(a=min_dist,
                            b=0.9,
                            msg="lib.handy_functions.relax_espresso_system is unable to relax a simple lj system")
-        print("*** Unit test passed ***")
 
     def test_exceptions_electrostatics(self):
-        print("\n*** Testing exceptions in lib.handy_functions.setup_electrostatic_interactions ***")
+        """Test exceptions in :func:`lib.handy_functions.setup_electrostatic_interactions`"""
         broken_inputs  = electrostatics_inputs.copy()
         broken_inputs["units"] = "pyMBE"
         self.assertRaises(TypeError, hf.setup_electrostatic_interactions, **broken_inputs)
@@ -183,9 +175,9 @@ class Test(ut.TestCase):
         broken_inputs  = electrostatics_inputs.copy()
         broken_inputs["c_salt"] = 10*pmb.units.nm
         self.assertRaises(ValueError, hf.setup_electrostatic_interactions, **broken_inputs)
-        print("*** Unit test passed ***")
+
     def test_setup_electrostatics(self):
-        print("\n*** Testing the setup in lib.handy_functions.setup_electrostatic_interactions ***")
+        """Test :func:`lib.handy_functions.setup_electrostatic_interactions`"""
         espresso_system.part.add(pos=[1,1,1], q=1)
         espresso_system.part.add(pos=[5.15,5.15,5.15], q=-1)
         Bjerrum_length = pmb.e.to('reduced_charge')**2 / (4 * pmb.units.pi * pmb.units.eps0 * electrostatics_inputs["solvent_permittivity"] * electrostatics_inputs["kT"].to('reduced_energy'))
@@ -289,6 +281,6 @@ class Test(ut.TestCase):
         self.assertAlmostEqual(first=dh_params["r_cut"],
                                 second=electrostatics_inputs["params"]["r_cut"],
                                 msg="lib.handy_functions.setup_electrostatic_interactions sets up the wrong cut-off for the DH method")
-        print("*** Unit test passed ***")
+
 if __name__ == "__main__":
     ut.main()
