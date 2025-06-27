@@ -55,7 +55,6 @@ relax_inputs={"espresso_system":espresso_system,
               "gamma":0.01,
               "Nsteps_steepest_descent":5000, 
               "max_displacement":0.1, 
-              "Nmax_iter_relax":100, 
               "Nsteps_iter_relax":500,
               "seed": seed}
 
@@ -153,8 +152,6 @@ class Test(ut.TestCase):
         broken_inputs["max_displacement"] = -1
         self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
         broken_inputs  = relax_inputs.copy()
-        broken_inputs["Nmax_iter_relax"] = -1
-        self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
 
     def test_relax_espresso_system(self):
         """Test :func:`lib.handy_functions.relax_espresso_system`"""
