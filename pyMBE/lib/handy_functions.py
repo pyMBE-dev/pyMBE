@@ -122,8 +122,8 @@ def relax_espresso_system(espresso_system, seed, gamma=1e-3, Nsteps_steepest_des
     """
     Relaxes the energy of the given ESPResSo system by performing the following steps:
     (1) Steepest descent energy minimization,
-    (2) A series of Langevin Dynamics runs with increasing damping constant.
-    
+    (2) A series of Langevin Dynamics runs with exponentially increasing damping constant, capped at gamma=10.
+
     Args:
         espresso_system (`espressomd.system.System`): system object of espressomd library.
         seed (`int`): Seed for the random number generator for the thermostat.
@@ -150,24 +150,24 @@ def relax_espresso_system(espresso_system, seed, gamma=1e-3, Nsteps_steepest_des
     if Nmax_iter_relax <= 0:
         raise ValueError("'Nmax_iter_relax' must be positive.")
     logging.debug("*** Relaxing the energy of the system... ***")
-    logging.debug("*** Starting steppest descent minimization ***")
+    logging.debug("*** Starting steepest descent minimization ***")
     espresso_system.thermostat.turn_off()
     espresso_system.integrator.set_steepest_descent(f_max=0,
                                                     gamma=gamma, 
                                                     max_displacement=max_displacement)
     espresso_system.integrator.run(Nsteps_steepest_descent)
-    logging.debug("*** Finished steppest descent minimization ***")
+    logging.debug("*** Finished steepest descent minimization ***")
     logging.debug("*** Starting Langevin Dynamics relaxation ***")
-    
+
     for _ in range(Nmax_iter_relax):
         espresso_system.integrator.set_vv()
-        espresso_system.thermostat.set_langevin(kT= 1, 
-                                            gamma= gamma, 
-                                            seed= seed)
+        espresso_system.thermostat.set_langevin(kT=1., gamma=gamma, seed=seed)
+        espresso_system.integrator.run(Nsteps_iter_relax)
         gamma *= 1.1
+        gamma = min(10., gamma)
         espresso_system.thermostat.turn_off()
-        
-    logging.debug("*** Finished steppest descent minimization ***")
+
+    logging.debug("*** Finished Langevin Dynamics relaxation ***")
     logging.info(f"*** Minimum particle distance after relaxation: {espresso_system.analysis.min_dist()} ***")
     logging.debug("*** Relaxation finished ***")
     return espresso_system.analysis.min_dist()
