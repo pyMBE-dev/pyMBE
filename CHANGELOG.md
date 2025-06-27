@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to CTest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
+- Support for conda and miniconda virtual environments. (#134)
 - Private methods for sanity checks, used in various methods to ensure that the inputs are pyMBE objects of the expected type. (#126)
 - New benchmark for hydrogels, including scripts to reproduce the data `samples/Landsgesell2022/run_simulations.py` and `samples/Landsgesell2022/plot_pH_vs_alpha.py` and `samples/Landsgesell2022/plot_P_vs_V.py` (#103)
 - New sample scripts for hydrogels `samples/build_hydrogel.py` and  `samples/weak_polyacid_hydrogel_grxmc.py` (#103)

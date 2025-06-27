@@ -55,7 +55,6 @@ relax_inputs={"espresso_system":espresso_system,
               "gamma":0.01,
               "Nsteps_steepest_descent":5000, 
               "max_displacement":0.1, 
-              "Nmax_iter_relax":100, 
               "Nsteps_iter_relax":500,
               "seed": seed}
 
@@ -153,23 +152,39 @@ class Test(ut.TestCase):
         broken_inputs["max_displacement"] = -1
         self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
         broken_inputs  = relax_inputs.copy()
-        broken_inputs["Nmax_iter_relax"] = -1
-        self.assertRaises(ValueError, hf.relax_espresso_system, **broken_inputs)
 
     def test_relax_espresso_system(self):
         """Test :func:`lib.handy_functions.relax_espresso_system`"""
-        espresso_system.part.add(pos=[1,1,1])
-        espresso_system.part.add(pos=[1.15,1.15,1.15])
-        espresso_system.part.add(pos=[1.5,1.5,1.5])
-        espresso_system.part.add(pos=[2,2,2])
-        espresso_system.part.add(pos=[2.15,2.15,2.15])
-        espresso_system.part.add(pos=[1,1,1.5])
+        positions = [[1,1,1], 
+                     [1.15,1.15,1.15], 
+                     [1.5,1.5,1.5],
+                     [2,2,2],
+                     [2.15,2.15,2.15],
+                     [1,1,1.5]]
+        for pos in positions:
+            espresso_system.part.add(pos=pos)
         espresso_system.non_bonded_inter[0,0].lennard_jones.set_params(
             epsilon = 1, sigma = 1, cutoff = 2**(1./6.), shift = "auto")
         min_dist = hf.relax_espresso_system(**relax_inputs)
         self.assertGreater(a=min_dist,
                            b=0.9,
                            msg="lib.handy_functions.relax_espresso_system is unable to relax a simple lj system")
+        espresso_system.part.clear()
+        # Test that the LD run is actually performed
+        for pos in positions:
+            espresso_system.part.add(pos=pos)
+        test_inputs  = relax_inputs.copy()
+        test_inputs["Nsteps_steepest_descent"] = 1
+        test_inputs["max_displacement"] = 0
+        hf.relax_espresso_system(**relax_inputs)
+        new_positions = espresso_system.part.all().pos
+        distances = np.linalg.norm(np.array(positions) - new_positions, 
+                                   axis=1)
+        # Check that the positions have changed
+        self.assertTrue(np.all(distances > 0.1),
+                        msg="lib.handy_functions.relax_espresso_system does not change the positions of the particles during relaxation")
+
+
 
     def test_exceptions_electrostatics(self):
         """Test exceptions in :func:`lib.handy_functions.setup_electrostatic_interactions`"""
