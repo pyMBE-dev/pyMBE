@@ -175,7 +175,7 @@ class Test(ut.TestCase):
             espresso_system.part.add(pos=pos)
         test_inputs  = relax_inputs.copy()
         test_inputs["Nsteps_steepest_descent"] = 1
-        test_inputs["max_displacement"] = 0.1
+        test_inputs["max_displacement"] = 0
         hf.relax_espresso_system(**relax_inputs)
         new_positions = espresso_system.part.all().pos
         distances = np.linalg.norm(np.array(positions) - new_positions, 
