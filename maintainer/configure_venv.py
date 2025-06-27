@@ -18,6 +18,7 @@
 #
 
 import os
+import sys
 import stat
 import enum
 import argparse
@@ -43,6 +44,15 @@ def make_pth(name, path):
         f.write(os.path.realpath(path))
 
 
+if not hasattr(enum, "StrEnum") and sys.version_info < (3, 11):
+    # backport StrEnum
+    class StrEnum(str, enum.Enum):
+        @staticmethod
+        def _generate_next_value_(name, *args, **kwargs):  # pylint: disable=unused-argument
+            return name.lower()
+    enum.StrEnum = StrEnum
+
+
 class PyVirtualEnv(enum.StrEnum):
     venv = enum.auto()
     conda = enum.auto()
@@ -51,21 +61,23 @@ class PyVirtualEnv(enum.StrEnum):
 def detect_py_virtual_environment():
     virtual_env_family_tried = set()
     virtual_env_family_found = set()
-    # venv
+    # detect venv
     key = PyVirtualEnv.venv
     virtual_env_family_tried.add(key)
     if os.environ.get("VIRTUAL_ENV"):
         virtual_env_family_found.add(key)
-    # conda/miniconda
+    # detect conda/miniconda
     key = PyVirtualEnv.conda
     virtual_env_family_tried.add(key)
     if int(os.environ.get("CONDA_SHLVL", "0")) >= 1:
         virtual_env_family_found.add(key)
+    # process results
     if len(virtual_env_family_found) > 1:
-        raise RuntimeError(f"This script should be run in a Python virtual environment, but more than 1 was detected (found {', '.join(sorted(virtual_env_family_found))})")
+        raise RuntimeError(f"This script should be run in a Python virtual environment, but more than one was detected (found {', '.join(sorted(virtual_env_family_found))})")
     if len(virtual_env_family_found) == 0:
         raise RuntimeError(f"This script should be run in a Python virtual environment, but none was detected (tried {', '.join(sorted(virtual_env_family_tried))})")
     return list(virtual_env_family_found)[0]
+
 
 virtual_env_family = detect_py_virtual_environment()
 
