@@ -10,7 +10,7 @@ To contribute to the pyMBE module, first one needs to be added as a member of th
 If you want to contribute to the development of the pyMBE module, please contact Dr. Pablo M. Blanco (pablb@ntnu.no).
 
 ## Authorship and Contributorship system
-For more information on our author and contributor system, we refer the interested reader to our [Contributor Manifesto](CONTRIBUTOR_MANIFESTO.md)
+For more information on our author and contributor system, we refer the interested reader to our [Contributor Manifesto](CONTRIBUTOR_MANIFESTO.md).
 
 ## How to contribute to pyMBE
 Create a fork of the repository and submit your contribution in the form of a pull request.
