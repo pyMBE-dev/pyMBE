@@ -9,29 +9,8 @@ New developers are welcome to contribute to extend the functionalities of the py
 To contribute to the pyMBE module, first one needs to be added as a member of this GitHub repository.
 If you want to contribute to the development of the pyMBE module, please contact Dr. Pablo M. Blanco (pablb@ntnu.no).
 
-## Authorship system
-To warrant a co-author status, one should contribute in one of the following way:
-- New methods and modules that extend the functionalies of the module.
-- Bugfixes and code enhancements that improve the quality of the module.
-- Development of tutorials and other documentation of the module.
-- Scripts for samples on how to use pyMBE, for testing of the library or for handy tools to extend the features fo the library.
-- Ideas on the software design and architecture. This includes ideas on improving the code quality, existing features of the module, adding new features and other conceptual contributions that have a significant impact on the development of pyMBE.
-
-In the pyMBE community, we use a tier system to select how to reward our contributors: 
-
-### Tier-0 
-- Contributors of big features of pyMBE, including stand-alone modules or a set of several methods.
-- Admins of pyMBE.
-- Contributors whose ideas had a substantial impact on the carpentry of the library.
-
-### Tier-1
-- Occasional developers of individual methods for pyMBE.
-- Contributors of bugfixes and small code enhancements.
-- Contributors of single-purpose scripts and tutorials.
-
-All tier contributors will be acknowledged as authors of the module in `AUTHORS.md`. 
-Additionally, Tier-0 contributors will be acknowledged in the `CITATION.cff`.
-New Tier-0 contributors will be included in the `CITATION.cff` file after the corresponding release of a new version of the software.
+## Authorship and Contributorship system
+For more information on our author and contributor system, we refer the interested reader to our [Contributor Manifesto](CONTRIBUTOR_MANIFESTO.md)
 
 ## How to contribute to pyMBE
 Create a fork of the repository and submit your contribution in the form of a pull request.
