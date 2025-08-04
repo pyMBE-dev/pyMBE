@@ -3,7 +3,7 @@
 We welcome and value all contributions, from small fixes to large features. 
 We also recognize the importance of non-code contributions, including, but not limited to, bug reports, code reviews, admin tasks, wiki contributions, and feedback from users and scientific advisors.
 
-We agree with the CRediT's assessment that traditional bibliographic conventions for defining authorship are outdated.[^1]: 
+We agree with the CRediT's assessment that traditional bibliographic conventions for defining authorship are outdated.[^1] 
 We agree that a new form of credit needs to emerge[^2] that would allow us to move from authorship to contributorship. 
 We also think the current CRediT taxonomy is inadequate to describe software contributions.
 
@@ -76,9 +76,9 @@ In case of conflict between two members of the community, one or more members of
 **Bibliography**:
 
 [^1]: ANSI/NISO Z39.104-2022, CRediT, Contributor Roles Taxonomy". NISO. https://doi.org/10.3789/ansi.niso.z39.104-2022
-[^2] Brand A., Allen L., Altman M., Hlava M. and Scott J., Beyond authorship: attribution, contribution, collaboration, and credit. Learned Publishing, 28:151-155 (2015). https://doi.org/10.1087/20150211
-[^3] Semantic Versioning 2.0.0, https://semver.org/
-[^4] Garijo D, Ménager H, Hwang L, Trisovic A, Hucka M, Morrell T, Allen A, Task Force on Best Practices for Software Registries, SciCodes Consortium. Nine best practices for research software registries and repositories. PeerJ Computer Science 8:e1023 (2022). https://doi.org/10.7717/peerj-cs.1023
-[^5] Pamela S. Chestek, A Theory of Joint Authorship for Free and Open Source Software Projects, Colorado Technology Law Journal 16(2):285 (2018). https://scholar.law.colorado.edu/ctlj/vol16/iss2/5/
-[^6] Smith A. M., Katz D. S., Niemeyer K. E., FORCE11 Software Citation Working Group. Software citation principles. PeerJ Computer Science 2:e86 (2016). https://doi.org/10.7717/peerj-cs.86
-[^7] Druskat S., Spaaks J. H., Chue Hong N., Haines R., Baker J., Bliven S., Willighagen E., Pérez-Suárez D., Konovalov A., Citation File Format (1.2.0). Zenodo (2021). https://doi.org/10.5281/zenodo.5171937
+[^2]: Brand A., Allen L., Altman M., Hlava M. and Scott J., Beyond authorship: attribution, contribution, collaboration, and credit. Learned Publishing, 28:151-155 (2015). https://doi.org/10.1087/20150211
+[^3]: Semantic Versioning 2.0.0, https://semver.org/
+[^4]: Garijo D, Ménager H, Hwang L, Trisovic A, Hucka M, Morrell T, Allen A, Task Force on Best Practices for Software Registries, SciCodes Consortium. Nine best practices for research software registries and repositories. PeerJ Computer Science 8:e1023 (2022). https://doi.org/10.7717/peerj-cs.1023
+[^5]: Pamela S. Chestek, A Theory of Joint Authorship for Free and Open Source Software Projects, Colorado Technology Law Journal 16(2):285 (2018). https://scholar.law.colorado.edu/ctlj/vol16/iss2/5/
+[^6]: Smith A. M., Katz D. S., Niemeyer K. E., FORCE11 Software Citation Working Group. Software citation principles. PeerJ Computer Science 2:e86 (2016). https://doi.org/10.7717/peerj-cs.86
+[^7]: Druskat S., Spaaks J. H., Chue Hong N., Haines R., Baker J., Bliven S., Willighagen E., Pérez-Suárez D., Konovalov A., Citation File Format (1.2.0). Zenodo (2021). https://doi.org/10.5281/zenodo.5171937
