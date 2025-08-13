@@ -60,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unsupported ESPResSo features now raise a `NotImplementedError` instead of a `ValueError`. (#113)
 
 ### Removed
+- `pmb.create_pmb_object` has been deprecated in favor of case-specific creation methods. (#137)
 - `pmb.get_resource()` is no longer needed because pyMBE has been restructured as a package and therefore all of its resources are internally accessible. (#135)
 - `lib/create_cg_from_pdb.py` because it was not covered by CI testing and it was imposing a too restrictive coarse-graning of globular proteins to be used for the general public. Future development plans include substituting this functunality for a more general parser. (#135)
 - `tutorials/solution_tutorial.ipynb` to avoid code repetition. Instead, the exercise in `pyMBE_tutorial.ipynb` has been adapted to match one of the example in `samples/branched_polyampholyte.py`. (#130)

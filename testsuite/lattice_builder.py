@@ -182,7 +182,6 @@ class Test(ut.TestCase):
             np.testing.assert_equal(actual = lattice.get_monomer_color(label),desired = color, verbose=True)
             np.testing.assert_equal(actual = lattice.get_monomer_color_index(label),desired = index, verbose=True)
 
-
         # Test invalid operations
         with self.assertRaisesRegex(RuntimeError, "monomer 'unknown' has no associated color in the colormap"):
             lattice.get_monomer_color("unknown")
@@ -207,6 +206,14 @@ class Test(ut.TestCase):
         lattice.draw_simulation_box(ax)
         ax.legend()
         plt.close(fig)
+
+        # Test edge case with strict mode deactivated
+        diamond_test = pyMBE.lib.lattice.DiamondLattice(mpc, bond_l)
+        lattice_test = pmb.initialize_lattice_builder(diamond_test)
+        lattice_test.strict = False
+        key, reverse = lattice_test._get_node_vector_pair("[1 1 1]", "[3 3 1]")
+        assert not reverse, "Expected reverse to be False in non-strict mode"
+        np.testing.assert_equal(actual=key, desired=(1,5))
 
 if __name__ == "__main__":
     ut.main()

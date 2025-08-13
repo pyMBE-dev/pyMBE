@@ -20,7 +20,14 @@ import tempfile
 import espressomd
 import pandas as pd
 import numpy as np
+import logging
+import io
 
+# Create an in-memory log stream
+log_stream = io.StringIO()
+logging.basicConfig(level=logging.INFO, 
+                    format="%(levelname)s: %(message)s",
+                    handlers=[logging.StreamHandler(log_stream)])
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library(seed=42)
@@ -157,4 +164,9 @@ read_df = read_df.replace({pd.NA: np.nan})
 pd.testing.assert_frame_equal(stored_df, 
                                 read_df,
                                 rtol=1e-5)
+print("*** Unit test passed***")
+
+# Test that copy_df_entry raises an error if one provides a non-valid column name
+print("*** Unit test: check that copy_df_entry raises an error if the entry does not exist ***")
+np.testing.assert_raises(ValueError, pmb.copy_df_entry, name='test', column_name='non_existing_column',number_of_copies=1)
 print("*** Unit test passed***")

@@ -1254,44 +1254,6 @@ class pymbe_library():
             self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id)                  
         return created_pid_list
 
-    def create_pmb_object(self, name, number_of_objects, espresso_system, position=None, use_default_bond=False, backbone_vector=None):
-        """
-        Creates all `particle`s associated to `pmb object` into  `espresso` a number of times equal to `number_of_objects`.
-        
-        Args:
-            name(`str`): Unique label of the `pmb object` to be created. 
-            number_of_objects(`int`): Number of `pmb object`s to be created.
-            espresso_system(`espressomd.system.System`): Instance of an espresso system object from espressomd library.
-            position(`list`): Coordinates where the particles should be created.
-            use_default_bond(`bool`,optional): Controls if a `default` bond is used to bond particles with undefined bonds in `pmb.df`. Defaults to `False`.
-            backbone_vector(`list` of `float`): Backbone vector of the molecule, random by default. Central beads of the residues in the `residue_list` are placed along this vector. 
-
-        Note:
-            - If no `position` is given, particles will be created in random positions. For bonded particles, they will be created at a distance equal to the bond length. 
-        """
-        pmb_type = self._check_supported_molecule(molecule_name=name,
-                                        valid_pmb_types=["molecule","particle","residue","peptide"])
-        
-        if pmb_type == 'particle':
-            self.create_particle(name=name, 
-                                number_of_particles=number_of_objects, 
-                                espresso_system=espresso_system, 
-                                position=position)
-        elif pmb_type == 'residue':
-            self.create_residue(name=name,  
-                                espresso_system=espresso_system, 
-                                central_bead_position=position,
-                                use_default_bond=use_default_bond,
-                                backbone_vector=backbone_vector)
-        elif pmb_type in ['molecule','peptide']:
-            self.create_molecule(name=name, 
-                                number_of_molecules=number_of_objects, 
-                                espresso_system=espresso_system, 
-                                use_default_bond=use_default_bond, 
-                                list_of_first_residue_positions=position,
-                                backbone_vector=backbone_vector)
-        return
-
     def create_protein(self, name, number_of_proteins, espresso_system, topology_dict):
         """
         Creates `number_of_proteins` molecules of type `name` into `espresso_system` at the coordinates in `positions`
@@ -1655,10 +1617,7 @@ class pymbe_library():
         self._check_if_multiple_pmb_types_for_name(name='default',
                                                    pmb_type_to_be_defined='bond')
          
-        if len(self.df.index) != 0:
-            index = max(self.df.index)+1
-        else:
-            index = 0
+        index = max(self.df.index, default=-1) + 1
         self.df.at [index,'name']        = 'default'
         self.df.at [index,'bond_object'] = bond_object
         self.df.at [index,'l0']          = l0
@@ -2164,7 +2123,6 @@ class pymbe_library():
                 else: 
                     column_name_value = self.df.loc[idx[index[0]], idx[(column_name,'')]]
                     return column_name_value
-        return None
 
     def format_node(self, node_list):
         return "[" + " ".join(map(str, node_list)) + "]"
