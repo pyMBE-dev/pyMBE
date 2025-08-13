@@ -34,22 +34,12 @@ c_protein =  2e-4 * pmb.units.mol / pmb.units.L
 Box_V =  1. / (pmb.N_A*c_protein)
 Box_L = Box_V**(1./3.) 
 
-def custom_serializer(obj):
-    if isinstance(obj, Quantity):
-        return {"value": obj.magnitude, "unit": str(obj.units)}  
-    raise TypeError(f"Type {type(obj)} not serializable")
-
 def custom_deserializer(dct):
     if "value" in dct and "unit" in dct:
         return ureg.Quantity(dct["value"], dct["unit"])  
     return dct  
 
-mode = "test"
 protein_pdb = '1f6s'
-valid_modes = ["save","test"]
-
-if mode not in valid_modes:
-    raise ValueError(f"mode {mode} not supported, valid modes are {valid_modes}")
 
 print("*** Unit test: check that read_protein_vtf_in_df() loads the protein topology correctly ***")
 
@@ -57,13 +47,9 @@ path_to_parfile = pathlib.Path(__file__).parent / "tests_data" / "protein_topolo
 path_to_cg=pmb.root / "parameters" / "globular_proteins" / f"{protein_pdb}.vtf"
 topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
 
-if mode == "save":
-    with open (path_to_parfile, "w") as output:
-        json.dump(topology_dict, output,default=custom_serializer)
-    sys.exit()
-elif mode == "test":
-    with open (path_to_parfile, "r") as file:
-        load_json = json.load(file,object_hook=custom_deserializer)
+
+with open (path_to_parfile, "r") as file:
+    load_json = json.load(file,object_hook=custom_deserializer)
 
 np.testing.assert_equal(actual= topology_dict, 
                         desired= load_json,
@@ -91,13 +77,6 @@ for aminoacid in topology_dict.keys():
     
     if residue_name not in ['CA', 'n', 'c','Ca']:
         clean_sequence.append(residue_name)
-
-    
-    for index in pmb.df[pmb.df['name']==residue_name].index:
-        if residue_name not in sequence:           
-            np.testing.assert_equal(actual=str(pmb.df.loc[index, "pmb_type"].values[0]), 
-                                desired="particle", 
-                                verbose=True)
 
 residue_list = pmb.define_AA_residues(sequence= clean_sequence,
                                       model = protein_model)

@@ -462,24 +462,22 @@ for residue_name in molecule_parameters["M2"]["residue_list"]:
     central_bead_pos = espresso_system.part.by_id(central_bead_id).pos
     central_bead_positions.append(central_bead_pos)
 
-if len(central_bead_positions) == len(molecule_parameters["M2"]["residue_list"]):
-    
-    backbone_direction_1 = central_bead_positions[1] - central_bead_positions[0]
-    backbone_direction_2 = central_bead_positions[2] - central_bead_positions[1]
-    backbone_direction_1 /= np.linalg.norm(backbone_direction_1)
-    backbone_direction_2 /= np.linalg.norm(backbone_direction_2)
-    np.testing.assert_almost_equal(
-        actual = backbone_direction_1,
-        desired = backbone_vector,
-        verbose = True)
-    np.testing.assert_almost_equal(
-        actual = backbone_direction_2,
-        desired = backbone_vector,
-        verbose = True)
+# Here one expects 3 central bead positions for residues R1, R2, and R3
+np.testing.assert_equal(len(central_bead_positions),len(molecule_parameters["M2"]["residue_list"]))
+   
+backbone_direction_1 = central_bead_positions[1] - central_bead_positions[0]
+backbone_direction_2 = central_bead_positions[2] - central_bead_positions[1]
+backbone_direction_1 /= np.linalg.norm(backbone_direction_1)
+backbone_direction_2 /= np.linalg.norm(backbone_direction_2)
+np.testing.assert_almost_equal(
+    actual = backbone_direction_1,
+    desired = backbone_vector,
+    verbose = True)
+np.testing.assert_almost_equal(
+    actual = backbone_direction_2,
+    desired = backbone_vector,
+    verbose = True)
 
-else:
-
-    raise ValueError("Expected 3 central bead positions for residues R1, R2, and R3")        
 
 print("*** Unit test passed ***")
 

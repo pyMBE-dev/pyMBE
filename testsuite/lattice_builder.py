@@ -110,12 +110,22 @@ class Test(ut.TestCase):
         assert len(lattice.chains) ==  0
 
         # this function need some work
+        lattice.set_chain(node_start="[0 0 0]", node_end="[1 1 1]",
+                  sequence=sequence)
+        np.testing.assert_equal(actual = lattice.get_chain("[0 0 0]", "[1 1 1]"), desired = sequence, verbose=True)
+        lattice.set_chain(node_start="[1 1 1]", node_end="[0 0 0]",
+                  sequence=sequence)
+        np.testing.assert_equal(actual = lattice.get_chain("[1 1 1]", "[0 0 0]"), desired = sequence, verbose=True)
+        np.testing.assert_raises(RuntimeError, lattice.get_chain, "[1 1 1]", "[2 2 0]")
         lattice.add_default_chains(mpc=2)
         assert len(lattice.chains) ==  len(diamond.connectivity)
 
         # define custom nodes
         assert lattice.get_node("[1 1 1]") == "default_linker"
         assert lattice.get_node("[0 0 0]") == "default_linker"
+        # Change default node type
+        lattice.set_node(node="[1 1 1]", residue=NodeType1)
+        np.testing.assert_equal(actual = lattice.get_node("[1 1 1]"), desired = NodeType1, verbose=True)
 
         pos_node1 = pmb.create_hydrogel_node("[1 1 1]", NodeType1, espresso_system=espresso_system)
         np.testing.assert_equal(actual = lattice.get_node("[1 1 1]"), desired = NodeType1, verbose=True)
