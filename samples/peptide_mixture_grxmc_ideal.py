@@ -174,11 +174,11 @@ pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
 pmb.create_molecule(name=peptide1, 
-                    number_of_objects= N_peptide1_chains,
+                    number_of_molecules=N_peptide1_chains,
                     espresso_system=espresso_system, 
                     use_default_bond=True)
 pmb.create_molecule(name=peptide2, 
-                    number_of_objects= N_peptide2_chains,
+                    number_of_molecules=N_peptide2_chains,
                     espresso_system=espresso_system, 
                     use_default_bond=True)
 

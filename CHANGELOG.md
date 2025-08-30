@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to CTest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
+- Case-specific methods to delete particles, residues in molecules in pyMBE: `delete_particle_in_system`, `delete_residue_in_system`, `delete_molecule_in_system`. (#137)
 - Support for conda and miniconda virtual environments. (#134)
 - Private methods for sanity checks, used in various methods to ensure that the inputs are pyMBE objects of the expected type. (#126)
 - New benchmark for hydrogels, including scripts to reproduce the data `samples/Landsgesell2022/run_simulations.py` and `samples/Landsgesell2022/plot_pH_vs_alpha.py` and `samples/Landsgesell2022/plot_P_vs_V.py` (#103)
@@ -60,6 +61,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Unsupported ESPResSo features now raise a `NotImplementedError` instead of a `ValueError`. (#113)
 
 ### Removed
+- `pmb.destroy_pmb_object` has been deprecated in favor of case-specific deletion methods. (#137)
 - `pmb.create_pmb_object` has been deprecated in favor of case-specific creation methods. (#137)
 - `pmb.get_resource()` is no longer needed because pyMBE has been restructured as a package and therefore all of its resources are internally accessible. (#135)
 - `lib/create_cg_from_pdb.py` because it was not covered by CI testing and it was imposing a too restrictive coarse-graning of globular proteins to be used for the general public. Future development plans include substituting this functunality for a more general parser. (#135)

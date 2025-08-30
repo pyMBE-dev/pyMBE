@@ -182,7 +182,7 @@ if verbose:
 
 # Create molecules and ions in the espresso system
 pmb.create_molecule(name=polyacid_name, 
-                    number_of_objects=N_chains, 
+                    number_of_molecules=N_chains, 
                     espresso_system=espresso_system)
 pmb.create_counterions(object_name=polyacid_name, 
                        cation_name=proton_name, 

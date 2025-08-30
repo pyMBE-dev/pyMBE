@@ -153,7 +153,7 @@ pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
 pmb.create_molecule(name=sequence,
-                    number_of_objects= N_peptide_chains,
+                    number_of_molecules=N_peptide_chains,
                     espresso_system=espresso_system)
 
 # Create counterions for the peptide chains
