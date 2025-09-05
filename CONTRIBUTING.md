@@ -1,17 +1,17 @@
 # Please contribute to pyMBE!
 
 ## Bug reporting
-If you discover any strange feature or unexpected behaviour of the module, please report it by opening an issue in this GitHub repository or contacting Dr. Pablo M. Blanco (pablb@ntnu.no) or any other member of the pyMBE development team.
+If you discover any strange feature or unexpected behaviour of the module, please report it by opening an issue in this GitHub repository or contacting Dr. Pablo M. Blanco ([@pm-blanco](https://github.com/pm-blanco)) or any other member of the pyMBE development team.
 Once a ticket is open in GitHub, we will work to fix the issue as soon as possible.
 
 ## New contributors
 New developers are welcome to contribute to extend the functionalities of the pyMBE module. 
 To contribute to the pyMBE module, first one needs to be added as a member of this GitHub repository.
-If you want to contribute to the development of the pyMBE module, please contact Dr. Pablo M. Blanco (pablb@ntnu.no).
+If you want to contribute to the development of the pyMBE module, please contact Dr. Pablo M. Blanco ([@pm-blanco](https://github.com/pm-blanco)).
 
 ## Authorship system
 To warrant a co-author status, one should contribute in one of the following way:
-- New methods and modules that extend the functionalies of the module.
+- New methods and modules that extend the functionalities of the module.
 - Bugfixes and code enhancements that improve the quality of the module.
 - Development of tutorials and other documentation of the module.
 - Scripts for samples on how to use pyMBE, for testing of the library or for handy tools to extend the features fo the library.
@@ -46,4 +46,4 @@ We follow semantic versioning and keep a changelog.
 
 ## Community standards
 We aim to keep the pyMBE community an open and friendly space for researchers to collaborate in developing tools for building coarse-grained models of polyelectrolytes and biomolecules. 
-We adhere to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md) v2.1 to provide guidelines on the expected behaviour of the members of our community, which we hope it contributes to a healthy and a positive enviroment for our developers and users. 
+We adhere to the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md) v2.1 to provide guidelines on the expected behavior of the members of our community, which we hope it contributes to a healthy and a positive environment for our developers and users. 
