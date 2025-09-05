@@ -20,10 +20,6 @@ import pathlib
 import pyMBE
 import pandas as pd
 import numpy as np
-version = pd.__version__.split(".")
-# This feature was introduced in Pandasv2.2.0
-if int(version[0]) >= 2 and int(version[1]) >= 2:
-    pd.set_option('future.no_silent_downcasting', True)
 
 pmb = pyMBE.pymbe_library(seed=42)
 

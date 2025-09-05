@@ -44,8 +44,9 @@ def check_if_different_perpendicular_vectors_are_generated(vector,magnitude,n=50
                                 verbose = True)
     # Check that the {n} perpendicular vectors are different
     for vector_pair in combinations(perpendicular_vectors, 2):
-        if np.array_equal(vector_pair[0],vector_pair[1]):
-            raise Exception(f"Error: pmb.generate_trial_perpendicular_vector two equal perpendicular vectors v1 = {vector_pair[0]} v2 = {vector_pair[1]}")
+        assert not np.array_equal(vector_pair[0], vector_pair[1]), \
+            f"Error: pmb.generate_trial_perpendicular_vector generated two equal perpendicular vectors v1   = {vector_pair[0]} v2 = {vector_pair[1]}"
+        
     # Check that the perpendicular vectors have the same magnitude as the input magnitude
     for pvector in perpendicular_vectors:
         np.testing.assert_almost_equal(actual = np.linalg.norm(pvector), 
