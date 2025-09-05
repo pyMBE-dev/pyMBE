@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Switched to CTest for testing, allowing to run the tests on paralel (#87)
 
 ### Added
-- Case-specific methods to delete particles, residues in molecules in pyMBE: `delete_particle_in_system`, `delete_residue_in_system`, `delete_molecule_in_system`. (#137)
+- Case-specific methods to delete particles, residues and molecules in pyMBE: `delete_particle_in_system`, `delete_residue_in_system`, `delete_molecule_in_system`. (#137)
 - Support for conda and miniconda virtual environments. (#134)
 - Private methods for sanity checks, used in various methods to ensure that the inputs are pyMBE objects of the expected type. (#126)
 - New benchmark for hydrogels, including scripts to reproduce the data `samples/Landsgesell2022/run_simulations.py` and `samples/Landsgesell2022/plot_pH_vs_alpha.py` and `samples/Landsgesell2022/plot_P_vs_V.py` (#103)
