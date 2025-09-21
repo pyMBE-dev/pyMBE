@@ -4,7 +4,7 @@
   <img alt="pyMBE logo" src="https://github.com/pyMBE-dev/pyMBE/blob/logos/logo_banner.png">
 </picture>
 
-# pyMBE: the Python-based Molecule Builder for ESPResSo 
+# pyMBE: the Python-based Molecule Builder for ESPResSo
 
 ![GitHub Actions](https://github.com/pyMBE-dev/pyMBE/actions/workflows/testsuite.yml/badge.svg)
 [![codecov](https://codecov.io/gh/pyMBE-dev/pyMBE/branch/main/graph/badge.svg)](https://codecov.io/gh/pyMBE-dev/pyMBE)
@@ -239,6 +239,11 @@ Please also make sure to properly cite the original authors if you use the resou
 The relevant references are provided as metadata in the corresponding files.
 
 [comment]: # (references stop)
+
+### Contributing
+
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) to discover the different ways you can
+contribute to pyMBE and find our authorship policy and code of conduct.
 
 ## License
 
