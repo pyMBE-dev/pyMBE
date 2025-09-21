@@ -1927,7 +1927,7 @@ class pymbe_library():
         The ids of the molecule, particle and residues deleted are also cleaned from `pmb.df`
 
         Args:
-            molecule_id(`str`): id of the molecule to be deleted. 
+            molecule_id(`int`): id of the molecule to be deleted. 
             espresso_system(`espressomd.system.System`): Instance of a system class from espressomd library.
 
         """
@@ -1961,7 +1961,7 @@ class pymbe_library():
         The particle ids of the particle and residues deleted are also cleaned from `pmb.df`
 
         Args:
-            molecule_id(`str`): id of the molecule to be deleted. 
+            particle_id(`int`): id of the molecule to be deleted. 
             espresso_system(`espressomd.system.System`): Instance of a system class from espressomd library.
 
         """
@@ -1979,7 +1979,7 @@ class pymbe_library():
         The ids of the residue and particles deleted are also cleaned from `pmb.df`
 
         Args:
-            residue_id(`str`): id of the residue to be deleted. 
+            residue_id(`int`): id of the residue to be deleted. 
             espresso_system(`espressomd.system.System`): Instance of a system class from espressomd library.
         """
         # Sanity check if there is a residue with the input residue id

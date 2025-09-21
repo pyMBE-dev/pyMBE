@@ -429,7 +429,7 @@ np.testing.assert_equal(actual=len(pmb.df),
                         desired=starting_number_of_rows-6, 
                         verbose=True)
 # This should delete 4 particles (residue 1 is a R3 residue)
-# 5 lines should also be removed from pmb.df
+# 4 lines should also be removed from pmb.df
 # Residues do not have repeated entries (no line deleted)
 # 3 from the removed particles, (repeated entries)
 # and 1 from the removed bonds (repeated entry)
