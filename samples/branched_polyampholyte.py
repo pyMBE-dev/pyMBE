@@ -158,10 +158,10 @@ espresso_system.cell_system.skin=0.4
 pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
-pmb.create_pmb_object(name="polyampholyte", 
-                      number_of_objects=N_polyampholyte_chains,
-                      espresso_system=espresso_system, 
-                      use_default_bond=True)
+pmb.create_molecule(name="polyampholyte", 
+                    number_of_molecules=N_polyampholyte_chains,
+                    espresso_system=espresso_system, 
+                    use_default_bond=True)
 pmb.create_counterions(object_name="polyampholyte",
                        cation_name=cation_name,
                        anion_name=anion_name,

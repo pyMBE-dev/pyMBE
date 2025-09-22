@@ -203,14 +203,16 @@ lj_labels=pmb.filter_df("LennardJones")["name"].values
 # Particle C has sigma = 0 (ideally behaving particle)
 
 for label in lj_labels:
-    if "C" in label:
-        raise Exception("*** Unit Test failed ***")
+    assert "C" not in label, \
+        f"Error: pmb.setup_lj_interactions() set up LJ interaction for ideal particle with label {label}"
 
 print("*** Unit test passed ***")
 
 print("*** Unit test: test that get_lj_parameters() rasie the ValueError when the combination rule is not Loretz-Berthelot ***")
 
-input_params = {"particle_name1":"A", "particle_name2":"B", "combining_rule":"Geometric"}
+input_params = {"particle_name1":"A", 
+                "particle_name2":"B", 
+                "combining_rule":"Geometric"}
 np.testing.assert_raises(ValueError, pmb.get_lj_parameters, **input_params)
 
 print("*** All unit tests passed ***")

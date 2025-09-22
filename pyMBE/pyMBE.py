@@ -148,6 +148,24 @@ class pymbe_library():
             if hard_check:
                 raise ValueError(f"The name {name} has been defined in the pyMBE DataFrame with a pmb_type = {pmb_type}. This function only supports pyMBE objects with pmb_type = {expected_pmb_type}")
             return False
+        
+    def _clean_ids_in_df_row(self, row):
+        """
+        Cleans particle, residue and molecules ids in `row`.
+        If there are other repeated entries for the same name, drops the row.
+
+        Args:
+            row(pd.DataFrame): A row from the DataFrame to clean.
+        """
+        columns_to_clean = ['particle_id',
+                            'particle_id2', 
+                            'residue_id', 
+                            'molecule_id']
+        if len(self.df.loc[self.df['name'] == row['name'].values[0]]) > 1:
+            self.df = self.df.drop(row.index).reset_index(drop=True)
+        else:
+            for column_name in columns_to_clean:
+                self.df.loc[row.index, column_name] = pd.NA
 
     def add_bond_in_df(self, particle_id1, particle_id2, use_default_bond=False):
         """
@@ -727,13 +745,8 @@ class pymbe_library():
         if column_name not in valid_column_names:
             raise ValueError(f"{column_name} is not a valid column_name, currently only the following are supported: {valid_column_names}")
         df_by_name = self.df.loc[self.df.name == name]
-        if number_of_copies != 1:           
-            if df_by_name[column_name].isnull().values.any():       
-                df_by_name_repeated = pd.concat ([df_by_name]*(number_of_copies-1), ignore_index=True)
-            else:
-                df_by_name = df_by_name[df_by_name.index == df_by_name.index.min()] 
-                df_by_name_repeated = pd.concat ([df_by_name]*(number_of_copies), ignore_index=True)
-                df_by_name_repeated[column_name] = pd.NA
+        if number_of_copies != 1:                           
+            df_by_name_repeated = pd.concat ([df_by_name]*(number_of_copies-1), ignore_index=True)
             # Concatenate the new particle rows to  `df`
             self.df = pd.concat ([self.df,df_by_name_repeated], ignore_index=True)
         else:
@@ -1254,44 +1267,6 @@ class pymbe_library():
             self.add_value_to_df(key=('particle_id',''),index=df_index,new_value=bead_id)                  
         return created_pid_list
 
-    def create_pmb_object(self, name, number_of_objects, espresso_system, position=None, use_default_bond=False, backbone_vector=None):
-        """
-        Creates all `particle`s associated to `pmb object` into  `espresso` a number of times equal to `number_of_objects`.
-        
-        Args:
-            name(`str`): Unique label of the `pmb object` to be created. 
-            number_of_objects(`int`): Number of `pmb object`s to be created.
-            espresso_system(`espressomd.system.System`): Instance of an espresso system object from espressomd library.
-            position(`list`): Coordinates where the particles should be created.
-            use_default_bond(`bool`,optional): Controls if a `default` bond is used to bond particles with undefined bonds in `pmb.df`. Defaults to `False`.
-            backbone_vector(`list` of `float`): Backbone vector of the molecule, random by default. Central beads of the residues in the `residue_list` are placed along this vector. 
-
-        Note:
-            - If no `position` is given, particles will be created in random positions. For bonded particles, they will be created at a distance equal to the bond length. 
-        """
-        pmb_type = self._check_supported_molecule(molecule_name=name,
-                                        valid_pmb_types=["molecule","particle","residue","peptide"])
-        
-        if pmb_type == 'particle':
-            self.create_particle(name=name, 
-                                number_of_particles=number_of_objects, 
-                                espresso_system=espresso_system, 
-                                position=position)
-        elif pmb_type == 'residue':
-            self.create_residue(name=name,  
-                                espresso_system=espresso_system, 
-                                central_bead_position=position,
-                                use_default_bond=use_default_bond,
-                                backbone_vector=backbone_vector)
-        elif pmb_type in ['molecule','peptide']:
-            self.create_molecule(name=name, 
-                                number_of_molecules=number_of_objects, 
-                                espresso_system=espresso_system, 
-                                use_default_bond=use_default_bond, 
-                                list_of_first_residue_positions=position,
-                                backbone_vector=backbone_vector)
-        return
-
     def create_protein(self, name, number_of_proteins, espresso_system, topology_dict):
         """
         Creates `number_of_proteins` molecules of type `name` into `espresso_system` at the coordinates in `positions`
@@ -1655,10 +1630,7 @@ class pymbe_library():
         self._check_if_multiple_pmb_types_for_name(name='default',
                                                    pmb_type_to_be_defined='bond')
          
-        if len(self.df.index) != 0:
-            index = max(self.df.index)+1
-        else:
-            index = 0
+        index = max(self.df.index, default=-1) + 1
         self.df.at [index,'name']        = 'default'
         self.df.at [index,'bond_object'] = bond_object
         self.df.at [index,'l0']          = l0
@@ -1949,50 +1921,89 @@ class pymbe_library():
         if entry_name in self.df["name"].values:
             self.df = self.df[self.df["name"] != entry_name].reset_index(drop=True)
 
-    def destroy_pmb_object_in_system(self, name, espresso_system):
+    def delete_molecule_in_system(self, molecule_id, espresso_system):
         """
-        Destroys all particles associated with `name` in `espresso_system` amd removes the destroyed pmb_objects from `pmb.df` 
+        Deletes the molecule with `molecule_id` from the `espresso_system`, including all particles and residues associated with that particles.
+        The ids of the molecule, particle and residues deleted are also cleaned from `pmb.df`
 
         Args:
-            name(`str`): Label of the pmb object to be destroyed. The pmb object must be defined in `pymbe.df`.
+            molecule_id(`int`): id of the molecule to be deleted. 
             espresso_system(`espressomd.system.System`): Instance of a system class from espressomd library.
 
-        Note:
-            - If `name`  is a object_type=`particle`, only the matching particles that are not part of bigger objects (e.g. `residue`, `molecule`) will be destroyed. To destroy particles in such objects, destroy the bigger object instead.
         """
-        pmb_type = self._check_supported_molecule(molecule_name=name,
-                                       valid_pmb_types= ['particle','residue','molecule',"peptide"])
+        # Sanity checks 
+        id_mask = (self.df['molecule_id'] == molecule_id) & (self.df['pmb_type'].isin(["molecule", "peptide"]))
+        molecule_row = self.df.loc[id_mask]
+        if molecule_row.empty:
+            raise ValueError(f"No molecule found with molecule_id={molecule_id} in the DataFrame.")
+        # Clean molecule from pmb.df
+        self._clean_ids_in_df_row(row=molecule_row)
+        # Delete particles and residues in the molecule
+        residue_mask = (self.df['molecule_id'] == molecule_id) & (self.df['pmb_type'] == "residue")
+        residue_rows = self.df.loc[residue_mask]
+        residue_ids = set(residue_rows["residue_id"].values)
+        for residue_id in residue_ids:
+            self.delete_residue_in_system(residue_id=residue_id,
+                                           espresso_system=espresso_system)
         
-        if pmb_type == 'particle':
-            particles_index = self.df.index[(self.df['name'] == name) & (self.df['residue_id'].isna()) 
-                                                  & (self.df['molecule_id'].isna())]
-            particle_ids_list= self.df.loc[(self.df['name'] == name) & (self.df['residue_id'].isna())
-                                                 & (self.df['molecule_id'].isna())].particle_id.tolist()
-            for particle_id in particle_ids_list:
-                espresso_system.part.by_id(particle_id).remove()
-            self.df = self.df.drop(index=particles_index)
-        if pmb_type == 'residue':
-            residues_id = self.df.loc[self.df['name']== name].residue_id.to_list()
-            for residue_id in residues_id:
-                molecule_name = self.df.loc[(self.df['residue_id']==molecule_id) & (self.df['pmb_type']=="residue")].name.values[0]
-                particle_ids_list = self.get_particle_id_map(object_name=molecule_name)["all"]
-                self.df = self.df.drop(self.df[self.df['residue_id'] == residue_id].index)
-                for particle_id in particle_ids_list:
-                    espresso_system.part.by_id(particle_id).remove()
-                    self.df= self.df.drop(self.df[self.df['particle_id']==particle_id].index)    
-        if pmb_type in ['molecule',"peptide"]:
-            molecules_id = self.df.loc[self.df['name']== name].molecule_id.dropna().to_list()
-            for molecule_id in molecules_id:
-                molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type']==pmb_type)].name.values[0]
-                particle_ids_list = self.get_particle_id_map(object_name=molecule_name)["all"]
-                self.df = self.df.drop(self.df[self.df['molecule_id'] == molecule_id].index)
-                for particle_id in particle_ids_list:
-                    espresso_system.part.by_id(particle_id).remove()   
-                    self.df= self.df.drop(self.df[self.df['particle_id']==particle_id].index)             
-        
-        self.df.reset_index(drop=True,inplace=True)
+        # Clean deleted backbone bonds from pmb.df
+        bond_mask = (self.df['molecule_id'] == molecule_id) & (self.df['pmb_type'] == "bond")
+        number_of_bonds = len(self.df.loc[bond_mask])
+        for _ in range(number_of_bonds):
+            bond_mask = (self.df['molecule_id'] == molecule_id) & (self.df['pmb_type'] == "bond")
+            bond_rows = self.df.loc[bond_mask]
+            row=bond_rows.loc[[bond_rows.index[0]]]
+            self._clean_ids_in_df_row(row=row)
 
-        return
+    def delete_particle_in_system(self, particle_id, espresso_system):
+        """
+        Deletes the particle with `particle_id` from the `espresso_system`.
+        The particle ids of the particle and residues deleted are also cleaned from `pmb.df`
+
+        Args:
+            particle_id(`int`): id of the molecule to be deleted. 
+            espresso_system(`espressomd.system.System`): Instance of a system class from espressomd library.
+
+        """
+        # Sanity check if there is a particle with the input particle id
+        id_mask = (self.df['particle_id'] == particle_id) & (self.df['pmb_type'] == "particle")
+        particle_row = self.df.loc[id_mask]
+        if particle_row.empty:
+            raise ValueError(f"No particle found with particle_id={particle_id} in the DataFrame.")
+        espresso_system.part.by_id(particle_id).remove()
+        self._clean_ids_in_df_row(particle_row)
+
+    def delete_residue_in_system(self, residue_id, espresso_system):
+        """
+        Deletes the residue with `residue_id`, and the particles associated with it from the `espresso_system`.
+        The ids of the residue and particles deleted are also cleaned from `pmb.df`
+
+        Args:
+            residue_id(`int`): id of the residue to be deleted. 
+            espresso_system(`espressomd.system.System`): Instance of a system class from espressomd library.
+        """
+        # Sanity check if there is a residue with the input residue id
+        id_mask = (self.df['residue_id'] == residue_id) & (self.df['pmb_type'] == "residue")
+        residue_row = self.df.loc[id_mask]
+        if residue_row.empty:
+            raise ValueError(f"No residue found with residue_id={residue_id} in the DataFrame.")
+        residue_map=self.get_particle_id_map(object_name=residue_row["name"].values[0])["residue_map"]
+        particle_ids = residue_map[residue_id]
+        # Clean residue from pmb.df
+        self._clean_ids_in_df_row(row=residue_row)
+        # Delete particles in the residue
+        for particle_id in particle_ids:
+            self.delete_particle_in_system(particle_id=particle_id,
+                                           espresso_system=espresso_system)
+        # Clean deleted bonds from pmb.df
+        bond_mask = (self.df['residue_id'] == residue_id) & (self.df['pmb_type'] == "bond")
+        number_of_bonds = len(self.df.loc[bond_mask])
+        for _ in range(number_of_bonds):
+            bond_mask = (self.df['residue_id'] == residue_id) & (self.df['pmb_type'] == "bond")
+            bond_rows = self.df.loc[bond_mask]
+            row=bond_rows.loc[[bond_rows.index[0]]]
+            self._clean_ids_in_df_row(row=row)
+
 
     def determine_reservoir_concentrations(self, pH_res, c_salt_res, activity_coefficient_monovalent_pair, max_number_sc_runs=200):
         """
@@ -2164,7 +2175,6 @@ class pymbe_library():
                 else: 
                     column_name_value = self.df.loc[idx[index[0]], idx[(column_name,'')]]
                     return column_name_value
-        return None
 
     def format_node(self, node_list):
         return "[" + " ".join(map(str, node_list)) + "]"
