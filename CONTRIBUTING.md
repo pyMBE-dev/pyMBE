@@ -3,12 +3,13 @@
 ## Bug reports
 If you discover any strange or unexpected behaviour in pyMBE,
 please report it by opening an issue in this GitHub repository or by contacting
-Dr. Pablo M. Blanco (<pablb@ntnu.no>) or any other member of the pyMBE development team.
+Dr. Pablo M. Blanco ([@pm-blanco](https://github.com/pm-blanco)) or any other member of the pyMBE development team.
 Once a ticket is open in GitHub, we will work to fix the issue as soon as possible.
 
 ## New contributors
 New developers are welcome to contribute to extend the functionalities of the pyMBE module.
 To contribute to the pyMBE module, first one needs to be added as a member of this GitHub repository.
+
 If you want to contribute to the development of the pyMBE module,
 please contact Dr. Pablo M. Blanco (<pablb@ntnu.no>).
 

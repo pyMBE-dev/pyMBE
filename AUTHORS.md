@@ -1,4 +1,4 @@
-pyMBE is maintained and developed by several authors from different institutions in collaboration.
+pyMBE is maintained and developed in collaboration by several authors from different institutions.
 The following people have contributed to pyMBE (Github username, Name, current affiliation):
 
 ## Admins
