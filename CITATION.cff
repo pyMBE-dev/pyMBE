@@ -7,39 +7,36 @@ authors:
   - given-names: David
     family-names: Beyer
     affiliation: Institute for Computational Physics, University of Stuttgart, Stuttgart, Germany
-    orcid: "0000-0001-6066-8043"
+    orcid: "https://orcid.org/0000-0001-6066-8043"
   - given-names: Paola B.
     family-names: Torres
     affiliation: Grupo de Bionanotecnologia y Sistemas Complejos. Infap-CONICET & Facultad Regional San Rafael, Universidad Tecnológica Nacional, San Rafael, Argentina
-    orcid: "0000-0001-9335-8367"
+    orcid: "https://orcid.org/0000-0001-9335-8367"
   - given-names: Sebastian P.
     family-names: Pineda
     affiliation: Department of Physical and Macromolecular Chemistry, Charles University, Prague, Czech Republic
-    orcid: "0000-0001-8270-2476"
+    orcid: "https://orcid.org/0000-0001-8270-2476"
   - given-names: Somesh
     family-names: Kurahatti
     affiliation: Institute for Computational Physics, University of Stuttgart, Stuttgart, Germany
-    orcid: "0009-0003-2098-6583"
+    orcid: "https://orcid.org/0009-0003-2098-6583"
   - given-names: Jean-Noël
     family-names: Grad
     affiliation: Institute for Computational Physics, University of Stuttgart, Stuttgart, Germany
-    orcid: "0000-0002-5821-4912"
+    orcid: "https://orcid.org/0000-0002-5821-4912"
   - given-names: Peter
     family-names: Košovan
     affiliation: Department of Physical and Macromolecular Chemistry, Charles University, Prague, Czech Republic
-    orcid: "0000-0002-6708-3344"
+    orcid: "https://orcid.org/0000-0002-6708-3344"
   - given-names: Pablo M.
     family-names: Blanco
     affiliation: Department of Physics, NTNU - Norwegian University of Science and Technology, Trondheim, Norway
-    orcid: "0000-0002-7603-8617"
-
+    orcid: "https://orcid.org/0000-0002-7603-8617"
 identifiers:
   - type: doi
     value: 10.1063/5.0216389
     description: The software paper
-
 repository-code: "https://github.com/pyMBE-dev/pyMBE"
-
 keywords:
   - molecule builder
   - coarse-grained molecular modelling
@@ -49,11 +46,8 @@ keywords:
   - pKa
   - protein
   - peptide
-
 license: GPL-3.0-or-later
-
 preferred-citation:
-  type: article
   authors:
     - given-names: David
       family-names: Beyer
@@ -69,70 +63,79 @@ preferred-citation:
       family-names: Košovan
     - given-names: Pablo M.
       family-names: Blanco
-  title: "pyMBE: The Python-based molecule builder for ESPResSo"
   doi: 10.1063/5.0216389
+  type: article
+  journal: "The Journal of Chemical Physics"
+  title: "pyMBE: The Python-based molecule builder for ESPResSo"
   year: 2024
-
+  month: 7
+  volume: 161
+  issue: 2
+  issue-title: "Special Collection: Modular and Interoperable Software for Chemical Physics"
+  pages: 022502
+  publisher:
+    name: "AIP Publishing"
 references:
-  - type: article
-    title: "pyMBE: The Python-based molecule builder for ESPResSo"
-    authors:
+  - authors:
       - family-names: Beyer
         given-names: David
-        orcid: "0000-0001-6066-8043"
+        orcid: "https://orcid.org/0000-0001-6066-8043"
       - family-names: Torres
         given-names: Paola B.
-        orcid: "0000-0001-9335-8367"
+        orcid: "https://orcid.org/0000-0001-9335-8367"
       - family-names: Pineda
         given-names: Sebastian P.
-        orcid: "0000-0001-8270-2476"
+        orcid: "https://orcid.org/0000-0001-8270-2476"
       - family-names: Narambuena
         given-names: Claudio F.
-        orcid: "0000-0003-3862-6642"
+        orcid: "https://orcid.org/0000-0003-3862-6642"
       - family-names: Grad
         given-names: Jean-Noël
-        orcid: "0000-0002-5821-4912"
+        orcid: "https://orcid.org/0000-0002-5821-4912"
       - family-names: Košovan
         given-names: Peter
-        orcid: "0000-0002-6708-3344"
+        orcid: "https://orcid.org/0000-0002-6708-3344"
       - family-names: Blanco
         given-names: Pablo M.
-        orcid: "0000-0002-7603-8617"
+        orcid: "https://orcid.org/0000-0002-7603-8617"
     doi: 10.1063/5.0216389
+    type: article
+    journal: "The Journal of Chemical Physics"
+    title: "pyMBE: The Python-based molecule builder for ESPResSo"
     year: 2024
     month: 7
     volume: 161
     issue: 2
     issue-title: "Special Collection: Modular and Interoperable Software for Chemical Physics"
-    pages: "022502"
-    publisher: "AIP Publishing"
-
-  - type: software
-    title: pyMBE
-    version: 0.8.0
-    doi: 10.5281/zenodo.12102635
-    authors:
+    pages: 022502
+    publisher:
+      name: "AIP Publishing"
+  - authors:
       - family-names: Beyer
         given-names: David
-        orcid: "0000-0001-6066-8043"
+        orcid: "https://orcid.org/0000-0001-6066-8043"
       - family-names: Torres
         given-names: Paola B.
-        orcid: "0000-0001-9335-8367"
+        orcid: "https://orcid.org/0000-0001-9335-8367"
       - family-names: Pineda
         given-names: Sebastian P.
-        orcid: "0000-0001-8270-2476"
+        orcid: "https://orcid.org/0000-0001-8270-2476"
       - family-names: Narambuena
         given-names: Claudio F.
-        orcid: "0000-0003-3862-6642"
+        orcid: "https://orcid.org/0000-0003-3862-6642"
       - family-names: Grad
         given-names: Jean-Noël
-        orcid: "0000-0002-5821-4912"
+        orcid: "https://orcid.org/0000-0002-5821-4912"
       - family-names: Košovan
         given-names: Peter
-        orcid: "0000-0002-6708-3344"
+        orcid: "https://orcid.org/0000-0002-6708-3344"
       - family-names: Blanco
         given-names: Pablo M.
-        orcid: "0000-0002-7603-8617"
+        orcid: "https://orcid.org/0000-0002-7603-8617"
+    doi: 10.5281/zenodo.12102635
+    type: software
+    version: 0.8.0
+    title: pyMBE
     date-released: "2024-06-18"
-    license: GPL-3.0-or-later
-
+    license:
+    - GPL-3.0-or-later
