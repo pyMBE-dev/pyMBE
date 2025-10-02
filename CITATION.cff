@@ -72,9 +72,8 @@ preferred-citation:
   volume: 161
   issue: 2
   issue-title: "Special Collection: Modular and Interoperable Software for Chemical Physics"
-  pages: 022502
-  publisher:
-    name: "AIP Publishing"
+  pages: "022502"
+  publisher: "AIP Publishing"
 references:
   - authors:
       - family-names: Beyer
