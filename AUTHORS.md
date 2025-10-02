@@ -1,6 +1,7 @@
 pyMBE is maintained and developed in collaboration by several authors from different institutions.
 The following people have contributed to pyMBE (Github username, Name, current affiliation):
 
+# Active contributors
 ## Admins
 - jngrad, Jean-Noël Grad (University of Stuttgart, Germany)
 - kosovan, Peter Košovan (Charles University, Czech Republic)
@@ -10,15 +11,17 @@ The following people have contributed to pyMBE (Github username, Name, current a
 - davidbbeyer, David Beyer (University of Stuttgart, Germany)
 - paobtorres, Paola B. Torres (Universidad Tecnológica Nacional, Argentina)
 - pinedaps, Sebastian P. Pineda (Charles University, Czech Republic)
+- 1234somesh, Somesh Kurahatti (University of Stuttgart, Germany)
 
 ## Tier-1 Contributors
-- 1234somesh, Somesh Kurahatti (University of Stuttgart, Germany)
+- TommyTraan, Duy Tommy Tran (Norwegian University of Science and Technology, Norway)
+
+# Past Contributors
 - amartise, Albert Martinez-Serra (Royal College of Surgeons, Ireland) 
 - mariusaarsten, Marius Aarsten (Norwegian University of Science and Technology, Norway)
-- TommyTraan, Duy Tommy Tran (Norwegian University of Science and Technology, Norway)
 - Zitzeronion, Stefan Zitz (Research Center Pharmaceutical Engineering, Austria)
 
-## Early testers of the library
+# Early testers of the library
 - Claudio F. Narambuena (Universidad Tecnológica Nacional, Argentina)
 - Corinna Dannert (Norwegian University of Science and Technology, Norway)
 - Francesc Mas (University of Barcelona, Spain)
