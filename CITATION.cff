@@ -19,7 +19,7 @@ authors:
   - given-names: Somesh
     family-names: Kurahatti
     affiliation: Institute for Computational Physics, University of Stuttgart, Stuttgart, Germany
-    orcid: ""
+    orcid: "https://orcid.org/0009-0003-2098-6583"
   - given-names: Jean-Noël
     family-names: Grad
     affiliation: Institute for Computational Physics, University of Stuttgart, Stuttgart, Germany
@@ -103,13 +103,12 @@ references:
     journal: "The Journal of Chemical Physics"
     title: "pyMBE: The Python-based molecule builder for ESPResSo"
     year: 2024
-    month: 7
+    month: "7"
     volume: 161
     issue: 2
     issue-title: "Special Collection: Modular and Interoperable Software for Chemical Physics"
-    pages: 022502
-    publisher:
-      name: "AIP Publishing"
+    pages: "022502"
+    publisher: "AIP Publishing"
   - authors:
       - family-names: Beyer
         given-names: David
@@ -137,5 +136,4 @@ references:
     version: 0.8.0
     title: pyMBE
     date-released: "2024-06-18"
-    license:
-    - GPL-3.0-or-later
+    license: GPL-3.0-or-later
