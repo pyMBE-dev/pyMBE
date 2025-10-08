@@ -120,9 +120,9 @@ references:
       - family-names: Pineda
         given-names: Sebastian P.
         orcid: "https://orcid.org/0000-0001-8270-2476"
-      - family-names: Narambuena
-        given-names: Claudio F.
-        orcid: "https://orcid.org/0000-0003-3862-6642"
+      - family-names: Kurahatti
+        given-names: Somesh
+        orcid: "https://orcid.org/0009-0003-2098-6583"
       - family-names: Grad
         given-names: Jean-Noël
         orcid: "https://orcid.org/0000-0002-5821-4912"
@@ -134,8 +134,8 @@ references:
         orcid: "https://orcid.org/0000-0002-7603-8617"
     doi: 10.5281/zenodo.12102635
     type: software
-    version: 0.8.0
+    version: 1.0.0
     title: pyMBE
-    date-released: "2024-06-18"
+    date-released: "2025-10-02"
     license:
     - GPL-3.0-or-later
