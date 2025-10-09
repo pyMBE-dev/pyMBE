@@ -136,6 +136,6 @@ references:
     type: software
     version: 1.0.0
     title: pyMBE
-    date-released: "2025-10-02"
+    date-released: "2025-10-08"
     license:
     - GPL-3.0-or-later
