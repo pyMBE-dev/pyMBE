@@ -132,7 +132,7 @@ references:
       - family-names: Blanco
         given-names: Pablo M.
         orcid: "https://orcid.org/0000-0002-7603-8617"
-    doi: 10.5281/zenodo.12102635
+    doi: 10.5281/zenodo.12102634
     type: software
     version: 1.0.0
     title: pyMBE
