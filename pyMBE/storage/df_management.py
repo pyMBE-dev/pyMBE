@@ -37,7 +37,8 @@ class _DFManagement:
         instances[pmb_type][particle_id] = InstanceModel
     """
 
-    def __init__(self):
+    def __init__(self,units):
+        self.units = units
         self.templates: Dict[str, ParticleTemplate] = {}
         self.instances: Dict[int, ParticleInstance] = {}
         self.reactions: Dict[str, Reaction] = {}
@@ -64,8 +65,8 @@ class _DFManagement:
 
         # validate state
         tpl = self.templates[instance.name]
-        if instance.state_name not in tpl.states:
-            raise ValueError(f"State '{instance.state_name}' not found for particle '{instance.name}'.")
+        if instance.initial_state not in tpl.states:
+            raise ValueError(f"State '{instance.initial_state}' not found for particle '{instance.name}'.")
 
         self.instances[pid] = instance
 
@@ -75,17 +76,6 @@ class _DFManagement:
     def register_reaction(self, reaction: Reaction):
         if reaction.name in self.reactions:
             raise ValueError(f"Reaction '{reaction.name}' already exists.")
-
-        # validate participants
-        for p in reaction.participants:
-            if p.particle_name not in self.templates:
-                raise ValueError(f"Unknown particle '{p.particle_name}' in reaction '{reaction.name}'.")
-
-            tpl = self.templates[p.particle_name]
-            if p.state_name not in tpl.states:
-                raise ValueError(
-                    f"State '{p.state_name}' not defined for particle '{p.particle_name}'."
-                )
 
         self.reactions[reaction.name] = reaction
 
@@ -98,8 +88,12 @@ class _DFManagement:
             for sname, st in tpl.states.items():
                 rows.append({
                     "particle": tpl.name,
+                    "sigma": tpl.sigma.to_quantity(self.units),
+                    "epsilon": tpl.epsilon.to_quantity(self.units),
+                    "cutoff": tpl.cutoff.to_quantity(self.units),
+                    "offset": tpl.offset.to_quantity(self.units),
                     "state": sname,
-                    "charge": st.charge,
+                    "z": st.z,
                     "es_type": st.es_type
                 })
         return pd.DataFrame(rows)
@@ -107,24 +101,41 @@ class _DFManagement:
     def get_instances_df(self):
         rows = []
         for inst in self.instances.values():
-            rows.append(inst.model_dump())
+            rows.append({
+                "pmb_type": inst.pmb_type,
+                "name": inst.name,
+                "particle_id": inst.particle_id,
+                "residue_id": int(inst.residue_id) if inst.residue_id is not None else pd.NA,
+                "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
+            })
         return pd.DataFrame(rows)
 
     def get_reactions_df(self):
         rows = []
         for r in self.reactions.values():
             stoich = {
-                f"{p.particle_name}:{p.state_name}": p.coefficient
+                f"{p.state_name}": p.coefficient
                 for p in r.participants
             }
             rows.append({
                 "reaction": r.name,
                 "stoichiometry": stoich,
-                "constant": r.constant,
+                "pK": r.pK,
                 "reaction_type": r.reaction_type,
                 "metadata": r.metadata,
             })
         return pd.DataFrame(rows)
+
+    def update_particle_instance(self, particle_id, attribute, value):
+        
+        if particle_id not in self.instances:
+            raise KeyError(f"Instance '{particle_id}' not found.")
+    
+        allowed = ["initial_state", "residue_id", "molecule_id"]
+        if attribute not in allowed:
+            raise ValueError(f"Attribute '{attribute}' not allowed. Allowed attributes: {allowed}")
+        
+        self.instances[particle_id] = self.instances[particle_id].model_copy(update={attribute: value})
 
 
     class _NumpyEncoder(json.JSONEncoder):

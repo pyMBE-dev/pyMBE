@@ -1,6 +1,7 @@
 from typing import Optional
 from pydantic import Field, field_validator
 from ..base_type import PMBBaseModel
+import pandas as pd
 
 
 class ParticleInstance(PMBBaseModel):
@@ -9,7 +10,9 @@ class ParticleInstance(PMBBaseModel):
     """
     pmb_type: str = "particle"
     particle_id: int
-    state_name: str
+    initial_state: str
+    residue_id: int | None = None
+    molecule_id: int | None = None
 
     @field_validator("particle_id")
     def validate_particle_id(cls, pid):

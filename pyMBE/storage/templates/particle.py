@@ -2,12 +2,12 @@ from typing import Dict, Literal
 from pydantic import Field, field_validator
 
 from ..base_type import PMBBaseModel
-
+from ..pint_quantity import PintQuantity
 
 class ParticleState(PMBBaseModel):
     pmb_type: Literal["particle_state"] = "particle_state"
     name: str                      # e.g. "HA", "A-", "H+"
-    charge: int
+    z: int
     es_type: float                  # label in espresso
 
 
@@ -20,8 +20,10 @@ class ParticleTemplate(PMBBaseModel):
     """
 
     pmb_type: str = Field(default="particle", frozen=True)
-    sigma: float
-    epsilon: float
+    sigma: PintQuantity
+    cutoff: PintQuantity
+    offset: PintQuantity
+    epsilon: PintQuantity
     states: Dict[str, ParticleState] = {}
 
     # ---------------- Validators -----------------
@@ -32,10 +34,10 @@ class ParticleTemplate(PMBBaseModel):
         self.states[state.name] = state
 
     @classmethod
-    def single_state(cls, name: str, charge: int, es_type: str, epsilon: float = 1.0):
+    def single_state(cls, name: str, z: int, es_type: str, epsilon: float = 1.0):
         """
         Convenience constructor for particles such as H+ that only need one state.
         """
-        state = ParticleState(name=name, charge=charge, es_type=es_type)
+        state = ParticleState(name=name, z=z, es_type=es_type)
         return cls(name=name, epsilon=epsilon, states={name: state})
 
