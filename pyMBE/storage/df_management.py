@@ -24,10 +24,25 @@ import numpy as np
 import logging
 import warnings
 
-from typing import Dict, Type, Callable
+from typing import Dict, Any
 from pyMBE.storage.templates.particle import ParticleTemplate
+from pyMBE.storage.templates.residue import ResidueTemplate
+from pyMBE.storage.templates.molecule import MoleculeTemplate
+from pyMBE.storage.templates.bond import BondTemplate
 from pyMBE.storage.instances.particle import ParticleInstance
+from pyMBE.storage.instances.residue import ResidueInstance
+from pyMBE.storage.instances.molecule import MoleculeInstance
+from pyMBE.storage.instances.bond import BondInstance
 from pyMBE.storage.reactions.reaction import Reaction
+from pyMBE.storage.templates.peptide import PeptideTemplate
+from pyMBE.storage.instances.peptide import PeptideInstance
+from pyMBE.storage.templates.protein import ProteinTemplate
+from pyMBE.storage.instances.protein import ProteinInstance
+from pyMBE.storage.templates.hydrogel import HydrogelTemplate
+from pyMBE.storage.instances.hydrogel import HydrogelInstance
+
+
+TemplateType = Any  # union of template classes (ParticleTemplate, ResidueTemplate, ...)
 
 
 class _DFManagement:
@@ -39,40 +54,106 @@ class _DFManagement:
 
     def __init__(self,units):
         self.units = units
-        self.templates: Dict[str, ParticleTemplate] = {}
-        self.instances: Dict[int, ParticleInstance] = {}
+        # templates: pmb_type -> (name -> template)
+        self.templates: Dict[str, Dict[str, TemplateType]] = {}
+        # instances: pmb_type -> (id -> instance)
+        self.instances: Dict[str, Dict[int, Any]] = {}
         self.reactions: Dict[str, Reaction] = {}
 
     # ----------------------------------------
     # TEMPLATE MANAGEMENT
     # ----------------------------------------
-    def register_template(self, template: ParticleTemplate):
-        if template.name in self.templates:
-            raise ValueError(f"Template '{template.name}' already exists.")
-        self.templates[template.name] = template
+    def register_template(self, template: TemplateType):
+        pmb_type = getattr(template, "pmb_type", None)
+        if pmb_type is None:
+            # infer from class
+            if isinstance(template, ParticleTemplate):
+                pmb_type = "particle"
+            elif isinstance(template, ResidueTemplate):
+                pmb_type = "residue"
+            elif isinstance(template, MoleculeTemplate):
+                pmb_type = "molecule"
+            elif isinstance(template, BondTemplate):
+                pmb_type = "bond"
+            elif isinstance(template, PeptideTemplate):
+                pmb_type = "peptide"
+            elif isinstance(template, ProteinTemplate):
+                pmb_type = "protein"
+            elif isinstance(template, HydrogelTemplate):
+                pmb_type = "hydrogel"
+            else:
+                raise TypeError("Unknown template type; set attribute pmb_type or use supported templates")
+
+        self.templates.setdefault(pmb_type, {})
+
+        if template.name in self.templates[pmb_type]:
+            raise ValueError(f"Template '{template.name}' exists in '{pmb_type}'")
+
+        # particle templates must define at least one state
+        if pmb_type == "particle":
+            if not hasattr(template, "states") or len(template.states) == 0:
+                raise ValueError("ParticleTemplate must define at least one state.")
+            # ensure default_state valid if set
+            if getattr(template, "default_state", None) is not None and template.default_state not in template.states:
+                raise ValueError("default_state not in template states")
+
+        self.templates[pmb_type][template.name] = template
 
     # ----------------------------------------
     # INSTANCE MANAGEMENT
     # ----------------------------------------
     def register_instance(self, instance: ParticleInstance):
-        pid = instance.particle_id
-        if pid in self.instances:
-            raise ValueError(f"Instance with id '{pid}' already exists.")
+        """
+        Instance must carry attributes:
+          - for particle: name (template name), particle_id, state_name
+          - for residue: name (residue template), residue_id
+        """
+        # infer pmb_type from instance class
+        if isinstance(instance, ParticleInstance):
+            pmb_type = "particle"
+            iid = instance.particle_id
+        elif isinstance(instance, ResidueInstance):
+            pmb_type = "residue"
+            iid = instance.residue_id
+        elif isinstance(instance, MoleculeInstance):
+            pmb_type = "molecule"
+            iid = instance.molecule_id
+        elif isinstance(instance, PeptideInstance):
+            pmb_type = "peptide"
+            iid = instance.molecule_id
+        elif isinstance(instance, ProteinInstance):
+            pmb_type = "protein"
+            iid = instance.molecule_id
+        elif isinstance(instance, BondInstance):
+            pmb_type = "bond"
+            iid = instance.bond_id
+        elif isinstance(instance, HydrogelInstance):
+            pmb_type = "hydrogel"
+            iid = instance.hydrogel_id
+        else:
+            raise TypeError("Unsupported instance type")
 
-        # validate particle template
-        if instance.name not in self.templates:
-            raise ValueError(f"Particle template '{instance.name}' not found.")
+        self.instances.setdefault(pmb_type, {})
 
-        # validate state
-        tpl = self.templates[instance.name]
-        if instance.initial_state not in tpl.states:
-            raise ValueError(f"State '{instance.initial_state}' not found for particle '{instance.name}'.")
+        if iid in self.instances[pmb_type]:
+            raise ValueError(f"Instance id {iid} already exists in type '{pmb_type}'")
 
-        self.instances[pid] = instance
+        # validate template exists
+        if instance.name not in self.templates.get(pmb_type, {}):
+            raise ValueError(f"Template '{instance.name}' not found for type '{pmb_type}'")
+
+        # validate state for particle instances
+        if pmb_type == "particle":
+            tpl: ParticleTemplate = self.templates[pmb_type][instance.name]
+            if instance.initial_state not in tpl.states:
+                raise ValueError(f"State '{instance.initial_state}' not defined in template '{instance.name}'")
+
+        self.instances[pmb_type][iid] = instance
 
     # ----------------------------------------
     # REACTIONS
     # ----------------------------------------
+
     def register_reaction(self, reaction: Reaction):
         if reaction.name in self.reactions:
             raise ValueError(f"Reaction '{reaction.name}' already exists.")
@@ -82,11 +163,15 @@ class _DFManagement:
     # ----------------------------------------
     # DATAFRAME EXPORT
     # ----------------------------------------
-    def get_templates_df(self):
+    
+    def get_templates_df(self, pmb_type: str = "particle"):
         rows = []
-        for tpl in self.templates.values():
-            for sname, st in tpl.states.items():
-                rows.append({
+        if pmb_type not in self.templates:
+            return pd.DataFrame(rows)
+        for tpl in self.templates[pmb_type].values():
+            if pmb_type == "particle":
+                for sname, st in tpl.states.items():
+                    rows.append({
                     "particle": tpl.name,
                     "sigma": tpl.sigma.to_quantity(self.units),
                     "epsilon": tpl.epsilon.to_quantity(self.units),
@@ -95,20 +180,40 @@ class _DFManagement:
                     "state": sname,
                     "z": st.z,
                     "es_type": st.es_type
+                })    
+            else:
+                # Generic representation for other types
+                rows.append(tpl.model_dump())
+        return pd.DataFrame(rows)
+       
+    def get_instances_df(self, pmb_type: str = "particle"):
+        rows = []
+        if pmb_type not in self.instances:
+            return pd.DataFrame(rows)
+        for inst in self.instances[pmb_type].values():
+            if pmb_type == "particle":
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "particle_id": inst.particle_id,
+                    "initial_state": inst.initial_state,
+                    "residue_id": int(inst.residue_id) if inst.residue_id is not None else pd.NA,
+                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
                 })
+            elif pmb_type == "residue":
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "residue_id": inst.residue_id,
+                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
+                })
+            else:
+                # Generic representation for other types
+                rows.append(inst.model_dump())
+
+
         return pd.DataFrame(rows)
 
-    def get_instances_df(self):
-        rows = []
-        for inst in self.instances.values():
-            rows.append({
-                "pmb_type": inst.pmb_type,
-                "name": inst.name,
-                "particle_id": inst.particle_id,
-                "residue_id": int(inst.residue_id) if inst.residue_id is not None else pd.NA,
-                "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
-            })
-        return pd.DataFrame(rows)
 
     def get_reactions_df(self):
         rows = []
@@ -126,16 +231,21 @@ class _DFManagement:
             })
         return pd.DataFrame(rows)
 
-    def update_particle_instance(self, particle_id, attribute, value):
-        
-        if particle_id not in self.instances:
-            raise KeyError(f"Instance '{particle_id}' not found.")
-    
-        allowed = ["initial_state", "residue_id", "molecule_id"]
+    def update_instance(self, instance_id, pmb_type, attribute, value):
+        if instance_id not in self.instances[pmb_type]:
+            raise KeyError(f"Instance '{instance_id}' not found in type '{pmb_type}'.")
+                                
+        if pmb_type == "particle":
+            allowed = ["initial_state", "residue_id", "molecule_id"]
+        elif pmb_type == "residue":
+            allowed = ["molecule_id"]
+        else:
+            allowed = [None]  # No attributes allowed for other types        
+                        
         if attribute not in allowed:
-            raise ValueError(f"Attribute '{attribute}' not allowed. Allowed attributes: {allowed}")
+            raise ValueError(f"Attribute '{attribute}' not allowed for {pmb_type}. Allowed attributes: {allowed}")
         
-        self.instances[particle_id] = self.instances[particle_id].model_copy(update={attribute: value})
+        self.instances[pmb_type][instance_id] = self.instances[pmb_type][instance_id].model_copy(update={attribute: value})
 
 
     class _NumpyEncoder(json.JSONEncoder):

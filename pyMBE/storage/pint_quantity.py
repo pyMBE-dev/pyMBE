@@ -7,6 +7,7 @@ from pint import UnitRegistry, Quantity
 _DIMENSION_REPRESENTATIVE = {
     "length": "nm",
     "energy": "meV",
+    "energy/length**2": "meV/nm**2",
     "dimensionless": "dimensionless",
     # extend as needed
 }

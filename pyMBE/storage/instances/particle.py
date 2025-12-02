@@ -1,7 +1,5 @@
-from typing import Optional
-from pydantic import Field, field_validator
+from pydantic import field_validator
 from ..base_type import PMBBaseModel
-import pandas as pd
 
 
 class ParticleInstance(PMBBaseModel):
