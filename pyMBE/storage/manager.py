@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2023-2025 pyMBE-dev team
+# Copyright (C) 2025 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -41,72 +41,171 @@ from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 
-
 TemplateType = Any  # union of template classes (ParticleTemplate, ResidueTemplate, ...)
+InstanceType = Any  # union of instance classes (ParticleInstance, ResidueInstance, ...)
 
-
-class _DFManagement:
+class Manager:
     """
-    Storage:
-        templates[pmb_type][template_name] = pd.DataFrame
-        instances[pmb_type][particle_id] = InstanceModel
+    The canonical database manager for pyMBE.
+
+    This class stores all templates, instances, and reactions in structured,
+    explicit dictionaries.
+
+    All I/O operations (CSV/JSON save/load) operate through DFManager.
+
+    Attributes
+    ----------
+    ureg : UnitRegistry
+        Pint unit registry used to reconstruct physical quantities from storage.
+
+    templates : dict[str, dict[str, TemplateType]]
+        Templates indexed by type and name.
+        Example: templates["particle"]["A"] → ParticleTemplate
+
+    instances : dict[str, dict[int, InstanceType]]
+        Instances indexed by type and id.
+        Example: instances["particle"][5] → ParticleInstance
+
+    reactions : dict[str, Reaction]
+        Chemical reactions keyed by reaction name.
     """
 
     def __init__(self,units):
+        """
+        Initialize an empty structured database.
+
+        Args:
+            ureg (UnitRegistry): Pint unit registry used to rebuild quantities.
+        """
         self.units = units
-        # templates: pmb_type -> (name -> template)
         self.templates: Dict[str, Dict[str, TemplateType]] = {}
-        # instances: pmb_type -> (id -> instance)
-        self.instances: Dict[str, Dict[int, Any]] = {}
+        self.instances: Dict[str, Dict[int, InstanceType]] = {}
         self.reactions: Dict[str, Reaction] = {}
 
-    # ----------------------------------------
-    # TEMPLATE MANAGEMENT
-    # ----------------------------------------
-    def register_template(self, template: TemplateType):
-        pmb_type = getattr(template, "pmb_type", None)
-        if pmb_type is None:
-            # infer from class
-            if isinstance(template, ParticleTemplate):
-                pmb_type = "particle"
-            elif isinstance(template, ResidueTemplate):
-                pmb_type = "residue"
-            elif isinstance(template, MoleculeTemplate):
-                pmb_type = "molecule"
-            elif isinstance(template, BondTemplate):
-                pmb_type = "bond"
-            elif isinstance(template, PeptideTemplate):
-                pmb_type = "peptide"
-            elif isinstance(template, ProteinTemplate):
-                pmb_type = "protein"
-            elif isinstance(template, HydrogelTemplate):
-                pmb_type = "hydrogel"
-            else:
-                raise TypeError("Unknown template type; set attribute pmb_type or use supported templates")
-
-        self.templates.setdefault(pmb_type, {})
-
-        if template.name in self.templates[pmb_type]:
-            raise ValueError(f"Template '{template.name}' exists in '{pmb_type}'")
-
-        # particle templates must define at least one state
-        if pmb_type == "particle":
-            if not hasattr(template, "states") or len(template.states) == 0:
-                raise ValueError("ParticleTemplate must define at least one state.")
-            # ensure default_state valid if set
-            if getattr(template, "default_state", None) is not None and template.default_state not in template.states:
-                raise ValueError("default_state not in template states")
-
-        self.templates[pmb_type][template.name] = template
-
-    # ----------------------------------------
-    # INSTANCE MANAGEMENT
-    # ----------------------------------------
-    def register_instance(self, instance: ParticleInstance):
+    def _get_instances_df(self, pmb_type):
         """
-        Instance must carry attributes:
-          - for particle: name (template name), particle_id, state_name
-          - for residue: name (residue template), residue_id
+        Returns a DataFrame containing all instance objects of a given pyMBE type.
+
+        Args:
+            pmb_type (str):
+                The instance type to query. Must be a key in
+                `self.instances`, such as `"particle"` or `"residue"`.
+
+        Returns:
+            pandas.DataFrame:
+                A DataFrame where each row corresponds to one registered
+                instance of the specified PMB type. If no instances exist,
+                an empty DataFrame is returned.
+
+        Notes:
+            - Missing integer identifiers (e.g., `residue_id`) are stored as
+            `pandas.NA` to ensure proper nullable integer handling.
+            - Particle and residue instances receive custom row structures;
+            all other instance types use direct model dumps.
+        """
+        rows = []
+        if pmb_type not in self.instances:
+            return pd.DataFrame(rows)
+        for inst in self.instances[pmb_type].values():
+            if pmb_type == "particle":
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "particle_id": inst.particle_id,
+                    "initial_state": inst.initial_state,
+                    "residue_id": int(inst.residue_id) if inst.residue_id is not None else pd.NA,
+                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
+                })
+            elif pmb_type == "residue":
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "residue_id": inst.residue_id,
+                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
+                })
+            else:
+                # Generic representation for other types
+                rows.append(inst.model_dump())
+        return pd.DataFrame(rows)
+
+    def _get_reactions_df(self):
+        """
+        Returns a DataFrame summarizing all registered chemical reactions.
+
+        Returns:
+            pandas.DataFrame:
+                A DataFrame where each row corresponds to one reaction.
+
+        Notes:
+            - Participant objects are expected to expose ``state_name`` and
+            ``coefficient`` attributes.
+            - Stoichiometry is stored as a single dictionary per row to allow
+            flexible downstream manipulation.
+        """  
+        rows = []
+        for r in self.reactions.values():
+            stoich = {
+                f"{p.state_name}": p.coefficient
+                for p in r.participants
+            }
+            rows.append({
+                "reaction": r.name,
+                "stoichiometry": stoich,
+                "pK": r.pK,
+                "reaction_type": r.reaction_type,
+                "metadata": r.metadata,
+            })
+        return pd.DataFrame(rows)
+
+    def _get_templates_df(self, pmb_type):
+        """
+        Returns a DataFrame containing all template definitions of a PMB type.
+
+        Args:
+            pmb_type (str):
+                The template type to query, e.g. `"particle"`, `"residue"`,
+                `"molecule"`.
+
+        Returns:
+            pandas.DataFrame:
+                A DataFrame representing all templates of the given type.
+                Particle templates expand to multiple rows, one per state.
+                Empty DataFrame if no templates for that type exist.
+
+        Notes:
+            - Unit-bearing fields are converted to plain quantities through
+            ``to_quantity(self.units)`` to maintain consistent I/O.
+        """
+        rows = []
+        if pmb_type not in self.templates:
+            return pd.DataFrame(rows)
+        for tpl in self.templates[pmb_type].values():
+            if pmb_type == "particle":
+                for sname, st in tpl.states.items():
+                    rows.append({
+                    "particle": tpl.name,
+                    "sigma": tpl.sigma.to_quantity(self.units),
+                    "epsilon": tpl.epsilon.to_quantity(self.units),
+                    "cutoff": tpl.cutoff.to_quantity(self.units),
+                    "offset": tpl.offset.to_quantity(self.units),
+                    "state": sname,
+                    "z": st.z,
+                    "es_type": st.es_type
+                })    
+            else:
+                # Generic representation for other types
+                rows.append(tpl.model_dump())
+        return pd.DataFrame(rows)
+
+    def _register_instance(self, instance):
+        """
+        Register an instance of a pyMBE object.
+
+        Args:
+            instance: Any instance conforming to the pyMBE instance models.
+
+        Raises:
+            ValueError: If the id or instance model does not exist or is duplicated.
         """
         # infer pmb_type from instance class
         if isinstance(instance, ParticleInstance):
@@ -150,88 +249,100 @@ class _DFManagement:
 
         self.instances[pmb_type][iid] = instance
 
-    # ----------------------------------------
-    # REACTIONS
-    # ----------------------------------------
+    def _register_reaction(self, reaction):
+        """
+        Register a chemical or physical reaction.
 
-    def register_reaction(self, reaction: Reaction):
+        Args:
+            reaction (Reaction): Reaction object.
+
+        Raises:
+            ValueError: If reaction name already exists.
+        """
         if reaction.name in self.reactions:
             raise ValueError(f"Reaction '{reaction.name}' already exists.")
 
         self.reactions[reaction.name] = reaction
 
-    # ----------------------------------------
-    # DATAFRAME EXPORT
-    # ----------------------------------------
-    
-    def get_templates_df(self, pmb_type: str = "particle"):
-        rows = []
-        if pmb_type not in self.templates:
-            return pd.DataFrame(rows)
-        for tpl in self.templates[pmb_type].values():
-            if pmb_type == "particle":
-                for sname, st in tpl.states.items():
-                    rows.append({
-                    "particle": tpl.name,
-                    "sigma": tpl.sigma.to_quantity(self.units),
-                    "epsilon": tpl.epsilon.to_quantity(self.units),
-                    "cutoff": tpl.cutoff.to_quantity(self.units),
-                    "offset": tpl.offset.to_quantity(self.units),
-                    "state": sname,
-                    "z": st.z,
-                    "es_type": st.es_type
-                })    
+    def _register_template(self, template):
+        """
+        Register a template.
+
+        Args:
+            template: Any template object conforming to the pyMBE template models.
+
+        Raises:
+            ValueError: If a template with the same name already exists.
+        """
+        pmb_type = getattr(template, "pmb_type", None)
+        if pmb_type is None:
+            # infer from class
+            if isinstance(template, ParticleTemplate):
+                pmb_type = "particle"
+            elif isinstance(template, ResidueTemplate):
+                pmb_type = "residue"
+            elif isinstance(template, MoleculeTemplate):
+                pmb_type = "molecule"
+            elif isinstance(template, BondTemplate):
+                pmb_type = "bond"
+            elif isinstance(template, PeptideTemplate):
+                pmb_type = "peptide"
+            elif isinstance(template, ProteinTemplate):
+                pmb_type = "protein"
+            elif isinstance(template, HydrogelTemplate):
+                pmb_type = "hydrogel"
             else:
-                # Generic representation for other types
-                rows.append(tpl.model_dump())
-        return pd.DataFrame(rows)
-       
-    def get_instances_df(self, pmb_type: str = "particle"):
-        rows = []
-        if pmb_type not in self.instances:
-            return pd.DataFrame(rows)
-        for inst in self.instances[pmb_type].values():
-            if pmb_type == "particle":
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "particle_id": inst.particle_id,
-                    "initial_state": inst.initial_state,
-                    "residue_id": int(inst.residue_id) if inst.residue_id is not None else pd.NA,
-                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
-                })
-            elif pmb_type == "residue":
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "residue_id": inst.residue_id,
-                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
-                })
-            else:
-                # Generic representation for other types
-                rows.append(inst.model_dump())
+                raise TypeError("Unknown template type; set attribute pmb_type or use supported templates")
 
+        self.templates.setdefault(pmb_type, {})
 
-        return pd.DataFrame(rows)
+        if template.name in self.templates[pmb_type]:
+            raise ValueError(f"Template '{template.name}' exists in '{pmb_type}'")
 
+        # particle templates must define at least one state
+        if pmb_type == "particle":
+            if not hasattr(template, "states") or len(template.states) == 0:
+                raise ValueError("ParticleTemplate must define at least one state.")
+            # ensure default_state valid if set
+            if getattr(template, "default_state", None) is not None and template.default_state not in template.states:
+                raise ValueError("default_state not in template states")
 
-    def get_reactions_df(self):
-        rows = []
-        for r in self.reactions.values():
-            stoich = {
-                f"{p.state_name}": p.coefficient
-                for p in r.participants
-            }
-            rows.append({
-                "reaction": r.name,
-                "stoichiometry": stoich,
-                "pK": r.pK,
-                "reaction_type": r.reaction_type,
-                "metadata": r.metadata,
-            })
-        return pd.DataFrame(rows)
+        self.templates[pmb_type][template.name] = template
 
-    def update_instance(self, instance_id, pmb_type, attribute, value):
+    def _update_instance(self, instance_id, pmb_type, attribute, value):
+        """
+        Updates a single attribute of a registered instance.
+        Only a restricted set of attributes is allowed for each PMB type,
+        ensuring database consistency. 
+
+        Args:
+            instance_id (Hashable):
+                Unique identifier of the instance to update. 
+            pmb_type (str):
+                Instance category, such as ``"particle"`` or ``"residue"``.
+            attribute (str):
+                Name of the field to update. 
+            value (Any):
+                New value to assign to the specified attribute.
+
+        Raises:
+            KeyError:
+                If the provided ``instance_id`` does not exist for the given
+                ``pmb_type``.
+            ValueError:
+                If attempting to modify an attribute that is not permitted
+                for the instance's PMB type.
+
+        Notes:
+            - Allowed updates:
+                * ``particle``: ``initial_state``, ``residue_id``, ``molecule_id``
+                * ``residue``: ``molecule_id``
+                * All other types: no attribute updates allowed.
+            - The method replaces the instance with a new Pydantic model
+            using ``model_copy(update=...)`` to maintain immutability and
+            avoid partial mutations of internal state.
+        """
+        
         if instance_id not in self.instances[pmb_type]:
             raise KeyError(f"Instance '{instance_id}' not found in type '{pmb_type}'.")
                                 

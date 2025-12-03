@@ -1,5 +1,5 @@
 # test.py
-from pyMBE.storage.df_management import _DFManagement
+from pyMBE.storage.manager import Manager
 from pyMBE.storage.templates.particle import ParticleTemplate, ParticleState
 from pyMBE.storage.instances.particle import ParticleInstance
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
@@ -32,7 +32,7 @@ def main():
     units.define(f'reduced_energy = {kT} ')
     units.define(f'reduced_length = {unit_length}')   
 
-    db = _DFManagement(units=units)
+    db = Manager(units=units)
 
     # ============================================================
     # 1. CREATE PARTICLE TEMPLATES + STATES
@@ -56,24 +56,24 @@ def main():
     tpl_H.add_state(ParticleState(name="H+", z=+1, es_type=2))
 
     # Register templates
-    db.register_template(tpl_A)
-    db.register_template(tpl_H)
+    db._register_template(tpl_A)
+    db._register_template(tpl_H)
     print("\n=== Particle Templates DataFrame ===")
-    print(db.get_templates_df())
+    print(db._get_templates_df(pmb_type="particle"))
 
 
     tpl_R1 = ResidueTemplate(name="R1", central_bead="A", side_chains=["H","A"])
     tpl_R2 = ResidueTemplate(name="R2", central_bead="HA", side_chains=["H","HA"])
-    db.register_template(tpl_R1)
-    db.register_template(tpl_R2)
+    db._register_template(tpl_R1)
+    db._register_template(tpl_R2)
     print("\n=== Residue Templates DataFrame ===")
-    print(db.get_templates_df(pmb_type="residue"))
+    print(db._get_templates_df(pmb_type="residue"))
 
 
     tpl_M1 = MoleculeTemplate(name="M1", residue_list=["R1","R2"])
-    db.register_template(tpl_M1)
+    db._register_template(tpl_M1)
     print("\n=== Molecule Templates DataFrame ===")
-    print(db.get_templates_df(pmb_type="molecule"))
+    print(db._get_templates_df(pmb_type="molecule"))
 
     parameters = {"k":  PintQuantity.from_quantity(q=100.0 * units.reduced_energy / (units.reduced_length**2), expected_dimension="energy/length**2", ureg=units),
                   "r0": PintQuantity.from_quantity(q=1.0  * units.reduced_length, expected_dimension="length", ureg=units),}
@@ -84,25 +84,25 @@ def main():
                             l0=PintQuantity.from_quantity(q=1.0 * units.reduced_length, 
                                                           expected_dimension="length", 
                                                           ureg=units))
-    db.register_template(tpl_bond)
+    db._register_template(tpl_bond)
     print("\n=== Bond Templates DataFrame ===")
-    print(db.get_templates_df(pmb_type="bond"))
+    print(db._get_templates_df(pmb_type="bond"))
 
     print("\n=== Peptide Templates DataFrame ===")
     tpl_P1 = PeptideTemplate(name="Peptide1",
                              model="Model1",
                              residue_list=["R1","R2"],
                              sequence=["R1","R2"])
-    db.register_template(tpl_P1)
-    print(db.get_templates_df(pmb_type="peptide"))
+    db._register_template(tpl_P1)
+    print(db._get_templates_df(pmb_type="peptide"))
 
     print("\n=== Protein Templates DataFrame ===")
     tpl_PR1 = ProteinTemplate(name="Protein1",
                              model="ModelP1",
                              residue_list=["R1","R2"],
                              sequence=["R1","R2"])
-    db.register_template(tpl_PR1)
-    print(db.get_templates_df(pmb_type="protein"))
+    db._register_template(tpl_PR1)
+    print(db._get_templates_df(pmb_type="protein"))
 
     
     print("\n=== Hydrogel Templates DataFrame ===")
@@ -112,8 +112,8 @@ def main():
     tpl_HG1 = HydrogelTemplate(name="Hydrogel1",
                                  node_map=[node1, node2],
                                  chain_map=[chain1])
-    db.register_template(tpl_HG1)
-    print(db.get_templates_df(pmb_type="hydrogel"))
+    db._register_template(tpl_HG1)
+    print(db._get_templates_df(pmb_type="hydrogel"))
 
     # ============================================================
     # 2. CREATE INSTANCES (optional for testing)
@@ -123,17 +123,17 @@ def main():
     inst2 = ParticleInstance(name="A", particle_id=2, initial_state="A-",residue_id=0)
     inst3 = ParticleInstance(name="H", particle_id=3, initial_state="H+")
 
-    db.register_instance(inst1)
-    db.register_instance(inst2)
-    db.register_instance(inst3)
+    db._register_instance(inst1)
+    db._register_instance(inst2)
+    db._register_instance(inst3)
     
     print("\n=== Particle Instances DataFrame ===")
-    print(db.get_instances_df())
+    print(db._get_instances_df(pmb_type="particle"))
 
 
-    db.update_instance(pmb_type="particle", instance_id=1, attribute="residue_id", value=int(0))
+    db._update_instance(pmb_type="particle", instance_id=1, attribute="residue_id", value=int(0))
     print("\n=== Particle Instances DataFrame (after update) ===")
-    print(db.get_instances_df())
+    print(db._get_instances_df(pmb_type="particle"))
 
     inst1 = ResidueInstance(name="R1", 
                             residue_id=1)
@@ -143,45 +143,45 @@ def main():
                             residue_id=3, 
                             molecule_id=0)
 
-    db.register_instance(inst1)
-    db.register_instance(inst2)
-    db.register_instance(inst3)
+    db._register_instance(inst1)
+    db._register_instance(inst2)
+    db._register_instance(inst3)
     
     print("\n=== Residue Instances DataFrame ===")
-    print(db.get_instances_df(pmb_type="residue"))
+    print(db._get_instances_df(pmb_type="residue"))
 
 
-    db.update_instance(pmb_type="residue",instance_id=1, attribute="molecule_id", value=int(0))
+    db._update_instance(pmb_type="residue",instance_id=1, attribute="molecule_id", value=int(0))
     print("\n=== Residue Instances DataFrame (after update)===")
-    print(db.get_instances_df(pmb_type="residue"))
+    print(db._get_instances_df(pmb_type="residue"))
 
 
     inst1 = MoleculeInstance(name="M1", molecule_id=1)
     inst2 = MoleculeInstance(name="M1", molecule_id=2)
-    db.register_instance(inst1)
-    db.register_instance(inst2)
+    db._register_instance(inst1)
+    db._register_instance(inst2)
     print("\n=== Molecule Instances DataFrame ===")
-    print(db.get_instances_df(pmb_type="molecule"))
+    print(db._get_instances_df(pmb_type="molecule"))
 
     inst_bond = BondInstance(name="A1-A2", bond_id=1, particle_id1=1, particle_id2=2)
-    db.register_instance(inst_bond)
+    db._register_instance(inst_bond)
     print("\n=== Bond Instances DataFrame ===")
-    print(db.get_instances_df(pmb_type="bond"))     
+    print(db._get_instances_df(pmb_type="bond"))     
 
     print("\n=== Peptide Instances DataFrame ===")
     inst_peptide1 = PeptideInstance(name="Peptide1", molecule_id=3)
-    db.register_instance(inst_peptide1)
-    print(db.get_instances_df(pmb_type="peptide"))
+    db._register_instance(inst_peptide1)
+    print(db._get_instances_df(pmb_type="peptide"))
 
     print("\n=== Protein Instances DataFrame ===")
     inst_protein1 = ProteinInstance(name="Protein1", molecule_id=4)
-    db.register_instance(inst_protein1)
-    print(db.get_instances_df(pmb_type="protein"))
+    db._register_instance(inst_protein1)
+    print(db._get_instances_df(pmb_type="protein"))
 
     print("\n=== Hydrogel Instances DataFrame ===")
     inst_hydrogel1 = HydrogelInstance(name="Hydrogel1", hydrogel_id=1, molecule_ids=["1","2","3"])
-    db.register_instance(inst_hydrogel1)
-    print(db.get_instances_df(pmb_type="hydrogel"))
+    db._register_instance(inst_hydrogel1)
+    print(db._get_instances_df(pmb_type="hydrogel"))
 
 
     # ============================================================
@@ -199,7 +199,7 @@ def main():
         ],
     )
 
-    db.register_reaction(rx)
+    db._register_reaction(rx)
 
     # ============================================================
     # 4. PRINT DATAFRAMES
@@ -207,10 +207,10 @@ def main():
 
     
     print("\n=== Instances DataFrame ===")
-    print(db.get_instances_df())
+    print(db._get_instances_df(pmb_type="particle"))
 
     print("\n=== Reactions DataFrame ===")
-    print(db.get_reactions_df())
+    print(db._get_reactions_df())
 
     # -------------------------
     # Now create a different registry with different reduced unit definitions
@@ -228,38 +228,38 @@ def main():
 
     # create a new DFManager that uses the same stored templates but different ureg
     # For this demo we will copy the stored templates (in real use you would re-load from serialized storage)
-    db2 = _DFManagement(units=ureg2)
+    db2 = Manager(units=ureg2)
     # re-insert templates by transferring stored representation (simulate loading)
     for ptype, tdict in db.templates.items():
         for tname, t in tdict.items():
-            db2.register_template(t)
+            db2._register_template(t)
 
     print("\nTemplates shown with registry 2 (different reduced units):")
-    print(db2.get_templates_df("particle"))
+    print(db2._get_templates_df("particle"))
 
-    io.save_database_csv(db, folder="test_db_csv")
+    io._save_database_csv(db, folder="test_db_csv")
 
-    db3 = _DFManagement(units=ureg2)
+    db3 = Manager(units=ureg2)
 
-    io.load_database_csv(db3, folder="test_db_csv")
+    io._load_database_csv(db3, folder="test_db_csv")
     print("\nLoaded DB3 Templates DataFrame:")
-    print(db3.get_templates_df("particle"))
-    print(db3.get_templates_df("residue"))
-    print(db3.get_templates_df("molecule"))
-    print(db3.get_templates_df("bond"))
-    print(db3.get_templates_df("peptide"))
-    print(db3.get_templates_df("protein"))
-    print(db3.get_templates_df("hydrogel"))
+    print(db3._get_templates_df("particle"))
+    print(db3._get_templates_df("residue"))
+    print(db3._get_templates_df("molecule"))
+    print(db3._get_templates_df("bond"))
+    print(db3._get_templates_df("peptide"))
+    print(db3._get_templates_df("protein"))
+    print(db3._get_templates_df("hydrogel"))
     print("\nLoaded DB3 Instances DataFrame:")
-    print(db3.get_instances_df("particle"))
-    print(db3.get_instances_df("residue"))
-    print(db3.get_instances_df("molecule"))
-    print(db3.get_instances_df("bond"))
-    print(db3.get_instances_df("peptide"))
-    print(db3.get_instances_df("protein"))
-    print(db3.get_instances_df("hydrogel"))
+    print(db3._get_instances_df("particle"))
+    print(db3._get_instances_df("residue"))
+    print(db3._get_instances_df("molecule"))
+    print(db3._get_instances_df("bond"))
+    print(db3._get_instances_df("peptide"))
+    print(db3._get_instances_df("protein"))
+    print(db3._get_instances_df("hydrogel"))
     print("\nLoaded DB3 Reactions DataFrame:")
-    print(db3.get_reactions_df())
+    print(db3._get_reactions_df())
 
 
 if __name__ == "__main__":

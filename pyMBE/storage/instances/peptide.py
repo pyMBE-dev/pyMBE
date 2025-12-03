@@ -1,8 +1,57 @@
+#
+# Copyright (C) 2025 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 from pyMBE.storage.base_type import PMBBaseModel
 from pydantic import field_validator
 
 
 class PeptideInstance(PMBBaseModel):
+    """
+    Instance of a peptide molecule placed in the simulation.
+
+    ``PeptideInstance`` represents a concrete occurrence of a peptide,
+    created from a peptide-related template (e.g., a sequence or residue
+    list defined elsewhere in the database). Each instance corresponds to
+    one full peptide chain and is identified by a unique ``molecule_id``.
+
+    Attributes:
+        pmb_type (str):
+            Fixed string identifying this object as a peptide instance.
+            Always ``"peptide"``.
+        name (str):
+            Name of the peptide template from which this instance was
+            created. This typically corresponds to a user-defined
+            peptide type or sequence label.
+        molecule_id (int):
+            Unique non-negative integer identifying this peptide within
+            the database. Assigned sequentially by the database manager
+            when the instance is created.
+
+    Notes:
+        - This class only tracks the identity of the peptide instance.
+          Residues and particles belonging to the peptide reference this
+          instance through their ``molecule_id`` fields.
+        - Connectivity (ordering of residues), spatial arrangement,
+          and bonding interactions are managed separately by the
+          database or simulation engine.
+    """
+    
     pmb_type: str = "peptide"
     name: str            # molecule template name
     molecule_id: int 

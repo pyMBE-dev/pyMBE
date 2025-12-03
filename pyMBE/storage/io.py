@@ -1,4 +1,22 @@
-# pyMBE/storage/io.py
+#
+# Copyright (C) 2025 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 import os
 import json
 from pathlib import Path
@@ -7,7 +25,6 @@ from typing import Any, Dict
 import pandas as pd
 from pint import UnitRegistry
 
-from pyMBE.storage.df_management import _DFManagement
 from pyMBE.storage.pint_quantity import PintQuantity
 from pyMBE.storage.templates.particle import ParticleTemplate, ParticleState
 from pyMBE.storage.templates.residue import ResidueTemplate
@@ -25,36 +42,21 @@ from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 
-# ----------------------------------------------------------------------
-# Helpers for JSON encode/decode
-# ----------------------------------------------------------------------
-def _encode(obj: Any) -> str:
-    """
-    Convert Python object -> JSON string.
-    - If obj is a PintQuantity (PintQuantity dataclass), convert via to_dict().
-    - If obj is a Pydantic model, prefer its model_dump() result.
-    - Otherwise, json.dumps(obj).
-    """
-    if obj is None:
-        return ""
-    # PintQuantity dataclass (has to_dict)
-    if isinstance(obj, PintQuantity):
-        return json.dumps(obj.to_dict(), separators=(",", ":"), ensure_ascii=False)
-
-    # If it's already a dict/list/scalar, json-dump it
-    try:
-        return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
-    except TypeError:
-        # Last resort: convert to string
-        return json.dumps(str(obj), separators=(",", ":"), ensure_ascii=False)
-
 
 def _decode(s: Any) -> Any:
     """
-    Robust JSON decoder:
-      - Returns None for None/NaN/empty/non-string values
-      - If s is a JSON string, returns parsed Python object
-      - If s is already a dict/list/number, returns it unchanged
+    Decodes a JSON-like object or string.
+
+    Handles various input types and converts them to a Python object.
+
+    Args:
+        s (Any): Input value to decode. Can be None, float('nan'), dict, list, number, or string.
+
+    Returns:
+        Any: 
+            - None if input is None, NaN, empty string, or non-string unrecognized type.
+            - Decoded Python object if input is a JSON string.
+            - Original object if it is already a dict, list, int, or bool.
     """
     # None / pandas NA / nan handling
     if s is None:
@@ -80,197 +82,49 @@ def _decode(s: Any) -> Any:
         # If it fails, try to interpret as plain string
         return s_str
 
-# ----------------------------------------------------------------------
-# SAVE
-# ----------------------------------------------------------------------
-def save_database_csv(db: _DFManagement, folder: str):
+def _encode(obj: Any) -> str:
     """
-    Save all database content to CSV files in the specified folder.
-    Files produced:
-      - templates_particle.csv
-      - templates_residue.csv
-      - templates_molecule.csv
-      - templates_bond.csv
-      - instances_particle.csv
-      - instances_residue.csv
-      - instances_molecule.csv
-      - instances_bond.csv
-      - reactions.csv
+    Encodes a Python object as a JSON string.
+
+    Special handling for PintQuantity and Pydantic models.
+
+    Args:
+        obj (Any): Object to encode. Can be None, PintQuantity, Pydantic model, or standard Python object.
+
+    Returns:
+        str: JSON string representation of the object.
+             Returns empty string for None.
     """
-    os.makedirs(folder, exist_ok=True)
+    if obj is None:
+        return ""
+    # PintQuantity dataclass (has to_dict)
+    if isinstance(obj, PintQuantity):
+        return json.dumps(obj.to_dict(), separators=(",", ":"), ensure_ascii=False)
 
-    # -----------------------------
-    # TEMPLATES
-    # -----------------------------
-    for pmb_type, tpl_dict in db.templates.items():
-        rows = []
-        for tpl in tpl_dict.values():
-            # PARTICLE TEMPLATE: explicit custom encoding
-            if pmb_type == "particle" and isinstance(tpl, ParticleTemplate):
-                rows.append({
-                    "name": tpl.name,
-                    "sigma": _encode(tpl.sigma.to_dict()),
-                    "epsilon": _encode(tpl.epsilon.to_dict()),
-                    "cutoff": _encode(tpl.cutoff.to_dict()),
-                    "offset": _encode(tpl.offset.to_dict()),
-                    # states: dict state_name -> ParticleState.model_dump()
-                    "states": _encode({sname: st.model_dump() for sname, st in tpl.states.items()}),
-                })
+    # If it's already a dict/list/scalar, json-dump it
+    try:
+        return json.dumps(obj, separators=(",", ":"), ensure_ascii=False)
+    except TypeError:
+        # Last resort: convert to string
+        return json.dumps(str(obj), separators=(",", ":"), ensure_ascii=False)
 
-            # RESIDUE TEMPLATE
-            elif pmb_type == "residue" and isinstance(tpl, ResidueTemplate):
-                rows.append({
-                    "name": tpl.name,
-                    "central_bead": tpl.central_bead,
-                    "side_chains": _encode(tpl.side_chains),
-                })
-
-            # MOLECULE TEMPLATE
-            elif pmb_type == "molecule" and isinstance(tpl, MoleculeTemplate):
-                rows.append({
-                    "name": tpl.name,
-                    "residue_list": _encode(tpl.residue_list),
-                })
-            
-            elif pmb_type == "peptide" and isinstance(tpl, PeptideTemplate):
-                rows.append({
-                    "name": tpl.name,
-                    "model": tpl.model,
-                    "residue_list": _encode(tpl.residue_list),
-                    "sequence": _encode(tpl.sequence),
-                })
-            elif pmb_type == "protein" and isinstance(tpl, ProteinTemplate):
-                rows.append({
-                    "name": tpl.name,
-                    "model": tpl.model,
-                    "residue_list": _encode(tpl.residue_list),
-                    "sequence": _encode(tpl.sequence),
-                })
-            # BOND TEMPLATE
-            elif pmb_type == "bond" and isinstance(tpl, BondTemplate):
-                # parameters: dict[str, scalar or PintQuantity]
-                params_serial = {}
-                for k, v in tpl.parameters.items():
-                    if isinstance(v, PintQuantity):
-                        params_serial[k] = v.to_dict()
-                    else:
-                        # assume scalar serializable
-                        params_serial[k] = v
-                rows.append({
-                    "name": tpl.name,
-                    "bond_type": tpl.bond_type,
-                    "parameters": _encode(params_serial),
-                    "l0": _encode(tpl.l0.to_dict()),
-                })
-            # HYDROGEL TEMPLATE
-            elif pmb_type == "hydrogel" and isinstance(tpl, HydrogelTemplate):
-                rows.append({
-                    "name": tpl.name,
-                    "node_map": _encode([node.model_dump() for node in tpl.node_map]),
-                    "chain_map": _encode([chain.model_dump() for chain in tpl.chain_map]),
-                })
-            else:
-                # Generic fallback: try model_dump()
-                try:
-                    rows.append(tpl.model_dump())
-                except Exception:
-                    rows.append({"name": getattr(tpl, "name", None)})
-
-        df = pd.DataFrame(rows)
-        df.to_csv(os.path.join(folder, f"templates_{pmb_type}.csv"), index=False)
-
-    # -----------------------------
-    # INSTANCES
-    # -----------------------------
-    for pmb_type, inst_dict in db.instances.items():
-        rows = []
-        for inst in inst_dict.values():
-            if pmb_type == "particle" and isinstance(inst, ParticleInstance):
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "particle_id": int(inst.particle_id),
-                    "initial_state": inst.initial_state,
-                    "residue_id": int(inst.residue_id) if inst.residue_id is not None else "",
-                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else "",
-                })
-            elif pmb_type == "residue" and isinstance(inst, ResidueInstance):
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "residue_id": int(inst.residue_id),
-                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else "",
-                })
-            elif pmb_type == "molecule" and isinstance(inst, MoleculeInstance):
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "molecule_id": int(inst.molecule_id),
-                })
-            elif pmb_type == "peptide" and isinstance(inst, PeptideInstance):
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "molecule_id": int(inst.molecule_id),
-                })
-            elif pmb_type == "protein" and isinstance(inst, ProteinInstance):
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "molecule_id": int(inst.molecule_id),
-                })
-            elif pmb_type == "bond" and isinstance(inst, BondInstance):
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "bond_id": int(inst.bond_id),
-                    "particle_id1": int(inst.particle_id1),
-                    "particle_id2": int(inst.particle_id2),
-                })
-            elif pmb_type == "hydrogel" and isinstance(inst, HydrogelInstance):
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "hydrogel_id": int(inst.hydrogel_id),
-                    "molecule_ids": _encode(inst.molecule_ids),
-                })
-            else:
-                # fallback to model_dump
-                try:
-                    rows.append(inst.model_dump())
-                except Exception:
-                    rows.append({"name": getattr(inst, "name", None)})
-
-        df = pd.DataFrame(rows)
-        df.to_csv(os.path.join(folder, f"instances_{pmb_type}.csv"), index=False)
-
-    # -----------------------------
-    # REACTIONS
-    # -----------------------------
-    rows = []
-    for rx in db.reactions.values():
-        rows.append({
-            "name": rx.name,
-            "participants": _encode([p.model_dump() for p in rx.participants]),
-            "pK": rx.pK if hasattr(rx, "pK") else None,
-            "reaction_type": rx.reaction_type,
-            "metadata": _encode(rx.metadata) if getattr(rx, "metadata", None) is not None else "",
-        })
-    pd.DataFrame(rows).to_csv(os.path.join(folder, "reactions.csv"), index=False)
-
-
-# ----------------------------------------------------------------------
-# LOAD
-# ----------------------------------------------------------------------
-def load_database_csv(db: _DFManagement, folder: str):
+def _load_database_csv(db, folder):
     """
-    Load CSV files from folder into the provided _DFManagement instance.
-    This mutates db.templates, db.instances and db.reactions in place.
+    Loads CSV files from a folder into a database instance.
 
-    Important:
-      - The PintQuantity.from_dict(...) returns a stored PintQuantity dataclass
-        (no registry required). Reconstruction to a pint.Quantity occurs when
-        users call .to_quantity(db.ureg) on the PintQuantity.
+    This function populates the `templates`, `instances`, and `reactions` attributes
+    of the provided database object in place. Supports various pyMBE types.
+
+    Args:
+        db (Manager): Database manager object to populate.
+        folder (str or Path): Path to the folder containing CSV files.
+
+    Raises:
+        FileNotFoundError: If the folder does not exist.
+
+    Notes:
+        - PintQuantity objects are reconstructed from their dictionary representation.
+        - Supports particle, residue, molecule, peptide, protein, bond, and hydrogel types.
     """
     folder = Path(folder)
     if not folder.exists():
@@ -285,9 +139,7 @@ def load_database_csv(db: _DFManagement, folder: str):
                    "protein",
                    "hydrogel"]
 
-    # -----------------------------
     # TEMPLATES
-    # -----------------------------
     for pmb_type in pyMBE_types:
         csv_file = folder / f"templates_{pmb_type}.csv"
         if not csv_file.exists():
@@ -403,9 +255,7 @@ def load_database_csv(db: _DFManagement, folder: str):
                 templates[tpl.name] = tpl
         db.templates[pmb_type] = templates
 
-    # -----------------------------
     # INSTANCES
-    # -----------------------------
     for pmb_type in pyMBE_types:
         csv_file = folder / f"instances_{pmb_type}.csv"
         if not csv_file.exists():
@@ -475,9 +325,7 @@ def load_database_csv(db: _DFManagement, folder: str):
                 instances[inst.hydrogel_id] = inst
         db.instances[pmb_type] = instances
 
-    # -----------------------------
     # REACTIONS
-    # -----------------------------
     rx_file = folder / "reactions.csv"
     reactions: Dict[str, Reaction] = {}
     if rx_file.exists():
@@ -496,4 +344,200 @@ def load_database_csv(db: _DFManagement, folder: str):
             reactions[rx.name] = rx
     db.reactions = reactions
 
+def _load_reaction_set(path):
+    """
+    Loads a set of reactions from a JSON file.
 
+    Args:
+        path (str): Path to the JSON file containing reaction data.
+
+    Returns:
+        dict[str, Reaction]: Dictionary mapping reaction names to Reaction objects.
+    """
+    with open(path, "r") as f:
+        data = json.load(f)
+
+    reactions = {}
+    for name, rdata in data["data"].items():
+
+        participants = [
+            ReactionParticipant(**p)
+            for p in rdata["participants"]
+        ]
+
+        reaction = Reaction(
+            name=name,
+            participants=participants,
+            constant=rdata["constant"],
+            reaction_type=rdata.get("reaction_type", "acid_base"),
+            metadata=rdata.get("metadata")
+        )
+
+        reactions[name] = reaction
+
+    return reactions
+
+def _save_database_csv(db, folder):
+    """
+    Saves the database content into CSV files in a folder.
+
+    This function serializes all templates, instances, and reactions.
+
+    Args:
+        db (Manager): Database object containing templates, instances, and reactions.
+        folder (str or Path): Path to the folder where CSV files will be saved.
+
+    """
+    os.makedirs(folder, exist_ok=True)
+
+    # TEMPLATES
+    for pmb_type, tpl_dict in db.templates.items():
+        rows = []
+        for tpl in tpl_dict.values():
+            # PARTICLE TEMPLATE: explicit custom encoding
+            if pmb_type == "particle" and isinstance(tpl, ParticleTemplate):
+                rows.append({
+                    "name": tpl.name,
+                    "sigma": _encode(tpl.sigma.to_dict()),
+                    "epsilon": _encode(tpl.epsilon.to_dict()),
+                    "cutoff": _encode(tpl.cutoff.to_dict()),
+                    "offset": _encode(tpl.offset.to_dict()),
+                    "states": _encode({sname: st.model_dump() for sname, st in tpl.states.items()}), # states: dict state_name -> ParticleState.model_dump()
+                    })
+
+            # RESIDUE TEMPLATE
+            elif pmb_type == "residue" and isinstance(tpl, ResidueTemplate):
+                rows.append({
+                    "name": tpl.name,
+                    "central_bead": tpl.central_bead,
+                    "side_chains": _encode(tpl.side_chains),
+                    })
+
+            # MOLECULE TEMPLATE
+            elif pmb_type == "molecule" and isinstance(tpl, MoleculeTemplate):
+                rows.append({
+                    "name": tpl.name,
+                    "residue_list": _encode(tpl.residue_list),
+                    })
+            
+            elif pmb_type == "peptide" and isinstance(tpl, PeptideTemplate):
+                rows.append({
+                    "name": tpl.name,
+                    "model": tpl.model,
+                    "residue_list": _encode(tpl.residue_list),
+                    "sequence": _encode(tpl.sequence),
+                    })
+            elif pmb_type == "protein" and isinstance(tpl, ProteinTemplate):
+                rows.append({
+                    "name": tpl.name,
+                    "model": tpl.model,
+                    "residue_list": _encode(tpl.residue_list),
+                    "sequence": _encode(tpl.sequence),
+                    })
+            # BOND TEMPLATE
+            elif pmb_type == "bond" and isinstance(tpl, BondTemplate):
+                # parameters: dict[str, scalar or PintQuantity]
+                params_serial = {}
+                for k, v in tpl.parameters.items():
+                    if isinstance(v, PintQuantity):
+                        params_serial[k] = v.to_dict()
+                    else:
+                        # assume scalar serializable
+                        params_serial[k] = v
+                rows.append({
+                    "name": tpl.name,
+                    "bond_type": tpl.bond_type,
+                    "parameters": _encode(params_serial),
+                    "l0": _encode(tpl.l0.to_dict()),
+                })
+            # HYDROGEL TEMPLATE
+            elif pmb_type == "hydrogel" and isinstance(tpl, HydrogelTemplate):
+                rows.append({
+                    "name": tpl.name,
+                    "node_map": _encode([node.model_dump() for node in tpl.node_map]),
+                    "chain_map": _encode([chain.model_dump() for chain in tpl.chain_map]),
+                })
+            else:
+                # Generic fallback: try model_dump()
+                try:
+                    rows.append(tpl.model_dump())
+                except Exception:
+                    rows.append({"name": getattr(tpl, "name", None)})
+
+        df = pd.DataFrame(rows)
+        df.to_csv(os.path.join(folder, f"templates_{pmb_type}.csv"), index=False)
+
+    # INSTANCES
+    for pmb_type, inst_dict in db.instances.items():
+        rows = []
+        for inst in inst_dict.values():
+            if pmb_type == "particle" and isinstance(inst, ParticleInstance):
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "particle_id": int(inst.particle_id),
+                    "initial_state": inst.initial_state,
+                    "residue_id": int(inst.residue_id) if inst.residue_id is not None else "",
+                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else "",
+                })
+            elif pmb_type == "residue" and isinstance(inst, ResidueInstance):
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "residue_id": int(inst.residue_id),
+                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else "",
+                })
+            elif pmb_type == "molecule" and isinstance(inst, MoleculeInstance):
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "molecule_id": int(inst.molecule_id),
+                })
+            elif pmb_type == "peptide" and isinstance(inst, PeptideInstance):
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "molecule_id": int(inst.molecule_id),
+                })
+            elif pmb_type == "protein" and isinstance(inst, ProteinInstance):
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "molecule_id": int(inst.molecule_id),
+                })
+            elif pmb_type == "bond" and isinstance(inst, BondInstance):
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "bond_id": int(inst.bond_id),
+                    "particle_id1": int(inst.particle_id1),
+                    "particle_id2": int(inst.particle_id2),
+                })
+            elif pmb_type == "hydrogel" and isinstance(inst, HydrogelInstance):
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "hydrogel_id": int(inst.hydrogel_id),
+                    "molecule_ids": _encode(inst.molecule_ids),
+                })
+            else:
+                # fallback to model_dump
+                try:
+                    rows.append(inst.model_dump())
+                except Exception:
+                    rows.append({"name": getattr(inst, "name", None)})
+
+        df = pd.DataFrame(rows)
+        df.to_csv(os.path.join(folder, f"instances_{pmb_type}.csv"), index=False)
+
+    # REACTIONS
+    rows = []
+    for rx in db.reactions.values():
+        rows.append({
+            "name": rx.name,
+            "participants": _encode([p.model_dump() for p in rx.participants]),
+            "pK": rx.pK if hasattr(rx, "pK") else None,
+            "reaction_type": rx.reaction_type,
+            "metadata": _encode(rx.metadata) if getattr(rx, "metadata", None) is not None else "",
+        })
+    pd.DataFrame(rows).to_csv(os.path.join(folder, "reactions.csv"), index=False)
