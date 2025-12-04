@@ -21,7 +21,6 @@ from typing import List
 from pydantic import Field, BaseModel
 from ..base_type import PMBBaseModel
 
-
 class HydrogelNode(BaseModel):
     """
     Represents a node in a hydrogel network.
@@ -33,20 +32,18 @@ class HydrogelNode(BaseModel):
     particle_name: str
     lattice_index: List[int]  # must be length 3
 
-
 class HydrogelChain(BaseModel):
     """
     Represents a polymer chain between two hydrogel nodes.
 
     Attributes:
+        molecule_name (str): Name of the molecule representing the polymer chain.
         node_start (str): Name of the starting node.
         node_end (str): Name of the ending node.
-        residue_list (List[str]): List of residue names forming the chain between the nodes.
     """
+    molecule_name: str
     node_start: str
-    node_end: str
-    residue_list: List[str]   # list of residue names
-
+    node_end: str   
 
 class HydrogelTemplate(PMBBaseModel):
     """

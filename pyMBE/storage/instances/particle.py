@@ -1,10 +1,62 @@
+#
+# Copyright (C) 2025 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
 from pydantic import field_validator
 from ..base_type import PMBBaseModel
 
 
 class ParticleInstance(PMBBaseModel):
     """
-    A placed particle within the simulation.
+    Concrete instance of a particle placed in the simulation.
+
+    ``ParticleInstance`` represents a single particle created from a
+    ``ParticleTemplate`` and placed within the system. 
+    Each instance has a unique integer identifier, an initial chemical
+    state (e.g., ``"A-"`` or ``"HA"``), and optional associations to a
+    residue and/or molecule instance.
+
+    Attributes:
+        pmb_type (str):
+            Fixed string identifying this object as a particle instance.
+            Always ``"particle"``.
+        particle_id (int):
+            Unique non-negative integer identifying the particle within
+            the database. Assigned sequentially by the database manager.
+        initial_state (str):
+            Name of the particle state at creation time. Must correspond
+            to one of the allowed states defined in the originating
+            ``ParticleTemplate``. State transitions are handled at the
+            simulation level, not here.
+        residue_id (int | None):
+            Optional identifier of the ``ResidueInstance`` this particle
+            belongs to. Particles that are not part of a residue should
+            leave this field as ``None``.
+        molecule_id (int | None):
+            Optional identifier of the ``MoleculeInstance`` this particle
+            belongs to. Particles not belonging to any molecule should
+            keep this as ``None``.
+
+    Notes:
+        - ``initial_state`` is stored as a plain string to ensure clean
+          serialization and avoid engine-specific objects.
+        - Connectivity, bonding, and spatial ordering are external to
+          this class and handled by the database or simulation backend.
     """
     pmb_type: str = "particle"
     particle_id: int

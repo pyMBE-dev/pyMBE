@@ -35,4 +35,4 @@ class PeptideTemplate(PMBBaseModel):
     name: str
     model: str
     residue_list: list[str] 
-    sequence: list[str] 
+    sequence: str 

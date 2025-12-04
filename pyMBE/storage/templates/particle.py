@@ -54,6 +54,7 @@ class ParticleTemplate(PMBBaseModel):
     """
 
     pmb_type: str = Field(default="particle", frozen=True)
+    name : str
     sigma: PintQuantity
     cutoff: PintQuantity
     offset: PintQuantity

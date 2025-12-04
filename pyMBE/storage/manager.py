@@ -40,6 +40,7 @@ from pyMBE.storage.templates.protein import ProteinTemplate
 from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
+from pyMBE.storage.templates.lj import LJInteractionTemplate
 
 TemplateType = Any  # union of template classes (ParticleTemplate, ResidueTemplate, ...)
 InstanceType = Any  # union of instance classes (ParticleInstance, ResidueInstance, ...)
@@ -77,10 +78,10 @@ class Manager:
         Args:
             ureg (UnitRegistry): Pint unit registry used to rebuild quantities.
         """
-        self.units = units
-        self.templates: Dict[str, Dict[str, TemplateType]] = {}
-        self.instances: Dict[str, Dict[int, InstanceType]] = {}
-        self.reactions: Dict[str, Reaction] = {}
+        self._units = units
+        self._templates: Dict[str, Dict[str, TemplateType]] = {}
+        self._instances: Dict[str, Dict[int, InstanceType]] = {}
+        self._reactions: Dict[str, Reaction] = {}
 
     def _get_instances_df(self, pmb_type):
         """
@@ -89,7 +90,7 @@ class Manager:
         Args:
             pmb_type (str):
                 The instance type to query. Must be a key in
-                `self.instances`, such as `"particle"` or `"residue"`.
+                `self._instances`, such as `"particle"` or `"residue"`.
 
         Returns:
             pandas.DataFrame:
@@ -104,9 +105,9 @@ class Manager:
             all other instance types use direct model dumps.
         """
         rows = []
-        if pmb_type not in self.instances:
+        if pmb_type not in self._instances:
             return pd.DataFrame(rows)
-        for inst in self.instances[pmb_type].values():
+        for inst in self._instances[pmb_type].values():
             if pmb_type == "particle":
                 rows.append({
                     "pmb_type": pmb_type,
@@ -143,7 +144,7 @@ class Manager:
             flexible downstream manipulation.
         """  
         rows = []
-        for r in self.reactions.values():
+        for r in self._reactions.values():
             stoich = {
                 f"{p.state_name}": p.coefficient
                 for p in r.participants
@@ -174,24 +175,40 @@ class Manager:
 
         Notes:
             - Unit-bearing fields are converted to plain quantities through
-            ``to_quantity(self.units)`` to maintain consistent I/O.
+            ``to_quantity(self._units)`` to maintain consistent I/O.
         """
         rows = []
-        if pmb_type not in self.templates:
+        if pmb_type not in self._templates:
             return pd.DataFrame(rows)
-        for tpl in self.templates[pmb_type].values():
+        for tpl in self._templates[pmb_type].values():
             if pmb_type == "particle":
                 for sname, st in tpl.states.items():
                     rows.append({
-                    "particle": tpl.name,
-                    "sigma": tpl.sigma.to_quantity(self.units),
-                    "epsilon": tpl.epsilon.to_quantity(self.units),
-                    "cutoff": tpl.cutoff.to_quantity(self.units),
-                    "offset": tpl.offset.to_quantity(self.units),
+                    "pmb_type": tpl.pmb_type,
+                    "name": tpl.name,
+                    "sigma": tpl.sigma.to_quantity(self._units),
+                    "epsilon": tpl.epsilon.to_quantity(self._units),
+                    "cutoff": tpl.cutoff.to_quantity(self._units),
+                    "offset": tpl.offset.to_quantity(self._units),
                     "state": sname,
                     "z": st.z,
                     "es_type": st.es_type
-                })    
+                })  
+            elif pmb_type == "lj":
+                shift = tpl.shift
+                if isinstance(shift, dict) and {"magnitude", "units", "dimension"}.issubset(shift.keys()):
+                    shift = tpl.shift.to_quantity(self._units)
+                rows.append({
+                    "pmb_type": tpl.pmb_type,
+                    "name": tpl.name,
+                    "state1": tpl.state1,
+                    "state2": tpl.state2,
+                    "sigma": tpl.sigma.to_quantity(self._units),
+                    "epsilon": tpl.epsilon.to_quantity(self._units),
+                    "cutoff": tpl.cutoff.to_quantity(self._units),
+                    "offset": tpl.offset.to_quantity(self._units),
+                    "shift": shift
+                })
             else:
                 # Generic representation for other types
                 rows.append(tpl.model_dump())
@@ -232,22 +249,22 @@ class Manager:
         else:
             raise TypeError("Unsupported instance type")
 
-        self.instances.setdefault(pmb_type, {})
+        self._instances.setdefault(pmb_type, {})
 
-        if iid in self.instances[pmb_type]:
+        if iid in self._instances[pmb_type]:
             raise ValueError(f"Instance id {iid} already exists in type '{pmb_type}'")
 
         # validate template exists
-        if instance.name not in self.templates.get(pmb_type, {}):
+        if instance.name not in self._templates.get(pmb_type, {}):
             raise ValueError(f"Template '{instance.name}' not found for type '{pmb_type}'")
 
         # validate state for particle instances
         if pmb_type == "particle":
-            tpl: ParticleTemplate = self.templates[pmb_type][instance.name]
+            tpl: ParticleTemplate = self._templates[pmb_type][instance.name]
             if instance.initial_state not in tpl.states:
                 raise ValueError(f"State '{instance.initial_state}' not defined in template '{instance.name}'")
 
-        self.instances[pmb_type][iid] = instance
+        self._instances[pmb_type][iid] = instance
 
     def _register_reaction(self, reaction):
         """
@@ -259,10 +276,10 @@ class Manager:
         Raises:
             ValueError: If reaction name already exists.
         """
-        if reaction.name in self.reactions:
+        if reaction.name in self._reactions:
             raise ValueError(f"Reaction '{reaction.name}' already exists.")
 
-        self.reactions[reaction.name] = reaction
+        self._reactions[reaction.name] = reaction
 
     def _register_template(self, template):
         """
@@ -283,20 +300,22 @@ class Manager:
                 pmb_type = "residue"
             elif isinstance(template, MoleculeTemplate):
                 pmb_type = "molecule"
-            elif isinstance(template, BondTemplate):
-                pmb_type = "bond"
             elif isinstance(template, PeptideTemplate):
                 pmb_type = "peptide"
             elif isinstance(template, ProteinTemplate):
                 pmb_type = "protein"
             elif isinstance(template, HydrogelTemplate):
                 pmb_type = "hydrogel"
+            elif isinstance(template, BondTemplate):
+                pmb_type = "bond"
+            elif isinstance(template, LJInteractionTemplate):
+                pmb_type = "lj"
             else:
                 raise TypeError("Unknown template type; set attribute pmb_type or use supported templates")
 
-        self.templates.setdefault(pmb_type, {})
+        self._templates.setdefault(pmb_type, {})
 
-        if template.name in self.templates[pmb_type]:
+        if template.name in self._templates[pmb_type]:
             raise ValueError(f"Template '{template.name}' exists in '{pmb_type}'")
 
         # particle templates must define at least one state
@@ -307,7 +326,7 @@ class Manager:
             if getattr(template, "default_state", None) is not None and template.default_state not in template.states:
                 raise ValueError("default_state not in template states")
 
-        self.templates[pmb_type][template.name] = template
+        self._templates[pmb_type][template.name] = template
 
     def _update_instance(self, instance_id, pmb_type, attribute, value):
         """
@@ -343,8 +362,8 @@ class Manager:
             avoid partial mutations of internal state.
         """
         
-        if instance_id not in self.instances[pmb_type]:
-            raise KeyError(f"Instance '{instance_id}' not found in type '{pmb_type}'.")
+        if instance_id not in self._instances[pmb_type]:
+            raise KeyError(f"Instance '{instance_id}' not found for type '{pmb_type}' in the pyMBE database.")
                                 
         if pmb_type == "particle":
             allowed = ["initial_state", "residue_id", "molecule_id"]
@@ -356,7 +375,117 @@ class Manager:
         if attribute not in allowed:
             raise ValueError(f"Attribute '{attribute}' not allowed for {pmb_type}. Allowed attributes: {allowed}")
         
-        self.instances[pmb_type][instance_id] = self.instances[pmb_type][instance_id].model_copy(update={attribute: value})
+        self._instances[pmb_type][instance_id] = self._instances[pmb_type][instance_id].model_copy(update={attribute: value})
+
+    def _update_reaction_participant(self, reaction_name, particle_name, state_name, coefficient):
+        """
+        Append a new participant to an existing reaction in the database.
+    
+        Args:
+            reaction_name (str):
+                Name of the reaction to be updated.
+            particle_name (str):
+                Name of the particle template participating in the reaction.
+            state_name (str):
+                Specific state of the particle (e.g., protonation or charge state).
+            coefficient (int):
+                Stoichiometric coefficient for the new participant:
+                - ``coefficient < 0`` → reactant  
+                - ``coefficient > 0`` → product  
+                Zero is not allowed.
+
+        """
+        if reaction_name not in self._reactions:
+            raise KeyError(f"Reaction '{reaction_name}' not found in the pyMBE database.")
+
+        rxn = self._reactions[reaction_name].add_participant(particle_name=particle_name,
+                                                             state_name=state_name,
+                                                             coefficient=coefficient)
+        self._register_reaction(rxn)
+        self._reactions.pop(reaction_name)
+
+    def get_template(self, pmb_type, name):
+        """
+        Retrieve a stored template by type and name.
+
+        Looks up a template within the internal template registry
+        (`self._templates`) using its pyMBE type (e.g., "particle", "residue",
+        "bond", ...) and its unique name. If the template does not exist,
+        a `KeyError` is raised.
+
+        Args:
+            pmb_type (str): The template category (e.g., "particle", "molecule",
+                "residue", "bond", "protein", ...).
+            name (str): The unique name of the template to retrieve.
+
+        Returns:
+            PMBBaseModel: The stored template instance corresponding to the
+            provided type and name.
+
+        Raises:
+            KeyError: If no template with the given type and name exists in
+            the internal registry.
+        """
+        if name not in self._templates[pmb_type]:
+            raise KeyError(f"Template '{name}' not found in type '{pmb_type}'.")
+        else:
+            return self._templates[pmb_type][name]
+
+    def get_es_types_map(self):
+        """
+        Return a mapping from each particle to its states' `es_type`.
+
+        Iterates over all particle templates and extracts the ESPResSo type (`es_type`)
+        defined for each state. Produces a nested dictionary of the form:
+
+            {
+                particle_name: {
+                    state_name: es_type,
+                    ...
+                },
+                ...
+            }
+
+        Returns:
+            dict[str, dict[str, int]]:
+                A dictionary mapping each particle name to another dictionary that maps
+                each state name to its corresponding ``es_type``.
+
+        Raises:
+            KeyError:
+                If the ``"particle"`` template group does not exist in the database.
+
+        Examples:
+            Suppose templates include:
+                Particle A:
+                    HA: es_type = 0
+                    A-: es_type = 1
+                Particle H:
+                    H+: es_type = 2
+
+            Then the method returns:
+                {
+                    "A": {
+                        "HA": 0,
+                        "A-": 1,
+                    },
+                    "H": {
+                        "H+": 2,
+                    }
+                }
+        """
+        if "particle" not in self._templates:
+            return {}          
+
+        result = {}
+        for particle_name, tpl in self._templates["particle"].items():
+            for state_name, state in tpl.states.items():
+                if particle_name not in result:
+                    result[particle_name] = {state_name: state.es_type}
+                else:
+                    result[particle_name][state_name] = state.es_type
+                
+        return result
 
 
     class _NumpyEncoder(json.JSONEncoder):

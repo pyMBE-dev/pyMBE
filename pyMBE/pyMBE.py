@@ -25,37 +25,66 @@ import scipy.constants
 import scipy.optimize
 import logging
 import importlib.resources
-from pyMBE.storage.df_management import _DFManagement as _DFm
+from pyMBE.storage.manager import Manager
+from pyMBE.storage.templates.particle import ParticleTemplate, ParticleState
+from pyMBE.storage.instances.particle import ParticleInstance
+from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
+from pyMBE.storage.pint_quantity import PintQuantity
+from pyMBE.storage.templates.residue import ResidueTemplate
+from pyMBE.storage.instances.residue import ResidueInstance
+from pyMBE.storage.templates.molecule import MoleculeTemplate
+from pyMBE.storage.instances.molecule import MoleculeInstance
+from pyMBE.storage.templates.bond import BondTemplate
+from pyMBE.storage.instances.bond import BondInstance
+from pyMBE.storage.templates.peptide import PeptideTemplate
+from pyMBE.storage.instances.peptide import PeptideInstance
+from pyMBE.storage.templates.protein import ProteinTemplate
+from pyMBE.storage.instances.protein import ProteinInstance
+from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
+from pyMBE.storage.instances.hydrogel import HydrogelInstance
+
+import pyMBE.storage.io as io
 
 class pymbe_library():
     """
-    The library for the Molecular Builder for ESPResSo (pyMBE)
+    Core library for the Molecular Builder for ESPResSo (pyMBE).
+
+    Provides access to fundamental constants, reduced unit setup, and a
+    database for storing particle, molecule, and reaction information.
 
     Attributes:
-        N_A(`pint.Quantity`): Avogadro number.
-        Kb(`pint.Quantity`): Boltzmann constant.
-        e(`pint.Quantity`): Elementary charge.
-        df(`Pandas.Dataframe`): Dataframe used to bookkeep all the information stored in pyMBE. Typically refered as `pmb.df`. 
-        kT(`pint.Quantity`): Thermal energy.
-        Kw(`pint.Quantity`): Ionic product of water. Used in the setup of the G-RxMC method.
+        N_A (pint.Quantity): Avogadro number.
+        kB (pint.Quantity): Boltzmann constant.
+        e (pint.Quantity): Elementary charge.
+        kT (pint.Quantity): Thermal energy at the set temperature.
+        Kw (pint.Quantity): Ionic product of water. Used in G-RxMC method setup.
+        db (Manager): Database manager instance for pyMBE objects.
+        rng (np.random.Generator): Random number generator initialized with the provided seed.
+        units (pint.UnitRegistry): Pint UnitRegistry for unit-aware calculations.
+        lattice_builder (optional): Placeholder for lattice builder object, initially None.
+        root (importlib.resources.Path): Root path to the pyMBE package resources.
     """
 
     def __init__(self, seed, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
-        Initializes the pymbe_library by setting up the reduced unit system with `temperature` and `reduced_length` 
-        and sets up  the `pmb.df` for bookkeeping.
+        Initialize the pyMBE library.
+
+        Sets up the reduced unit system using temperature, unit length, and unit charge,
+        initializes the pyMBE database, and sets default physical constants.
 
         Args:
-            temperature(`pint.Quantity`,optional): Value of the temperature in the pyMBE UnitRegistry. Defaults to None.
-            unit_length(`pint.Quantity`, optional): Value of the unit of length in the pyMBE UnitRegistry. Defaults to None.
-            unit_charge (`pint.Quantity`,optional): Reduced unit of charge defined using the `pmb.units` UnitRegistry. Defaults to None. 
-            Kw (`pint.Quantity`,optional): Ionic product of water in mol^2/l^2. Defaults to None. 
-        
-        Note:
-            - If no `temperature` is given, a value of 298.15 K is assumed by default.
-            - If no `unit_length` is given, a value of 0.355 nm is assumed by default.
-            - If no `unit_charge` is given, a value of 1 elementary charge is assumed by default. 
-            - If no `Kw` is given, a value of 10^(-14) * mol^2 / l^2 is assumed by default. 
+            seed (int): Seed for the random number generator.
+            temperature (pint.Quantity, optional): Simulation temperature. Defaults to 298.15 K if None.
+            unit_length (pint.Quantity, optional): Reference length for reduced units. Defaults to 0.355 nm if None.
+            unit_charge (pint.Quantity, optional): Reference charge for reduced units. Defaults to 1 elementary charge if None.
+            Kw (pint.Quantity, optional): Ionic product of water in mol^2/l^2. Defaults to 1e-14 mol^2/l^2 if None.
+
+        Notes:
+            - Initializes `self.rng` for random number generation.
+            - Sets fundamental constants: Avogadro number (`N_A`), Boltzmann constant (`kB`), elementary charge (`e`).
+            - Initializes the reduced units via `set_reduced_units`.
+            - Prepares an empty database (`self.db`) for pyMBE objects.
+            - Initializes placeholders for `lattice_builder` and package resource path (`root`).
         """
         # Seed and RNG
         self.seed=seed
@@ -69,29 +98,9 @@ class pymbe_library():
                                temperature=temperature, 
                                Kw=Kw)
         
-        self.df = _DFm._setup_df()
+        self.db = Manager(units=self.units)
         self.lattice_builder = None
         self.root = importlib.resources.files(__package__)   
-
-    def _define_particle_entry_in_df(self,name):
-        """
-        Defines a particle entry in pmb.df.
-
-        Args:
-            name(`str`): Unique label that identifies this particle type.
-
-        Returns:
-            index(`int`): Index of the particle in pmb.df  
-        """
-
-        if  _DFm._check_if_name_is_defined_in_df(name=name, df=self.df):
-            index = self.df[self.df['name']==name].index[0]                                   
-        else:
-            index = len(self.df)
-            self.df.at [index, 'name'] = name
-            self.df.at [index,'pmb_type'] = 'particle'
-        self.df.fillna(pd.NA, inplace=True)
-        return index
 
     def _check_supported_molecule(self, molecule_name,valid_pmb_types):
         """
@@ -128,6 +137,22 @@ class pymbe_library():
             if hard_check:
                 raise ValueError(f"The name {name} has been defined in the pyMBE DataFrame with a pmb_type = {pmb_type}. This function only supports pyMBE objects with pmb_type = {expected_pmb_type}")
             return False
+    def _get_residue_list_from_sequence(self, sequence):
+        """
+        Convinience function to get a `residue_list` from a protein or peptide `sequence`.
+
+        Args:
+            sequence(`lst`):  Sequence of the peptide or protein.
+
+        Returns:
+            residue_list(`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.             
+        """
+        residue_list = []
+        for item in sequence:
+            residue_name='AA-'+item
+            residue_list.append(residue_name)
+        return residue_list
+
 
     def add_bonds_to_espresso(self, espresso_system) :
         """
@@ -308,40 +333,7 @@ class pymbe_library():
 
         return {"charges_dict": Z_HH_Donnan, "pH_system_list": pH_system_list, "partition_coefficients": partition_coefficients_list}
 
-    def calculate_initial_bond_length(self, bond_object, bond_type, epsilon, sigma, cutoff, offset):
-        """
-        Calculates the initial bond length that is used when setting up molecules,
-        based on the minimum of the sum of bonded and short-range (LJ) interactions.
-        
-        Args:
-            bond_object(`espressomd.interactions.BondedInteractions`): instance of a bond object from espressomd library
-            bond_type(`str`): label identifying the used bonded potential
-            epsilon(`pint.Quantity`): LJ epsilon of the interaction between the particles
-            sigma(`pint.Quantity`): LJ sigma of the interaction between the particles
-            cutoff(`pint.Quantity`): cutoff-radius of the LJ interaction 
-            offset(`pint.Quantity`): offset of the LJ interaction
-        """    
-        def truncated_lj_potential(x, epsilon, sigma, cutoff,offset):
-            if x>cutoff:
-                return 0.0
-            else:
-                return 4*epsilon*((sigma/(x-offset))**12-(sigma/(x-offset))**6) - 4*epsilon*((sigma/cutoff)**12-(sigma/cutoff)**6)
-
-        epsilon_red=epsilon.to('reduced_energy').magnitude
-        sigma_red=sigma.to('reduced_length').magnitude
-        cutoff_red=cutoff.to('reduced_length').magnitude
-        offset_red=offset.to('reduced_length').magnitude
-
-        if bond_type == "harmonic":
-            r_0 = bond_object.params.get('r_0')
-            k = bond_object.params.get('k')
-            l0 = scipy.optimize.minimize(lambda x: 0.5*k*(x-r_0)**2 + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red, offset_red), x0=r_0).x
-        elif bond_type == "FENE":
-            r_0 = bond_object.params.get('r_0')
-            k = bond_object.params.get('k')
-            d_r_max = bond_object.params.get('d_r_max')
-            l0 = scipy.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red,offset_red), x0=1.0).x
-        return l0
+    
 
     def calculate_net_charge(self, espresso_system, molecule_name, dimensionless=False):
         '''
@@ -411,41 +403,6 @@ class pymbe_library():
             espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
         return 
 
-    def check_aminoacid_key(self, key):
-        """
-        Checks if `key` corresponds to a valid aminoacid letter code.
-
-        Args:
-            key(`str`): key to be checked.
-
-        Returns:
-            `bool`: True if `key` is a valid aminoacid letter code, False otherwise.
-        """
-        valid_AA_keys=['V', #'VAL'
-                       'I', #'ILE'
-                       'L', #'LEU'
-                       'E', #'GLU'
-                       'Q', #'GLN'
-                       'D', #'ASP'
-                       'N', #'ASN'
-                       'H', #'HIS'
-                       'W', #'TRP'
-                       'F', #'PHE'
-                       'Y', #'TYR'
-                       'R', #'ARG' 
-                       'K', #'LYS'
-                       'S', #'SER'
-                       'T', #'THR'
-                       'M', #'MET'
-                       'A', #'ALA'
-                       'G', #'GLY'
-                       'P', #'PRO'
-                       'C'] #'CYS'
-        if key in valid_AA_keys:
-            return True
-        else:
-            return False
-
     def check_dimensionality(self, variable, expected_dimensionality):
         """
         Checks if the dimensionality of `variable` matches `expected_dimensionality`.
@@ -466,20 +423,7 @@ class pymbe_library():
             raise ValueError(f"The variable {variable} should have a dimensionality of {expected_dimensionality}, instead the variable has a dimensionality of {variable.dimensionality}")
         return correct_dimensionality   
 
-    def check_if_metal_ion(self,key):
-        """
-        Checks if `key` corresponds to a label of a supported metal ion.
 
-        Args:
-            key(`str`): key to be checked
-
-        Returns:
-            (`bool`): True if `key`  is a supported metal ion, False otherwise.
-        """
-        if key in self.get_metal_ions_charge_number_map().keys():
-            return True
-        else:
-            return False
 
     def check_pka_set(self, pka_set):
         """
@@ -1244,44 +1188,11 @@ class pymbe_library():
                                               overwrite = True)
             # Internal bookkeeping of the side chain beads ids
             residues_info[residue_id]['side_chain_ids']=side_chain_beads_ids
-        return  residues_info
-
-    
-
-    def define_AA_residues(self, sequence, model):
-        """
-        Defines in `pmb.df` all the different residues in `sequence`.
-
-        Args:
-            sequence(`lst`):  Sequence of the peptide or protein.
-            model(`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
-
-        Returns:
-            residue_list(`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.             
-        """
-        residue_list = []
-        for residue_name in sequence:
-            if model == '1beadAA':
-                central_bead = residue_name
-                side_chains = []
-            elif model == '2beadAA':
-                if residue_name in ['c','n', 'G']: 
-                    central_bead = residue_name
-                    side_chains = []
-                else:
-                    central_bead = 'CA'              
-                    side_chains = [residue_name]
-            if residue_name not in residue_list:   
-                self.define_residue(name = 'AA-'+residue_name, 
-                                    central_bead = central_bead,
-                                    side_chains = side_chains)              
-            residue_list.append('AA-'+residue_name)
-        return residue_list
+        return  residues_info   
 
     def define_bond(self, bond_type, bond_parameters, particle_pairs):
-        
-        '''
-        Defines a pmb object of type `bond` in `pymbe.df`.
+        """
+        Defines bond templates for each particle pair in `particle_pairs` in the pyMBE database.
 
         Args:
             bond_type(`str`): label to identify the potential to model the bond.
@@ -1292,124 +1203,78 @@ class pymbe_library():
             Currently, only HARMONIC and FENE bonds are supported.
 
             For a HARMONIC bond the dictionary must contain the following parameters:
-
-                - k (`obj`)      : Magnitude of the bond. It should have units of energy/length**2 
+                - k (`pint.Quantity`)      : Magnitude of the bond. It should have units of energy/length**2 
                 using the `pmb.units` UnitRegistry.
-                - r_0 (`obj`)    : Equilibrium bond length. It should have units of length using 
+                - r_0 (`pint.Quantity`)    : Equilibrium bond length. It should have units of length using 
                 the `pmb.units` UnitRegistry.
            
-            For a FENE bond the dictionary must contain the same parameters as for a HARMONIC bond and:
-                
-                - d_r_max (`obj`): Maximal stretching length for FENE. It should have 
+            For a FENE bond the dictionary must contain the same parameters as for a HARMONIC bond and:              
+                - d_r_max (`pint.Quantity`): Maximal stretching length for FENE. It should have 
                 units of length using the `pmb.units` UnitRegistry. Default 'None'.
-        '''
+        """
 
-        bond_object=self.create_bond_in_espresso(bond_type, bond_parameters)
+        parameters_expected_dimensions={"r_0": "length",
+                                        "k": "energy/length**2",
+                                        "d_r_max": "length"}
+
+        parameters_tpl = {}
+        for key in bond_parameters.keys():
+            parameters_tpl[key]= PintQuantity.from_quantity(q=bond_parameters[key],
+                                                            expected_dimension=parameters_expected_dimensions[key],
+                                                            ureg=self.units)
+
+        bond_names=[]
         for particle_name1, particle_name2 in particle_pairs:
-
-            lj_parameters=self.get_lj_parameters(particle_name1 = particle_name1,
-                                                 particle_name2 = particle_name2,
-                                                 combining_rule = 'Lorentz-Berthelot')
-      
-            l0 = self.calculate_initial_bond_length(bond_object = bond_object,
-                                                    bond_type   = bond_type,
-                                                    epsilon     = lj_parameters["epsilon"],
-                                                    sigma       = lj_parameters["sigma"],
-                                                    cutoff      = lj_parameters["cutoff"],
-                                                    offset      = lj_parameters["offset"],)
-            index = len(self.df)
-            for label in [f'{particle_name1}-{particle_name2}', f'{particle_name2}-{particle_name1}']:
-                _DFm._check_if_multiple_pmb_types_for_name(name=label, 
-                                                           pmb_type_to_be_defined="bond",
-                                                           df=self.df)
-            name=f'{particle_name1}-{particle_name2}'
-            _DFm._check_if_multiple_pmb_types_for_name(name=name, 
-                                                       pmb_type_to_be_defined="bond", 
-                                                       df=self.df)
-            self.df.at [index,'name']= name
-            self.df.at [index,'bond_object'] = bond_object
-            self.df.at [index,'l0'] = l0
-            _DFm._add_value_to_df(df = self.df,
-                                  index = index,
-                                  key = ('pmb_type',''),
-                                  new_value = 'bond')
-            _DFm._add_value_to_df(df = self.df,
-                                  index = index,
-                                  key = ('parameters_of_the_potential',''),
-                                  new_value = bond_object.get_params(),
-                                  non_standard_value = True)
-        self.df.fillna(pd.NA, inplace=True)
-        return
+            
+            tpl = BondTemplate(particle_name1=particle_name1,
+                               particle_name2=particle_name2,
+                               parameters=parameters_tpl,
+                               bond_type=bond_type)
+            tpl._make_name()
+            if tpl.name in bond_names:
+                raise RuntimeError(f"Bond {tpl.name} has already been defined, please check the list of particle pairs")
+            else:
+                self.db._register_template(tpl)
+                bond_names.append(tpl.name)
 
     
-    def define_default_bond(self, bond_type, bond_parameters, epsilon=None, sigma=None, cutoff=None, offset=None):
+    def define_default_bond(self, bond_type, bond_parameters):
         """
-        Asigns `bond` in `pmb.df` as the default bond.
-        The LJ parameters can be optionally provided to calculate the initial bond length
-
+        Defines a bond template as a "default" template in the pyMBE database.
+        
         Args:
             bond_type(`str`): label to identify the potential to model the bond.
             bond_parameters(`dict`): parameters of the potential of the bond.
-            sigma(`float`, optional): LJ sigma of the interaction between the particles.
-            epsilon(`float`, optional): LJ epsilon for the interaction between the particles.
-            cutoff(`float`, optional): cutoff-radius of the LJ interaction.
-            offset(`float`, optional): offset of the LJ interaction.
-
+            
         Note:
             - Currently, only harmonic and FENE bonds are supported. 
         """
-        
-        bond_object=self.create_bond_in_espresso(bond_type, bond_parameters)
-
-        if epsilon is None:
-            epsilon=1*self.units('reduced_energy')
-        if sigma is None:
-            sigma=1*self.units('reduced_length')
-        if cutoff is None:
-            cutoff=2**(1.0/6.0)*self.units('reduced_length')
-        if offset is None:
-            offset=0*self.units('reduced_length')
-        l0 = self.calculate_initial_bond_length(bond_object = bond_object, 
-                                                bond_type   = bond_type, 
-                                                epsilon     = epsilon,
-                                                sigma       = sigma,
-                                                cutoff      = cutoff,
-                                                offset      = offset)
-
-        _DFm._check_if_multiple_pmb_types_for_name(name='default',
-                                                   pmb_type_to_be_defined='bond', 
-                                                   df=self.df)
-
-        index = max(self.df.index, default=-1) + 1
-        self.df.at [index,'name']        = 'default'
-        self.df.at [index,'bond_object'] = bond_object
-        self.df.at [index,'l0']          = l0
-        _DFm._add_value_to_df(df = self.df,
-                              index = index,
-                              key = ('pmb_type',''),
-                              new_value = 'bond')
-        _DFm._add_value_to_df(df = self.df,
-                              index = index,
-                              key = ('parameters_of_the_potential',''),
-                              new_value = bond_object.get_params(),
-                              non_standard_value=True)
-        self.df.fillna(pd.NA, inplace=True)
-        return
+        parameters_expected_dimensions={"r_0": "length",
+                                        "k": "energy/length**2",
+                                        "d_r_max": "length"}
+        parameters_tpl = {}
+        for key in bond_parameters.keys():
+            parameters_tpl[key]= PintQuantity.from_quantity(q=bond_parameters[key],
+                                                            expected_dimension=parameters_expected_dimensions[key],
+                                                            ureg=self.units)
+        tpl = BondTemplate(parameters=parameters_tpl,
+                               bond_type=bond_type)
+        tpl.name = "default"
+        self.db._register_template(tpl)
     
     def define_hydrogel(self, name, node_map, chain_map):
         """
-        Defines a pyMBE object of type `hydrogel` in `pymbe.df`.
+        Defines a hydrogel template in the pyMBE database.
 
         Args:
             name(`str`): Unique label that identifies the `hydrogel`.
-            node_map(`list of ict`): [{"particle_name": , "lattice_index": }, ... ]
+            node_map(`list of dict`): [{"particle_name": , "lattice_index": }, ... ]
             chain_map(`list of dict`): [{"node_start": , "node_end": , "residue_list": , ... ]
         """
-        node_indices = {tuple(entry['lattice_index']) for entry in node_map}
-        diamond_indices = {tuple(row) for row in self.lattice_builder.lattice.indices}
-        if node_indices != diamond_indices:
-            raise ValueError(f"Incomplete hydrogel: A diamond lattice must contain exactly 8 lattice indices, {diamond_indices} ")
         
+        # Sanity tests
+        node_indices = {tuple(entry['lattice_index']) for entry in node_map}
+                
         chain_map_connectivity = set()
         for entry in chain_map:
             start = self.lattice_builder.node_labels[entry['node_start']]
@@ -1419,54 +1284,41 @@ class pymbe_library():
         if self.lattice_builder.lattice.connectivity != chain_map_connectivity:
             raise ValueError("Incomplete hydrogel: A diamond lattice must contain correct 16 lattice index pairs")
 
-        _DFm._check_if_multiple_pmb_types_for_name(name=name,
-                                                   pmb_type_to_be_defined='hydrogel',
-                                                   df=self.df)
-
-        index = len(self.df)
-        self.df.at [index, "name"] = name
-        self.df.at [index, "pmb_type"] = "hydrogel"
-        _DFm._add_value_to_df(df = self.df,
-                              index = index,
-                              key = ('node_map',''),
-                              new_value = node_map,
-                              non_standard_value = True)
-        _DFm._add_value_to_df(df = self.df,
-                              index = index,
-                              key = ('chain_map',''),
-                              new_value = chain_map,
-                              non_standard_value = True)
-        for chain_label in chain_map:
-            node_start = chain_label["node_start"]
-            node_end = chain_label["node_end"]
-            residue_list = chain_label['residue_list']
-            # Molecule name
-            molecule_name = "chain_"+node_start+"_"+node_end
-            self.define_molecule(name=molecule_name, residue_list=residue_list)
-        return
+        
+        diamond_indices = {tuple(row) for row in self.lattice_builder.lattice.indices}
+        if node_indices != diamond_indices:
+            raise ValueError(f"Incomplete hydrogel: A diamond lattice must contain exactly 8 lattice indices, {diamond_indices} ")
+        
+        # Register information in the pyMBE database
+        nodes=[]
+        for entry in node_map:
+            nodes.append(HydrogelNode(particle_name=entry["particle_name"],
+                                      lattice_index=entry["lattice_index"]))
+        chains=[]
+        for chain in chain_map:
+            chains.append(HydrogelChain(node_start=chain["node_start"],
+                                        node_end=chain["node_end"],
+                                        molecule_name=chain["molecule_name"]))
+        tpl = HydrogelTemplate(name=name,
+                               node_map=nodes,
+                               chain_map=chains)
+        self.db._register_template(tpl)
 
     def define_molecule(self, name, residue_list):
         """
-        Defines a pyMBE object of type `molecule` in `pymbe.df`.
+        Defines a molecule template in the pyMBE database.
 
         Args:
             name(`str`): Unique label that identifies the `molecule`.
             residue_list(`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.  
         """
-        _DFm._check_if_multiple_pmb_types_for_name(name=name,
-                                                   pmb_type_to_be_defined='molecule',
-                                                   df=self.df)
+        tpl = MoleculeTemplate(name=name,
+                               residue_list=residue_list)
+        self.db._register_template(tpl)
 
-        index = len(self.df)
-        self.df.at [index,'name'] = name
-        self.df.at [index,'pmb_type'] = 'molecule'
-        self.df.at [index,('residue_list','')] = residue_list
-        self.df.fillna(pd.NA, inplace=True)
-        return   
-
-    def define_particle(self, name, z=0, acidity=pd.NA, pka=pd.NA, sigma=pd.NA, epsilon=pd.NA, cutoff=pd.NA, offset=pd.NA,overwrite=False):
+    def define_particle(self, name, z=0, acidity=pd.NA, pka=pd.NA, sigma=pd.NA, epsilon=pd.NA, cutoff=pd.NA, offset=pd.NA):
         """
-        Defines the properties of a particle object.
+        Defines a particle template in the pyMBE database.
 
         Args:
             name(`str`): Unique label that identifies this particle type.  
@@ -1477,7 +1329,6 @@ class pymbe_library():
             cutoff(`pint.Quantity`, optional): Cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to pd.NA.
             offset(`pint.Quantity`, optional): Offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to pd.NA.
             epsilon(`pint.Quantity`, optional): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe. Defaults to pd.NA.
-            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False.
 
         Note:
             - `sigma`, `cutoff` and `offset` must have a dimensitonality of `[length]` and should be defined using pmb.units.
@@ -1487,167 +1338,83 @@ class pymbe_library():
             - The default setup corresponds to the Weeks−Chandler−Andersen (WCA) model, corresponding to purely steric interactions.
             - For more information on `sigma`, `epsilon`, `cutoff` and `offset` check `pmb.setup_lj_interactions()`.
         """ 
-        index=self._define_particle_entry_in_df(name=name)
-        _DFm._check_if_multiple_pmb_types_for_name(name=name,
-                                                   pmb_type_to_be_defined='particle',
-                                                   df=self.df)
-
+        
         # If `cutoff` and `offset` are not defined, default them to the following values
         if pd.isna(cutoff):
             cutoff=self.units.Quantity(2**(1./6.), "reduced_length")
         if pd.isna(offset):
             offset=self.units.Quantity(0, "reduced_length")
 
-        # Define LJ parameters
-        parameters_with_dimensionality={"sigma":{"value": sigma, "dimensionality": "[length]"},
-                                        "cutoff":{"value": cutoff, "dimensionality": "[length]"},
-                                        "offset":{"value": offset, "dimensionality": "[length]"},
-                                        "epsilon":{"value": epsilon, "dimensionality": "[energy]"},}
-
-        for parameter_key in parameters_with_dimensionality.keys():
-            if not pd.isna(parameters_with_dimensionality[parameter_key]["value"]):
-                self.check_dimensionality(variable=parameters_with_dimensionality[parameter_key]["value"], 
-                                          expected_dimensionality=parameters_with_dimensionality[parameter_key]["dimensionality"])
-                _DFm._add_value_to_df(df = self.df,
-                                      key = (parameter_key,''),
-                                      index = index,
-                                      new_value = parameters_with_dimensionality[parameter_key]["value"],
-                                      overwrite = overwrite)
-
+        tpl = ParticleTemplate(name=name, 
+                               sigma=PintQuantity.from_quantity(q=sigma, expected_dimension="length", ureg=self.units), 
+                               epsilon=PintQuantity.from_quantity(q=epsilon, expected_dimension="energy", ureg=self.units),
+                               cutoff=PintQuantity.from_quantity(q=cutoff, expected_dimension="length", ureg=self.units), 
+                               offset=PintQuantity.from_quantity(q=offset, expected_dimension="length", ureg=self.units))
+                
         # Define particle acid/base properties
-        self.set_particle_acidity(name=name, 
-                                acidity=acidity, 
-                                default_charge_number=z, 
-                                pka=pka,
-                                overwrite=overwrite)
-        self.df.fillna(pd.NA, inplace=True)
+        self.set_particle_acidity(particle_template=tpl, 
+                                  acidity=acidity, 
+                                  default_charge_number=z, 
+                                  pka=pka)
         return 
-    
-    def define_particles(self, parameters, overwrite=False):
-        '''
-        Defines a particle object in pyMBE for each particle name in `particle_names`
-
-        Args:
-            parameters(`dict`):  dictionary with the particle parameters. 
-            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
-
-        Note:
-            - parameters = {"particle_name1: {"sigma": sigma_value, "epsilon": epsilon_value, ...}, particle_name2: {...},}
-        '''
-        if not parameters:
-            return 0
-        for particle_name in parameters.keys():
-            parameters[particle_name]["overwrite"]=overwrite
-            self.define_particle(**parameters[particle_name])
-        return
     
     def define_peptide(self, name, sequence, model):
         """
-        Defines a pyMBE object of type `peptide` in the `pymbe.df`.
+        Defines a peptide template in the pyMBE database.
 
         Args:
-            name (`str`): Unique label that identifies the `peptide`.
-            sequence (`string`): Sequence of the `peptide`.
-            model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
+            name (`str`): Unique label that identifies the peptide.
+            sequence (`str`): Sequence of the peptide.
+            model (`str`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
         """
-        _DFm._check_if_multiple_pmb_types_for_name(name = name, 
-                                                   pmb_type_to_be_defined='peptide',
-                                                   df=self.df)
-
         valid_keys = ['1beadAA','2beadAA']
         if model not in valid_keys:
             raise ValueError('Invalid label for the peptide model, please choose between 1beadAA or 2beadAA')
         clean_sequence = self.protein_sequence_parser(sequence=sequence)    
-        residue_list = self.define_AA_residues(sequence=clean_sequence,
-                                                model=model)
-        self.define_molecule(name = name, residue_list=residue_list)
-        index = self.df.loc[self.df['name'] == name].index.item() 
-        self.df.at [index,'model'] = model
-        self.df.at [index,('sequence','')] = clean_sequence
-        self.df.at [index,'pmb_type'] = "peptide"
-        self.df.fillna(pd.NA, inplace=True)
-        
+        residue_list = self._get_residue_list_from_sequence(sequence=clean_sequence)
+        tpl = PeptideTemplate(name=name,
+                              residue_list=residue_list,
+                              model=model,
+                              sequence=sequence)
+        self.db._register_template(tpl)        
     
-    def define_protein(self, name,model, topology_dict, lj_setup_mode="wca", overwrite=False):
+    def define_protein(self, name, sequence, model):
         """
-        Defines a globular protein pyMBE object  in `pymbe.df`.
+        Defines a protein template in the pyMBE database.
 
         Args:
             name (`str`): Unique label that identifies the protein.
+            sequence (`str`): Sequence of the protein.
             model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
             topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'radius': radius_value}
-            lj_setup_mode(`str`): Key for the setup for the LJ potential. Defaults to "wca".
-            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
 
         Note:
             - Currently, only `lj_setup_mode="wca"` is supported. This corresponds to setting up the WCA potential.
         """
-
-        # Sanity checks
-        _DFm._check_if_multiple_pmb_types_for_name(name = name,
-                                                   pmb_type_to_be_defined='protein',
-                                                   df=self.df)
         valid_model_keys = ['1beadAA','2beadAA']
-        valid_lj_setups = ["wca"]
         if model not in valid_model_keys:
             raise ValueError('Invalid key for the protein model, supported models are {valid_model_keys}')
-        if lj_setup_mode not in valid_lj_setups:
-            raise ValueError('Invalid key for the lj setup, supported setup modes are {valid_lj_setups}')
-        if lj_setup_mode == "wca":
-            sigma = 1*self.units.Quantity("reduced_length")
-            epsilon = 1*self.units.Quantity("reduced_energy")
-        part_dict={}
-        sequence=[]
-        metal_ions_charge_number_map=self.get_metal_ions_charge_number_map()
-        for particle in topology_dict.keys():
-            particle_name = re.split(r'\d+', particle)[0] 
-            if particle_name not in part_dict.keys():
-                if lj_setup_mode == "wca":
-                    part_dict[particle_name]={"sigma": sigma,
-                                        "offset": topology_dict[particle]['radius']*2-sigma,
-                                        "epsilon": epsilon,
-                                        "name": particle_name}
-                if self.check_if_metal_ion(key=particle_name):
-                    z=metal_ions_charge_number_map[particle_name]
-                else:
-                    z=0
-                part_dict[particle_name]["z"]=z
-            
-            if self.check_aminoacid_key(key=particle_name):
-                sequence.append(particle_name) 
-            
-        self.define_particles(parameters=part_dict,
-                            overwrite=overwrite)
-        residue_list = self.define_AA_residues(sequence=sequence, 
-                                               model=model)
-        index = len(self.df)
-        self.df.at [index,'name'] = name
-        self.df.at [index,'pmb_type'] = 'protein'
-        self.df.at [index,'model'] = model
-        self.df.at [index,('sequence','')] = sequence  
-        self.df.at [index,('residue_list','')] = residue_list
-        self.df.fillna(pd.NA, inplace=True)    
-        return 
+        
+        residue_list = self._get_residue_list_from_sequence(sequence=sequence)
+        tpl = ProteinTemplate(name=name,
+                              model=model,
+                              residue_list=residue_list,
+                              sequence=sequence)
+        self.db._register_template(tpl)
     
     def define_residue(self, name, central_bead, side_chains):
         """
-        Defines a pyMBE object of type `residue` in `pymbe.df`.
+        Defines a residue template in the pyMBE database.
 
         Args:
-            name(`str`): Unique label that identifies the `residue`.
-            central_bead(`str`): `name` of the `particle` to be placed as central_bead of the `residue`.
-            side_chains(`list` of `str`): List of `name`s of the pmb_objects to be placed as side_chains of the `residue`. Currently, only pmb_objects of type `particle`s or `residue`s are supported.
+            name(`str`): Unique label that identifies the residue.
+            central_bead(`str`): `name` of the `particle` to be placed as central_bead of the residue.
+            side_chains(`list` of `str`): List of `name`s of the pmb_objects to be placed as side_chains of the residue. Currently, only pyMBE objects of type `particle` or `residue` are supported.
         """
-        _DFm._check_if_multiple_pmb_types_for_name(name=name,
-                                                   pmb_type_to_be_defined='residue',
-                                                   df=self.df)
-
-        index = len(self.df)
-        self.df.at [index, 'name'] = name
-        self.df.at [index,'pmb_type'] = 'residue'
-        self.df.at [index,'central_bead'] = central_bead
-        self.df.at [index,('side_chains','')] = side_chains
-        self.df.fillna(pd.NA, inplace=True)
+        tpl = ResidueTemplate(name=name,
+                              central_bead=central_bead,
+                              side_chains=side_chains)
+        self.db._register_template(tpl)
         return    
 
     def delete_molecule_in_system(self, molecule_id, espresso_system):
@@ -2024,55 +1791,7 @@ class pymbe_library():
         charge_number_map  = pd.concat([state_one,state_two],axis=0).to_dict()
         return charge_number_map
 
-    def get_lj_parameters(self, particle_name1, particle_name2, combining_rule='Lorentz-Berthelot'):
-        """
-        Returns the Lennard-Jones parameters for the interaction between the particle types given by 
-        `particle_name1` and `particle_name2` in `pymbe.df`, calculated according to the provided combining rule.
-
-        Args:
-            particle_name1 (str): label of the type of the first particle type
-            particle_name2 (str): label of the type of the second particle type
-            combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
-
-        Returns:
-            {"epsilon": epsilon_value, "sigma": sigma_value, "offset": offset_value, "cutoff": cutoff_value}
-
-        Note:
-            - Currently, the only `combining_rule` supported is Lorentz-Berthelot.
-            - If the sigma value of `particle_name1` or `particle_name2` is 0, the function will return an empty dictionary. No LJ interactions are set up for particles with sigma = 0.
-        """
-        supported_combining_rules=["Lorentz-Berthelot"]
-        lj_parameters_keys=["sigma","epsilon","offset","cutoff"]
-        if combining_rule not in supported_combining_rules:
-            raise ValueError(f"Combining_rule {combining_rule} currently not implemented in pyMBE, valid keys are {supported_combining_rules}")
-        lj_parameters={}
-        for key in lj_parameters_keys:
-            lj_parameters[key]=[]
-        # Search the LJ parameters of the type pair
-        for name in [particle_name1,particle_name2]:
-            for key in lj_parameters_keys:
-                lj_parameters[key].append(self.df[self.df.name == name][key].values[0])
-        # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
-        if not all(sigma_value.magnitude for sigma_value in lj_parameters["sigma"]):
-            return {}
-        # Apply combining rule
-        if combining_rule == 'Lorentz-Berthelot':
-            lj_parameters["sigma"]=(lj_parameters["sigma"][0]+lj_parameters["sigma"][1])/2
-            lj_parameters["cutoff"]=(lj_parameters["cutoff"][0]+lj_parameters["cutoff"][1])/2
-            lj_parameters["offset"]=(lj_parameters["offset"][0]+lj_parameters["offset"][1])/2
-            lj_parameters["epsilon"]=np.sqrt(lj_parameters["epsilon"][0]*lj_parameters["epsilon"][1])
-        return lj_parameters
-
-    def get_metal_ions_charge_number_map(self):
-        """
-        Gets a map with the charge numbers of all the metal ions supported.
-
-        Returns:
-            metal_charge_number_map(dict): Has the structure {"metal_name": metal_charge_number}
-
-        """
-        metal_charge_number_map = {"Ca": 2}
-        return metal_charge_number_map
+    
 
     def get_particle_id_map(self, object_name):
         '''
@@ -2172,17 +1891,32 @@ class pymbe_library():
 
     def get_type_map(self):
         """
-        Gets all different espresso types assigned to particles  in `pmb.df`.
-        
+        Return the mapping of ESPResSo types for all particles present in ``pmb.df``.
+
+        This method delegates to ``self.db.get_es_types_map()`` and returns its output.
+        The resulting structure is a nested dictionary that lists, for each particle
+        template, all defined states and their corresponding ESPResSo type (``es_type``).
+
         Returns:
-            type_map(`dict`): {"name": espresso_type}.
+            dict[str, dict[str, float | int | str]]:
+                A dictionary of the form::
+
+                    {
+                        particle_name: {
+                            state_name: es_type,
+                            ...
+                        },
+                        ...
+                    }
+
+                where ``es_type`` is the ESPResSo particle type used in simulations.
+
+        See Also:
+            ``Manager.get_es_types_map`` – the underlying method that performs
+            the extraction.
         """
-        df_state_one = self.df.state_one.dropna(how='all')     
-        df_state_two = self.df.state_two.dropna(how='all')  
-        state_one = pd.Series (df_state_one.es_type.values,index=df_state_one.label)
-        state_two = pd.Series (df_state_two.es_type.values,index=df_state_two.label)
-        type_map  = pd.concat([state_one,state_two],axis=0).to_dict()
-        return type_map
+        
+        return self.db.get_es_types_map()
 
     def initialize_lattice_builder(self, diamond_lattice):
         """
@@ -2300,18 +2034,33 @@ class pymbe_library():
 
     def propose_unused_type(self):
         """
-        Searches in `pmb.df` all the different particle types defined and returns a new one.
+        Propose an unused ESPResSo particle type.
+
+        This method scans the full `type_map` produced by `get_type_map()`,
+        which contains all particle templates and their associated state `es_type`.
+        It extracts all integer `es_type` values and returns the next available
+        integer type, ensuring no collisions with existing ones.
 
         Returns:
-            unused_type(`int`): unused particle type
+            int: The next available integer ESPResSo type. Returns ``0`` if no
+            integer types are currently defined.
+
+    
         """
         type_map = self.get_type_map()
-        if not type_map:  
-            unused_type = 0
-        else:
-            valid_values = [v for v in type_map.values() if pd.notna(v)]  # Filter out pd.NA values
-            unused_type = max(valid_values) + 1 if valid_values else 0  # Ensure max() doesn't fail if all values are NA
-        return unused_type
+
+        # Flatten all es_type values across all particles and states
+        all_types = []
+        for particle_entry in type_map.values():
+            for es_type in particle_entry.values():
+                if isinstance(es_type, int):
+                    all_types.append(es_type)
+
+        # If no integer es_types exist, start at 0
+        if not all_types:
+            return 0
+
+        return max(all_types) + 1
 
     def protein_sequence_parser(self, sequence):
         '''
@@ -2581,7 +2330,7 @@ class pymbe_library():
                         list_of_particles_in_residue.append(side_chain)
         return list_of_particles_in_residue        
 
-    def set_particle_acidity(self, name, acidity=pd.NA, default_charge_number=0, pka=pd.NA, overwrite=True):
+    def set_particle_acidity(self, particle_template, acidity=pd.NA, default_charge_number=0, pka=pd.NA):
         """
         Sets the particle acidity including the charges in each of its possible states. 
 
@@ -2601,87 +2350,52 @@ class pymbe_library():
         acidity_valid_keys = ['inert','acidic', 'basic']
         if not pd.isna(acidity):
             if acidity not in acidity_valid_keys:
-                raise ValueError(f"Acidity {acidity} provided for particle name  {name} is not supproted. Valid keys are: {acidity_valid_keys}")
+                raise ValueError(f"Acidity {acidity} provided for particle name  {particle_template.name} is not supported. Valid keys are: {acidity_valid_keys}")
             if acidity in ['acidic', 'basic'] and pd.isna(pka):
-                raise ValueError(f"pKa not provided for particle with name {name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
+                raise ValueError(f"pKa not provided for particle with name {particle_template.name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
             if acidity == "inert":
                 acidity = pd.NA
                 logging.warning("the keyword 'inert' for acidity has been replaced by setting acidity = pd.NA. For backwards compatibility, acidity has been set to pd.NA. Support for `acidity = 'inert'` may be deprecated in future releases of pyMBE")
 
-        self._define_particle_entry_in_df(name=name)
         
-        for index in self.df[self.df['name']==name].index:       
-            if pka is not pd.NA:
-                _DFm._add_value_to_df(df = self.df,
-                                      key = ('pka',''),
-                                      index = index,
-                                      new_value = pka, 
-                                      overwrite = overwrite)
+        # Define the first state
+        if pka is pd.NA:
+            # Inert particle with a single state
+            z_state_one = default_charge_number
+            name_state_one = particle_template.name
+        else:
+            if acidity == "acidic":
+                z_state_one = 0
+            elif acidity == "basic":
+                z_state_one = 1
+            name_state_one = particle_template.name + "H"
 
-            _DFm._add_value_to_df(df = self.df,
-                                  key = ('acidity',''),
-                                  index = index,
-                                  new_value = acidity, 
-                                  overwrite = overwrite) 
-            if not _DFm._check_if_df_cell_has_a_value(df=self.df, index=index,key=('state_one','es_type')):
-                _DFm._add_value_to_df(df = self.df,
-                                      key = ('state_one','es_type'),
-                                      index = index,
-                                      new_value = self.propose_unused_type(),
-                                      overwrite = overwrite)
-            if pd.isna(self.df.loc [self.df['name']  == name].acidity.iloc[0]):
-                _DFm._add_value_to_df(df = self.df,
-                                      key = ('state_one','z'),
-                                      index = index,
-                                      new_value = default_charge_number,
-                                      overwrite = overwrite)
-                _DFm._add_value_to_df(df = self.df,
-                                      key = ('state_one','label'),
-                                      index = index,
-                                      new_value = name,
-                                      overwrite = overwrite)
-            else:
-                protonated_label = f'{name}H'
-                _DFm._add_value_to_df(df = self.df,
-                                      key = ('state_one','label'),
-                                      index = index,
-                                      new_value = protonated_label,
-                                      overwrite = overwrite)
-                _DFm._add_value_to_df(df = self.df,
-                                      key = ('state_two','label'),
-                                      index = index,
-                                      new_value = name,
-                                      overwrite = overwrite)
-                if not _DFm._check_if_df_cell_has_a_value(df=self.df, index=index,key=('state_two','es_type')):
-                    _DFm._add_value_to_df(df = self.df,
-                                          key = ('state_two','es_type'),
-                                          index = index,
-                                          new_value = self.propose_unused_type(),
-                                          overwrite = overwrite)
-                if self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'acidic':
-                    _DFm._add_value_to_df(df = self.df,
-                                          key = ('state_one','z'),
-                                          index = index,
-                                          new_value = 0,
-                                          overwrite = overwrite)
-                    _DFm._add_value_to_df(df = self.df,
-                                          key = ('state_two','z'),
-                                          index = index,
-                                          new_value = -1,
-                                          overwrite = overwrite)
-                elif self.df.loc [self.df['name']  == name].acidity.iloc[0] == 'basic':
-                    _DFm._add_value_to_df(df = self.df,
-                                          key = ('state_one','z'),
-                                          index = index,
-                                          new_value = +1,
-                                          overwrite = overwrite)
-                    _DFm._add_value_to_df(df = self.df,
-                                          key = ('state_two','z'),
-                                          index = index,
-                                          new_value = 0,
-                                          overwrite = overwrite)
-        self.df.fillna(pd.NA, inplace=True)
-        return
+        particle_template.add_state(ParticleState(name=name_state_one,
+                                    z=z_state_one,
+                                    es_type=self.propose_unused_type()))
+        self.db._register_template(particle_template)
+
+        # For monoprotic acid/base particles, define the second state
+        if pka is not pd.NA:
+            if acidity == "acidic":
+                z_state_two = -1
+            elif acidity == "basic":
+                z_state_two = 0
+            name_state_two = particle_template.name
+            particle_template.add_state(ParticleState(name=name_state_two,
+                                        z=z_state_two,
+                                        es_type=self.propose_unused_type()))
+        
+            reaction = Reaction(participants=[ReactionParticipant(particle_name=particle_template.name,
+                                                                  state_name=name_state_one, 
+                                                                  coefficient=-1),
+                                              ReactionParticipant(particle_name=particle_template.name,
+                                                                  state_name=name_state_two,
+                                                                  coefficient=1)],
+                                reaction_type="acid/base",
+                                pK=pka)
+            self.db._register_reaction(reaction)
+
     
     def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None, Kw=None):
         """

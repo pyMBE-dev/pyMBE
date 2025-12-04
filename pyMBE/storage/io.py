@@ -41,9 +41,9 @@ from pyMBE.storage.templates.protein import ProteinTemplate
 from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
+from pyMBE.storage.templates.lj import LJInteractionTemplate
 
-
-def _decode(s: Any) -> Any:
+def _decode(s):
     """
     Decodes a JSON-like object or string.
 
@@ -82,7 +82,7 @@ def _decode(s: Any) -> Any:
         # If it fails, try to interpret as plain string
         return s_str
 
-def _encode(obj: Any) -> str:
+def _encode(obj):
     """
     Encodes a Python object as a JSON string.
 
@@ -137,7 +137,8 @@ def _load_database_csv(db, folder):
                    "bond", 
                    "peptide",
                    "protein",
-                   "hydrogel"]
+                   "hydrogel",
+                   "lj"]
 
     # TEMPLATES
     for pmb_type in pyMBE_types:
@@ -202,28 +203,22 @@ def _load_database_csv(db, folder):
                 rl = _decode(row.get("residue_list", "")) or []
                 if not isinstance(rl, list):
                     rl = list(rl)
-                seq = _decode(row.get("sequence", "")) or []
-                if not isinstance(seq, list):
-                    seq = list(seq)
                 tpl = PeptideTemplate(
                     name=row["name"],
                     model=row.get("model", ""),
                     residue_list=rl,
-                    sequence=seq
+                    sequence=row["sequence"]
                 )
                 templates[tpl.name] = tpl
             elif pmb_type == "protein":
                 rl = _decode(row.get("residue_list", "")) or []
                 if not isinstance(rl, list):
                     rl = list(rl)
-                seq = _decode(row.get("sequence", "")) or []
-                if not isinstance(seq, list):
-                    seq = list(seq)
                 tpl = ProteinTemplate(
                     name=row["name"],
                     model=row.get("model", ""),
                     residue_list=rl,
-                    sequence=seq
+                    sequence=row["sequence"]
                 )
                 templates[tpl.name] = tpl
             elif pmb_type == "bond":
@@ -238,8 +233,7 @@ def _load_database_csv(db, folder):
                 tpl = BondTemplate(
                     name=row["name"],
                     bond_type=row.get("bond_type", ""),
-                    parameters=parameters,
-                    l0=PintQuantity.from_dict(_decode(row["l0"])))
+                    parameters=parameters)
                 templates[tpl.name] = tpl
             elif pmb_type == "hydrogel":
                 node_map_raw = _decode(row.get("node_map", "")) or []
@@ -253,7 +247,39 @@ def _load_database_csv(db, folder):
                     chain_map=chain_map
                 )
                 templates[tpl.name] = tpl
-        db.templates[pmb_type] = templates
+            elif pmb_type == "lj":
+                sigma_d = _decode(row["sigma"])
+                epsilon_d = _decode(row["epsilon"])
+                cutoff_d = _decode(row["cutoff"])
+                offset_d = _decode(row["offset"])
+                state1 = row["state1"]
+                state2 = row["state2"]
+                shift_d = _decode(row.get("shift", ""))
+                
+                sigma = PintQuantity.from_dict(sigma_d) if sigma_d is not None else None
+                epsilon = PintQuantity.from_dict(epsilon_d) if epsilon_d is not None else None
+                cutoff = PintQuantity.from_dict(cutoff_d) if cutoff_d is not None else None
+                offset = PintQuantity.from_dict(offset_d) if offset_d is not None else None
+
+
+                if isinstance(shift_d, dict) and {"magnitude", "units", "dimension"}.issubset(shift_d.keys()):
+                    shift = PintQuantity.from_dict(shift_d)
+                else:
+                    shift = shift_d  # could be "auto" or None
+
+                tpl = LJInteractionTemplate(
+                    state1=state1,
+                    state2=state2,
+                    sigma=sigma,
+                    epsilon=epsilon,
+                    cutoff=cutoff,
+                    offset=offset,
+                    shift=shift
+                )
+
+                templates[tpl.name] = tpl
+
+        db._templates[pmb_type] = templates
 
     # INSTANCES
     for pmb_type in pyMBE_types:
@@ -323,7 +349,7 @@ def _load_database_csv(db, folder):
                     molecule_ids=mol_ids
                 )
                 instances[inst.hydrogel_id] = inst
-        db.instances[pmb_type] = instances
+        db._instances[pmb_type] = instances
 
     # REACTIONS
     rx_file = folder / "reactions.csv"
@@ -342,7 +368,7 @@ def _load_database_csv(db, folder):
                 metadata=metadata
             )
             reactions[rx.name] = rx
-    db.reactions = reactions
+    db._reactions = reactions
 
 def _load_reaction_set(path):
     """
@@ -391,17 +417,17 @@ def _save_database_csv(db, folder):
     os.makedirs(folder, exist_ok=True)
 
     # TEMPLATES
-    for pmb_type, tpl_dict in db.templates.items():
+    for pmb_type, tpl_dict in db._templates.items():
         rows = []
         for tpl in tpl_dict.values():
             # PARTICLE TEMPLATE: explicit custom encoding
             if pmb_type == "particle" and isinstance(tpl, ParticleTemplate):
                 rows.append({
                     "name": tpl.name,
-                    "sigma": _encode(tpl.sigma.to_dict()),
-                    "epsilon": _encode(tpl.epsilon.to_dict()),
-                    "cutoff": _encode(tpl.cutoff.to_dict()),
-                    "offset": _encode(tpl.offset.to_dict()),
+                    "sigma": _encode(tpl.sigma),
+                    "epsilon": _encode(tpl.epsilon),
+                    "cutoff": _encode(tpl.cutoff),
+                    "offset": _encode(tpl.offset),
                     "states": _encode({sname: st.model_dump() for sname, st in tpl.states.items()}), # states: dict state_name -> ParticleState.model_dump()
                     })
 
@@ -425,14 +451,14 @@ def _save_database_csv(db, folder):
                     "name": tpl.name,
                     "model": tpl.model,
                     "residue_list": _encode(tpl.residue_list),
-                    "sequence": _encode(tpl.sequence),
+                    "sequence": tpl.sequence,
                     })
             elif pmb_type == "protein" and isinstance(tpl, ProteinTemplate):
                 rows.append({
                     "name": tpl.name,
                     "model": tpl.model,
                     "residue_list": _encode(tpl.residue_list),
-                    "sequence": _encode(tpl.sequence),
+                    "sequence": tpl.sequence,
                     })
             # BOND TEMPLATE
             elif pmb_type == "bond" and isinstance(tpl, BondTemplate):
@@ -446,9 +472,10 @@ def _save_database_csv(db, folder):
                         params_serial[k] = v
                 rows.append({
                     "name": tpl.name,
+                    "particle_name1": tpl.particle_name1,
+                    "particle_name2": tpl.particle_name2,
                     "bond_type": tpl.bond_type,
                     "parameters": _encode(params_serial),
-                    "l0": _encode(tpl.l0.to_dict()),
                 })
             # HYDROGEL TEMPLATE
             elif pmb_type == "hydrogel" and isinstance(tpl, HydrogelTemplate):
@@ -457,6 +484,19 @@ def _save_database_csv(db, folder):
                     "node_map": _encode([node.model_dump() for node in tpl.node_map]),
                     "chain_map": _encode([chain.model_dump() for chain in tpl.chain_map]),
                 })
+            # LJ TEMPLATE
+            elif pmb_type == "lj" and isinstance(tpl, LJInteractionTemplate):
+                rows.append({
+                    "name":   tpl.name,
+                    "state1": tpl.state1,
+                    "state2": tpl.state2,
+                    "sigma":  _encode(tpl.sigma),
+                    "epsilon":_encode(tpl.epsilon),
+                    "cutoff": _encode(tpl.cutoff),
+                    "offset": _encode(tpl.offset),
+                    "shift": _encode(tpl.shift)
+                })
+                
             else:
                 # Generic fallback: try model_dump()
                 try:
@@ -468,7 +508,7 @@ def _save_database_csv(db, folder):
         df.to_csv(os.path.join(folder, f"templates_{pmb_type}.csv"), index=False)
 
     # INSTANCES
-    for pmb_type, inst_dict in db.instances.items():
+    for pmb_type, inst_dict in db._instances.items():
         rows = []
         for inst in inst_dict.values():
             if pmb_type == "particle" and isinstance(inst, ParticleInstance):
@@ -532,7 +572,7 @@ def _save_database_csv(db, folder):
 
     # REACTIONS
     rows = []
-    for rx in db.reactions.values():
+    for rx in db._reactions.values():
         rows.append({
             "name": rx.name,
             "participants": _encode([p.model_dump() for p in rx.participants]),

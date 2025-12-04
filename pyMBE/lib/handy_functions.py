@@ -17,6 +17,245 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
+import re
+import numpy as np
+
+def check_aminoacid_key(key):
+    """
+    Checks if `key` corresponds to a valid aminoacid letter code.
+
+    Args:
+        key(`str`): key to be checked.
+
+    Returns:
+        `bool`: True if `key` is a valid aminoacid letter code, False otherwise.
+    """
+    valid_AA_keys=['V', #'VAL'
+                    'I', #'ILE'
+                    'L', #'LEU'
+                    'E', #'GLU'
+                    'Q', #'GLN'
+                    'D', #'ASP'
+                    'N', #'ASN'
+                    'H', #'HIS'
+                    'W', #'TRP'
+                    'F', #'PHE'
+                    'Y', #'TYR'
+                    'R', #'ARG' 
+                    'K', #'LYS'
+                    'S', #'SER'
+                    'T', #'THR'
+                    'M', #'MET'
+                    'A', #'ALA'
+                    'G', #'GLY'
+                    'P', #'PRO'
+                    'C'] #'CYS'
+    if key in valid_AA_keys:
+        return True
+    else:
+        return False
+
+def check_if_metal_ion(key):
+    """
+    Checks if `key` corresponds to a label of a supported metal ion.
+
+    Args:
+        key(`str`): key to be checked
+
+
+    def get_particle_id_map(self, object_name):
+        '''
+        Gets all the ids associated with the object with name `object_name` in `pmb.df`
+
+        Args:
+            object_name(`str`): name of the object
+        
+        Returns:
+            id_map(`dict`): dict of the structure {"all": [all_ids_with_object_name], "residue_map": {res_id: [particle_ids_in_res_id]}, "molecule_map": {mol_id: [particle_ids_in_mol_id]}, }
+        '''
+        object_type=self._check_supported_molecule(molecule_name=object_name,
+                                                   valid_pmb_types= ['particle','residue','molecule',"peptide","protein"])
+        id_list = []
+        mol_map = {}
+        res_map = {}
+        def do_res_map(res_ids):
+            for res_id in res_ids:
+                res_list=self.df.loc[(self.df['residue_id']== res_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
+                res_map[res_id]=res_list
+            return res_map
+        if object_type in ['molecule', 'protein', 'peptide']:
+            mol_ids = self.df.loc[self.df['name']== object_name].molecule_id.dropna().tolist()
+            for mol_id in mol_ids:
+                res_ids = set(self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle") ].residue_id.dropna().tolist())
+                res_map=do_res_map(res_ids=res_ids)    
+                mol_list=self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
+                id_list+=mol_list
+                mol_map[mol_id]=mol_list
+        elif object_type == 'residue':     
+            res_ids = self.df.loc[self.df['name']== object_name].residue_id.dropna().tolist()
+            res_map=do_res_map(res_ids=res_ids)
+            id_list=[]
+            for res_id_list in res_map.values():
+                id_list+=res_id_list
+        elif object_type == 'particle':
+            id_list = self.d
+    Returns:
+        (`bool`): True if `key`  is a supported metal ion, False otherwise.
+    """
+    if key in get_metal_ions_charge_number_map().keys():
+        return True
+    else:
+        return False
+
+def define_AA_particles(topology_dict, lj_setup_mode, pmb):
+    valid_lj_setups = ["wca"]
+
+    if lj_setup_mode not in valid_lj_setups:
+            raise ValueError('Invalid key for the lj setup, supported setup modes are {valid_lj_setups}')
+    if lj_setup_mode == "wca":
+        sigma = 1*pmb.units.Quantity("reduced_length")
+        epsilon = 1*pmb.units.Quantity("reduced_energy")
+    part_dict={}
+    sequence=[]
+    metal_ions_charge_number_map=get_metal_ions_charge_number_map()
+    defined_particles=[]
+    for particle in topology_dict.keys():
+        particle_name = re.split(r'\d+', particle)[0] 
+        if particle_name not in part_dict.keys():
+            if lj_setup_mode == "wca":
+                part_dict={"sigma": sigma,
+                                    "offset": topology_dict[particle]['radius']*2-sigma,
+                                    "epsilon": epsilon,
+                                    "name": particle_name}
+            if check_if_metal_ion(key=particle_name):
+                z=metal_ions_charge_number_map[particle_name]
+            else:
+                z=0
+            part_dict["z"]=z
+            part_dict["name"]=particle_name
+        if check_aminoacid_key(key=particle_name):
+            sequence.append(particle_name) 
+        if particle_name not in defined_particles:
+            pmb.define_particle(**part_dict)
+            defined_particles.append(particle_name)            
+        
+
+def define_AA_residues(sequence, model, pmb):
+    """
+    Convinience function to define a residue template in the pyMBE database for each aminoacid in peptide and proteins.
+
+    Args:
+        pmb(pymbe_library): Instance of the pyMBE library. 
+        sequence(`lst`):  Sequence of the peptide or protein.
+        model(`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
+    """
+
+    residue_list = []
+    for item in sequence:
+        if model == '1beadAA':
+            central_bead = item
+            side_chains = []
+        elif model == '2beadAA':
+            if item in ['c','n', 'G']: 
+                central_bead = item
+                side_chains = []
+            else:
+                central_bead = 'CA'              
+                side_chains = [item]
+        residue_name='AA-'+item
+        if residue_name not in residue_list:   
+            pmb.define_residue(name = residue_name, 
+                                central_bead = central_bead,
+                                side_chains = side_chains)              
+            residue_list.append(residue_name)
+
+def get_metal_ions_charge_number_map():
+    """
+    Gets a map with the charge numbers of all the metal ions supported.
+
+    Returns:
+        metal_charge_number_map(dict): Has the structure {"metal_name": metal_charge_number}
+
+    """
+    metal_charge_number_map = {"Ca": 2}
+    return metal_charge_number_map
+
+def get_lj_parameters(particle_name1, particle_name2, pmb, combining_rule='Lorentz-Berthelot'):
+    """
+    Returns the Lennard-Jones parameters for the interaction between the particle types given by 
+    `particle_name1` and `particle_name2` in `pymbe.df`, calculated according to the provided combining rule.
+
+    Args:
+        particle_name1 (str): label of the type of the first particle type
+        particle_name2 (str): label of the type of the second particle type
+        combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
+
+    Returns:
+        {"epsilon": epsilon_value, "sigma": sigma_value, "offset": offset_value, "cutoff": cutoff_value}
+
+    Note:
+        - Currently, the only `combining_rule` supported is Lorentz-Berthelot.
+        - If the sigma value of `particle_name1` or `particle_name2` is 0, the function will return an empty dictionary. No LJ interactions are set up for particles with sigma = 0.
+    """
+    supported_combining_rules=["Lorentz-Berthelot"]
+    lj_parameters_keys=["sigma","epsilon","offset","cutoff"]
+    if combining_rule not in supported_combining_rules:
+        raise ValueError(f"Combining_rule {combining_rule} currently not implemented in pyMBE, valid keys are {supported_combining_rules}")
+    lj_parameters={}
+    for key in lj_parameters_keys:
+        lj_parameters[key]=[]
+    # Search the LJ parameters of the type pair
+    for name in [particle_name1,particle_name2]:
+        for key in lj_parameters_keys:
+            lj_parameters[key].append(getattr(pmb.db.get_template(pmb_type="particle", name=name), key))
+    # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
+    if not all(sigma_value.magnitude for sigma_value in lj_parameters["sigma"]):
+        return {}
+    # Apply combining rule
+    if combining_rule == 'Lorentz-Berthelot':
+        lj_parameters["sigma"]=(lj_parameters["sigma"][0]+lj_parameters["sigma"][1])/2
+        lj_parameters["cutoff"]=(lj_parameters["cutoff"][0]+lj_parameters["cutoff"][1])/2
+        lj_parameters["offset"]=(lj_parameters["offset"][0]+lj_parameters["offset"][1])/2
+        lj_parameters["epsilon"]=np.sqrt(lj_parameters["epsilon"][0]*lj_parameters["epsilon"][1])
+    return lj_parameters
+
+
+def calculate_initial_bond_length(bond_object, bond_type, epsilon, sigma, cutoff, offset):
+        """
+        Calculates the initial bond length that is used when setting up molecules,
+        based on the minimum of the sum of bonded and short-range (LJ) interactions.
+        
+        Args:
+            bond_object(`espressomd.interactions.BondedInteractions`): instance of a bond object from espressomd library
+            bond_type(`str`): label identifying the used bonded potential
+            epsilon(`pint.Quantity`): LJ epsilon of the interaction between the particles
+            sigma(`pint.Quantity`): LJ sigma of the interaction between the particles
+            cutoff(`pint.Quantity`): cutoff-radius of the LJ interaction 
+            offset(`pint.Quantity`): offset of the LJ interaction
+        """    
+        def truncated_lj_potential(x, epsilon, sigma, cutoff,offset):
+            if x>cutoff:
+                return 0.0
+            else:
+                return 4*epsilon*((sigma/(x-offset))**12-(sigma/(x-offset))**6) - 4*epsilon*((sigma/cutoff)**12-(sigma/cutoff)**6)
+
+        epsilon_red=epsilon.to('reduced_energy').magnitude
+        sigma_red=sigma.to('reduced_length').magnitude
+        cutoff_red=cutoff.to('reduced_length').magnitude
+        offset_red=offset.to('reduced_length').magnitude
+
+        if bond_type == "harmonic":
+            r_0 = bond_object.params.get('r_0')
+            k = bond_object.params.get('k')
+            l0 = scipy.optimize.minimize(lambda x: 0.5*k*(x-r_0)**2 + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red, offset_red), x0=r_0).x
+        elif bond_type == "FENE":
+            r_0 = bond_object.params.get('r_0')
+            k = bond_object.params.get('k')
+            d_r_max = bond_object.params.get('d_r_max')
+            l0 = scipy.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red,offset_red), x0=1.0).x
+        return l0
+
+
 
 def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, solvent_permittivity=78.5, method='p3m', tune_p3m=True, accuracy=1e-3, params=None, verbose=False):
     """

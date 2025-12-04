@@ -20,6 +20,7 @@
 from typing import Dict, Literal
 from ..base_type import PMBBaseModel
 from ..pint_quantity import PintQuantity
+from pydantic import Field, model_validator
 
 
 class BondTemplate(PMBBaseModel):
@@ -41,7 +42,17 @@ class BondTemplate(PMBBaseModel):
         Values are stored as PintQuantity objects for unit-aware calculations.
     """
     pmb_type: Literal["bond"] = "bond"
-    name: str                           # e.g. "HARMONIC_default"
+    name: str = Field(default="default")
     bond_type: str                      # "HARMONIC", "FENE"
+    particle_name1: str | None = None
+    particle_name2: str | None = None
     parameters: Dict[str, PintQuantity] # k, r0, d_r_max...
-    l0: PintQuantity                    # initial bond length
+
+    def _make_name(self):
+        """Create a canonical name for the bond."""
+        if self.particle_name1 is None or self.particle_name2 is None:
+            raise RuntimeError("The BondTemplate has no defined particle_name1 or particle_name2 and therefore the name could not be automatically generated")
+        pn1, pn2 = sorted([self.particle_name1, self.particle_name2])
+        self.name = f"{pn1}-{pn2}"
+
+    
