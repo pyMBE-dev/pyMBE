@@ -25,7 +25,8 @@ import importlib.resources
 import pyMBE.storage.io as io
 
 import pint 
-import scipy.constants
+import scipy
+import espressomd
 
 def main():
 
@@ -36,7 +37,7 @@ def main():
     kT=temperature*kB
     units.define(f'reduced_energy = {kT} ')
     units.define(f'reduced_length = {unit_length}')   
-
+    espresso_system=espressomd.System (box_l = [10]*3)
     db = Manager(units=units)
 
     # ============================================================
@@ -60,7 +61,7 @@ def main():
                         epsilon=0.2 * units.reduced_energy)
     
     pmb.define_residue(name="R1", central_bead="Z", side_chains=["X","Z"])
-    pmb.define_residue(name="R2", central_bead="ZA", side_chains=["X","HZ"])
+    pmb.define_residue(name="R2", central_bead="Z", side_chains=["X","R1"])
     
     print("\n=== Residue Templates DataFrame ===")
     print(pmb.db._get_templates_df(pmb_type="residue"))
@@ -132,8 +133,9 @@ def main():
     
     pmb.define_bond(bond_type="harmonic",
                     bond_parameters=parameters,
-                    particle_pairs=[["A","A"], 
-                                    ["K","A"]])
+                    particle_pairs=[["Z","Z"], 
+                                    ["Z","X"],
+                                    ["X","X"]])
     
     pmb.define_default_bond(bond_type="harmonic",
                             bond_parameters=parameters)
@@ -165,42 +167,33 @@ def main():
     # ============================================================
     # 2. CREATE INSTANCES (optional for testing)
     # ============================================================
-
-    inst1 = ParticleInstance(name="A", particle_id=1, initial_state="HA")
-    inst2 = ParticleInstance(name="A", particle_id=2, initial_state="A-",residue_id=0)
-    inst3 = ParticleInstance(name="H", particle_id=3, initial_state="H+")
-
-#    db._register_instance(inst1)
-#    db._register_instance(inst2)
-#    db._register_instance(inst3)
+    pmb.create_particle(name="Z",
+                        espresso_system=espresso_system,
+                        number_of_particles=3)
+    pmb.create_particle(name="X",
+                        espresso_system=espresso_system,
+                        number_of_particles=1)
     
     print("\n=== Particle Instances DataFrame ===")
-    print(db._get_instances_df(pmb_type="particle"))
+    print(pmb.db._get_instances_df(pmb_type="particle"))
 
 
-#    db._update_instance(pmb_type="particle", instance_id=1, attribute="residue_id", value=int(0))
+    pmb.db._update_instance(pmb_type="particle", instance_id=1, attribute="residue_id", value=int(0))
     print("\n=== Particle Instances DataFrame (after update) ===")
-    print(db._get_instances_df(pmb_type="particle"))
+    print(pmb.db._get_instances_df(pmb_type="particle"))
 
-    inst1 = ResidueInstance(name="R1", 
-                            residue_id=1)
-    inst2 = ResidueInstance(name="R2", 
-                            residue_id=2)
-    inst3 = ResidueInstance(name="R1", 
-                            residue_id=3, 
-                            molecule_id=0)
+    pmb.create_residue(name="R1",
+                       espresso_system=espresso_system)
+    pmb.create_residue(name="R2",
+                       espresso_system=espresso_system)
 
-#    db._register_instance(inst1)
-#    db._register_instance(inst2)
-#    db._register_instance(inst3)
-    
     print("\n=== Residue Instances DataFrame ===")
-    print(db._get_instances_df(pmb_type="residue"))
+    print(pmb.db._get_instances_df(pmb_type="residue"))
 
 
-#    db._update_instance(pmb_type="residue",instance_id=1, attribute="molecule_id", value=int(0))
+    pmb.db._update_instance(pmb_type="residue",instance_id=0, attribute="molecule_id", value=int(0))
     print("\n=== Residue Instances DataFrame (after update)===")
-    print(db._get_instances_df(pmb_type="residue"))
+    print(pmb.db._get_instances_df(pmb_type="residue"))
 
 
     inst1 = MoleculeInstance(name="M1", molecule_id=1)
@@ -210,10 +203,9 @@ def main():
     print("\n=== Molecule Instances DataFrame ===")
     print(db._get_instances_df(pmb_type="molecule"))
 
-    inst_bond = BondInstance(name="A1-A2", bond_id=1, particle_id1=1, particle_id2=2)
- #   db._register_instance(inst_bond)
+    
     print("\n=== Bond Instances DataFrame ===")
-    print(db._get_instances_df(pmb_type="bond"))     
+    print(pmb.db._get_instances_df(pmb_type="bond"))     
 
     print("\n=== Peptide Instances DataFrame ===")
  #   inst_peptide1 = PeptideInstance(name="Peptide1", molecule_id=3)

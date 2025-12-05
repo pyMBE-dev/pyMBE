@@ -19,6 +19,7 @@
 import logging
 import re
 import numpy as np
+import scipy
 
 def check_aminoacid_key(key):
     """
@@ -180,80 +181,38 @@ def get_metal_ions_charge_number_map():
     metal_charge_number_map = {"Ca": 2}
     return metal_charge_number_map
 
-def get_lj_parameters(particle_name1, particle_name2, pmb, combining_rule='Lorentz-Berthelot'):
+def calculate_initial_bond_length(bond_parameters, bond_type, lj_parameters):
     """
-    Returns the Lennard-Jones parameters for the interaction between the particle types given by 
-    `particle_name1` and `particle_name2` in `pymbe.df`, calculated according to the provided combining rule.
-
+    Calculates the initial bond length that is used when setting up molecules,
+    based on the minimum of the sum of bonded and short-range (LJ) interactions.
+    
     Args:
-        particle_name1 (str): label of the type of the first particle type
-        particle_name2 (str): label of the type of the second particle type
-        combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
-
-    Returns:
-        {"epsilon": epsilon_value, "sigma": sigma_value, "offset": offset_value, "cutoff": cutoff_value}
-
-    Note:
-        - Currently, the only `combining_rule` supported is Lorentz-Berthelot.
-        - If the sigma value of `particle_name1` or `particle_name2` is 0, the function will return an empty dictionary. No LJ interactions are set up for particles with sigma = 0.
-    """
-    supported_combining_rules=["Lorentz-Berthelot"]
-    lj_parameters_keys=["sigma","epsilon","offset","cutoff"]
-    if combining_rule not in supported_combining_rules:
-        raise ValueError(f"Combining_rule {combining_rule} currently not implemented in pyMBE, valid keys are {supported_combining_rules}")
-    lj_parameters={}
-    for key in lj_parameters_keys:
-        lj_parameters[key]=[]
-    # Search the LJ parameters of the type pair
-    for name in [particle_name1,particle_name2]:
-        for key in lj_parameters_keys:
-            lj_parameters[key].append(getattr(pmb.db.get_template(pmb_type="particle", name=name), key))
-    # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
-    if not all(sigma_value.magnitude for sigma_value in lj_parameters["sigma"]):
-        return {}
-    # Apply combining rule
-    if combining_rule == 'Lorentz-Berthelot':
-        lj_parameters["sigma"]=(lj_parameters["sigma"][0]+lj_parameters["sigma"][1])/2
-        lj_parameters["cutoff"]=(lj_parameters["cutoff"][0]+lj_parameters["cutoff"][1])/2
-        lj_parameters["offset"]=(lj_parameters["offset"][0]+lj_parameters["offset"][1])/2
-        lj_parameters["epsilon"]=np.sqrt(lj_parameters["epsilon"][0]*lj_parameters["epsilon"][1])
-    return lj_parameters
-
-
-def calculate_initial_bond_length(bond_object, bond_type, epsilon, sigma, cutoff, offset):
-        """
-        Calculates the initial bond length that is used when setting up molecules,
-        based on the minimum of the sum of bonded and short-range (LJ) interactions.
-        
-        Args:
-            bond_object(`espressomd.interactions.BondedInteractions`): instance of a bond object from espressomd library
-            bond_type(`str`): label identifying the used bonded potential
-            epsilon(`pint.Quantity`): LJ epsilon of the interaction between the particles
-            sigma(`pint.Quantity`): LJ sigma of the interaction between the particles
-            cutoff(`pint.Quantity`): cutoff-radius of the LJ interaction 
-            offset(`pint.Quantity`): offset of the LJ interaction
-        """    
-        def truncated_lj_potential(x, epsilon, sigma, cutoff,offset):
-            if x>cutoff:
-                return 0.0
-            else:
-                return 4*epsilon*((sigma/(x-offset))**12-(sigma/(x-offset))**6) - 4*epsilon*((sigma/cutoff)**12-(sigma/cutoff)**6)
-
-        epsilon_red=epsilon.to('reduced_energy').magnitude
-        sigma_red=sigma.to('reduced_length').magnitude
-        cutoff_red=cutoff.to('reduced_length').magnitude
-        offset_red=offset.to('reduced_length').magnitude
-
-        if bond_type == "harmonic":
-            r_0 = bond_object.params.get('r_0')
-            k = bond_object.params.get('k')
-            l0 = scipy.optimize.minimize(lambda x: 0.5*k*(x-r_0)**2 + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red, offset_red), x0=r_0).x
-        elif bond_type == "FENE":
-            r_0 = bond_object.params.get('r_0')
-            k = bond_object.params.get('k')
-            d_r_max = bond_object.params.get('d_r_max')
-            l0 = scipy.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon_red, sigma_red, cutoff_red,offset_red), x0=1.0).x
-        return l0
+        bond_object(`espressomd.interactions.BondedInteractions`): instance of a bond object from espressomd library
+        bond_type(`str`): label identifying the used bonded potential
+        epsilon(`pint.Quantity`): LJ epsilon of the interaction between the particles
+        sigma(`pint.Quantity`): LJ sigma of the interaction between the particles
+        cutoff(`pint.Quantity`): cutoff-radius of the LJ interaction 
+        offset(`pint.Quantity`): offset of the LJ interaction
+    """    
+    def truncated_lj_potential(x, epsilon, sigma, cutoff,offset):
+        if x>cutoff:
+            return 0.0
+        else:
+            return 4*epsilon*((sigma/(x-offset))**12-(sigma/(x-offset))**6) - 4*epsilon*((sigma/cutoff)**12-(sigma/cutoff)**6)
+    epsilon=lj_parameters["epsilon"].m_as("reduced_energy")
+    sigma=lj_parameters["sigma"].m_as("reduced_length")
+    cutoff=lj_parameters["cutoff"].m_as("reduced_length")
+    offset=lj_parameters["offset"].m_as("reduced_length")
+    if bond_type == "harmonic":
+        r_0 = bond_parameters['r_0'].m_as("reduced_length")
+        k = bond_parameters['k'].m_as("reduced_energy/reduced_length**2")
+        l0 = scipy.optimize.minimize(lambda x: 0.5*k*(x-r_0)**2 + truncated_lj_potential(x, epsilon, sigma, cutoff, offset), x0=r_0).x
+    elif bond_type == "FENE":
+        r_0 = bond_parameters['r_0'].m_as("reduced_length")
+        k = bond_parameters['k'].m_as("reduced_energy/reduced_length**2")
+        d_r_max = bond_parameters['d_r_max'].m_as("reduced_length")
+        l0 = scipy.optimize.minimize(lambda x: -0.5*k*(d_r_max**2)*np.log(1-((x-r_0)/d_r_max)**2) + truncated_lj_potential(x, epsilon, sigma, cutoff,offset), x0=1.0).x
+    return l0
 
 
 

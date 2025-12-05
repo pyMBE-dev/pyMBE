@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import Dict, Literal
+from typing import Dict, Literal, Optional 
 from pydantic import Field, field_validator
 
 from ..base_type import PMBBaseModel
@@ -36,7 +36,7 @@ class ParticleState(PMBBaseModel):
     pmb_type: Literal["particle_state"] = "particle_state"
     name: str                      # e.g. "HA", "A-", "H+"
     z: int
-    es_type: float                  # label in espresso
+    es_type: int                  # label in espresso
 
 
 class ParticleTemplate(PMBBaseModel):
@@ -51,6 +51,8 @@ class ParticleTemplate(PMBBaseModel):
         offset (PintQuantity): Offset distance for the LJ potential.
         states (Dict[str, ParticleState]): Dictionary of allowed particle states.
             Keys are state names, values are ParticleState instances.
+        initial_state (Optional[str]): Name of the default particle state.
+            If not provided explicitly, the first added state becomes the initial state.
     """
 
     pmb_type: str = Field(default="particle", frozen=True)
@@ -60,6 +62,7 @@ class ParticleTemplate(PMBBaseModel):
     offset: PintQuantity
     epsilon: PintQuantity
     states: Dict[str, ParticleState] = {}
+    initial_state: Optional[str] = None
 
     def add_state(self, state):
         """
@@ -77,4 +80,30 @@ class ParticleTemplate(PMBBaseModel):
         if state.name in self.states:
             raise ValueError(f"State {state.name} already exists in template {self.name}")
         self.states[state.name] = state
+
+         # Automatically assign initial state if this is the first state
+        if self.initial_state is None:
+            self.initial_state = state.name
+
+    def get_lj_parameters(self, ureg):
+        """
+        Retrieve the Lennard-Jones interaction parameters for the particle template.
+
+        Args:
+            ureg (pint.UnitRegistry) : Pint unit registry used to reconstruct physical quantities from storage.
+        
+        Returns:
+            Dict[str, pint.Quantity]:
+                A dictionary containing the following LJ parameters: sigma, epsilon, cutoff, offset.
+
+        Example:
+            >>> tpl = ParticleTemplate(...)
+            >>> params = tpl.get_lj_parameters()
+            >>> params["sigma"]
+            <Quantity(1.0, 'nanometer')>
+        """
+        return {"sigma": self.sigma.to_quantity(ureg), 
+                "epsilon": self.epsilon.to_quantity(ureg),
+                "cutoff": self.cutoff.to_quantity(ureg),
+                "offset": self.offset.to_quantity(ureg)}
 

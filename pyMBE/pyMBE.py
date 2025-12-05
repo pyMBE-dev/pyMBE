@@ -25,6 +25,8 @@ import scipy.constants
 import scipy.optimize
 import logging
 import importlib.resources
+
+# Templates
 from pyMBE.storage.manager import Manager
 from pyMBE.storage.templates.particle import ParticleTemplate, ParticleState
 from pyMBE.storage.instances.particle import ParticleInstance
@@ -43,6 +45,8 @@ from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 
+# Utilities
+import pyMBE.lib.handy_functions as hf
 import pyMBE.storage.io as io
 
 class pymbe_library():
@@ -100,7 +104,8 @@ class pymbe_library():
         
         self.db = Manager(units=self.units)
         self.lattice_builder = None
-        self.root = importlib.resources.files(__package__)   
+        self.root = importlib.resources.files(__package__)
+        self._bond_instances={}   
 
     def _check_supported_molecule(self, molecule_name,valid_pmb_types):
         """
@@ -152,24 +157,6 @@ class pymbe_library():
             residue_name='AA-'+item
             residue_list.append(residue_name)
         return residue_list
-
-
-    def add_bonds_to_espresso(self, espresso_system) :
-        """
-        Adds all bonds defined in `pmb.df` to `espresso_system`.
-
-        Args:
-            espresso_system(`espressomd.system.System`): system object of espressomd library
-        """
-
-        if 'bond' in self.df["pmb_type"].values:
-            bond_df = self.df.loc[self.df ['pmb_type'] == 'bond']
-            bond_list = bond_df.bond_object.values.tolist()
-            for bond in bond_list:
-                espresso_system.bonded_inter.add(bond)
-        else:
-            logging.warning('there are no bonds defined in pymbe.df')
-        return   
     
     def calculate_center_of_mass_of_molecule(self, molecule_id, espresso_system):
         """
@@ -423,8 +410,6 @@ class pymbe_library():
             raise ValueError(f"The variable {variable} should have a dimensionality of {expected_dimensionality}, instead the variable has a dimensionality of {variable.dimensionality}")
         return correct_dimensionality   
 
-
-
     def check_pka_set(self, pka_set):
         """
         Checks that `pka_set` has the formatting expected by the pyMBE library.
@@ -486,9 +471,43 @@ class pymbe_library():
             logging.info(f"added salt concentration of {c_salt_calculated.to('reduced_length**-3')} given by {N_cation} cations and {N_anion} anions")
         return c_salt_calculated
 
-    def create_bond_in_espresso(self, bond_type, bond_parameters):
-        '''
-        Creates either a harmonic or a FENE bond in ESPResSo
+    def create_bond(self, particle_id1, particle_id2, espresso_system, use_default_bond=False):
+        """
+        Creates a bond between two particle instances in an ESPResSo system and registers it in the pyMBE database.
+
+        This method performs the following steps:
+            1. Retrieves the particle instances corresponding to `particle_id1` and `particle_id2` from the database.
+            2. Retrieves or creates the corresponding ESPResSo bond instance using the bond template.
+            3. Adds the ESPResSo bond instance to the ESPResSo system if it was newly created.
+            4. Adds the bond to the first particle's bond list in ESPResSo.
+            5. Creates a `BondInstance` in the database and registers it.
+
+        Args:
+            particle_id1 (int): pyMBE and ESPResSo ID of the first particle.
+            particle_id2 (int): pyMBE and ESPResSo ID of the second particle.
+            espresso_system (espressomd.system.System): ESPResSo system object where the bond will be created.
+            use_default_bond (bool, optional): If True, use a default bond template if no specific template exists. Defaults to False.
+        """
+        particle_inst_1 = self.db.get_instance(pmb_type="particle",
+                                               instance_id=particle_id1)
+        particle_inst_2 = self.db.get_instance(pmb_type="particle",
+                                               instance_id=particle_id2)
+
+        bond_inst = self.get_espresso_bond_instance(particle_name1=particle_inst_1.name,
+                                                particle_name2=particle_inst_2.name,
+                                                espresso_system=espresso_system,
+                                                use_default_bond=use_default_bond)
+        espresso_system.part.by_id(particle_id1).add_bond((bond_inst, particle_id2))
+        pmb_bond_instance = BondInstance(bond_id=self.db._propose_instance_id(pmb_type="bond"),
+                                         name=BondTemplate.make_bond_key(pn1=particle_inst_1.name, 
+                                                                         pn2=particle_inst_2.name),
+                                         particle_id1=particle_id1,
+                                         particle_id2=particle_id2)
+        self.db._register_instance(instance=pmb_bond_instance)
+
+    def create_espresso_bond_instance(self, bond_type, bond_parameters):
+        """
+        Creates an ESPResSo bond instance.
 
         Args:
             bond_type(`str`): label to identify the potential to model the bond.
@@ -498,52 +517,35 @@ class pymbe_library():
             Currently, only HARMONIC and FENE bonds are supported.
 
             For a HARMONIC bond the dictionary must contain:
-
-                - k (`obj`)      : Magnitude of the bond. It should have units of energy/length**2 
+                - k (`Pint.Quantity`)      : Magnitude of the bond. It should have units of energy/length**2 
                 using the `pmb.units` UnitRegistry.
-                - r_0 (`obj`)    : Equilibrium bond length. It should have units of length using 
+                - r_0 (`Pint.Quantity`)    : Equilibrium bond length. It should have units of length using 
                 the `pmb.units` UnitRegistry.
            
             For a FENE bond the dictionary must additionally contain:
-                
-                - d_r_max (`obj`): Maximal stretching length for FENE. It should have 
+                - d_r_max (`Pint.Quantity`): Maximal stretching length for FENE. It should have 
                 units of length using the `pmb.units` UnitRegistry. Default 'None'.
 
         Returns:
-              bond_object (`obj`): an ESPResSo bond object
-        '''
+            (`espressomd.interactions`): instance of an ESPResSo bond object
+        """
         from espressomd import interactions
-
-        valid_bond_types   = ["harmonic", "FENE"]
-        
-        if 'k' in bond_parameters:
-            bond_magnitude     = bond_parameters['k'].to('reduced_energy / reduced_length**2')
-        else:
-            raise ValueError("Magnitude of the potential (k) is missing")
-        
-        if bond_type == 'harmonic':
-            if 'r_0' in bond_parameters:
-                bond_length        = bond_parameters['r_0'].to('reduced_length')
-            else:
-                raise ValueError("Equilibrium bond length (r_0) is missing")
-            bond_object    = interactions.HarmonicBond(k   = bond_magnitude.magnitude,
-                                                       r_0 = bond_length.magnitude)
-        elif bond_type == 'FENE':
-            if 'r_0' in bond_parameters:
-                bond_length        = bond_parameters['r_0'].to('reduced_length').magnitude
-            else:
-                logging.warning("no value provided for r_0. Defaulting to r_0 = 0")
-                bond_length=0
-            if 'd_r_max' in bond_parameters:
-                max_bond_stret = bond_parameters['d_r_max'].to('reduced_length')
-            else:
-                raise ValueError("Maximal stretching length (d_r_max) is missing")
-            bond_object    = interactions.FeneBond(r_0     = bond_length, 
-                                                   k       = bond_magnitude.magnitude,
-                                                   d_r_max = max_bond_stret.magnitude)
-        else:
+        valid_bond_types   = ["harmonic", "FENE"] 
+        if bond_type not in valid_bond_types:
             raise NotImplementedError(f"Bond type '{bond_type}' currently not implemented in pyMBE, accepted types are {valid_bond_types}")
-        return bond_object
+        required_parameters = {"harmonic": ["r_0","k"],
+                                "FENE": ["r_0","k","d_r_max"]}
+        for required_parameter in required_parameters[bond_type]:
+            if required_parameter not in bond_parameters.keys():
+                raise ValueError(f"Missing required parameter {required_parameter} for {bond_type} bond")
+        if bond_type == 'harmonic':
+            bond_instance = interactions.HarmonicBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
+                                                      r_0 = bond_parameters["r_0"].m_as("reduced_length"))
+        elif bond_type == 'FENE':
+            bond_instance    = interactions.FeneBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
+                                                      r_0 = bond_parameters["r_0"].m_as("reduced_length"),
+                                                      d_r_max = bond_parameters["d_r_max"].m_as("reduced_length"))    
+        return bond_instance
 
 
     def create_counterions(self, object_name, cation_name, anion_name, espresso_system):
@@ -921,46 +923,35 @@ class pymbe_library():
         """       
         if number_of_particles <=0:
             return []
-        if not _DFm._check_if_name_is_defined_in_df(name=name, df=self.df):
-            logging.warning(f"Particle with name '{name}' is not defined in the pyMBE DataFrame, no particle will be created.")
+        if not self.db._has_template(name=name, pmb_type="particle"):
+            logging.warning(f"Particle template with name '{name}' is not defined in the pyMBE database, no particle will be created.")
             return []
-        self._check_if_name_has_right_type(name=name,
-                                           expected_pmb_type="particle")
-        # Copy the data of the particle `number_of_particles` times in the `df`
-        self.df = _DFm._copy_df_entry(df = self.df,
-                                      name = name,
-                                      column_name = 'particle_id',
-                                      number_of_copies = number_of_particles)
-        # Get information from the particle type `name` from the df
-        z = self.df.loc[self.df['name'] == name].state_one.z.values[0]
-        z = 0. if z is None else z
-        es_type = self.df.loc[self.df['name'] == name].state_one.es_type.values[0]
-        # Get a list of the index in `df` corresponding to the new particles to be created
-        index = np.where(self.df['name'] == name)
-        index_list = list(index[0])[-number_of_particles:]
-        # Create the new particles into  `espresso_system`
+        
+        part_tpl = self.db.get_template(pmb_type="particle",
+                                        name=name)
+        initial_state = part_tpl.states[part_tpl.initial_state]
+        z = initial_state.z
+        es_type = initial_state.es_type
+        
+        # Create the new particles into  ESPResSo 
         created_pid_list=[]
         for index in range(number_of_particles):
-            df_index = int(index_list[index])
-            _DFm._clean_df_row(df = self.df, 
-                               index = df_index)
             if position is None:
                 particle_position = self.rng.random((1, 3))[0] *np.copy(espresso_system.box_l)
             else:
                 particle_position = position[index]
-            if len(espresso_system.part.all()) == 0:
-                bead_id = 0
-            else:
-                bead_id = max (espresso_system.part.all().id) + 1
-            created_pid_list.append(bead_id)
-            kwargs = dict(id=bead_id, pos=particle_position, type=es_type, q=z)
+            
+            particle_id = self.db._propose_instance_id(pmb_type="particle")
+            created_pid_list.append(particle_id)
+            kwargs = dict(id=particle_id, pos=particle_position, type=es_type, q=z)
             if fix:
                 kwargs["fix"] = 3 * [fix]
             espresso_system.part.add(**kwargs)
-            _DFm._add_value_to_df(df = self.df,
-                                  key = ('particle_id',''),
-                                  index = df_index,
-                                  new_value = bead_id)                  
+            part_inst = ParticleInstance(name=name,
+                                         particle_id=particle_id,
+                                         initial_state=initial_state.name)
+            self.db._register_instance(part_inst)
+                              
         return created_pid_list
 
     def create_protein(self, name, number_of_proteins, espresso_system, topology_dict):
@@ -1030,165 +1021,114 @@ class pymbe_library():
             backbone_vector(`list` of `float`): Backbone vector of the molecule. All side chains are created perpendicularly to `backbone_vector`.
 
         Returns:
-            residues_info(`dict`): {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
+            (int) : residue_id of the residue created.
         """
-        if not _DFm._check_if_name_is_defined_in_df(name=name, df=self.df):
-            logging.warning(f"Residue with name '{name}' is not defined in the pyMBE DataFrame, no residue will be created.")
+        if not self.db._has_template(name=name, pmb_type="residue"):
+            logging.warning(f"Residue template with name '{name}' is not defined in the pyMBE database, no residue will be created.")
             return
-        self._check_if_name_has_right_type(name=name,
-                                           expected_pmb_type="residue")
+        res_tpl = self.db.get_template(pmb_type="residue",
+                                       name=name)
+        # Assign a residue_id
+        residue_id = self.db._propose_instance_id(pmb_type="residue")
+        res_inst = ResidueInstance(name=name,
+                                   residue_id=residue_id)
+        self.db._register_instance(res_inst)
+        # create the principal bead   
+        central_bead_name = res_tpl.central_bead 
+        central_bead_id = self.create_particle(name=central_bead_name,
+                                               espresso_system=espresso_system,
+                                               position=central_bead_position,
+                                               number_of_particles = 1)[0]
+        if not central_bead_id:
+            logging.warning(f"Central bead with particle template with name '{name}' is not defined in the pyMBE database, no residue will be created.")
+            return
         
-        # Copy the data of a residue in the `df
-        self.df = _DFm._copy_df_entry(df = self.df,
-                                      name = name,
-                                      column_name = 'residue_id',
-                                      number_of_copies = 1)
-        residues_index = np.where(self.df['name']==name)
-        residue_index_list =list(residues_index[0])[-1:]
-        # search for defined particle and residue names
-        particle_and_residue_df = self.df.loc[(self.df['pmb_type']== "particle") | (self.df['pmb_type']== "residue")]
-        particle_and_residue_names = particle_and_residue_df["name"].tolist()
-        for residue_index in residue_index_list:  
-            side_chain_list = self.df.loc[self.df.index[residue_index]].side_chains.values[0]
-            for side_chain_element in side_chain_list:
-                if side_chain_element not in particle_and_residue_names:              
-                    raise ValueError (f"{side_chain_element} is not defined")
-        # Internal bookkepping of the residue info (important for side-chain residues)
-        # Dict structure {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids":[particle_id1, ...]}}
-        residues_info={}
-        for residue_index in residue_index_list:     
-            _DFm._clean_df_row(df = self.df,
-                               index = int(residue_index))
-            # Assign a residue_id
-            if self.df['residue_id'].isnull().all():
-                residue_id=0
-            else:
-                residue_id = self.df['residue_id'].max() + 1
-            _DFm._add_value_to_df(df = self.df,
-                                  key = ('residue_id',''),
-                                  index = int(residue_index),
-                                  new_value = residue_id)
-            # create the principal bead   
-            central_bead_name = self.df.loc[self.df['name']==name].central_bead.values[0]            
-            central_bead_id = self.create_particle(name=central_bead_name,
-                                                                espresso_system=espresso_system,
-                                                                position=central_bead_position,
-                                                                number_of_particles = 1)[0]
-            central_bead_position=espresso_system.part.by_id(central_bead_id).pos
-            #assigns same residue_id to the central_bead particle created.
-            index = self.df[self.df['particle_id']==central_bead_id].index.values[0]
-            self.df.at [index,'residue_id'] = residue_id
-            # Internal bookkeeping of the central bead id
-            residues_info[residue_id]={}
-            residues_info[residue_id]['central_bead_id']=central_bead_id
-            # create the lateral beads  
-            side_chain_list = self.df.loc[self.df.index[residue_index]].side_chains.values[0]
-            side_chain_beads_ids = []
-            for side_chain_element in side_chain_list:  
-                pmb_type = self.df[self.df['name']==side_chain_element].pmb_type.values[0] 
-                if pmb_type == 'particle':
-                    bond = self.search_bond(particle_name1=central_bead_name, 
-                                            particle_name2=side_chain_element, 
-                                            hard_check=True, 
-                                            use_default_bond=use_default_bond)
-                    l0 = self.get_bond_length(particle_name1=central_bead_name, 
-                                              particle_name2=side_chain_element, 
-                                              hard_check=True, 
-                                              use_default_bond=use_default_bond)
-
-                    if backbone_vector is None:
-                        bead_position=self.generate_random_points_in_a_sphere(center=central_bead_position, 
-                                                                 radius=l0, 
-                                                                 n_samples=1,
-                                                                 on_surface=True)[0]
-                    else:
-                        bead_position=central_bead_position+self.generate_trial_perpendicular_vector(vector=np.array(backbone_vector),
+        central_bead_position=espresso_system.part.by_id(central_bead_id).pos
+        # Assigns residue_id to the central_bead particle created.
+        self.db._update_instance(pmb_type="particle",
+                                 instance_id=central_bead_id,
+                                 attribute="residue_id",
+                                 value=residue_id)
+        
+        # create the lateral beads  
+        side_chain_list = res_tpl.side_chains
+        side_chain_beads_ids = []
+        for side_chain_name in side_chain_list:
+            pmb_type_list = self.db._find_template_types(name=side_chain_name)
+            if len(pmb_type_list) > 2:
+                raise KeyError(f"Detected multiple templates with the same name '{side_chain_name}' in the pyMBE database, pmb_types: {pmb_type_list}. Residue creation aborted to avoid ambiguity.")  
+            elif not pmb_type_list:
+                logging.warning(f"Element in side chain with name '{name}' is not defined in the pyMBE database, nothing will be created.")
+                continue
+            pmb_type = pmb_type_list[0]
+            if pmb_type == 'particle':
+                lj_parameters = self.get_lj_parameters(particle_name1=central_bead_name,
+                                                       particle_name2=side_chain_name)
+                bond_tpl = self.get_bond_template(particle_name1=central_bead_name,
+                                                  particle_name2=side_chain_name)
+                l0 = hf.calculate_initial_bond_length(lj_parameters=lj_parameters,
+                                                      bond_type=bond_tpl.bond_type,
+                                                      bond_parameters=bond_tpl.get_parameters(ureg=self.units))               
+                if backbone_vector is None:
+                    bead_position=self.generate_random_points_in_a_sphere(center=central_bead_position, 
+                                                                radius=l0, 
+                                                                n_samples=1,
+                                                                on_surface=True)[0]
+                else:
+                    bead_position=central_bead_position+self.generate_trial_perpendicular_vector(vector=np.array(backbone_vector),
+                                                                                                magnitude=l0)
+                    
+                side_bead_id = self.create_particle(name=side_chain_name, 
+                                                    espresso_system=espresso_system,
+                                                    position=[bead_position], 
+                                                    number_of_particles=1)[0]
+                side_chain_beads_ids.append(side_bead_id)
+                self.db._update_instance(pmb_type="particle",
+                                         instance_id=side_bead_id,
+                                         attribute="residue_id",
+                                         value=residue_id)
+                self.create_bond(particle_id1=central_bead_id,
+                                 particle_id2=side_bead_id,
+                                 espresso_system=espresso_system,
+                                 use_default_bond=use_default_bond)
+            elif pmb_type == 'residue':
+                side_residue_tpl = self.db.get_template(name=side_chain_name,
+                                                        pmb_type=pmb_type)
+                central_bead_side_chain = side_residue_tpl.central_bead
+                lj_parameters = self.get_lj_parameters(particle_name1=central_bead_name,
+                                                       particle_name2=central_bead_side_chain)
+                bond_tpl = self.get_bond_template(particle_name1=central_bead_name,
+                                                  particle_name2=central_bead_side_chain)
+                l0 = hf.calculate_initial_bond_length(lj_parameters=lj_parameters,
+                                                      bond_type=bond_tpl.bond_type,
+                                                      bond_parameters=bond_tpl.get_parameters(ureg=self.units))
+                if backbone_vector is None:
+                    residue_position=self.generate_random_points_in_a_sphere(center=central_bead_position, 
+                                                                radius=l0, 
+                                                                n_samples=1,
+                                                                on_surface=True)[0]
+                else:
+                    residue_position=central_bead_position+self.generate_trial_perpendicular_vector(vector=backbone_vector,
                                                                                                     magnitude=l0)
-                     
-                    side_bead_id = self.create_particle(name=side_chain_element, 
-                                                                    espresso_system=espresso_system,
-                                                                    position=[bead_position], 
-                                                                    number_of_particles=1)[0]
-                    index = self.df[self.df['particle_id']==side_bead_id].index.values[0]
-                    _DFm._add_value_to_df(df = self.df,
-                                          key = ('residue_id',''),
-                                          index = int(index),
-                                          new_value = residue_id, 
-                                          overwrite = True)
-                    side_chain_beads_ids.append(side_bead_id)
-                    espresso_system.part.by_id(central_bead_id).add_bond((bond, side_bead_id))
-                    self.df, index = _DFm._add_bond_in_df(df = self.df,
-                                                          particle_id1 = central_bead_id,
-                                                          particle_id2 = side_bead_id,
-                                                          use_default_bond = use_default_bond)
-                    _DFm._add_value_to_df(df = self.df,
-                                          key = ('residue_id',''),
-                                          index = int(index),
-                                          new_value = residue_id, 
-                                          overwrite = True)
-
-                elif pmb_type == 'residue':
-                    central_bead_side_chain = self.df[self.df['name']==side_chain_element].central_bead.values[0]
-                    bond = self.search_bond(particle_name1=central_bead_name, 
-                                            particle_name2=central_bead_side_chain, 
-                                            hard_check=True, 
-                                            use_default_bond=use_default_bond)
-                    l0 = self.get_bond_length(particle_name1=central_bead_name, 
-                                              particle_name2=central_bead_side_chain, 
-                                              hard_check=True, 
-                                              use_default_bond=use_default_bond)
-                    if backbone_vector is None:
-                        residue_position=self.generate_random_points_in_a_sphere(center=central_bead_position, 
-                                                                    radius=l0, 
-                                                                    n_samples=1,
-                                                                    on_surface=True)[0]
-                    else:
-                        residue_position=central_bead_position+self.generate_trial_perpendicular_vector(vector=backbone_vector,
-                                                                                                        magnitude=l0)
-                    lateral_residue_info = self.create_residue(name=side_chain_element, 
-                                                                espresso_system=espresso_system,
-                                                                central_bead_position=[residue_position],
-                                                                use_default_bond=use_default_bond)
-                    lateral_residue_dict=list(lateral_residue_info.values())[0]
-                    central_bead_side_chain_id=lateral_residue_dict['central_bead_id']
-                    lateral_beads_side_chain_ids=lateral_residue_dict['side_chain_ids']
-                    residue_id_side_chain=list(lateral_residue_info.keys())[0]
-                    # Change the residue_id of the residue in the side chain to the one of the bigger residue
-                    index = self.df[(self.df['residue_id']==residue_id_side_chain) & (self.df['pmb_type']=='residue') ].index.values[0]
-                    _DFm._add_value_to_df(df = self.df,
-                                          key = ('residue_id',''),
-                                          index = int(index),
-                                          new_value = residue_id, 
-                                          overwrite = True)
-                    # Change the residue_id of the particles in the residue in the side chain
-                    side_chain_beads_ids+=[central_bead_side_chain_id]+lateral_beads_side_chain_ids
-                    for particle_id in side_chain_beads_ids:
-                        index = self.df[(self.df['particle_id']==particle_id) & (self.df['pmb_type']=='particle')].index.values[0]
-                        _DFm._add_value_to_df(df = self.df,
-                                              key = ('residue_id',''),
-                                              index = int (index),
-                                              new_value = residue_id, 
-                                              overwrite = True)
-                    espresso_system.part.by_id(central_bead_id).add_bond((bond, central_bead_side_chain_id))
-                    self.df, index = _DFm._add_bond_in_df(df = self.df,
-                                                          particle_id1 = central_bead_id,
-                                                          particle_id2 = central_bead_side_chain_id,
-                                                          use_default_bond = use_default_bond)
-                    _DFm._add_value_to_df(df = self.df,
-                                          key = ('residue_id',''),
-                                          index = int(index),
-                                          new_value = residue_id, 
-                                          overwrite = True)        
-                    # Change the residue_id of the bonds in the residues in the side chain to the one of the bigger residue
-                    for index in self.df[(self.df['residue_id']==residue_id_side_chain) & (self.df['pmb_type']=='bond') ].index:        
-                        _DFm._add_value_to_df(df = self.df,
-                                              key = ('residue_id',''),
-                                              index = int(index),
-                                              new_value = residue_id, 
-                                              overwrite = True)
-            # Internal bookkeeping of the side chain beads ids
-            residues_info[residue_id]['side_chain_ids']=side_chain_beads_ids
-        return  residues_info   
+                side_residue_id = self.create_residue(name=side_chain_name, 
+                                                      espresso_system=espresso_system,
+                                                      central_bead_position=[residue_position],
+                                                      use_default_bond=use_default_bond)
+                # Find particle ids of the inner residue
+                side_chain_beads_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                                               attribute="residue_id",
+                                                                               value=side_residue_id)
+                # Change the residue_id of the residue in the side chain to the one of the outer residue
+                for particle_id in side_chain_beads_ids:
+                    self.db._update_instance(instance_id=particle_id,
+                                             pmb_type="particle",
+                                             attribute="residue_id",
+                                             value=residue_id)
+                self.create_bond(particle_id1=central_bead_id,
+                                 particle_id2=side_chain_beads_ids[0],
+                                 espresso_system=espresso_system,
+                                 use_default_bond=use_default_bond)        
+        return  residue_id  
 
     def define_bond(self, bond_type, bond_parameters, particle_pairs):
         """
@@ -1736,39 +1676,68 @@ class pymbe_library():
         # Normalize the perpendicular vector to have the same magnitude as the input vector
         perpendicular_vector /= np.linalg.norm(perpendicular_vector) 
         return perpendicular_vector*magnitude
-
-    def get_bond_length(self, particle_name1, particle_name2, hard_check=False, use_default_bond=False) :
+            
+    def get_bond_template(self, particle_name1, particle_name2, use_default_bond=False) :
         """
-        Searches for bonds between the particle types given by `particle_name1` and `particle_name2` in `pymbe.df` and returns the initial bond length.
-        If `use_default_bond` is activated and a "default" bond is defined, returns the length of that default bond instead.
-        If no bond is found, it prints a message and it does not return anything. If `hard_check` is activated, the code stops if no bond is found.
+        Searches for bond template linking particle templates with `particle_name1` and `particle_name2` names in the pyMBE database and returns it.
+        If `use_default_bond` is activated and a "default" bond is defined, returns the default bond template instead.
 
         Args:
-            particle_name1(str): label of the type of the first particle type of the bonded particles.
-            particle_name2(str): label of the type of the second particle type of the bonded particles.
-            hard_check(bool, optional): If it is activated, the code stops if no bond is found. Defaults to False. 
-            use_default_bond(bool, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
+            particle_name1(`str`): label of the type of the first particle type of the bonded particles.
+            particle_name2(`str`): label of the type of the second particle type of the bonded particles.
+            use_default_bond(`bool`, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
 
         Returns:
-            l0(`pint.Quantity`): bond length
+            bond(`espressomd.interactions.BondedInteractions`): bond object from the espressomd library.
         
         Note:
             - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
-            - If `hard_check`=`True` stops the code when no bond is found.
         """
-        bond_key = _DFm._find_bond_key(df = self.df,
-                                       particle_name1 = particle_name1, 
-                                       particle_name2 = particle_name2, 
-                                       use_default_bond = use_default_bond)
-        if bond_key:
-            return self.df[self.df['name'] == bond_key].l0.values[0]
+        if use_default_bond:
+            bond_key = "default"
         else:
-            msg = f"Bond not defined between particles {particle_name1} and {particle_name2}"
-            if hard_check:
-                raise ValueError(msg)     
-            else:
-                logging.warning(msg)
-                return
+            bond_key = BondTemplate.make_bond_key(pn1=particle_name1,
+                                              pn2=particle_name2)
+        bond_tpl = self.db.get_template(name=bond_key,
+                                        pmb_type="bond")
+        return bond_tpl
+    
+    def get_espresso_bond_instance(self, particle_name1, particle_name2, espresso_system, use_default_bond=False):
+        """
+        Retrieve or create a bond instance in an ESPResSo system for a given pair of particle names.
+
+        This method checks whether a bond instance already exists in the database for the
+        specified particle pair. If it exists, it retrieves the corresponding ESPResSo bond
+        instance. Otherwise, it creates a new ESPResSo bond instance using the bond template.
+
+        Args:
+            particle_name1 (str): Name of the first particle involved in the bond.
+            particle_name2 (str): Name of the second particle involved in the bond.
+            espresso_system: An ESPResSo system object where the bond will be added or retrieved.
+            use_default_bond (bool, optional): If True, use a default bond template when no 
+                specific template exists for the particle pair. Defaults to False.
+
+        Returns:
+            (espressomd.interactions.BondedInteraction): The ESPResSo bond instance object.
+
+        Raises:
+            KeyError: If no bond template is found for the particle pair and `use_default_bond` is False.
+
+        Note:
+            When a new bond instance is created, it is not added to the ESPResSo system.
+        """
+        bond_tpl = self.get_bond_template(particle_name1=particle_name1,
+                                          particle_name2=particle_name2,
+                                          use_default_bond=use_default_bond)        
+        if bond_tpl.name in self._bond_instances.keys():
+            bond_inst = self._bond_instances[bond_tpl.name]
+        else:   
+            # Create an instance of the bond 
+            bond_inst = self.create_espresso_bond_instance(bond_type=bond_tpl.bond_type,
+                                                             bond_parameters=bond_tpl.get_parameters(self.units))
+            self._bond_instances[bond_tpl.name]= bond_inst
+            espresso_system.bonded_inter.add(bond_inst)
+        return bond_inst
 
     def get_charge_number_map(self):
         '''
@@ -1791,7 +1760,43 @@ class pymbe_library():
         charge_number_map  = pd.concat([state_one,state_two],axis=0).to_dict()
         return charge_number_map
 
-    
+    def get_lj_parameters(self, particle_name1, particle_name2, combining_rule='Lorentz-Berthelot'):
+        """
+        Returns the Lennard-Jones parameters for the interaction between the particle types given by 
+        `particle_name1` and `particle_name2` in `pymbe.df`, calculated according to the provided combining rule.
+
+        Args:
+            particle_name1 (str): label of the type of the first particle type
+            particle_name2 (str): label of the type of the second particle type
+            combining_rule (`string`, optional): combining rule used to calculate `sigma` and `epsilon` for the potential betwen a pair of particles. Defaults to 'Lorentz-Berthelot'.
+
+        Returns:
+            {"epsilon": epsilon_value, "sigma": sigma_value, "offset": offset_value, "cutoff": cutoff_value}
+
+        Note:
+            - Currently, the only `combining_rule` supported is Lorentz-Berthelot.
+            - If the sigma value of `particle_name1` or `particle_name2` is 0, the function will return an empty dictionary. No LJ interactions are set up for particles with sigma = 0.
+        """
+        supported_combining_rules=["Lorentz-Berthelot"]
+        if combining_rule not in supported_combining_rules:
+            raise ValueError(f"Combining_rule {combining_rule} currently not implemented in pyMBE, valid keys are {supported_combining_rules}")
+        part_tpl1 = self.db.get_template(name=particle_name1,
+                                         pmb_type="particle")
+        part_tpl2 = self.db.get_template(name=particle_name2,
+                                         pmb_type="particle")
+        lj_parameters1 = part_tpl1.get_lj_parameters(ureg=self.units)
+        lj_parameters2 = part_tpl2.get_lj_parameters(ureg=self.units)
+
+        # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
+        if part_tpl1.sigma.magnitude == 0 or part_tpl2.sigma.magnitude == 0:
+            return {}
+        # Apply combining rule
+        if combining_rule == 'Lorentz-Berthelot':
+            sigma=(lj_parameters1["sigma"]+lj_parameters2["sigma"])/2
+            cutoff=(lj_parameters1["cutoff"]+lj_parameters2["cutoff"])/2
+            offset=(lj_parameters1["offset"]+lj_parameters2["offset"])/2
+            epsilon=np.sqrt(lj_parameters1["epsilon"]*lj_parameters2["epsilon"])
+        return {"sigma": sigma, "cutoff": cutoff, "offset": offset, "epsilon": epsilon}    
 
     def get_particle_id_map(self, object_name):
         '''
@@ -2253,42 +2258,11 @@ class pymbe_library():
 
         return topology_dict
 
-    def search_bond(self, particle_name1, particle_name2, hard_check=False, use_default_bond=False) :
-        """
-        Searches for bonds between the particle types given by `particle_name1` and `particle_name2` in `pymbe.df` and returns it.
-        If `use_default_bond` is activated and a "default" bond is defined, returns that default bond instead.
-        If no bond is found, it prints a message and it does not return anything. If `hard_check` is activated, the code stops if no bond is found.
-
-        Args:
-            particle_name1(`str`): label of the type of the first particle type of the bonded particles.
-            particle_name2(`str`): label of the type of the second particle type of the bonded particles.
-            hard_check(`bool`, optional): If it is activated, the code stops if no bond is found. Defaults to False. 
-            use_default_bond(`bool`, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
-
-        Returns:
-            bond(`espressomd.interactions.BondedInteractions`): bond object from the espressomd library.
+    
         
-        Note:
-            - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
-            - If `hard_check`=`True` stops the code when no bond is found.
-        """
+    
 
-        bond_key = _DFm._find_bond_key(df = self.df,
-                                       particle_name1 = particle_name1,
-                                       particle_name2 = particle_name2,
-                                       use_default_bond = use_default_bond)
-        if use_default_bond:
-            if not _DFm._check_if_name_is_defined_in_df(name="default", df=self.df):
-                raise ValueError(f"use_default_bond is set to {use_default_bond} but no default bond has been defined. Please define a default bond with pmb.define_default_bond")
-        if bond_key:
-            return self.df[self.df['name']==bond_key].bond_object.values[0]
-        else:
-            msg= f"Bond not defined between particles {particle_name1} and {particle_name2}"
-            if hard_check:
-                raise ValueError(msg)
-            else:
-                logging.warning(msg)
-            return None
+
     def search_particles_in_residue(self, residue_name):
         '''
         Searches for all particles in a given residue of name `residue_name`.

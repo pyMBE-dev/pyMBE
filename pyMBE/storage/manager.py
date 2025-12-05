@@ -83,6 +83,108 @@ class Manager:
         self._instances: Dict[str, Dict[int, InstanceType]] = {}
         self._reactions: Dict[str, Reaction] = {}
 
+    def _find_instance_ids_by_attribute(self, pmb_type, attribute, value):
+        """
+        Return a list of instance IDs for a given pmb_type where a given attribute
+        matches the requested value.
+
+        Args:
+            pmb_type (str): The pyMBE type to search within.
+            attribute (str): The attribute name to match on (e.g. "residue_id", "molecule_id").
+            value: The attribute value to match.
+
+        Returns:
+            List[int]: IDs of matching instances.
+        """
+        if pmb_type not in self._instances:
+            raise KeyError(f"Unknown pmb_type '{pmb_type}' in instance database.")
+        results = []
+        for inst_id, inst in self._instances[pmb_type].items():
+            if hasattr(inst, attribute) and getattr(inst, attribute) == value:
+                results.append(inst_id)
+        return results
+
+    def _find_instance_ids_by_name(self, pmb_type, name):
+        """
+        Return the IDs of all instances of a given pyMBE type that use a
+        specific template name.
+
+        This method inspects the instance registry stored under
+        ``self._instances[pmb_type]`` and collects all instance identifiers
+        whose ``instance.name`` matches the provided template name.
+
+        Args:
+            pmb_type (str):
+                The instance category to search within.
+
+            name (str):
+                The template name associated with the instances of interest.
+
+        Returns:
+            list[int]:
+                A list of instance IDs whose underlying template name matches
+                ``name``. The list is empty if no such instances exist.
+
+        Raises:
+            KeyError:
+                If ``pmb_type`` is not a recognized instance category.
+
+        Examples:
+            >>> db._find_instance_ids_by_name("particle", "A")
+            [0, 3, 7][]
+
+        Notes:
+            - Only exact name matches are considered.
+            - This method does not validate whether the corresponding template
+            actually exists; it only inspects registered *instances*.
+        """
+        if pmb_type not in self._instances:
+            return []
+
+        result = []
+        for iid, inst in self._instances[pmb_type].items():
+            if hasattr(inst, "name") and inst.name == name:
+                result.append(iid)
+
+        return result
+
+
+
+    def _find_template_types(self, name):
+        """
+        Return all pyMBE template categories that contain a template
+        with a given name.
+
+        Searches across every template group stored in ``self._templates``,
+        and collects the PMB types (keys of the template registry) for which
+        a template named ``name`` exists.
+
+        Args:
+            name (str):
+                The template name to search for.
+
+        Returns:
+            list[str]:
+                A list of PMB types (e.g., ``["particle", "residue"]``) in
+                which a template named ``name`` exists. The list is empty if
+                no such template is found.
+
+        Examples:
+            >>> db._find_template_types("A")
+            ["particle"]
+
+            >>> db._find_template_types("nonexistent")
+            []
+        """
+        found = []
+
+        for pmb_type, group in self._templates.items():
+            if name in group:
+                found.append(pmb_type)
+
+        return found
+
+
     def _get_instances_df(self, pmb_type):
         """
         Returns a DataFrame containing all instance objects of a given pyMBE type.
@@ -190,6 +292,7 @@ class Manager:
                     "epsilon": tpl.epsilon.to_quantity(self._units),
                     "cutoff": tpl.cutoff.to_quantity(self._units),
                     "offset": tpl.offset.to_quantity(self._units),
+                    "initial_state": tpl.initial_state,
                     "state": sname,
                     "z": st.z,
                     "es_type": st.es_type
@@ -213,6 +316,67 @@ class Manager:
                 # Generic representation for other types
                 rows.append(tpl.model_dump())
         return pd.DataFrame(rows)
+
+    def _has_instance(self, pmb_type, instance_id):
+        """
+        Check whether an instance with a given ID exists under a specific pyMBE type.
+
+        Args:
+            pmb_type (str):
+                The instance category to search in. 
+
+            instance_id (int):
+                The unique identifier of the instance.
+
+        Returns:
+            bool:
+                ``True`` if the instance exists in the given category,
+                ``False`` otherwise.
+
+        Raises:
+            KeyError:
+                If ``pmb_type`` is not a known instance category in the database.
+
+        Examples:
+            >>> db._has_instance("particle", 3)
+            True
+
+            >>> db._has_instance("nonexistent_type", 5)
+            KeyError
+        """
+        if pmb_type not in self._instances:
+            raise KeyError(f"Instance type '{pmb_type}' not found in the database.")
+
+        return instance_id in self._instances[pmb_type]
+
+    def _has_template(self, pmb_type, name):
+        """
+        Check whether a template with a given name exists within a specific pyMBE type.
+
+        Args:
+            pmb_type (str):
+                The template category to search in (e.g. ``"particle"``,
+                ``"bond"``, ``"molecule"``, ``"lj"``, etc.).
+            name (str):
+                The template name to check for.
+
+        Returns:
+            bool:
+                ``True`` if a template named ``name`` exists under ``pmb_type``;
+                ``False`` otherwise.
+
+        Raises:
+            KeyError:
+                If ``pmb_type`` is not a recognized template category in the database.
+
+        Examples:
+            >>> db.has_template("particle", "A")
+            True
+        """
+        if pmb_type not in self._templates:
+            raise KeyError(f"Template type '{pmb_type}' not found in the database.")
+        template_in_db = name in self._templates.get(pmb_type, {})
+        return template_in_db
 
     def _register_instance(self, instance):
         """
@@ -403,6 +567,52 @@ class Manager:
                                                              coefficient=coefficient)
         self._register_reaction(rxn)
         self._reactions.pop(reaction_name)
+    
+    def _propose_instance_id(self, pmb_type):
+        """
+        Propose the next available id for a new TypeInstance.
+
+        If no instances of the given pmb_type exist, the proposed
+        identifier is ``0``. Otherwise, the next available integer after the
+        current maximum is returned.
+
+        Returns:
+            int: A non-negative integer that is not already used in the pyMBE database.
+
+        Notes:
+            - The method does not fill gaps; it always returns ``max + 1``.
+        """
+        if pmb_type not in self._instances or len(self._instances[pmb_type]) == 0:
+            return 0
+
+        used_ids = list(self._instances[pmb_type].keys())
+        return max(used_ids) + 1
+
+    def get_instance(self, pmb_type, instance_id):
+        """
+        Retrieve a stored instance by type and instance_id.
+
+        Looks up an instance within the internal instance registry
+        (`self._instances`) using its pyMBE type (e.g., "particle", "residue",
+        "bond", ...) and its unique id. If the instance does not exist,
+        a `KeyError` is raised.
+
+        Args:
+            pmb_type (str): The instance pyMBE category.
+            name (str): The unique name of the template to retrieve.
+
+        Returns:
+            InstanceType: The stored InstanceTemplate instance corresponding to the
+            provided type and name.
+
+        Raises:
+            KeyError: If no template with the given type and name exists in
+            the internal registry.
+        """
+        if instance_id not in self._instances[pmb_type]:
+            raise KeyError(f"InstanceTemplate with id = '{instance_id}' not found in type '{pmb_type}'.")
+        else:
+            return self._instances[pmb_type][instance_id]
 
     def get_template(self, pmb_type, name):
         """
@@ -414,12 +624,11 @@ class Manager:
         a `KeyError` is raised.
 
         Args:
-            pmb_type (str): The template category (e.g., "particle", "molecule",
-                "residue", "bond", "protein", ...).
-            name (str): The unique name of the template to retrieve.
+            pmb_type (str): The template pyMBE category.
+            name (str): The unique id of the template to retrieve.
 
         Returns:
-            PMBBaseModel: The stored template instance corresponding to the
+            TemplateType: The stored template instance corresponding to the
             provided type and name.
 
         Raises:

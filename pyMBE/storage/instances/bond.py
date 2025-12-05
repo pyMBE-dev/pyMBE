@@ -41,6 +41,8 @@ class BondInstance(PMBBaseModel):
             ID of the first particle involved in the bond.
         particle_id2 (int):
             ID of the second particle involved in the bond.
+        es_id (int):
+            Unique non-negative integer identifying this bond instance.
 
     Validators:
         validate_bond_id:
@@ -57,8 +59,7 @@ class BondInstance(PMBBaseModel):
     bond_id: int
     name : str            # bond template name
     particle_id1: int
-    particle_id2: int 
-    
+    particle_id2: int
 
     @field_validator("bond_id")
     def validate_bond_id(cls, bid):

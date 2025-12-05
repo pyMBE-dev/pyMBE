@@ -176,6 +176,7 @@ def _load_database_csv(db, folder):
                     cutoff=cutoff,
                     offset=offset,
                     states=states,
+                    initial_state=row["initial_state"]
                 )
                 templates[tpl.name] = tpl
 
@@ -428,6 +429,7 @@ def _save_database_csv(db, folder):
                     "epsilon": _encode(tpl.epsilon),
                     "cutoff": _encode(tpl.cutoff),
                     "offset": _encode(tpl.offset),
+                    "initial_state": tpl.initial_state,
                     "states": _encode({sname: st.model_dump() for sname, st in tpl.states.items()}), # states: dict state_name -> ParticleState.model_dump()
                     })
 
