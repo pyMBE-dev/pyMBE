@@ -83,6 +83,41 @@ class Manager:
         self._instances: Dict[str, Dict[int, InstanceType]] = {}
         self._reactions: Dict[str, Reaction] = {}
 
+    def _delete_bonds_of_particle(self, pid):
+        """
+        Delete all bond instances involving a given particle instance.
+
+        Args:
+            pid (int): The particle ID whose associated bonds should be deleted.
+
+        Notes:
+            - If no `"bond"` instances are present in the database, the method
+            exits immediately.
+            - This method does not raise errors if no bonds involve the particle.
+            - It is intended for internal use by cascade-deletion routines.
+        """
+        if "bond" not in self._instances:
+            return
+        bonds_to_delete = [
+            b_id for b_id, b in list(self._instances["bond"].items())
+            if b.particle_id1 == pid or b.particle_id2 == pid
+        ]
+        for b_id in bonds_to_delete:
+            del self._instances["bond"][b_id]
+        if "bond" in self._instances and not self._instances["bond"]:
+            del self._instances["bond"]
+
+            if "bond" not in self._instances:
+                return
+            bonds_to_delete = [
+                b_id for b_id, b in list(self._instances["bond"].items())
+                if b.particle_id1 == pid or b.particle_id2 == pid
+            ]
+            for b_id in bonds_to_delete:
+                del self._instances["bond"][b_id]
+            if "bond" in self._instances and not self._instances["bond"]:
+                del self._instances["bond"]
+
     def _find_instance_ids_by_attribute(self, pmb_type, attribute, value):
         """
         Return a list of instance IDs for a given pmb_type where a given attribute
@@ -312,6 +347,20 @@ class Manager:
                     "offset": tpl.offset.to_quantity(self._units),
                     "shift": shift
                 })
+
+            elif pmb_type == "bond":
+                parameters = {}
+                for key in tpl.parameters.keys():
+                    parameters[key] = tpl.parameters[key].to_quantity(self._units)
+                rows.append({
+                    "pmb_type": tpl.pmb_type,
+                    "name": tpl.name,
+                    "bond_type": tpl.bond_type,
+                    "particle_name1": tpl.particle_name1,
+                    "particle_name2": tpl.particle_name2,
+                    "parameters": parameters,
+                })
+
             else:
                 # Generic representation for other types
                 rows.append(tpl.model_dump())
@@ -541,6 +590,44 @@ class Manager:
         
         self._instances[pmb_type][instance_id] = self._instances[pmb_type][instance_id].model_copy(update={attribute: value})
 
+    def _update_part_res_inst_mol_ids(self, residue_id, molecule_id):
+        """
+        Updates the molecule ID of a residue and all particle instances that belong to it.
+
+        
+        Args:
+            residue_id (int):
+                The instance ID of the residue whose molecule assignment should be updated.
+            molecule_id (int):
+                The molecule ID to assign to the residue and all its particles.
+
+        Returns:
+            List[int]:
+                A list of particle instance IDs that were updated.
+
+        Raises:
+            KeyError:
+                If the residue does not exist in the database.
+            ValueError:
+                If an update fails due to inconsistent or missing attributes.
+        """
+
+        self._update_instance(instance_id=residue_id,
+                              pmb_type="residue",
+                              attribute="molecule_id",
+                               value=molecule_id)
+        particle_ids_in_residue = self._find_instance_ids_by_attribute(pmb_type="particle",
+                                                                       attribute="residue_id",
+                                                                       value=residue_id)
+        for particle_id in particle_ids_in_residue:
+            self._update_instance(instance_id=particle_id,
+                                  pmb_type="particle",
+                                  attribute="molecule_id",
+                                  value=molecule_id)
+                        
+        return particle_ids_in_residue
+
+
     def _update_reaction_participant(self, reaction_name, particle_name, state_name, coefficient):
         """
         Append a new participant to an existing reaction in the database.
@@ -587,6 +674,157 @@ class Manager:
 
         used_ids = list(self._instances[pmb_type].keys())
         return max(used_ids) + 1
+
+    def delete_template(self, pmb_type, name):
+        """
+        Delete a template from the pyMBE database.
+
+        This method removes a template identified by its pyMBE type and name.
+        Before deletion, it checks whether any instance in the database uses
+        this template. If any instance depends on it, a ``ValueError`` is raised
+        to prevent breaking database integrity.
+
+        Args:
+            pmb_type (str):
+                The template category.
+            name (str):
+                The name of the template to delete.
+
+        Raises:
+            KeyError:
+                If the template type or name does not exist.
+            ValueError:
+                If one or more instances reference the template.
+        """
+        # Check template exists
+        if pmb_type not in self._templates:
+            raise KeyError(f"Template type '{pmb_type}' not found.")
+        if name not in self._templates[pmb_type]:
+            raise KeyError(f"Template '{name}' not found in type '{pmb_type}'.")
+
+        # Check if any instance depends on this template
+        if pmb_type in self._instances:
+            for inst in self._instances[pmb_type].values():
+                if getattr(inst, "name", None) == name:
+                    raise ValueError(
+                        f"Cannot delete template '{name}' from '{pmb_type}': "
+                        f"Instance with ID {getattr(inst, pmb_type + '_id')} depends on it."
+                    )
+
+        # Delete
+        del self._templates[pmb_type][name]
+
+        # Delete empty groups
+        if not self._templates[pmb_type]:
+            del self._templates[pmb_type]
+
+    def delete_instance(self, pmb_type, instance_id, cascade = False):
+        """
+        Delete an instance from the pyMBE database.
+
+        Supports cascade deletion:
+        - molecule  → residues → particles → bonds
+        - residue   → particles → bonds
+        - particle  → bonds
+        - bond      → nothing
+
+        Args:
+            pmb_type (str): Category of the instance (particle, residue, molecule, bond).
+            instance_id (int): Unique identifier of the instance.
+            cascade (bool): If True, automatically delete dependent child objects.
+
+        Raises:
+            KeyError: If the instance does not exist.
+            ValueError: If cascade is False but dependencies exist.
+        """
+        # --- Basic sanity checks ---
+        if pmb_type not in self._instances:
+            raise KeyError(f"Instance type '{pmb_type}' not found.")
+
+        if instance_id not in self._instances[pmb_type]:
+            raise KeyError(f"Instance ID '{instance_id}' not found in '{pmb_type}'.")
+
+        inst = self._instances[pmb_type][instance_id]
+
+        # ---- Helper function for deletion of bonds ----
+        
+
+        # ---- CASCADE deletion logic ----
+        if cascade:
+            # DELETE children depending on type
+            if pmb_type == "molecule":
+                # 1. residues → 2. particles → 3. bonds
+                residues = self._find_instance_ids_by_attribute(
+                    "residue", "molecule_id", instance_id
+                )
+                for rid in residues:
+                    self.delete_instance("residue", rid, cascade=True)
+
+            elif pmb_type == "residue":
+                # 1. particles → 2. bonds
+                particles = self._find_instance_ids_by_attribute(
+                    "particle", "residue_id", instance_id
+                )
+                for pid in particles:
+                    self.delete_instance("particle", pid, cascade=True)
+
+            elif pmb_type == "particle":
+                # 1. bonds only
+                self._delete_bonds_of_particle(instance_id)
+
+            # For bonds there is nothing to cascade
+
+        else:
+            # ---- NON-cascade: forbid deletions that break structure ----
+            if pmb_type == "particle":
+                if inst.residue_id is not None:
+                    raise ValueError(
+                        f"Particle {instance_id} belongs to residue {inst.residue_id}. "
+                        f"Use cascade=True to delete anyway."
+                    )
+                if inst.molecule_id is not None:
+                    raise ValueError(
+                        f"Particle {instance_id} belongs to molecule {inst.molecule_id}. "
+                        f"Use cascade=True."
+                    )
+
+                # check bond dependencies
+                bonds = [
+                    b_id for b_id, b in self._instances.get("bond", {}).items()
+                    if b.particle_id1 == instance_id or b.particle_id2 == instance_id
+                ]
+                if bonds:
+                    raise ValueError(
+                        f"Particle {instance_id} is in bonds {bonds}. "
+                        f"Use cascade=True."
+                    )
+
+            if pmb_type == "residue":
+                particles = self._find_instance_ids_by_attribute(
+                    "particle", "residue_id", instance_id
+                )
+                if particles:
+                    raise ValueError(
+                        f"Residue {instance_id} has particles {particles}. "
+                        f"Use cascade=True."
+                    )
+
+            if pmb_type == "molecule":
+                residues = self._find_instance_ids_by_attribute(
+                    "residue", "molecule_id", instance_id
+                )
+                if residues:
+                    raise ValueError(
+                        f"Molecule {instance_id} has residues {residues}. "
+                        f"Use cascade=True."
+                    )
+
+        # ---- Perform final deletion of this object ----
+        del self._instances[pmb_type][instance_id]
+
+        if not self._instances[pmb_type]:
+            del self._instances[pmb_type]
+
 
     def get_instance(self, pmb_type, instance_id):
         """

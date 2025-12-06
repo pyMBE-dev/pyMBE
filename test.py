@@ -66,7 +66,7 @@ def main():
     print("\n=== Residue Templates DataFrame ===")
     print(pmb.db._get_templates_df(pmb_type="residue"))
 
-    pmb.define_molecule(name="M1", residue_list=["R1","R2"])
+    pmb.define_molecule(name="M1", residue_list=["R1","R2"]*2)
     print("\n=== Molecule Templates DataFrame ===")
     print(pmb.db._get_templates_df(pmb_type="molecule"))
 
@@ -178,10 +178,7 @@ def main():
     print(pmb.db._get_instances_df(pmb_type="particle"))
 
 
-    pmb.db._update_instance(pmb_type="particle", instance_id=1, attribute="residue_id", value=int(0))
-    print("\n=== Particle Instances DataFrame (after update) ===")
-    print(pmb.db._get_instances_df(pmb_type="particle"))
-
+    
     pmb.create_residue(name="R1",
                        espresso_system=espresso_system)
     pmb.create_residue(name="R2",
@@ -190,18 +187,13 @@ def main():
     print("\n=== Residue Instances DataFrame ===")
     print(pmb.db._get_instances_df(pmb_type="residue"))
 
+    pmb.create_molecule(name="M1",
+                        number_of_molecules=2,
+                        espresso_system=espresso_system)
 
-    pmb.db._update_instance(pmb_type="residue",instance_id=0, attribute="molecule_id", value=int(0))
-    print("\n=== Residue Instances DataFrame (after update)===")
-    print(pmb.db._get_instances_df(pmb_type="residue"))
-
-
-    inst1 = MoleculeInstance(name="M1", molecule_id=1)
-    inst2 = MoleculeInstance(name="M1", molecule_id=2)
-#    db._register_instance(inst1)
-#    db._register_instance(inst2)
     print("\n=== Molecule Instances DataFrame ===")
-    print(db._get_instances_df(pmb_type="molecule"))
+
+    print(pmb.db._get_instances_df(pmb_type="molecule"))
 
     
     print("\n=== Bond Instances DataFrame ===")

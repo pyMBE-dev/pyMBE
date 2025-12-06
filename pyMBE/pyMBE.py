@@ -158,6 +158,8 @@ class pymbe_library():
             residue_list.append(residue_name)
         return residue_list
     
+
+
     def calculate_center_of_mass_of_molecule(self, molecule_id, espresso_system):
         """
         Calculates the center of the molecule with a given molecule_id.
@@ -785,20 +787,18 @@ class pymbe_library():
         Args:
             name(`str`): Label of the molecule type to be created. `name` must be defined in `pmb.df`
             espresso_system(`espressomd.system.System`): Instance of a system object from espressomd library.
-            number_of_molecules(`int`): Number of molecules of type `name` to be created.
+            number_of_molecules(`int`): Number of molecules or peptides of type `name` to be created.
             list_of_first_residue_positions(`list`, optional): List of coordinates where the central bead of the first_residue_position will be created, random by default.
             backbone_vector(`list` of `float`): Backbone vector of the molecule, random by default. Central beads of the residues in the `residue_list` are placed along this vector. 
             use_default_bond(`bool`, optional): Controls if a bond of type `default` is used to bond particle with undefined bonds in `pymbe.df`
 
         Returns:
-            molecules_info(`dict`):  {molecule_id: {residue_id:{"central_bead_id":central_bead_id, "side_chain_ids": [particle_id1, ...]}}} 
+            created_molecule_id_list(`list` of `int`): List with the `molecule_id` of the pyMBE molecule instances created into `espresso_system`.
 
         Note:
             Despite its name, this function can be used to create both molecules and peptides.    
         """
-        if not _DFm._check_if_name_is_defined_in_df(name=name, df=self.df):
-            logging.warning(f"Molecule with name '{name}' is not defined in the pyMBE DataFrame, no molecule will be created.")
-            return {}
+        supported_pmb_types = ["molecule", "peptide"]
         if number_of_molecules <= 0:
             return {}
         if list_of_first_residue_positions is not None:
@@ -810,11 +810,16 @@ class pymbe_library():
 
             if len(list_of_first_residue_positions) != number_of_molecules:
                 raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
-        
-        # This function works for both molecules and peptides
-        if not self._check_if_name_has_right_type(name=name,  expected_pmb_type="molecule", hard_check=False):
-            self._check_if_name_has_right_type(name=name, expected_pmb_type="peptide")
-        
+        # Sanity tests, this function should work for both molecules and peptides
+        registered_pmb_types_with_name = self.db._find_template_types(name=name)
+        if len(registered_pmb_types_with_name) > 1: 
+            raise KeyError(f"Detected multiple templates with the same name '{name}' in the pyMBE database, pmb_types: {registered_pmb_types_with_name}. Molecule creation aborted to avoid ambiguity.")  
+        elif len(registered_pmb_types_with_name) == 0:
+            logging.warning(f"No template with name '{name}'  defined in the pyMBE database, nothing will be created.")   
+            return
+        pmb_type = registered_pmb_types_with_name[0]
+        if pmb_type not in supported_pmb_types:
+            raise KeyError(f"Unsupported template type {pmb_type} for template {name}. Supported template types are {supported_pmb_types}")
         # Generate an arbitrary random unit vector
         if backbone_vector is None:
             backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
@@ -824,89 +829,81 @@ class pymbe_library():
         else:
             backbone_vector = np.array(backbone_vector)
         first_residue = True
-        molecules_info = {}
-        residue_list = self.df[self.df['name']==name].residue_list.values [0]
-        self.df = _DFm._copy_df_entry(df = self.df,
-                                      name = name,
-                                      column_name = 'molecule_id',
-                                      number_of_copies = number_of_molecules)
-
-        molecules_index = np.where(self.df['name']==name)
-        molecule_index_list =list(molecules_index[0])[-number_of_molecules:]
+        molecule_tpl = self.db.get_template(pmb_type=pmb_type,
+                                            name=name)
+        residue_list = molecule_tpl.residue_list
         pos_index = 0 
-        for molecule_index in molecule_index_list:        
-            molecule_id = _DFm._assign_molecule_id(df = self.df, 
-                                                   molecule_index = molecule_index)
-            molecules_info[molecule_id] = {}
+        molecule_ids = []
+        for _ in range(number_of_molecules):        
+            molecule_id = self.db._propose_instance_id(pmb_type=pmb_type)
             for residue in residue_list:
                 if first_residue:
                     if list_of_first_residue_positions is None:
-                        residue_position = None
+                        central_bead_pos = None
                     else:
                         for item in list_of_first_residue_positions:
-                            residue_position = [np.array(list_of_first_residue_positions[pos_index])]
+                            central_bead_pos = [np.array(list_of_first_residue_positions[pos_index])]
                             
-                    residues_info = self.create_residue(name=residue,
-                                                        espresso_system=espresso_system, 
-                                                        central_bead_position=residue_position,  
-                                                        use_default_bond= use_default_bond, 
-                                                        backbone_vector=backbone_vector)
-                    residue_id = next(iter(residues_info))
-                    # Add the correct molecule_id to all particles in the residue
-                    for index in self.df[self.df['residue_id']==residue_id].index:
-                        _DFm._add_value_to_df(df = self.df,
-                                              key = ('molecule_id',''),
-                                              index = int (index),
-                                              new_value = molecule_id,
-                                              overwrite = True)
-                    central_bead_id = residues_info[residue_id]['central_bead_id']
-                    previous_residue = residue
-                    residue_position = espresso_system.part.by_id(central_bead_id).pos
-                    previous_residue_id = central_bead_id
-                    first_residue = False          
-                else:                    
-                    previous_central_bead_name=self.df[self.df['name']==previous_residue].central_bead.values[0]
-                    new_central_bead_name=self.df[self.df['name']==residue].central_bead.values[0]
-                    bond = self.search_bond(particle_name1=previous_central_bead_name, 
-                                            particle_name2=new_central_bead_name, 
-                                            hard_check=True, 
-                                            use_default_bond=use_default_bond)                
-                    l0 = self.get_bond_length(particle_name1=previous_central_bead_name, 
-                                            particle_name2=new_central_bead_name, 
-                                            hard_check=True, 
-                                            use_default_bond=use_default_bond)                
+                    residue_id = self.create_residue(name=residue,
+                                                     espresso_system=espresso_system, 
+                                                     central_bead_position=central_bead_pos,  
+                                                     use_default_bond= use_default_bond, 
+                                                     backbone_vector=backbone_vector)
                     
-                    residue_position = residue_position+backbone_vector*l0
-                    residues_info = self.create_residue(name=residue, 
+                    # Add molecule_id to the residue instance and all particles associated
+                    particle_ids_in_residue = self.db._update_part_res_inst_mol_ids(residue_id=residue_id,
+                                                                                    molecule_id=molecule_id)
+                        
+                    prev_central_bead_id = particle_ids_in_residue[0]
+                    prev_central_bead_name = self.db.get_instance(pmb_type="particle", instance_id=prev_central_bead_id).name
+                    prev_central_bead_pos = espresso_system.part.by_id(prev_central_bead_id).pos
+                    first_residue = False          
+                else:
+                    
+                    # Calculate the starting position of the new residue
+                    residue_tpl = self.db.get_template(pmb_type="residue",
+                                                       name=residue)
+                    lj_parameters = self.get_lj_parameters(particle_name1=prev_central_bead_name,
+                                                       particle_name2=residue_tpl.central_bead)
+                    bond_tpl = self.get_bond_template(particle_name1=prev_central_bead_name,
+                                                  particle_name2=residue_tpl.central_bead)
+                    l0 = hf.calculate_initial_bond_length(lj_parameters=lj_parameters,
+                                                      bond_type=bond_tpl.bond_type,
+                                                      bond_parameters=bond_tpl.get_parameters(ureg=self.units))
+                    central_bead_pos = prev_central_bead_pos+backbone_vector*l0
+                    # Create the residue
+                    residue_id = self.create_residue(name=residue, 
                                                         espresso_system=espresso_system, 
-                                                        central_bead_position=[residue_position],
+                                                        central_bead_position=[central_bead_pos],
                                                         use_default_bond= use_default_bond, 
                                                         backbone_vector=backbone_vector)
-                    residue_id = next(iter(residues_info))      
-                    for index in self.df[self.df['residue_id']==residue_id].index:
-                        _DFm._add_value_to_df(df = self.df,
-                                              key = ('molecule_id',''),
-                                              index = int(index),
-                                              new_value = molecule_id,
-                                              overwrite = True)            
-                    central_bead_id = residues_info[residue_id]['central_bead_id']
-                    espresso_system.part.by_id(central_bead_id).add_bond((bond, previous_residue_id))
-                    self.df, bond_index = _DFm._add_bond_in_df(df = self.df,
-                                                               particle_id1 = central_bead_id,
-                                                               particle_id2 = previous_residue_id,
-                                                               use_default_bond = use_default_bond) 
-                    _DFm._add_value_to_df(df = self.df,
-                                          key = ('molecule_id',''),
-                                          index = int(bond_index),
-                                          new_value = molecule_id,
-                                          overwrite = True)           
-                    previous_residue_id = central_bead_id
-                    previous_residue = residue                    
-                molecules_info[molecule_id][residue_id] = residues_info[residue_id]
+                    # Add molecule_id to the residue instance and all particles associated
+                    particle_ids_in_residue = self.db._update_part_res_inst_mol_ids(residue_id=residue_id,
+                                                                                    molecule_id=molecule_id)
+                    central_bead_id = particle_ids_in_residue[0]
+
+                    # Bond the central beads of the new and previous residues
+                    self.create_bond(particle_id1=prev_central_bead_id,
+                                     particle_id2=central_bead_id,
+                                     espresso_system=espresso_system,
+                                     use_default_bond=use_default_bond)
+                    
+                    prev_central_bead_id = central_bead_id                    
+                    prev_central_bead_name = self.db.get_instance(pmb_type="particle", instance_id=central_bead_id).name
+                    prev_central_bead_pos =central_bead_pos
+            # Create a Peptide or Molecule instance and register it on the pyMBE database
+            if pmb_type == "molecule":
+                inst = MoleculeInstance(molecule_id=molecule_id,
+                                        name=name)
+            elif pmb_type == "peptide":
+                inst = PeptideInstance(name=name,
+                                       molecule_id=molecule_id)
+            self.db._register_instance(inst)
             first_residue = True
             pos_index+=1
-        
-        return molecules_info
+            molecule_ids.append(molecule_id)
+            
+        return molecule_id
     
     def create_particle(self, name, espresso_system, number_of_particles, position=None, fix=False):
         """
@@ -919,7 +916,7 @@ class pymbe_library():
             position(list of [`float`,`float`,`float`], optional): Initial positions of the particles. If not given, particles are created in random positions. Defaults to None.
             fix(`bool`, optional): Controls if the particle motion is frozen in the integrator, it is used to create rigid objects. Defaults to False.
         Returns:
-            created_pid_list(`list` of `float`): List with the ids of the particles created into `espresso_system`.
+            created_pid_list(`list` of `int`): List with the ids of the particles created into `espresso_system`.
         """       
         if number_of_particles <=0:
             return []
@@ -1055,7 +1052,7 @@ class pymbe_library():
         side_chain_beads_ids = []
         for side_chain_name in side_chain_list:
             pmb_type_list = self.db._find_template_types(name=side_chain_name)
-            if len(pmb_type_list) > 2:
+            if len(pmb_type_list) > 1:
                 raise KeyError(f"Detected multiple templates with the same name '{side_chain_name}' in the pyMBE database, pmb_types: {pmb_type_list}. Residue creation aborted to avoid ambiguity.")  
             elif not pmb_type_list:
                 logging.warning(f"Element in side chain with name '{name}' is not defined in the pyMBE database, nothing will be created.")
@@ -1124,6 +1121,9 @@ class pymbe_library():
                                              pmb_type="particle",
                                              attribute="residue_id",
                                              value=residue_id)
+                # Remove the instance of the inner residue
+                self.db.delete_instance(pmb_type="residue",
+                                        instance_id=side_residue_id)
                 self.create_bond(particle_id1=central_bead_id,
                                  particle_id2=side_chain_beads_ids[0],
                                  espresso_system=espresso_system,
