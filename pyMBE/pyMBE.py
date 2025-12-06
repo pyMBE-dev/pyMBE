@@ -953,58 +953,92 @@ class pymbe_library():
 
     def create_protein(self, name, number_of_proteins, espresso_system, topology_dict):
         """
-        Creates `number_of_proteins` molecules of type `name` into `espresso_system` at the coordinates in `positions`
+        Creates one or more protein molecules in an ESPResSo system based on a stored
+        protein template and a provided topology.
 
         Args:
-            name(`str`): Label of the protein to be created. 
-            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
-            number_of_proteins(`int`): Number of proteins to be created.
-            positions(`dict`): {'ResidueNumber': {'initial_pos': [], 'chain_id': ''}}
+            name (str):
+                Name of the protein template stored in the pyMBE database.
+            
+            number_of_proteins (int):
+                Number of protein molecules to generate.  
+            
+            espresso_system (espressomd.system.System):
+                The ESPResSo simulation system where the protein molecules will be created.
+            
+            topology_dict (dict):
+                Dictionary defining the internal structure of the protein.
+                Expected format:
+                    {
+                        "ResidueName1": {
+                            "initial_pos": np.ndarray,
+                            "chain_id": int,
+                            "radius": float
+                        },
+                        "ResidueName2": { ... },
+                        ...
+                    }
+                The `"initial_pos"` entry is required and represents the residue’s
+                reference coordinates before shifting to the protein's center-of-mass.
+
+        Notes:
+            - Particles are created using `create_particle()` with `fix=True`,
+            meaning they are initially immobilized.
+            - The function assumes all residues in `topology_dict` correspond to
+            particle templates already defined in the pyMBE database.
+            - Bonds between residues are not created here; it assumes a rigid body representation of the protein.
         """
-
-        if number_of_proteins <=0:
+        if number_of_proteins <= 0:
             return
-        if not _DFm._check_if_name_is_defined_in_df(name=name, df=self.df):
-            logging.warning(f"Protein with name '{name}' is not defined in the pyMBE DataFrame, no protein will be created.")
-            return
-        self._check_if_name_has_right_type(name=name,
-                                           expected_pmb_type="protein")
 
-        self.df = _DFm._copy_df_entry(df = self.df,
-                                      name = name,
-                                      column_name = 'molecule_id',
-                                      number_of_copies = number_of_proteins)
-        protein_index = np.where(self.df['name'] == name)
-        protein_index_list = list(protein_index[0])[-number_of_proteins:]
+        protein_tpl = self.db.get_template(pmb_type="protein", name=name)
         box_half = espresso_system.box_l[0] / 2.0
-        for molecule_index in protein_index_list:     
-            molecule_id = _DFm._assign_molecule_id(df = self.df,   
-                                                   molecule_index = molecule_index)
-            protein_center = self.generate_coordinates_outside_sphere(radius = 1, 
-                                                                      max_dist = box_half, 
-                                                                      n_samples = 1, 
-                                                                      center = [box_half]*3)[0]
-            for residue in topology_dict.keys():
-                residue_name = re.split(r'\d+', residue)[0]
-                residue_number = re.split(r'(\d+)', residue)[1]
-                residue_position = topology_dict[residue]['initial_pos']
-                position = residue_position + protein_center
-                particle_id = self.create_particle(name=residue_name,
-                                                            espresso_system=espresso_system,
-                                                            number_of_particles=1,
-                                                            position=[position], 
-                                                            fix = True)
-                index = self.df[self.df['particle_id']==particle_id[0]].index.values[0]
-                _DFm._add_value_to_df(df = self.df,
-                                      key = ('residue_id',''),
-                                      index = int(index),
-                                      new_value = int(residue_number),
-                                      overwrite = True)
-                _DFm._add_value_to_df(df = self.df,
-                                      key = ('molecule_id',''),
-                                      index = int(index),
-                                      new_value = molecule_id,
-                                      overwrite = True)
+
+        residues = hf.get_residues_from_topology_dict(topology_dict=topology_dict,
+                                                      model=protein_tpl.model)
+        # Create protein
+        for _ in range(number_of_proteins):
+            # create a molecule identifier in pyMBE
+            molecule_id = self.db._propose_instance_id(pmb_type="protein")
+            # place protein COM randomly
+            protein_center = self.generate_coordinates_outside_sphere(radius=1,
+                                                                      max_dist=box_half,
+                                                                      n_samples=1,
+                                                                      center=[box_half]*3)[0]
+            # CREATE RESIDUES + PARTICLES
+            for _, rdata in residues.items():
+                base_resname = rdata["resname"]  
+                residue_name = f"AA-{base_resname}"
+                # residue instance ID
+                residue_id = self.db._propose_instance_id("residue")
+                # register ResidueInstance
+                self.db._register_instance(ResidueInstance(name=residue_name,
+                                                           residue_id=residue_id,
+                                                           molecule_id=molecule_id))
+
+                # PARTICLE CREATION
+                for bead_id in rdata["beads"]:
+                    bead_type = re.split(r'\d+', bead_id)[0]
+                    relative_pos = topology_dict[bead_id]["initial_pos"]
+                    absolute_pos = relative_pos + protein_center
+                    particle_id = self.create_particle(name=bead_type,
+                                                       espresso_system=espresso_system,
+                                                       number_of_particles=1,
+                                                       position=[absolute_pos],
+                                                       fix=True)[0]
+
+                    # update metadata
+                    self.db._update_instance(instance_id=particle_id,
+                                             pmb_type="particle",
+                                             attribute="molecule_id",
+                                             value=molecule_id)
+                    self.db._update_instance(instance_id=particle_id,
+                                             pmb_type="particle",
+                                             attribute="residue_id",
+                                             value=residue_id)
+            protein_inst = ProteinInstance(name=name,
+                                           molecule_id=molecule_id)
+            self.db._register_instance(protein_inst)
 
     def create_residue(self, name, espresso_system, central_bead_position=None,use_default_bond=False, backbone_vector=None):
         """
@@ -1326,7 +1360,6 @@ class pymbe_library():
             name (`str`): Unique label that identifies the protein.
             sequence (`str`): Sequence of the protein.
             model (`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
-            topology_dict (`dict`): {'initial_pos': coords_list, 'chain_id': id, 'radius': radius_value}
 
         Note:
             - Currently, only `lj_setup_mode="wca"` is supported. This corresponds to setting up the WCA potential.

@@ -50,7 +50,10 @@ def check_aminoacid_key(key):
                     'A', #'ALA'
                     'G', #'GLY'
                     'P', #'PRO'
-                    'C'] #'CYS'
+                    'C', #'CYS'
+                    "n", # n terminus
+                    "c", # c terminus
+                    ] 
     if key in valid_AA_keys:
         return True
     else:
@@ -108,7 +111,52 @@ def check_if_metal_ion(key):
     else:
         return False
 
-def define_AA_particles(topology_dict, lj_setup_mode, pmb):
+def define_protein_AA_particles(topology_dict, pmb, lj_setup_mode="wca"):
+    """
+    Defines particle templates in pyMBE for all unique residue/atom types appearing
+    in a protein topology dictionary.
+
+    The Lennard-Jones parameters (σ, ε, offset) are generated according to the
+    selected setup mode (currently only the WCA scheme is supported).  
+    
+    Metal ions are automatically assigned their correct valence charge.
+
+    Args:
+        topology_dict (dict):
+            Dictionary defining the structure of a protein.
+            Keys must be residue/particle identifiers such as `"ALA1"`, `"LYS2"`,
+            `"ZN3"`, etc., where the alphabetical prefix encodes the residue/
+            particle type.
+
+            Each entry must contain:
+                - `"radius"` (float): Effective radius of the bead, used to
+                  compute the Lennard-Jones offset.
+
+            Example:
+                {
+                    "ALA1": {"radius": 0.5, ...},
+                    "GLY2": {"radius": 0.4, ...},
+                    "ZN3":  {"radius": 0.2, ...},
+                }
+
+        pmb (pyMBE.pymbe_library):
+            Instance of the pyMBE library.
+
+        lj_setup_mode (str, optional):
+            Determines how Lennard-Jones parameters are assigned. Defaults to `"wca"`.           
+
+    Raises:
+        ValueError:
+            If `lj_setup_mode` is not supported.
+
+    Notes:
+        - Particle names are extracted by stripping trailing digits
+          (e.g., `"ALA1"` → `"ALA"`).
+        - For metal ions (identified via `check_if_metal_ion()`), the correct
+          ionic charge is retrieved from the metal-ion charge map.
+        - The Lennard-Jones offset is computed as:
+                offset = 2 * radius - sigma
+    """
     valid_lj_setups = ["wca"]
 
     if lj_setup_mode not in valid_lj_setups:
@@ -125,34 +173,61 @@ def define_AA_particles(topology_dict, lj_setup_mode, pmb):
         if particle_name not in part_dict.keys():
             if lj_setup_mode == "wca":
                 part_dict={"sigma": sigma,
-                                    "offset": topology_dict[particle]['radius']*2-sigma,
-                                    "epsilon": epsilon,
-                                    "name": particle_name}
+                           "offset": topology_dict[particle]['radius']*2-sigma,
+                           "epsilon": epsilon,
+                           "name": particle_name}
             if check_if_metal_ion(key=particle_name):
                 z=metal_ions_charge_number_map[particle_name]
             else:
                 z=0
             part_dict["z"]=z
             part_dict["name"]=particle_name
-        if check_aminoacid_key(key=particle_name):
-            sequence.append(particle_name) 
+        
         if particle_name not in defined_particles:
             pmb.define_particle(**part_dict)
-            defined_particles.append(particle_name)            
+            defined_particles.append(particle_name)
+    return 
         
 
-def define_AA_residues(sequence, model, pmb):
+def define_protein_AA_residues(topology_dict, model, pmb):
     """
-    Convinience function to define a residue template in the pyMBE database for each aminoacid in peptide and proteins.
+    Define residue templates in the pyMBE database for a peptide or protein sequence.
 
     Args:
-        pmb(pymbe_library): Instance of the pyMBE library. 
-        sequence(`lst`):  Sequence of the peptide or protein.
-        model(`string`): Model name. Currently only models with 1 bead '1beadAA' or with 2 beads '2beadAA' per amino acid are supported.
+        sequence (list of str):
+            Ordered amino-acid sequence of the peptide or protein. Each element must
+            be a residue identifier compatible with the selected model.
+
+        model (str):
+            Coarse-grained representation to use. Supported options:
+                - `"1beadAA"`
+                - `"2beadAA"`
+
+        pmb (pyMBE.pymbe_library):
+            Instance of the pyMBE library.
+
+    Notes:
+        - Supported models:
+            - `"1beadAA"`: Each amino acid is represented by a single bead.  
+                The central bead is the amino-acid name itself, and no side chains are used.
+            - `"2beadAA"`: Each amino acid is represented by two beads, except for terminal or special residues:
+                * `"c"`, `"n"`, and `"G"` (glycine) are treated as single-bead residues.
+                * All other residues use `"CA"` (central bead) plus one side-chain bead named after the amino acid.
+
+        - Residue names are constructed as `"AA-<residue>"`, e.g., `"AA-A"`, `"AA-L"`.
+
+    Returns:
+        None
+            The function operates by side effect, populating the pyMBE residue
+            template database.
+
     """
 
     residue_list = []
-    for item in sequence:
+    residues = get_residues_from_topology_dict(topology_dict=topology_dict,
+                                               model=model)
+    for res_id in residues.keys():
+        item = residues[res_id]["resname"]
         if model == '1beadAA':
             central_bead = item
             side_chains = []
@@ -169,6 +244,33 @@ def define_AA_residues(sequence, model, pmb):
                                 central_bead = central_bead,
                                 side_chains = side_chains)              
             residue_list.append(residue_name)
+
+def get_residues_from_topology_dict(topology_dict, model):
+    if model == "1beadAA":
+        excluded_residue_names = []
+    elif model == "2beadAA":
+        excluded_residue_names = ["CA"]
+    
+    # GROUP BEADS BY RESIDUE
+    residues = {}
+    for bead_id in topology_dict.keys():
+        # extract prefix and index number
+        prefix = re.split(r'\d+', bead_id)[0]         
+        index_match = re.findall(r'\d+', bead_id)
+        if not index_match:
+            raise ValueError(f"Topology key '{bead_id}' does not contain a residue index.")
+        resid = index_match[0]
+        if resid not in residues:
+            residues[resid] = {"beads": []}
+        residues[resid]["beads"].append(bead_id)
+        if prefix not in excluded_residue_names:
+            residues[resid]["resname"] = prefix
+    
+    # Assign name to glycine residues (only with CA beads)
+    for bead_id in residues:
+        if "resname" not in residues[bead_id]:
+            residues[bead_id]["resname"] = "G"
+    return residues
 
 def get_metal_ions_charge_number_map():
     """

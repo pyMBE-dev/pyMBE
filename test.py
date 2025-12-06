@@ -28,6 +28,8 @@ import pint
 import scipy
 import espressomd
 
+import pyMBE.lib.handy_functions as hf
+
 def main():
 
     units = pint.UnitRegistry()
@@ -155,10 +157,21 @@ def main():
     
     topology_dict = pmb.read_protein_vtf_in_df (filename=path[0])
 
-    pmb.define_protein(name="blabla",
+    # Define AA particles and residues
+    hf.define_protein_AA_particles(topology_dict=topology_dict,
+                           pmb=pmb)
+
+    hf.define_protein_AA_residues(topology_dict=topology_dict,
+                          model="2beadAA",
+                          pmb=pmb)
+        
+    print(pmb.db._get_templates_df(pmb_type="particle"))
+    print(pmb.db._get_templates_df(pmb_type="residue"))
+    pmb.define_protein(name="1beb",
                        model="2beadAA",
                        sequence="KKKKKK")
     
+
     print(db._get_templates_df(pmb_type="protein"))
 
     
@@ -200,14 +213,16 @@ def main():
     print(pmb.db._get_instances_df(pmb_type="bond"))     
 
     print("\n=== Peptide Instances DataFrame ===")
- #   inst_peptide1 = PeptideInstance(name="Peptide1", molecule_id=3)
- #   db._register_instance(inst_peptide1)
-    print(db._get_instances_df(pmb_type="peptide"))
+ 
+    print(pmb.db._get_instances_df(pmb_type="peptide"))
 
     print("\n=== Protein Instances DataFrame ===")
- #   inst_protein1 = ProteinInstance(name="Protein1", molecule_id=4)
- #   db._register_instance(inst_protein1)
-    print(db._get_instances_df(pmb_type="protein"))
+    pmb.create_protein(name="1beb",
+                       number_of_proteins=1,
+                       espresso_system=espresso_system,
+                       topology_dict=topology_dict)
+    exit()
+    print(pmb.db._get_instances_df(pmb_type="protein"))
 
     print("\n=== Hydrogel Instances DataFrame ===")
  #   inst_hydrogel1 = HydrogelInstance(name="Hydrogel1", hydrogel_id=1, molecule_ids=["1","2","3"])

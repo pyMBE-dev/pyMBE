@@ -669,10 +669,18 @@ class Manager:
         Notes:
             - The method does not fill gaps; it always returns ``max + 1``.
         """
-        if pmb_type not in self._instances or len(self._instances[pmb_type]) == 0:
-            return 0
-
-        used_ids = list(self._instances[pmb_type].keys())
+        molecule_like_types = ["molecule", "peptide", "protein"]
+        if pmb_type in molecule_like_types:
+            used_ids = []
+            for t in molecule_like_types:
+                if t in self._instances:
+                    used_ids.extend(self._instances[t].keys())
+            if not used_ids:
+                return 0
+        else:
+            if pmb_type not in self._instances or len(self._instances[pmb_type]) == 0:
+                return 0
+            used_ids = list(self._instances[pmb_type].keys())
         return max(used_ids) + 1
 
     def delete_template(self, pmb_type, name):
