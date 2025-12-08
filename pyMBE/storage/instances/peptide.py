@@ -42,6 +42,9 @@ class PeptideInstance(PMBBaseModel):
             Unique non-negative integer identifying this peptide within
             the database. Assigned sequentially by the database manager
             when the instance is created.
+        assembly_id (int | None):
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs.
+            ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
         - This class only tracks the identity of the peptide instance.
@@ -55,7 +58,8 @@ class PeptideInstance(PMBBaseModel):
     pmb_type: str = "peptide"
     name: str            # molecule template name
     molecule_id: int 
-    
+    assembly_id: int | None = None
+
     @field_validator("molecule_id")
     def validate_residue_id(cls, mid):
         if mid < 0:

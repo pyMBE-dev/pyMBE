@@ -42,6 +42,9 @@ class ResidueInstance(PMBBaseModel):
         molecule_id (int | None):
             Identifier of the parent molecule to which this residue belongs.
             ``None`` indicates that the residue is not assigned to any molecule.
+        assembly_id (int | None):
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs.
+            ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
         - ``ResidueInstance`` does not itself store particle-level
@@ -57,6 +60,8 @@ class ResidueInstance(PMBBaseModel):
     name: str            # residue template name
     residue_id: int
     molecule_id: int | None = None
+    assembly_id: int | None = None
+    
     
     @field_validator("residue_id")
     def validate_residue_id(cls, rid):

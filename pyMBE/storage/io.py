@@ -296,40 +296,50 @@ def _load_database_csv(db, folder):
                 # some fields might be empty strings -> map to None
                 residue_val = row.get("residue_id", "") or ""
                 molecule_val = row.get("molecule_id", "") or ""
+                assembly_val = row.get("assembly_id", "") or ""
                 inst = ParticleInstance(
                     name=row["name"],
                     particle_id=int(row["particle_id"]),
                     initial_state=row["initial_state"],
                     residue_id=None if residue_val == "" else int(residue_val),
                     molecule_id=None if molecule_val == "" else int(molecule_val),
+                    assembly_id=None if assembly_val == "" else int(assembly_val),
                 )
                 instances[inst.particle_id] = inst
 
             elif pmb_type == "residue":
                 mol_val = row.get("molecule_id", "") or ""
+                assembly_val = row.get("assembly_id", "") or ""
                 inst = ResidueInstance(
                     name=row["name"],
                     residue_id=int(row["residue_id"]),
                     molecule_id=None if mol_val == "" else int(mol_val),
+                    assembly_id=None if assembly_val == "" else int(assembly_val),
                 )
                 instances[inst.residue_id] = inst
 
             elif pmb_type == "molecule":
+                assembly_val = row.get("assembly_id", "") or ""
                 inst = MoleculeInstance(
                     name=row["name"],
                     molecule_id=int(row["molecule_id"]),
+                    assembly_id=None if assembly_val == "" else int(assembly_val),
                 )
                 instances[inst.molecule_id] = inst
             elif pmb_type == "peptide":
+                assembly_val = row.get("assembly_id", "") or ""
                 inst = PeptideInstance(
                     name=row["name"],
                     molecule_id=int(row["molecule_id"]),
+                    assembly_id=None if assembly_val == "" else int(assembly_val),
                 )
                 instances[inst.molecule_id] = inst
             elif pmb_type == "protein":
+                assembly_val = row.get("assembly_id", "") or ""
                 inst = ProteinInstance(
                     name=row["name"],
                     molecule_id=int(row["molecule_id"]),
+                    assembly_id=None if assembly_val == "" else int(assembly_val),
                 )
                 instances[inst.molecule_id] = inst
             elif pmb_type == "bond":
@@ -521,6 +531,7 @@ def _save_database_csv(db, folder):
                     "initial_state": inst.initial_state,
                     "residue_id": int(inst.residue_id) if inst.residue_id is not None else "",
                     "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else "",
+                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else "",
                 })
             elif pmb_type == "residue" and isinstance(inst, ResidueInstance):
                 rows.append({
@@ -528,24 +539,28 @@ def _save_database_csv(db, folder):
                     "name": inst.name,
                     "residue_id": int(inst.residue_id),
                     "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else "",
+                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else "",
                 })
             elif pmb_type == "molecule" and isinstance(inst, MoleculeInstance):
                 rows.append({
                     "pmb_type": pmb_type,
                     "name": inst.name,
                     "molecule_id": int(inst.molecule_id),
+                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else "",
                 })
             elif pmb_type == "peptide" and isinstance(inst, PeptideInstance):
                 rows.append({
                     "pmb_type": pmb_type,
                     "name": inst.name,
                     "molecule_id": int(inst.molecule_id),
+                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else "",
                 })
             elif pmb_type == "protein" and isinstance(inst, ProteinInstance):
                 rows.append({
                     "pmb_type": pmb_type,
                     "name": inst.name,
                     "molecule_id": int(inst.molecule_id),
+                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else "",
                 })
             elif pmb_type == "bond" and isinstance(inst, BondInstance):
                 rows.append({
@@ -559,8 +574,7 @@ def _save_database_csv(db, folder):
                 rows.append({
                     "pmb_type": pmb_type,
                     "name": inst.name,
-                    "hydrogel_id": int(inst.hydrogel_id),
-                    "molecule_ids": _encode(inst.molecule_ids),
+                    "assembly_id": int(inst.assembly_id),
                 })
             else:
                 # fallback to model_dump

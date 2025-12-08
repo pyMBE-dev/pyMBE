@@ -35,6 +35,8 @@ class ParticleInstance(PMBBaseModel):
         pmb_type (str):
             Fixed string identifying this object as a particle instance.
             Always ``"particle"``.
+        name (str):
+            Name of the particle template from which this instance is derived.
         particle_id (int):
             Unique non-negative integer identifying the particle within
             the database. Assigned sequentially by the database manager.
@@ -51,6 +53,9 @@ class ParticleInstance(PMBBaseModel):
             Optional identifier of the ``MoleculeInstance`` this particle
             belongs to. Particles not belonging to any molecule should
             keep this as ``None``.
+        assembly_id (int | None):
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs.
+            ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
         - ``initial_state`` is stored as a plain string to ensure clean
@@ -59,10 +64,12 @@ class ParticleInstance(PMBBaseModel):
           this class and handled by the database or simulation backend.
     """
     pmb_type: str = "particle"
+    name: str 
     particle_id: int
     initial_state: str
     residue_id: int | None = None
     molecule_id: int | None = None
+    assembly_id: int | None = None
 
     @field_validator("particle_id")
     def validate_particle_id(cls, pid):

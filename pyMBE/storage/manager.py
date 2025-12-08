@@ -132,7 +132,7 @@ class Manager:
             List[int]: IDs of matching instances.
         """
         if pmb_type not in self._instances:
-            raise KeyError(f"Unknown pmb_type '{pmb_type}' in instance database.")
+            return []
         results = []
         for inst_id, inst in self._instances[pmb_type].items():
             if hasattr(inst, attribute) and getattr(inst, attribute) == value:
@@ -253,6 +253,7 @@ class Manager:
                     "initial_state": inst.initial_state,
                     "residue_id": int(inst.residue_id) if inst.residue_id is not None else pd.NA,
                     "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
+                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else pd.NA 
                 })
             elif pmb_type == "residue":
                 rows.append({
@@ -260,7 +261,16 @@ class Manager:
                     "name": inst.name,
                     "residue_id": inst.residue_id,
                     "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
+                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else pd.NA
                 })
+            elif pmb_type in ["molecule","peptide","protein"]:
+                rows.append({
+                    "pmb_type": pmb_type,
+                    "name": inst.name,
+                    "molecule_id": inst.molecule_id,
+                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else pd.NA
+                })
+
             else:
                 # Generic representation for other types
                 rows.append(inst.model_dump())
@@ -567,8 +577,9 @@ class Manager:
 
         Notes:
             - Allowed updates:
-                * ``particle``: ``initial_state``, ``residue_id``, ``molecule_id``
-                * ``residue``: ``molecule_id``
+                * ``particle``: ``initial_state``, ``residue_id``, ``molecule_id``, ``assembly_id`` 
+                * ``residue``: ``molecule_id``, ``assembly_id``
+                * ``molecule``: ``assembly_id``
                 * All other types: no attribute updates allowed.
             - The method replaces the instance with a new Pydantic model
             using ``model_copy(update=...)`` to maintain immutability and
@@ -579,9 +590,11 @@ class Manager:
             raise KeyError(f"Instance '{instance_id}' not found for type '{pmb_type}' in the pyMBE database.")
                                 
         if pmb_type == "particle":
-            allowed = ["initial_state", "residue_id", "molecule_id"]
+            allowed = ["initial_state", "residue_id", "molecule_id", "assembly_id"]
         elif pmb_type == "residue":
-            allowed = ["molecule_id"]
+            allowed = ["molecule_id", "assembly_id"]
+        elif pmb_type == "molecule":
+            allowed = ["assembly_id"]
         else:
             allowed = [None]  # No attributes allowed for other types        
                         
@@ -590,42 +603,89 @@ class Manager:
         
         self._instances[pmb_type][instance_id] = self._instances[pmb_type][instance_id].model_copy(update={attribute: value})
 
-    def _update_part_res_inst_mol_ids(self, residue_id, molecule_id):
+    def _propagate_id(self, root_type, root_id, attribute, value):
         """
-        Updates the molecule ID of a residue and all particle instances that belong to it.
+        Recursively updates an attribute (e.g., molecule_id, assembly_id)
+        on an instance and all of its hierarchical descendants.
 
-        
+        Supported relationships:
+            assembly → molecules → residues → particles
+            molecule → residues → particles
+            residue  → particles
+            particle → (nothing)
+
         Args:
-            residue_id (int):
-                The instance ID of the residue whose molecule assignment should be updated.
-            molecule_id (int):
-                The molecule ID to assign to the residue and all its particles.
+            root_type (str):
+                One of {"assembly", "molecule", "residue", "particle"}.
+            root_id (int):
+                Instance ID of the root object to update.
+            attribute (str):
+                The attribute to update (e.g., "molecule_id", "assembly_id").
+            value:
+                The new value to assign.
 
         Returns:
-            List[int]:
-                A list of particle instance IDs that were updated.
+            list[int]:
+                A flat list of all instance IDs updated (including root).
 
         Raises:
             KeyError:
-                If the residue does not exist in the database.
+                If the root instance does not exist.
             ValueError:
-                If an update fails due to inconsistent or missing attributes.
+                If an unsupported type or attribute is given.
         """
-
-        self._update_instance(instance_id=residue_id,
-                              pmb_type="residue",
-                              attribute="molecule_id",
-                               value=molecule_id)
-        particle_ids_in_residue = self._find_instance_ids_by_attribute(pmb_type="particle",
-                                                                       attribute="residue_id",
-                                                                       value=residue_id)
-        for particle_id in particle_ids_in_residue:
-            self._update_instance(instance_id=particle_id,
-                                  pmb_type="particle",
-                                  attribute="molecule_id",
-                                  value=molecule_id)
-                        
-        return particle_ids_in_residue
+        updated = []
+        # Map each type to its own identity attribute
+        self_id_attribute = {
+            "hydrogel": "assembly_id",
+            "molecule": "molecule_id",
+            "peptide": "molecule_id",
+            "protein": "molecule_id",
+            "residue": "residue_id",
+            "particle": "particle_id",
+        }
+        assembly_types = ["hydrogel"]
+        molecule_types = ["molecule", "peptide", "protein"]
+        # 1) Update ROOT (unless attribute corresponds to its own ID)
+        if attribute != self_id_attribute.get(root_type):
+            self._update_instance(instance_id=root_id,
+                                  pmb_type=root_type,
+                                  attribute=attribute,
+                                  value=value,)
+            updated.append((root_type, root_id))
+        # 2) Descendants: assembly → molecules
+        if root_type in assembly_types:
+            for mtype in molecule_types:
+                molecule_ids = self._find_instance_ids_by_attribute(pmb_type=mtype,
+                                                                    attribute="assembly_id",
+                                                                    value=root_id)
+                for mid in molecule_ids:
+                    updated += self._propagate_id(root_type=mtype,   
+                                                  root_id=mid,
+                                                  attribute=attribute,
+                                                  value=value)
+        # 3) Descendants: molecule → residues
+        if root_type in molecule_types:
+            residue_ids = self._find_instance_ids_by_attribute(pmb_type="residue",
+                                                               attribute="molecule_id",
+                                                               value=root_id)
+            for rid in residue_ids:
+                updated += self._propagate_id(root_type="residue",
+                                              root_id=rid,
+                                              attribute=attribute,
+                                              value=value)
+        # 4) Descendants: residue → particles
+        if root_type == "residue":
+            particle_ids = self._find_instance_ids_by_attribute(pmb_type="particle",
+                                                                attribute="residue_id",
+                                                                value=root_id,)
+            for pid in particle_ids:
+                self._update_instance(instance_id=pid,
+                                      pmb_type="particle",
+                                      attribute=attribute,
+                                      value=value,)
+                updated.append(("particle", pid))
+        return updated
 
 
     def _update_reaction_participant(self, reaction_name, particle_name, state_name, coefficient):

@@ -40,14 +40,10 @@ class HydrogelInstance(PMBBaseModel):
         pmb_type (str):
             Fixed string identifier for this instance type. Always
             ``"hydrogel"``.
-        hydrogel_id (int):
+        assembly_id (int):
             Unique non-negative integer identifying this hydrogel instance.
         name (str):
             Human-readable name for the hydrogel (e.g., ``"HG_001"``).
-        molecule_ids (List[str]):
-            List of molecule instance IDs that compose the hydrogel.
-            Each entry must correspond to a valid molecule instance stored
-            in the database. Defaults to an empty list.
 
     Notes:
         - This class represents the *instance* level (what specific
@@ -58,6 +54,5 @@ class HydrogelInstance(PMBBaseModel):
           during creation or update and not inside this class.
     """
     pmb_type: str = Field(default="hydrogel", frozen=True)
-    hydrogel_id: int
+    assembly_id: int
     name: str
-    molecule_ids: List[str] = Field(default_factory=list)

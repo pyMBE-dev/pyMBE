@@ -45,6 +45,9 @@ class MoleculeInstance(PMBBaseModel):
         molecule_id (int):
             Unique non-negative integer identifying this molecule
             instance within the database.
+        assembly_id (int | None):
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs.
+            ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
         - Validation of whether ``name`` corresponds to a registered
@@ -56,6 +59,7 @@ class MoleculeInstance(PMBBaseModel):
     pmb_type: str = "molecule"
     name: str            # molecule template name
     molecule_id: int 
+    assembly_id: int | None = None
     
     @field_validator("molecule_id")
     def validate_residue_id(cls, mid):

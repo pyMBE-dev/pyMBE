@@ -74,7 +74,7 @@ def main():
 
 
     print("\n=== Hydrogel Templates DataFrame ===")
-    diamond_lattice = DiamondLattice(30, 3.5 * units.reduced_length)
+    diamond_lattice = DiamondLattice(4, 3.5 * units.reduced_length)
     lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
 
     # Setting up node topology
@@ -82,7 +82,7 @@ def main():
     node_topology = []
 
     for index in range(len(indices)):
-        node_topology.append({"particle_name": "A",
+        node_topology.append({"particle_name": "X",
                             "lattice_index": indices[index]})
     # Setting up chain topology
     node_labels = lattice_builder.node_labels
@@ -174,9 +174,6 @@ def main():
 
     print(db._get_templates_df(pmb_type="protein"))
 
-    
-    
-
     # ============================================================
     # 2. CREATE INSTANCES (optional for testing)
     # ============================================================
@@ -189,9 +186,7 @@ def main():
     
     print("\n=== Particle Instances DataFrame ===")
     print(pmb.db._get_instances_df(pmb_type="particle"))
-
-
-    
+   
     pmb.create_residue(name="R1",
                        espresso_system=espresso_system)
     pmb.create_residue(name="R2",
@@ -221,13 +216,13 @@ def main():
                        number_of_proteins=1,
                        espresso_system=espresso_system,
                        topology_dict=topology_dict)
-    exit()
+    
     print(pmb.db._get_instances_df(pmb_type="protein"))
 
     print("\n=== Hydrogel Instances DataFrame ===")
- #   inst_hydrogel1 = HydrogelInstance(name="Hydrogel1", hydrogel_id=1, molecule_ids=["1","2","3"])
- #   db._register_instance(inst_hydrogel1)
-    print(db._get_instances_df(pmb_type="hydrogel"))
+    pmb.create_hydrogel(name="my_hydrogel",
+                        espresso_system=espresso_system)
+    print(pmb.db._get_instances_df(pmb_type="hydrogel"))
 
 
     # ============================================================

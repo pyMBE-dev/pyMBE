@@ -58,6 +58,8 @@ class LatticeBuilder:
         self.mpc = lattice.mpc
         self.box_l = lattice.box_l
         
+    def _create_node_label(self, node_index):
+        return str(node_index).replace(",", "")
 
     def _get_node_by_label(self, node):
         assert node in self.node_labels, f"node '{node}' doesn't exist in a {self.lattice.name} lattice"
