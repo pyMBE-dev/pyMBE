@@ -60,8 +60,16 @@ def main():
                         sigma=3.5 * units.reduced_length,
                         cutoff=4 * units.reduced_length,
                         offset=0 * units.reduced_length,
-                        epsilon=0.2 * units.reduced_energy)
+                        epsilon=0.2 * units.reduced_energy,
+                        z=1)
     
+    pmb.define_particle(name="Anion",
+                        sigma=3.5 * units.reduced_length,
+                        cutoff=4 * units.reduced_length,
+                        offset=0 * units.reduced_length,
+                        epsilon=0.2 * units.reduced_energy,
+                        z=-1)
+
     pmb.define_residue(name="R1", central_bead="Z", side_chains=["X","Z"])
     pmb.define_residue(name="R2", central_bead="Z", side_chains=["X","R1"])
     
@@ -159,11 +167,11 @@ def main():
 
     # Define AA particles and residues
     hf.define_protein_AA_particles(topology_dict=topology_dict,
-                           pmb=pmb)
+                                   pmb=pmb)
 
     hf.define_protein_AA_residues(topology_dict=topology_dict,
-                          model="2beadAA",
-                          pmb=pmb)
+                                    model="2beadAA",
+                                    pmb=pmb)
         
     print(pmb.db._get_templates_df(pmb_type="particle"))
     print(pmb.db._get_templates_df(pmb_type="residue"))
@@ -208,6 +216,16 @@ def main():
                         number_of_molecules=1,
                         espresso_system=espresso_system,
                         use_default_bond=True)    
+    
+    pmb.create_counterions(object_name="M1",
+                           cation_name="X",
+                           anion_name="Anion",
+                           espresso_system=espresso_system)
+    pmb.create_added_salt(espresso_system=espresso_system,
+                          cation_name="X",
+                          anion_name="Anion",
+                          c_salt=0.1*pmb.units.M)
+    print(pmb.db._get_instances_df(pmb_type="particle"))
     print(pmb.db._get_instances_df(pmb_type="peptide"))
 
     

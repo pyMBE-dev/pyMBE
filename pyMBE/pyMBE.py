@@ -601,21 +601,17 @@ class pymbe_library():
             
         Returns:
             c_salt_calculated(`float`): Calculated salt concentration added to `espresso_system`.
-        """
-        for name in [cation_name, anion_name]:
-            if not _DFm._check_if_name_is_defined_in_df(name=name, df=self.df):
-                logging.warning(f"Object with name '{name}' is not defined in the DataFrame, no ions will be created.")
-                return
-        self._check_if_name_has_right_type(name=cation_name, 
-                                           expected_pmb_type="particle") 
-        self._check_if_name_has_right_type(name=anion_name,
-                                           expected_pmb_type="particle") 
-        cation_name_charge = self.df.loc[self.df['name']==cation_name].state_one.z.values[0]
-        anion_name_charge = self.df.loc[self.df['name']==anion_name].state_one.z.values[0]     
-        if cation_name_charge <= 0:
-            raise ValueError('ERROR cation charge must be positive, charge ',cation_name_charge)
-        if anion_name_charge >= 0:
-            raise ValueError('ERROR anion charge must be negative, charge ', anion_name_charge)
+        """ 
+        cation_tpl = self.db.get_template(pmb_type="particle",
+                                          name=cation_name)
+        cation_charge = cation_tpl.states[cation_tpl.initial_state].z
+        anion_tpl = self.db.get_template(pmb_type="particle",
+                                          name=anion_name)
+        anion_charge = anion_tpl.states[anion_tpl.initial_state].z
+        if cation_charge <= 0:
+            raise ValueError(f'ERROR cation charge must be positive, charge {cation_charge}')
+        if anion_charge >= 0:
+            raise ValueError(f'ERROR anion charge must be negative, charge {anion_charge}')
         # Calculate the number of ions in the simulation box
         volume=self.units.Quantity(espresso_system.volume(), 'reduced_length**3')
         if c_salt.check('[substance] [length]**-3'):
@@ -626,10 +622,14 @@ class pymbe_library():
             c_salt_calculated=N_ions/volume
         else:
             raise ValueError('Unknown units for c_salt, please provided it in [mol / volume] or [particle / volume]', c_salt)
-        N_cation = N_ions*abs(anion_name_charge)
-        N_anion = N_ions*abs(cation_name_charge)
-        self.create_particle(espresso_system=espresso_system, name=cation_name, number_of_particles=N_cation)
-        self.create_particle(espresso_system=espresso_system, name=anion_name, number_of_particles=N_anion)
+        N_cation = N_ions*abs(anion_charge)
+        N_anion = N_ions*abs(cation_charge)
+        self.create_particle(espresso_system=espresso_system, 
+                             name=cation_name, 
+                             number_of_particles=N_cation)
+        self.create_particle(espresso_system=espresso_system, 
+                             name=anion_name, 
+                             number_of_particles=N_anion)
         if c_salt_calculated.check('[substance] [length]**-3'):
             logging.info(f"added salt concentration of {c_salt_calculated.to('mol/L')} given by {N_cation} cations and {N_anion} anions")
         elif c_salt_calculated.check('[length]**-3'):
@@ -690,18 +690,12 @@ class pymbe_library():
         Note:
             This function currently does not support the creation of counterions for hydrogels.
         """ 
-        for name in [object_name, cation_name, anion_name]:
-            if not _DFm._check_if_name_is_defined_in_df(name=name, df=self.df):
-                logging.warning(f"Object with name '{name}' is not defined in the DataFrame, no counterions will be created.")
-                return
-        for name in [cation_name, anion_name]:
-            self._check_if_name_has_right_type(name=name, expected_pmb_type="particle")
-        self._check_supported_molecule(molecule_name=object_name,
-                                        valid_pmb_types=["molecule","peptide","protein"])
-        
-
-        cation_charge = self.df.loc[self.df['name']==cation_name].state_one.z.iloc[0]
-        anion_charge = self.df.loc[self.df['name']==anion_name].state_one.z.iloc[0]
+        cation_tpl = self.db.get_template(pmb_type="particle",
+                                          name=cation_name)
+        cation_charge = cation_tpl.states[cation_tpl.initial_state].z
+        anion_tpl = self.db.get_template(pmb_type="particle",
+                                          name=cation_name)
+        anion_charge = cation_tpl.states[anion_tpl.initial_state].z
         object_ids = self.get_particle_id_map(object_name=object_name)["all"]
         counterion_number={}
         object_charge={}
@@ -721,11 +715,15 @@ class pymbe_library():
         else:
             raise ValueError('The number of negative charges in the pmb_object must be divisible by the  charge of the cation')
         if counterion_number[cation_name] > 0: 
-            self.create_particle(espresso_system=espresso_system, name=cation_name, number_of_particles=counterion_number[cation_name])
+            self.create_particle(espresso_system=espresso_system, 
+                                 name=cation_name, 
+                                 number_of_particles=counterion_number[cation_name])
         else:
             counterion_number[cation_name]=0
         if counterion_number[anion_name] > 0:
-            self.create_particle(espresso_system=espresso_system, name=anion_name, number_of_particles=counterion_number[anion_name])
+            self.create_particle(espresso_system=espresso_system, 
+                                 name=anion_name, 
+                                 number_of_particles=counterion_number[anion_name])
         else:
             counterion_number[anion_name] = 0
         logging.info('the following counter-ions have been created: ')
@@ -775,7 +773,7 @@ class pymbe_library():
                                 root_id=assembly_id, 
                                 attribute="assembly_id", 
                                 value=assembly_id)
-        # Register an hydrogel instance in the pyMBE database
+        # Register an hydrogel instance in the pyMBE databasegit 
         self.db._register_instance(HydrogelInstance(name=name,
                                                     assembly_id=assembly_id))
         return assembly_id
@@ -1785,42 +1783,23 @@ class pymbe_library():
         return {"sigma": sigma, "cutoff": cutoff, "offset": offset, "epsilon": epsilon}    
 
     def get_particle_id_map(self, object_name):
-        '''
-        Gets all the ids associated with the object with name `object_name` in `pmb.df`
+        """
+        Collect all particle IDs associated with an object of given name in the
+        pyMBE database. Works for particles, residues, molecules, proteins,
+        peptides, and assemblies.
+
+        Relies in the internal method Manager.get_particle_id_map, see method for the detailed code.
 
         Args:
-            object_name(`str`): name of the object
-        
+            object_name (str): Name of the object.
+
         Returns:
-            id_map(`dict`): dict of the structure {"all": [all_ids_with_object_name], "residue_map": {res_id: [particle_ids_in_res_id]}, "molecule_map": {mol_id: [particle_ids_in_mol_id]}, }
-        '''
-        object_type=self._check_supported_molecule(molecule_name=object_name,
-                                                   valid_pmb_types= ['particle','residue','molecule',"peptide","protein"])
-        id_list = []
-        mol_map = {}
-        res_map = {}
-        def do_res_map(res_ids):
-            for res_id in res_ids:
-                res_list=self.df.loc[(self.df['residue_id']== res_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
-                res_map[res_id]=res_list
-            return res_map
-        if object_type in ['molecule', 'protein', 'peptide']:
-            mol_ids = self.df.loc[self.df['name']== object_name].molecule_id.dropna().tolist()
-            for mol_id in mol_ids:
-                res_ids = set(self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle") ].residue_id.dropna().tolist())
-                res_map=do_res_map(res_ids=res_ids)    
-                mol_list=self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
-                id_list+=mol_list
-                mol_map[mol_id]=mol_list
-        elif object_type == 'residue':     
-            res_ids = self.df.loc[self.df['name']== object_name].residue_id.dropna().tolist()
-            res_map=do_res_map(res_ids=res_ids)
-            id_list=[]
-            for res_id_list in res_map.values():
-                id_list+=res_id_list
-        elif object_type == 'particle':
-            id_list = self.df.loc[self.df['name']== object_name].particle_id.dropna().tolist()
-        return {"all": id_list, "molecule_map": mol_map, "residue_map": res_map}
+            dict: {"all": [particle_ids],
+                   "residue_map": {residue_id: [particle_ids]},
+                   "molecule_map": {molecule_id: [particle_ids]},
+                   "assembly_map": {assembly_id: [particle_ids]},}
+        """
+        return self.db.get_particle_id_map(object_name=object_name)
 
     def get_pka_set(self):
         '''
