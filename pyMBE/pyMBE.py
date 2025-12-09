@@ -142,6 +142,149 @@ class pymbe_library():
             if hard_check:
                 raise ValueError(f"The name {name} has been defined in the pyMBE DataFrame with a pmb_type = {pmb_type}. This function only supports pyMBE objects with pmb_type = {expected_pmb_type}")
             return False
+
+    def _create_espresso_bond_instance(self, bond_type, bond_parameters):
+        """
+        Creates an ESPResSo bond instance.
+
+        Args:
+            bond_type(`str`): label to identify the potential to model the bond.
+            bond_parameters(`dict`): parameters of the potential of the bond.
+
+        Note:
+            Currently, only HARMONIC and FENE bonds are supported.
+
+            For a HARMONIC bond the dictionary must contain:
+                - k (`Pint.Quantity`)      : Magnitude of the bond. It should have units of energy/length**2 
+                using the `pmb.units` UnitRegistry.
+                - r_0 (`Pint.Quantity`)    : Equilibrium bond length. It should have units of length using 
+                the `pmb.units` UnitRegistry.
+           
+            For a FENE bond the dictionary must additionally contain:
+                - d_r_max (`Pint.Quantity`): Maximal stretching length for FENE. It should have 
+                units of length using the `pmb.units` UnitRegistry. Default 'None'.
+
+        Returns:
+            (`espressomd.interactions`): instance of an ESPResSo bond object
+        """
+        from espressomd import interactions
+        valid_bond_types   = ["harmonic", "FENE"] 
+        if bond_type not in valid_bond_types:
+            raise NotImplementedError(f"Bond type '{bond_type}' currently not implemented in pyMBE, accepted types are {valid_bond_types}")
+        required_parameters = {"harmonic": ["r_0","k"],
+                                "FENE": ["r_0","k","d_r_max"]}
+        for required_parameter in required_parameters[bond_type]:
+            if required_parameter not in bond_parameters.keys():
+                raise ValueError(f"Missing required parameter {required_parameter} for {bond_type} bond")
+        if bond_type == 'harmonic':
+            bond_instance = interactions.HarmonicBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
+                                                      r_0 = bond_parameters["r_0"].m_as("reduced_length"))
+        elif bond_type == 'FENE':
+            bond_instance    = interactions.FeneBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
+                                                      r_0 = bond_parameters["r_0"].m_as("reduced_length"),
+                                                      d_r_max = bond_parameters["d_r_max"].m_as("reduced_length"))    
+        return bond_instance
+
+    def _create_hydrogel_chain(self, hydrogel_chain, nodes, espresso_system):
+        """
+        Creates a chain between two nodes of a hydrogel.
+
+        Args:
+            hydrogel_chain(HydrogelChain): template of a hydrogel chain
+            nodes(dict): {node_index: {"name": node_particle_name, "pos": node_position, "id": node_particle_instance_id}}
+            espresso_system (espressomd.system.System): ESPResSo system object where the hydrogel chain will be created.
+
+        Return:
+            (int): molecule_id of the created hydrogel chian.
+
+        Note:
+            - For example, if the chain is defined between node_start = ``[0 0 0]`` and node_end = ``[1 1 1]``, the chain will be placed between these two nodes.
+            - The chain will be placed in the direction of the vector between `node_start` and `node_end`. 
+            - This function does not support default bonds.
+        """
+        if self.lattice_builder is None:
+            raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
+        molecule_tpl = self.db.get_template(pmb_type="molecule",
+                                            name=hydrogel_chain.molecule_name)
+        residue_list = molecule_tpl.residue_list
+        molecule_name = molecule_tpl.name
+        node_start = hydrogel_chain.node_start
+        node_end = hydrogel_chain.node_end
+        node_start_label = self.lattice_builder._create_node_label(node_start)
+        node_end_label = self.lattice_builder._create_node_label(node_end)
+        _, reverse = self.lattice_builder._get_node_vector_pair(node_start, node_end)
+        if node_start != node_end or residue_list == residue_list[::-1]:
+            RuntimeError(f"Aborted creation because hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
+        if reverse:
+            residue_list = residue_list[::-1]
+        start_node_id = nodes[node_start_label]["id"]
+        end_node_id = nodes[node_end_label]["id"]
+        # Finding a backbone vector between node_start and node_end
+        vec_between_nodes = np.array(nodes[node_start_label]["pos"]) - np.array(nodes[node_end_label]["pos"])
+        vec_between_nodes = vec_between_nodes - self.lattice_builder.box_l * np.round(vec_between_nodes/self.lattice_builder.box_l)
+        backbone_vector = np.array((vec_between_nodes/(self.lattice_builder.mpc + 1)))
+        backbone_vector = backbone_vector / np.linalg.norm(backbone_vector)
+        # Calculate the start position of the chain
+        chain_residues = self.db.get_template(pmb_type="molecule",
+                                              name=molecule_name).residue_list
+        part_start_chain_name = self.db.get_template(pmb_type="residue",
+                                                     name=chain_residues[0]).central_bead
+        part_end_chain_name = self.db.get_template(pmb_type="residue",
+                                                   name=chain_residues[-1]).central_bead
+        lj_parameters = self.get_lj_parameters(particle_name1=nodes[node_start_label]["name"],
+                                               particle_name2=part_start_chain_name)
+        bond_tpl = self.get_bond_template(particle_name1=nodes[node_start_label]["name"],
+                                        particle_name2=part_start_chain_name)
+        l0 = hf.calculate_initial_bond_length(lj_parameters=lj_parameters,
+                                              bond_type=bond_tpl.bond_type,
+                                              bond_parameters=bond_tpl.get_parameters(ureg=self.units))
+        first_bead_pos = np.array((nodes[node_start_label]["pos"])) + np.array(backbone_vector)*l0
+        mol_id = self.create_molecule(name=molecule_name,  # Use the name defined earlier
+                                      number_of_molecules=1,  # Creating one chain
+                                      espresso_system=espresso_system,
+                                      list_of_first_residue_positions=[first_bead_pos.tolist()],#Start at the first node
+                                      backbone_vector=np.array(backbone_vector)/l0,
+                                      use_default_bond=False)
+        # Bond chain to the hydrogel nodes
+        chain_pids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                             attribute="molecule_id",
+                                                             value=mol_id)
+        start_bond_instance = self.get_espresso_bond_instance(particle_name1=nodes[node_start_label]["name"],
+                                                              particle_name2=part_start_chain_name,
+                                                              espresso_system=espresso_system)    
+        end_bond_instance = self.get_espresso_bond_instance(particle_name1=nodes[node_end_label]["name"],
+                                                              particle_name2=part_end_chain_name,
+                                                              espresso_system=espresso_system)
+        espresso_system.part.by_id(start_node_id).add_bond((start_bond_instance, chain_pids[0]))
+        espresso_system.part.by_id(chain_pids[-1]).add_bond((end_bond_instance, end_node_id))
+        return mol_id
+
+    def _create_hydrogel_node(self, node_index, node_name, espresso_system):
+        """
+        Set a node residue type.
+        
+        Args:
+            node_index(`str`): Lattice node index in the form of a string, e.g. "[0 0 0]".
+            node_name(`str`): name of the node particle defined in pyMBE.
+            espresso_system (espressomd.system.System): ESPResSo system object where the hydrogel node will be created.
+
+        Returns:
+            node_position(`list`): Position of the node in the lattice.
+            p_id(`int`): Particle ID of the node.
+        """
+        if self.lattice_builder is None:
+            raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
+
+        node_position = np.array(node_index)*0.25*self.lattice_builder.box_l
+        p_id = self.create_particle(name = node_name,
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1,
+                                    position = [node_position])
+        key = self.lattice_builder._get_node_by_label(f"[{node_index[0]} {node_index[1]} {node_index[2]}]")
+        self.lattice_builder.nodes[key] = node_name
+
+        return node_position.tolist(), p_id[0]
+
     def _get_residue_list_from_sequence(self, sequence):
         """
         Convinience function to get a `residue_list` from a protein or peptide `sequence`.
@@ -158,6 +301,28 @@ class pymbe_library():
             residue_list.append(residue_name)
         return residue_list
     
+    def _delete_particles_from_espresso(self, particle_ids, espresso_system):
+        """
+        Remove a list of particles from an ESPResSo simulation system.
+
+        Args:
+        particle_ids : Iterable[int]
+            A list (or other iterable) of ESPResSo particle IDs to remove.
+
+        espresso_system : espressomd.system.System
+            The ESPResSo simulation system from which the particles
+            will be removed.
+
+        Note:
+        - This method removes particles only from the ESPResSo simulation,
+        **not** from the pyMBE database. Database cleanup must be handled
+        separately by the caller.
+        - Attempting to remove a non-existent particle ID will raise
+        an ESPResSo error.
+        """
+        
+        for pid in particle_ids:
+            espresso_system.part.by_id(pid).remove()
 
 
     def calculate_center_of_mass_of_molecule(self, molecule_id, espresso_system):
@@ -321,8 +486,6 @@ class pymbe_library():
             partition_coefficients_list.append(partition_coefficient)
 
         return {"charges_dict": Z_HH_Donnan, "pH_system_list": pH_system_list, "partition_coefficients": partition_coefficients_list}
-
-    
 
     def calculate_net_charge(self, espresso_system, molecule_name, dimensionless=False):
         '''
@@ -500,55 +663,16 @@ class pymbe_library():
                                                 espresso_system=espresso_system,
                                                 use_default_bond=use_default_bond)
         espresso_system.part.by_id(particle_id1).add_bond((bond_inst, particle_id2))
+        if use_default_bond:
+            bond_name = "default"
+        else:
+            bond_name = BondTemplate.make_bond_key(pn1=particle_inst_1.name, 
+                                                   pn2=particle_inst_2.name)
         pmb_bond_instance = BondInstance(bond_id=self.db._propose_instance_id(pmb_type="bond"),
-                                         name=BondTemplate.make_bond_key(pn1=particle_inst_1.name, 
-                                                                         pn2=particle_inst_2.name),
+                                         name=bond_name,
                                          particle_id1=particle_id1,
                                          particle_id2=particle_id2)
         self.db._register_instance(instance=pmb_bond_instance)
-
-    def create_espresso_bond_instance(self, bond_type, bond_parameters):
-        """
-        Creates an ESPResSo bond instance.
-
-        Args:
-            bond_type(`str`): label to identify the potential to model the bond.
-            bond_parameters(`dict`): parameters of the potential of the bond.
-
-        Note:
-            Currently, only HARMONIC and FENE bonds are supported.
-
-            For a HARMONIC bond the dictionary must contain:
-                - k (`Pint.Quantity`)      : Magnitude of the bond. It should have units of energy/length**2 
-                using the `pmb.units` UnitRegistry.
-                - r_0 (`Pint.Quantity`)    : Equilibrium bond length. It should have units of length using 
-                the `pmb.units` UnitRegistry.
-           
-            For a FENE bond the dictionary must additionally contain:
-                - d_r_max (`Pint.Quantity`): Maximal stretching length for FENE. It should have 
-                units of length using the `pmb.units` UnitRegistry. Default 'None'.
-
-        Returns:
-            (`espressomd.interactions`): instance of an ESPResSo bond object
-        """
-        from espressomd import interactions
-        valid_bond_types   = ["harmonic", "FENE"] 
-        if bond_type not in valid_bond_types:
-            raise NotImplementedError(f"Bond type '{bond_type}' currently not implemented in pyMBE, accepted types are {valid_bond_types}")
-        required_parameters = {"harmonic": ["r_0","k"],
-                                "FENE": ["r_0","k","d_r_max"]}
-        for required_parameter in required_parameters[bond_type]:
-            if required_parameter not in bond_parameters.keys():
-                raise ValueError(f"Missing required parameter {required_parameter} for {bond_type} bond")
-        if bond_type == 'harmonic':
-            bond_instance = interactions.HarmonicBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
-                                                      r_0 = bond_parameters["r_0"].m_as("reduced_length"))
-        elif bond_type == 'FENE':
-            bond_instance    = interactions.FeneBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
-                                                      r_0 = bond_parameters["r_0"].m_as("reduced_length"),
-                                                      d_r_max = bond_parameters["d_r_max"].m_as("reduced_length"))    
-        return bond_instance
-
 
     def create_counterions(self, object_name, cation_name, anion_name, espresso_system):
         """
@@ -630,23 +754,19 @@ class pymbe_library():
         for node in node_topology:
             node_index = node.lattice_index
             node_name = node.particle_name
-            node_pos, node_id = self.create_hydrogel_node(node_index=node_index,
+            node_pos, node_id = self._create_hydrogel_node(node_index=node_index,
                                                           node_name=node_name,
                                                           espresso_system=espresso_system)
             node_label = self.lattice_builder._create_node_label(node_index=node_index)
-            nodes[node_label] = {} 
-            nodes[node_label]["name"] = node_name
-            nodes[node_label]["id"] = node_id
-            nodes[node_label]["pos"] = node_pos
+            nodes[node_label] = {"name": node_name, "id": node_id, "pos": node_pos} 
             self.db._update_instance(instance_id=node_id,
                                      pmb_type="particle",
                                      attribute="assembly_id",
                                      value=assembly_id)
-        # Create the polymer chains between nodes
         for hydrogel_chain in hydrogel_tpl.chain_map:
-            molecule_id = self.create_hydrogel_chain(hydrogel_chain=hydrogel_chain,
-                                                     nodes=nodes, 
-                                                     espresso_system=espresso_system)
+            molecule_id = self._create_hydrogel_chain(hydrogel_chain=hydrogel_chain,
+                                                      nodes=nodes, 
+                                                      espresso_system=espresso_system)
             self.db._update_instance(instance_id=molecule_id,
                                      pmb_type="molecule",
                                      attribute="assembly_id",
@@ -655,107 +775,10 @@ class pymbe_library():
                                 root_id=assembly_id, 
                                 attribute="assembly_id", 
                                 value=assembly_id)
+        # Register an hydrogel instance in the pyMBE database
+        self.db._register_instance(HydrogelInstance(name=name,
+                                                    assembly_id=assembly_id))
         return assembly_id
-
-    def create_hydrogel_chain(self, hydrogel_chain, nodes, espresso_system):
-        """
-        Creates a chain between two nodes of a hydrogel.
-
-        Args:
-            hydrogel_chain(HydrogelChain): template of a hydrogel chain
-            nodes(dict): {node_index: {"name": node_particle_name, "pos": node_position, "id": node_particle_instance_id}}
-            espresso_system (espressomd.system.System): ESPResSo system object where the hydrogel chain will be created.
-
-        Return:
-            (int): molecule_id of the created hydrogel chian.
-
-        Note:
-            - For example, if the chain is defined between node_start = ``[0 0 0]`` and node_end = ``[1 1 1]``, the chain will be placed between these two nodes.
-            - The chain will be placed in the direction of the vector between `node_start` and `node_end`. 
-            - This function does not support default bonds.
-        """
-        if self.lattice_builder is None:
-            raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
-        molecule_tpl = self.db.get_template(pmb_type="molecule",
-                                            name=hydrogel_chain.molecule_name)
-        residue_list = molecule_tpl.residue_list
-        molecule_name = molecule_tpl.name
-        node_start = hydrogel_chain.node_start
-        node_end = hydrogel_chain.node_end
-        node_start_label = self.lattice_builder._create_node_label(node_start)
-        node_end_label = self.lattice_builder._create_node_label(node_end)
-        _, reverse = self.lattice_builder._get_node_vector_pair(node_start, node_end)
-        if node_start != node_end or residue_list == residue_list[::-1]:
-            RuntimeError(f"Aborted creation because hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
-        if reverse:
-            residue_list = residue_list[::-1]
-        start_node_id = nodes[node_start_label]["id"]
-        end_node_id = nodes[node_end_label]["id"]
-        # Finding a backbone vector between node_start and node_end
-        vec_between_nodes = np.array(nodes[node_start_label]["pos"]) - np.array(nodes[node_end_label]["pos"])
-        vec_between_nodes = vec_between_nodes - self.lattice_builder.box_l * np.round(vec_between_nodes/self.lattice_builder.box_l)
-        backbone_vector = np.array((vec_between_nodes/(self.lattice_builder.mpc + 1)))
-        backbone_vector = backbone_vector / np.linalg.norm(backbone_vector)
-        # Calculate the start position of the chain
-        chain_residues = self.db.get_template(pmb_type="molecule",
-                                              name=molecule_name).residue_list
-        part_start_chain_name = self.db.get_template(pmb_type="residue",
-                                                     name=chain_residues[0]).central_bead
-        part_end_chain_name = self.db.get_template(pmb_type="residue",
-                                                   name=chain_residues[-1]).central_bead
-        lj_parameters = self.get_lj_parameters(particle_name1=nodes[node_start_label]["name"],
-                                               particle_name2=part_start_chain_name)
-        bond_tpl = self.get_bond_template(particle_name1=nodes[node_start_label]["name"],
-                                        particle_name2=part_start_chain_name)
-        l0 = hf.calculate_initial_bond_length(lj_parameters=lj_parameters,
-                                              bond_type=bond_tpl.bond_type,
-                                              bond_parameters=bond_tpl.get_parameters(ureg=self.units))
-        first_bead_pos = np.array((nodes[node_start_label]["pos"])) + np.array(backbone_vector)*l0
-        mol_id = self.create_molecule(name=molecule_name,  # Use the name defined earlier
-                                      number_of_molecules=1,  # Creating one chain
-                                      espresso_system=espresso_system,
-                                      list_of_first_residue_positions=[first_bead_pos.tolist()],#Start at the first node
-                                      backbone_vector=np.array(backbone_vector)/l0,
-                                      use_default_bond=False)
-        # Bond chain to the hydrogel nodes
-        chain_pids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
-                                                             attribute="molecule_id",
-                                                             value=mol_id)
-        start_bond_instance = self.get_espresso_bond_instance(particle_name1=nodes[node_start_label]["name"],
-                                                              particle_name2=part_start_chain_name,
-                                                              espresso_system=espresso_system)    
-        end_bond_instance = self.get_espresso_bond_instance(particle_name1=nodes[node_end_label]["name"],
-                                                              particle_name2=part_end_chain_name,
-                                                              espresso_system=espresso_system)
-        espresso_system.part.by_id(start_node_id).add_bond((start_bond_instance, chain_pids[0]))
-        espresso_system.part.by_id(chain_pids[-1]).add_bond((end_bond_instance, end_node_id))
-        return mol_id
-    
-    def create_hydrogel_node(self, node_index, node_name, espresso_system):
-        """
-        Set a node residue type.
-        
-        Args:
-            node_index(`str`): Lattice node index in the form of a string, e.g. "[0 0 0]".
-            node_name(`str`): name of the node particle defined in pyMBE.
-            espresso_system (espressomd.system.System): ESPResSo system object where the hydrogel node will be created.
-
-        Returns:
-            node_position(`list`): Position of the node in the lattice.
-            p_id(`int`): Particle ID of the node.
-        """
-        if self.lattice_builder is None:
-            raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
-
-        node_position = np.array(node_index)*0.25*self.lattice_builder.box_l
-        p_id = self.create_particle(name = node_name,
-                                    espresso_system=espresso_system,
-                                    number_of_particles=1,
-                                    position = [node_position])
-        key = self.lattice_builder._get_node_by_label(f"[{node_index[0]} {node_index[1]} {node_index[2]}]")
-        self.lattice_builder.nodes[key] = node_name
-
-        return node_position.tolist(), p_id[0]
 
     def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False):
         """
@@ -845,12 +868,13 @@ class pymbe_library():
                     residue_tpl = self.db.get_template(pmb_type="residue",
                                                        name=residue)
                     lj_parameters = self.get_lj_parameters(particle_name1=prev_central_bead_name,
-                                                       particle_name2=residue_tpl.central_bead)
+                                                           particle_name2=residue_tpl.central_bead)
                     bond_tpl = self.get_bond_template(particle_name1=prev_central_bead_name,
-                                                  particle_name2=residue_tpl.central_bead)
+                                                      particle_name2=residue_tpl.central_bead,
+                                                      use_default_bond=use_default_bond)
                     l0 = hf.calculate_initial_bond_length(lj_parameters=lj_parameters,
-                                                      bond_type=bond_tpl.bond_type,
-                                                      bond_parameters=bond_tpl.get_parameters(ureg=self.units))
+                                                          bond_type=bond_tpl.bond_type,
+                                                          bond_parameters=bond_tpl.get_parameters(ureg=self.units))
                     central_bead_pos = prev_central_bead_pos+backbone_vector*l0
                     # Create the residue
                     residue_id = self.create_residue(name=residue, 
@@ -1082,7 +1106,8 @@ class pymbe_library():
                 lj_parameters = self.get_lj_parameters(particle_name1=central_bead_name,
                                                        particle_name2=side_chain_name)
                 bond_tpl = self.get_bond_template(particle_name1=central_bead_name,
-                                                  particle_name2=side_chain_name)
+                                                  particle_name2=side_chain_name,
+                                                  use_default_bond=use_default_bond)
                 l0 = hf.calculate_initial_bond_length(lj_parameters=lj_parameters,
                                                       bond_type=bond_tpl.bond_type,
                                                       bond_parameters=bond_tpl.get_parameters(ureg=self.units))               
@@ -1115,7 +1140,8 @@ class pymbe_library():
                 lj_parameters = self.get_lj_parameters(particle_name1=central_bead_name,
                                                        particle_name2=central_bead_side_chain)
                 bond_tpl = self.get_bond_template(particle_name1=central_bead_name,
-                                                  particle_name2=central_bead_side_chain)
+                                                  particle_name2=central_bead_side_chain,
+                                                  use_default_bond=use_default_bond)
                 l0 = hf.calculate_initial_bond_length(lj_parameters=lj_parameters,
                                                       bond_type=bond_tpl.bond_type,
                                                       bond_parameters=bond_tpl.get_parameters(ureg=self.units))
@@ -1376,93 +1402,34 @@ class pymbe_library():
         self.db._register_template(tpl)
         return    
 
-    def delete_molecule_in_system(self, molecule_id, espresso_system):
+    def delete_instances_in_system(self, instance_id, pmb_type, espresso_system):
         """
-        Deletes the molecule with `molecule_id` from the `espresso_system`, including all particles and residues associated with that particles.
-        The ids of the molecule, particle and residues deleted are also cleaned from `pmb.df`
+        Deletes the instance with instance_id from the ESPResSo system. 
+        Related assembly, molecule, residue, particles and bond instances will also be deleted from the pyMBE dataframe.
 
         Args:
-            molecule_id(`int`): id of the molecule to be deleted. 
-            espresso_system(`espressomd.system.System`): Instance of a system class from espressomd library.
+            instance_id (int): id of the assembly to be deleted. 
+            pmb_type (str): the instance type to be deleted. 
+            espresso_system (espressomd.system.System): Instance of a system class from espressomd library.
 
         """
-        # Sanity checks 
-        id_mask = (self.df['molecule_id'] == molecule_id) & (self.df['pmb_type'].isin(["molecule", "peptide"]))
-        molecule_row = self.df.loc[id_mask]
-        if molecule_row.empty:
-            raise ValueError(f"No molecule found with molecule_id={molecule_id} in the DataFrame.")
-        # Clean molecule from pmb.df
-        self.df = _DFm._clean_ids_in_df_row(df  = self.df, 
-                                            row = molecule_row)
-        # Delete particles and residues in the molecule
-        residue_mask = (self.df['molecule_id'] == molecule_id) & (self.df['pmb_type'] == "residue")
-        residue_rows = self.df.loc[residue_mask]
-        residue_ids = set(residue_rows["residue_id"].values)
-        for residue_id in residue_ids:
-            self.delete_residue_in_system(residue_id=residue_id,
-                                           espresso_system=espresso_system)
+        if pmb_type == "particle":
+            instance_identifier = "particle_id"
+        elif pmb_type == "residue":
+            instance_identifier = "residue_id"
+        elif pmb_type in self.db._molecule_like_types:
+            instance_identifier = "molecule_id"
+        elif pmb_type in self.db._assembly_like_types:
+            instance_identifier = "assembly_id"
+        particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                               attribute="molecule_id",
+                                                               value=instance_identifier)
+        self._delete_particles_from_espresso(particle_ids=particle_ids,
+                                             espresso_system=espresso_system)
         
-        # Clean deleted backbone bonds from pmb.df
-        bond_mask = (self.df['molecule_id'] == molecule_id) & (self.df['pmb_type'] == "bond")
-        number_of_bonds = len(self.df.loc[bond_mask])
-        for _ in range(number_of_bonds):
-            bond_mask = (self.df['molecule_id'] == molecule_id) & (self.df['pmb_type'] == "bond")
-            bond_rows = self.df.loc[bond_mask]
-            row = bond_rows.loc[[bond_rows.index[0]]]
-            self.df = _DFm._clean_ids_in_df_row(df = self.df, 
-                                                row = row)
-
-    def delete_particle_in_system(self, particle_id, espresso_system):
-        """
-        Deletes the particle with `particle_id` from the `espresso_system`.
-        The particle ids of the particle and residues deleted are also cleaned from `pmb.df`
-
-        Args:
-            particle_id(`int`): id of the molecule to be deleted. 
-            espresso_system(`espressomd.system.System`): Instance of a system class from espressomd library.
-
-        """
-        # Sanity check if there is a particle with the input particle id
-        id_mask = (self.df['particle_id'] == particle_id) & (self.df['pmb_type'] == "particle")
-        particle_row = self.df.loc[id_mask]
-        if particle_row.empty:
-            raise ValueError(f"No particle found with particle_id={particle_id} in the DataFrame.")
-        espresso_system.part.by_id(particle_id).remove()
-        self.df = _DFm._clean_ids_in_df_row(df = self.df, 
-                                            row = particle_row)
-
-    def delete_residue_in_system(self, residue_id, espresso_system):
-        """
-        Deletes the residue with `residue_id`, and the particles associated with it from the `espresso_system`.
-        The ids of the residue and particles deleted are also cleaned from `pmb.df`
-
-        Args:
-            residue_id(`int`): id of the residue to be deleted. 
-            espresso_system(`espressomd.system.System`): Instance of a system class from espressomd library.
-        """
-        # Sanity check if there is a residue with the input residue id
-        id_mask = (self.df['residue_id'] == residue_id) & (self.df['pmb_type'] == "residue")
-        residue_row = self.df.loc[id_mask]
-        if residue_row.empty:
-            raise ValueError(f"No residue found with residue_id={residue_id} in the DataFrame.")
-        residue_map=self.get_particle_id_map(object_name=residue_row["name"].values[0])["residue_map"]
-        particle_ids = residue_map[residue_id]
-        # Clean residue from pmb.df
-        self.df = _DFm._clean_ids_in_df_row(df = self.df, 
-                                            row = residue_row)
-        # Delete particles in the residue
-        for particle_id in particle_ids:
-            self.delete_particle_in_system(particle_id=particle_id,
-                                           espresso_system=espresso_system)
-        # Clean deleted bonds from pmb.df
-        bond_mask = (self.df['residue_id'] == residue_id) & (self.df['pmb_type'] == "bond")
-        number_of_bonds = len(self.df.loc[bond_mask])
-        for _ in range(number_of_bonds):
-            bond_mask = (self.df['residue_id'] == residue_id) & (self.df['pmb_type'] == "bond")
-            bond_rows = self.df.loc[bond_mask]
-            row = bond_rows.loc[[bond_rows.index[0]]]
-            self.df = _DFm._clean_ids_in_df_row(df = self.df, 
-                                                row = row)
+        self.db.delete_instance(pmb_type=pmb_type,
+                                instance_id=instance_id,
+                                cascade=True)
 
     def determine_reservoir_concentrations(self, pH_res, c_salt_res, activity_coefficient_monovalent_pair, max_number_sc_runs=200):
         """
@@ -1752,7 +1719,7 @@ class pymbe_library():
             bond_inst = self._bond_instances[bond_tpl.name]
         else:   
             # Create an instance of the bond 
-            bond_inst = self.create_espresso_bond_instance(bond_type=bond_tpl.bond_type,
+            bond_inst = self._create_espresso_bond_instance(bond_type=bond_tpl.bond_type,
                                                              bond_parameters=bond_tpl.get_parameters(self.units))
             self._bond_instances[bond_tpl.name]= bond_inst
             espresso_system.bonded_inter.add(bond_inst)

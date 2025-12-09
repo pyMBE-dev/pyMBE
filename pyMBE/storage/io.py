@@ -351,15 +351,11 @@ def _load_database_csv(db, folder):
                 )
                 instances[inst.bond_id] = inst
             elif pmb_type == "hydrogel":
-                mol_ids = _decode(row.get("molecule_ids", "")) or []
-                if not isinstance(mol_ids, list):
-                    mol_ids = list(mol_ids)
                 inst = HydrogelInstance(
                     name=row["name"],
-                    hydrogel_id=int(row["hydrogel_id"]),
-                    molecule_ids=mol_ids
+                    assembly_id=int(row["assembly_id"]),
                 )
-                instances[inst.hydrogel_id] = inst
+                instances[inst.assembly_id] = inst
         db._instances[pmb_type] = instances
 
     # REACTIONS

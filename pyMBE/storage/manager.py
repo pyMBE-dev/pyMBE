@@ -82,6 +82,10 @@ class Manager:
         self._templates: Dict[str, Dict[str, TemplateType]] = {}
         self._instances: Dict[str, Dict[int, InstanceType]] = {}
         self._reactions: Dict[str, Reaction] = {}
+        self._molecule_like_types = ["molecule",
+                                     "peptide",
+                                     "protein"]
+        self._assembly_like_types = ["hydrogel"]
 
     def _delete_bonds_of_particle(self, pid):
         """
@@ -183,16 +187,10 @@ class Manager:
 
         return result
 
-
-
     def _find_template_types(self, name):
         """
         Return all pyMBE template categories that contain a template
         with a given name.
-
-        Searches across every template group stored in ``self._templates``,
-        and collects the PMB types (keys of the template registry) for which
-        a template named ``name`` exists.
 
         Args:
             name (str):
@@ -212,11 +210,9 @@ class Manager:
             []
         """
         found = []
-
         for pmb_type, group in self._templates.items():
             if name in group:
                 found.append(pmb_type)
-
         return found
 
 
@@ -468,7 +464,7 @@ class Manager:
             iid = instance.bond_id
         elif isinstance(instance, HydrogelInstance):
             pmb_type = "hydrogel"
-            iid = instance.hydrogel_id
+            iid = instance.assembly_id
         else:
             raise TypeError("Unsupported instance type")
 
@@ -729,10 +725,9 @@ class Manager:
         Notes:
             - The method does not fill gaps; it always returns ``max + 1``.
         """
-        molecule_like_types = ["molecule", "peptide", "protein"]
-        if pmb_type in molecule_like_types:
+        if pmb_type in self._molecule_like_types:
             used_ids = []
-            for t in molecule_like_types:
+            for t in self._molecule_like_types:
                 if t in self._instances:
                     used_ids.extend(self._instances[t].keys())
             if not used_ids:
@@ -786,113 +781,122 @@ class Manager:
         if not self._templates[pmb_type]:
             del self._templates[pmb_type]
 
-    def delete_instance(self, pmb_type, instance_id, cascade = False):
+    def delete_instance(self, pmb_type, instance_id, cascade=False):
         """
         Delete an instance from the pyMBE database.
 
-        Supports cascade deletion:
-        - molecule  → residues → particles → bonds
-        - residue   → particles → bonds
-        - particle  → bonds
-        - bond      → nothing
+        Supports cascade deletion through the hierarchy:
+            assembly → molecules → residues → particles → bonds
+            molecule → residues → particles → bonds
+            residue  → particles → bonds
+            particle → bonds
+            bond     → nothing
 
         Args:
-            pmb_type (str): Category of the instance (particle, residue, molecule, bond).
-            instance_id (int): Unique identifier of the instance.
-            cascade (bool): If True, automatically delete dependent child objects.
+            pmb_type (str):
+                Category of the instance (particle, residue, molecule, peptide,
+                protein, hydrogel, bond).
+            instance_id (int):
+                Unique identifier of the instance.
+            cascade (bool):
+                If True, automatically delete dependent objects.
 
         Raises:
-            KeyError: If the instance does not exist.
-            ValueError: If cascade is False but dependencies exist.
+            KeyError:
+                If the instance does not exist.
+            ValueError:
+                If cascade is False but dependencies exist.
         """
-        # --- Basic sanity checks ---
+
+        # ---- Basic checks ----
         if pmb_type not in self._instances:
             raise KeyError(f"Instance type '{pmb_type}' not found.")
-
         if instance_id not in self._instances[pmb_type]:
             raise KeyError(f"Instance ID '{instance_id}' not found in '{pmb_type}'.")
-
         inst = self._instances[pmb_type][instance_id]
-
-        # ---- Helper function for deletion of bonds ----
-        
-
-        # ---- CASCADE deletion logic ----
+        # ===============  CASCADE DELETION  =========================
         if cascade:
-            # DELETE children depending on type
-            if pmb_type == "molecule":
-                # 1. residues → 2. particles → 3. bonds
-                residues = self._find_instance_ids_by_attribute(
-                    "residue", "molecule_id", instance_id
-                )
+            # --- Delete children of ASSEMBLY-like objects ---
+            if pmb_type in self._assembly_like_types:
+                for mtype in self._molecule_like_types:
+                    mids = self._find_instance_ids_by_attribute(pmb_type=mtype,
+                                                                attribute="assembly_id",
+                                                                value=instance_id,)
+                    for mid in mids:
+                        self.delete_instance(pmb_type=mtype, 
+                                             instance_id=mid, 
+                                             cascade=True)
+                # delete particles inside the assembly *even if they have no residue/molecule* (e.g. nodes)
+                pids = self._find_instance_ids_by_attribute(pmb_type="particle", 
+                                                            attribute="assembly_id",
+                                                            value=instance_id)
+                for pid in pids:
+                    self.delete_instance(pmb_type="particle", 
+                                         instance_id=pid, 
+                                         cascade=True)
+            # --- Delete children of MOLECULE-like objects ---
+            if pmb_type in self._molecule_like_types:
+                residues = self._find_instance_ids_by_attribute(pmb_type="residue",
+                                                                attribute="molecule_id",
+                                                                value=instance_id,)
                 for rid in residues:
-                    self.delete_instance("residue", rid, cascade=True)
+                    self.delete_instance(pmb_type="residue", 
+                                         instance_id=rid, 
+                                         cascade=True)
 
-            elif pmb_type == "residue":
-                # 1. particles → 2. bonds
-                particles = self._find_instance_ids_by_attribute(
-                    "particle", "residue_id", instance_id
-                )
+            # --- Delete children of RESIDUE ---
+            if pmb_type == "residue":
+                particles = self._find_instance_ids_by_attribute(pmb_type="particle",
+                                                                 attribute="residue_id",
+                                                                 value=instance_id,)
                 for pid in particles:
-                    self.delete_instance("particle", pid, cascade=True)
+                    self.delete_instance(pmb_type="particle", 
+                                         instance_id=pid, 
+                                         cascade=True)
 
-            elif pmb_type == "particle":
-                # 1. bonds only
+            # --- Delete children of PARTICLE (only bonds) ---
+            if pmb_type == "particle":
                 self._delete_bonds_of_particle(instance_id)
 
-            # For bonds there is nothing to cascade
-
+        # ===============  NON-CASCADE (SAFE DELETE)  ================
         else:
-            # ---- NON-cascade: forbid deletions that break structure ----
+            # ---- ASSEMBLY-like: forbid deletion if molecules belong to it ----
+            if pmb_type in self._assembly_like_types:
+                for mtype in self._molecule_like_types:
+                    mids = self._find_instance_ids_by_attribute(pmb_type=mtype,
+                                                                attribute="assembly_id",
+                                                                value=instance_id,)
+                    if mids:
+                        raise ValueError(f"{pmb_type} {instance_id} contains {mtype} instances {mids}. Use cascade=True to delete.")
+            # ---- MOLECULE-like: check residues ----
+            if pmb_type in self._molecule_like_types:
+                residues = self._find_instance_ids_by_attribute(pmb_type="residue",
+                                                                attribute="molecule_id",
+                                                                value=instance_id,)
+                if residues:
+                    raise ValueError(f"{pmb_type} {instance_id} has residues {residues}. Use cascade=True to delete.")
+            # ---- RESIDUE: check particles ----
+            if pmb_type == "residue":
+                particles = self._find_instance_ids_by_attribute(pmb_type="particle",
+                                                                 attribute="residue_id",
+                                                                 value=instance_id)
+                if particles:
+                    raise ValueError(f"Residue {instance_id} contains particles {particles}. Use cascade=True.")
+            # ---- PARTICLE: check bonds and belonging ----
             if pmb_type == "particle":
                 if inst.residue_id is not None:
-                    raise ValueError(
-                        f"Particle {instance_id} belongs to residue {inst.residue_id}. "
-                        f"Use cascade=True to delete anyway."
-                    )
+                    raise ValueError(f"Particle {instance_id} belongs to residue {inst.residue_id}. Use cascade=True.")
                 if inst.molecule_id is not None:
-                    raise ValueError(
-                        f"Particle {instance_id} belongs to molecule {inst.molecule_id}. "
-                        f"Use cascade=True."
-                    )
-
-                # check bond dependencies
-                bonds = [
-                    b_id for b_id, b in self._instances.get("bond", {}).items()
-                    if b.particle_id1 == instance_id or b.particle_id2 == instance_id
-                ]
+                    raise ValueError(f"Particle {instance_id} belongs to molecule {inst.molecule_id}. Use cascade=True.")
+                if inst.assembly_id is not None:
+                    raise ValueError(f"Particle {instance_id} belongs to assembly {inst.assembly_id}. "f"Use cascade=True.")
+                bonds = [b_id for b_id, b in self._instances.get("bond", {}).items() if b.particle_id1 == instance_id or b.particle_id2 == instance_id]
                 if bonds:
-                    raise ValueError(
-                        f"Particle {instance_id} is in bonds {bonds}. "
-                        f"Use cascade=True."
-                    )
-
-            if pmb_type == "residue":
-                particles = self._find_instance_ids_by_attribute(
-                    "particle", "residue_id", instance_id
-                )
-                if particles:
-                    raise ValueError(
-                        f"Residue {instance_id} has particles {particles}. "
-                        f"Use cascade=True."
-                    )
-
-            if pmb_type == "molecule":
-                residues = self._find_instance_ids_by_attribute(
-                    "residue", "molecule_id", instance_id
-                )
-                if residues:
-                    raise ValueError(
-                        f"Molecule {instance_id} has residues {residues}. "
-                        f"Use cascade=True."
-                    )
-
-        # ---- Perform final deletion of this object ----
+                    raise ValueError(f"Particle {instance_id} participates in bonds {bonds}. Use cascade=True.")
+        # ===============  FINAL DELETION STEP  ======================
         del self._instances[pmb_type][instance_id]
-
         if not self._instances[pmb_type]:
             del self._instances[pmb_type]
-
 
     def get_instance(self, pmb_type, instance_id):
         """

@@ -203,14 +203,18 @@ def main():
 
     print(pmb.db._get_instances_df(pmb_type="molecule"))
 
+    print("\n=== Peptide Instances DataFrame ===")
+    pmb.create_molecule(name="Peptide1",
+                        number_of_molecules=1,
+                        espresso_system=espresso_system,
+                        use_default_bond=True)    
+    print(pmb.db._get_instances_df(pmb_type="peptide"))
+
     
     print("\n=== Bond Instances DataFrame ===")
     print(pmb.db._get_instances_df(pmb_type="bond"))     
 
-    print("\n=== Peptide Instances DataFrame ===")
- 
-    print(pmb.db._get_instances_df(pmb_type="peptide"))
-
+    
     print("\n=== Protein Instances DataFrame ===")
     pmb.create_protein(name="1beb",
                        number_of_proteins=1,
@@ -301,6 +305,70 @@ def main():
     print(db3._get_instances_df("hydrogel"))
     print("\nLoaded DB3 Reactions DataFrame:")
     print(db3._get_reactions_df())
+
+    pmb.delete_instances_in_system(instance_id=0,
+                                   pmb_type="hydrogel",
+                                   espresso_system=espresso_system)
+
+    print("instances in database after deleting the hydrogel")
+    print(pmb.db._get_instances_df("particle"))
+    print(pmb.db._get_instances_df("residue"))
+    print(pmb.db._get_instances_df("molecule"))
+    print(pmb.db._get_instances_df("bond"))
+    print(pmb.db._get_instances_df("peptide"))
+    print(pmb.db._get_instances_df("protein"))
+    print(pmb.db._get_instances_df("hydrogel"))
+
+    pmb.delete_instances_in_system(instance_id=3,
+                                   pmb_type="protein",
+                                   espresso_system=espresso_system)
+    
+    print("instances in database after deleting the protein")
+    print(pmb.db._get_instances_df("particle"))
+    print(pmb.db._get_instances_df("residue"))
+    print(pmb.db._get_instances_df("molecule"))
+    print(pmb.db._get_instances_df("bond"))
+    print(pmb.db._get_instances_df("peptide"))
+    print(pmb.db._get_instances_df("protein"))
+    print(pmb.db._get_instances_df("hydrogel"))
+
+    pmb.delete_instances_in_system(instance_id=1,
+                                   pmb_type="molecule",
+                                   espresso_system=espresso_system)
+    
+    pmb.delete_instances_in_system(instance_id=0,
+                                   pmb_type="molecule",
+                                   espresso_system=espresso_system)
+    
+    pmb.delete_instances_in_system(instance_id=1,
+                                   pmb_type="residue",
+                                   espresso_system=espresso_system)
+    
+    pmb.delete_instances_in_system(instance_id=0,
+                                   pmb_type="residue",
+                                   espresso_system=espresso_system)
+    
+    print("instances in database after deleting residues and molecules")
+    print(pmb.db._get_instances_df("particle"))
+    print(pmb.db._get_instances_df("residue"))
+    print(pmb.db._get_instances_df("molecule"))
+    print(pmb.db._get_instances_df("bond"))
+    print(pmb.db._get_instances_df("peptide"))
+    print(pmb.db._get_instances_df("protein"))
+    print(pmb.db._get_instances_df("hydrogel"))
+    pmb.delete_instances_in_system(instance_id=2,
+                                   pmb_type="peptide",
+                                   espresso_system=espresso_system)
+    
+    print("instances in database after deleting peptides")
+    print(pmb.db._get_instances_df("particle"))
+    print(pmb.db._get_instances_df("residue"))
+    print(pmb.db._get_instances_df("molecule"))
+    print(pmb.db._get_instances_df("bond"))
+    print(pmb.db._get_instances_df("peptide"))
+    print(pmb.db._get_instances_df("protein"))
+    print(pmb.db._get_instances_df("hydrogel"))
+
 
 
 if __name__ == "__main__":
