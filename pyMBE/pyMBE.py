@@ -53,8 +53,7 @@ class pymbe_library():
     """
     Core library for the Molecular Builder for ESPResSo (pyMBE).
 
-    Provides access to fundamental constants, reduced unit setup, and a
-    database for storing particle, molecule, and reaction information.
+    Provides access to functions to define templates to build coarse-grained models of macromolecules.
 
     Attributes:
         N_A (pint.Quantity): Avogadro number.
@@ -106,42 +105,6 @@ class pymbe_library():
         self.lattice_builder = None
         self.root = importlib.resources.files(__package__)
         self._bond_instances={}   
-
-    def _check_supported_molecule(self, molecule_name,valid_pmb_types):
-        """
-        Checks if the molecule name `molecule_name` is supported by a method of pyMBE.
-
-        Args:
-            molecule_name(`str`): pmb object type to be checked.
-            valid_pmb_types(`list` of `str`): List of valid pmb types supported by the method.
-
-        Returns:
-            pmb_type(`str`): pmb_type of the molecule.
-        """
-        pmb_type=self.df.loc[self.df['name']==molecule_name].pmb_type.values[0]
-        if pmb_type not in valid_pmb_types:
-            raise ValueError("The pyMBE object with name {molecule_name} has a pmb_type {pmb_type}. This function only supports pyMBE types {valid_pmb_types}")      
-        return pmb_type
-
-    def _check_if_name_has_right_type(self, name, expected_pmb_type, hard_check=True):
-        """
-        Checks if `name` is of the expected pmb type.
-
-        Args:
-            name(`str`): label to check if defined in `pmb.df`.
-            expected_pmb_type(`str`): pmb object type corresponding to `name`.
-            hard_check(`bool`, optional): If `True`, the raises a ValueError  if `name` is corresponds to an objected defined in the pyMBE DataFrame under a different object type than `expected_pmb_type`.
-
-        Returns:
-            `bool`: `True` for success, `False` otherwise.
-        """
-        pmb_type=self.df.loc[self.df['name']==name].pmb_type.values[0]
-        if pmb_type == expected_pmb_type:
-            return True
-        else:
-            if hard_check:
-                raise ValueError(f"The name {name} has been defined in the pyMBE DataFrame with a pmb_type = {pmb_type}. This function only supports pyMBE objects with pmb_type = {expected_pmb_type}")
-            return False
 
     def _create_espresso_bond_instance(self, bond_type, bond_parameters):
         """
@@ -2223,11 +2186,6 @@ class pymbe_library():
 
         return topology_dict
 
-    
-        
-    
-
-
     def search_particles_in_residue(self, residue_name):
         '''
         Searches for all particles in a given residue of name `residue_name`.
@@ -2243,17 +2201,11 @@ class pymbe_library():
             - The function will return an empty list if the residue is not defined in `pmb.df`.
             - The function will return an empty list if the particles are not defined in the pyMBE DataFrame.
         '''
-        if not _DFm._check_if_name_is_defined_in_df(name=residue_name, df=self.df):
-            logging.warning(f"Residue {residue_name} not defined in pmb.df")
-            return []
-        self._check_if_name_has_right_type(name=residue_name, expected_pmb_type="residue")
         index_residue = self.df.loc[self.df['name'] == residue_name].index[0].item() 
         central_bead = self.df.at [index_residue, ('central_bead', '')]
         list_of_side_chains = self.df.at[index_residue, ('side_chains', '')]
         list_of_particles_in_residue = []
         if central_bead is not pd.NA:
-            if _DFm._check_if_name_is_defined_in_df(name=central_bead, df=self.df):
-                if self._check_if_name_has_right_type(name=central_bead, expected_pmb_type="particle", hard_check=False):
                     list_of_particles_in_residue.append(central_bead)
         if list_of_side_chains is not pd.NA:
             for side_chain in list_of_side_chains:
