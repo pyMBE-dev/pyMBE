@@ -209,7 +209,7 @@ for label in lj_labels:
 
 print("*** Unit test passed ***")
 
-print("*** Unit test: test that get_lj_parameters() rasie the ValueError when the combination rule is not Loretz-Berthelot ***")
+print("*** Unit test: test that get_lj_parameters() raises the ValueError when the combination rule is not Loretz-Berthelot ***")
 
 input_params = {"particle_name1":"A", 
                 "particle_name2":"B", 

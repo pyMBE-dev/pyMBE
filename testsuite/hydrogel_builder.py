@@ -80,7 +80,6 @@ mpc=8
 diamond_lattice = DiamondLattice(mpc, generic_bond_length)
 box_l = diamond_lattice.box_l
 espresso_system = espressomd.System(box_l = [box_l]*3)
-pmb.add_bonds_to_espresso(espresso_system = espresso_system)
 lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
 
 pmb.create_particle(name=CounterIon,
@@ -111,14 +110,16 @@ chain_topology = []
 residue_list = [Res1]*(mpc//2) + [Res2]*(mpc//2)
 for node_s, node_e in connectivity_with_labels:
     chain_topology.append({'node_start':node_s,
-                              'node_end': node_e,
-                              'residue_list':residue_list})
+                           'node_end': node_e,
+                           'molecule_name':molecule_name})
 #######################################################
 hydrogel_name="my_hydrogel"
 pmb.define_hydrogel(hydrogel_name,node_topology, chain_topology)
 
 # Creating hydrogel
-hydrogel_info = pmb.create_hydrogel(hydrogel_name, espresso_system)
+hydrogel_id= pmb.create_hydrogel(hydrogel_name, espresso_system)
+hydrogel_inst = pmb.db.get_instance(pmb_type="hydrogel",
+                                   instance_id=hydrogel_id)
 
 ################################################
 
@@ -186,15 +187,18 @@ class Test(ut.TestCase):
         assert pmb.format_node([4, 5, 6]) == "[4 5 6]"
 
     def test_hydrogel_info(self):
-        assert hydrogel_info["name"] == hydrogel_name
+        assert hydrogel_inst.name == hydrogel_name
 
     def test_node_positions(self):
+        # Search for nodes of the hydrogel
+        particle_ids_in_hydrogel = pmb.get_particle_id_map(object_name=hydrogel_name)["all"]
+        # TODO: this need to be fixed
         for _, node_id in hydrogel_info["nodes"].items():
             node_pos = espresso_system.part.by_id(int(node_id[0])).pos
             node_name_in_espresso = pmb.df[(pmb.df["pmb_type"] == "particle") & (pmb.df["particle_id"] == node_id[0])]["name"].values[0]
             node_label = node_labels[pmb.format_node(list((node_pos*(4/lattice_builder.box_l)).astype(int)))]
-            node_data = node_topology[node_label]
-            node_name = node_data["particle_name"] 
+            node_data  = node_topology[node_label]
+            node_name  = node_data["particle_name"] 
             # Assert node's name and position are correctly set
             np.testing.assert_equal(node_name_in_espresso, node_name)
             np.testing.assert_allclose(np.copy(node_pos), np.array(node_data["lattice_index"]) * 0.25 * diamond_lattice.box_l, atol=1e-7)
@@ -279,7 +283,7 @@ class Test(ut.TestCase):
         assert hydrogel_name in pmb.df["name"].values
         assert pmb.df.loc[pmb.df["name"] == hydrogel_name, "pmb_type"].values[0] == "hydrogel"
 
-    def test_hydrogel_definitions_in_df(self):
+    def test_hydrogel_definitions_in_db(self):
         # Verify node_map and chain_map are correctly added
         compare_node_maps(pmb.df.loc[pmb.df["name"] == hydrogel_name, "node_map"].values[0], node_topology)
         compare_chain_maps(pmb.df.loc[pmb.df["name"] == hydrogel_name, "chain_map"].values[0], chain_topology)

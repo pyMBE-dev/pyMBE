@@ -283,7 +283,6 @@ class pymbe_library():
         - Attempting to remove a non-existent particle ID will raise
         an ESPResSo error.
         """
-        
         for pid in particle_ids:
             espresso_system.part.by_id(pid).remove()
 
@@ -301,7 +300,9 @@ class pymbe_library():
         """
         center_of_mass = np.zeros(3)
         axis_list = [0,1,2]
-        molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type'].isin(["molecule","protein"]))].name.values[0]
+        mol_inst = self.db.get_instance(pmb_type="molecule",
+                                        instance_id=molecule_id)
+        molecule_name = mol_inst.name
         particle_id_list = self.get_particle_id_map(object_name=molecule_name)["all"]
         for pid in particle_id_list:
             for axis in axis_list:
@@ -309,7 +310,7 @@ class pymbe_library():
         center_of_mass = center_of_mass / len(particle_id_list)
         return center_of_mass
 
-    def calculate_HH(self, molecule_name, pH_list=None, pka_set=None):
+    def calculate_HH(self, molecule_name, pmb_type, pH_list=None, pka_set=None):
         """
         Calculates the charge per molecule according to the ideal Henderson-Hasselbalch titration curve 
         for molecules with the name `molecule_name`.
@@ -820,7 +821,8 @@ class pymbe_library():
                                                                                       attribute="residue_id",
                                                                                       value=residue_id)
                     prev_central_bead_id = particle_ids_in_residue[0]
-                    prev_central_bead_name = self.db.get_instance(pmb_type="particle", instance_id=prev_central_bead_id).name
+                    prev_central_bead_name = self.db.get_instance(pmb_type="particle", 
+                                                                  instance_id=prev_central_bead_id).name
                     prev_central_bead_pos = espresso_system.part.by_id(prev_central_bead_id).pos
                     first_residue = False          
                 else:
@@ -1041,9 +1043,6 @@ class pymbe_library():
                                                espresso_system=espresso_system,
                                                position=central_bead_position,
                                                number_of_particles = 1)[0]
-        if not central_bead_id:
-            logging.warning(f"Central bead with particle template with name '{name}' is not defined in the pyMBE database, no residue will be created.")
-            return
         
         central_bead_position=espresso_system.part.by_id(central_bead_id).pos
         # Assigns residue_id to the central_bead particle created.
@@ -1263,26 +1262,25 @@ class pymbe_library():
                                residue_list=residue_list)
         self.db._register_template(tpl)
 
-    def define_particle(self, name, z=0, acidity=pd.NA, pka=pd.NA, sigma=pd.NA, epsilon=pd.NA, cutoff=pd.NA, offset=pd.NA):
+    def define_particle(self, name,  sigma, epsilon, z=0, acidity=pd.NA, pka=pd.NA, cutoff=pd.NA, offset=pd.NA):
         """
         Defines a particle template in the pyMBE database.
 
         Args:
             name(`str`): Unique label that identifies this particle type.  
+            sigma(`pint.Quantity`): Sigma parameter used to set up Lennard-Jones interactions for this particle type. 
+            epsilon(`pint.Quantity`): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe.
             z(`int`, optional): Permanent charge number of this particle type. Defaults to 0.
             acidity(`str`, optional): Identifies whether if the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to pd.NA.
             pka(`float`, optional): If `particle` is an acid or a base, it defines its  pka-value. Defaults to pd.NA.
-            sigma(`pint.Quantity`, optional): Sigma parameter used to set up Lennard-Jones interactions for this particle type. Defaults to pd.NA.
             cutoff(`pint.Quantity`, optional): Cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to pd.NA.
             offset(`pint.Quantity`, optional): Offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to pd.NA.
-            epsilon(`pint.Quantity`, optional): Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe. Defaults to pd.NA.
-
+            
         Note:
             - `sigma`, `cutoff` and `offset` must have a dimensitonality of `[length]` and should be defined using pmb.units.
             - `epsilon` must have a dimensitonality of `[energy]` and should be defined using pmb.units.
             - `cutoff` defaults to `2**(1./6.) reduced_length`. 
             - `offset` defaults to 0.
-            - The default setup corresponds to the Weeks−Chandler−Andersen (WCA) model, corresponding to purely steric interactions.
             - For more information on `sigma`, `epsilon`, `cutoff` and `offset` check `pmb.setup_lj_interactions()`.
         """ 
         
@@ -1383,8 +1381,8 @@ class pymbe_library():
         elif pmb_type in self.db._assembly_like_types:
             instance_identifier = "assembly_id"
         particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
-                                                               attribute="molecule_id",
-                                                               value=instance_identifier)
+                                                               attribute=instance_identifier,
+                                                               value=instance_id)
         self._delete_particles_from_espresso(particle_ids=particle_ids,
                                              espresso_system=espresso_system)
         
@@ -1649,6 +1647,27 @@ class pymbe_library():
                                         pmb_type="bond")
         return bond_tpl
     
+    def get_charge_number_map(self):
+        '''
+        Gets the charge number of each `espresso_type` in `pymbe.df`.
+        
+        Returns:
+            charge_number_map(`dict`): {espresso_type: z}.
+        '''
+        if self.df.state_one['es_type'].isnull().values.any():         
+            df_state_one = self.df.state_one.dropna()     
+            df_state_two = self.df.state_two.dropna()  
+        else:    
+            df_state_one = self.df.state_one
+            if self.df.state_two['es_type'].isnull().values.any():
+                df_state_two = self.df.state_two.dropna()   
+            else:
+                df_state_two = self.df.state_two
+        state_one = pd.Series (df_state_one.z.values,index=df_state_one.es_type.values)
+        state_two = pd.Series (df_state_two.z.values,index=df_state_two.es_type.values)
+        charge_number_map  = pd.concat([state_one,state_two],axis=0).to_dict()
+        return charge_number_map
+
     def get_espresso_bond_instance(self, particle_name1, particle_name2, espresso_system, use_default_bond=False):
         """
         Retrieve or create a bond instance in an ESPResSo system for a given pair of particle names.
@@ -1686,26 +1705,17 @@ class pymbe_library():
             espresso_system.bonded_inter.add(bond_inst)
         return bond_inst
 
-    def get_charge_number_map(self):
-        '''
-        Gets the charge number of each `espresso_type` in `pymbe.df`.
+    def get_instances_df(self, pmb_type):
+        """
+        Returns a dataframe with all instances of type `pmb_type` in the pyMBE database.
+
+        Args:
+            pmb_type(`str`): pmb type to search instances in the pyMBE database.
         
         Returns:
-            charge_number_map(`dict`): {espresso_type: z}.
-        '''
-        if self.df.state_one['es_type'].isnull().values.any():         
-            df_state_one = self.df.state_one.dropna()     
-            df_state_two = self.df.state_two.dropna()  
-        else:    
-            df_state_one = self.df.state_one
-            if self.df.state_two['es_type'].isnull().values.any():
-                df_state_two = self.df.state_two.dropna()   
-            else:
-                df_state_two = self.df.state_two
-        state_one = pd.Series (df_state_one.z.values,index=df_state_one.es_type.values)
-        state_two = pd.Series (df_state_two.z.values,index=df_state_two.es_type.values)
-        charge_number_map  = pd.concat([state_one,state_two],axis=0).to_dict()
-        return charge_number_map
+            instances_df(`Pandas.Dataframe`): Dataframe with all instances of type `pmb_type`.
+        """
+        return self.db._get_instances_df(pmb_type=pmb_type)
 
     def get_lj_parameters(self, particle_name1, particle_name2, combining_rule='Lorentz-Berthelot'):
         """
@@ -1793,16 +1803,17 @@ class pymbe_library():
         Note:
             The radius corresponds to (sigma+offset)/2
         '''
-        df_state_one = self.df[[('sigma',''),('offset',''),('state_one','es_type')]].dropna().drop_duplicates()
-        df_state_two = self.df[[('sigma',''),('offset',''),('state_two','es_type')]].dropna().drop_duplicates()
-        state_one = pd.Series((df_state_one.sigma.values+df_state_one.offset.values)/2.0,index=df_state_one.state_one.es_type.values)
-        state_two = pd.Series((df_state_two.sigma.values+df_state_two.offset.values)/2.0,index=df_state_two.state_two.es_type.values)
-        radius_map  = pd.concat([state_one,state_two],axis=0).to_dict()  
-        if dimensionless:
-            for key in radius_map:
-                radius_map[key] = radius_map[key].magnitude
-        return radius_map
-
+        if "particle" not in self.db._templates:
+            return {}          
+        result = {}
+        for _, tpl in self.db._templates["particle"].items():
+            radius = (tpl.sigma.to_quantity(self.units) + tpl.offset.to_quantity(self.units))/2.0
+            if dimensionless:
+                radius = radius.magnitude
+            for _, state in tpl.states.items():
+                result[state.es_type] = radius
+        return result
+        
     def get_reduced_units(self):
         """
         Returns the  current set of reduced units defined in pyMBE.
@@ -1822,31 +1833,28 @@ class pymbe_library():
                                         ])   
         return reduced_units_text
 
+    def get_templates_df(self, pmb_type):
+        """
+        Returns a dataframe with all templates of type `pmb_type` in the pyMBE database.
+
+        Args:
+            pmb_type(`str`): pmb type to search templates in the pyMBE database.
+        
+        Returns:
+            templates_df(`Pandas.Dataframe`): Dataframe with all templates of type `pmb_type`.
+        """
+        return self.db._get_templates_df(pmb_type=pmb_type)
+
     def get_type_map(self):
         """
-        Return the mapping of ESPResSo types for all particles present in ``pmb.df``.
-
-        This method delegates to ``self.db.get_es_types_map()`` and returns its output.
-        The resulting structure is a nested dictionary that lists, for each particle
-        template, all defined states and their corresponding ESPResSo type (``es_type``).
-
+        Return the mapping of ESPResSo types for all particle states defined in the pyMBE database.
+        
         Returns:
-            dict[str, dict[str, float | int | str]]:
-                A dictionary of the form::
-
-                    {
-                        particle_name: {
+            dict[str, int]:
+                A dictionary mapping each particle state to its corresponding ESPResSo type:{
                             state_name: es_type,
                             ...
-                        },
-                        ...
-                    }
-
-                where ``es_type`` is the ESPResSo particle type used in simulations.
-
-        See Also:
-            ``Manager.get_es_types_map`` – the underlying method that performs
-            the extraction.
+                        }
         """
         
         return self.db.get_es_types_map()
@@ -1981,18 +1989,13 @@ class pymbe_library():
     
         """
         type_map = self.get_type_map()
-
         # Flatten all es_type values across all particles and states
         all_types = []
-        for particle_entry in type_map.values():
-            for es_type in particle_entry.values():
-                if isinstance(es_type, int):
-                    all_types.append(es_type)
-
-        # If no integer es_types exist, start at 0
+        for es_type in type_map.values():
+                all_types.append(es_type)
+        # If no es_types exist, start at 0
         if not all_types:
             return 0
-
         return max(all_types) + 1
 
     def protein_sequence_parser(self, sequence):

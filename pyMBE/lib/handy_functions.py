@@ -66,43 +66,6 @@ def check_if_metal_ion(key):
     Args:
         key(`str`): key to be checked
 
-
-    def get_particle_id_map(self, object_name):
-        '''
-        Gets all the ids associated with the object with name `object_name` in `pmb.df`
-
-        Args:
-            object_name(`str`): name of the object
-        
-        Returns:
-            id_map(`dict`): dict of the structure {"all": [all_ids_with_object_name], "residue_map": {res_id: [particle_ids_in_res_id]}, "molecule_map": {mol_id: [particle_ids_in_mol_id]}, }
-        '''
-        object_type=self._check_supported_molecule(molecule_name=object_name,
-                                                   valid_pmb_types= ['particle','residue','molecule',"peptide","protein"])
-        id_list = []
-        mol_map = {}
-        res_map = {}
-        def do_res_map(res_ids):
-            for res_id in res_ids:
-                res_list=self.df.loc[(self.df['residue_id']== res_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
-                res_map[res_id]=res_list
-            return res_map
-        if object_type in ['molecule', 'protein', 'peptide']:
-            mol_ids = self.df.loc[self.df['name']== object_name].molecule_id.dropna().tolist()
-            for mol_id in mol_ids:
-                res_ids = set(self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle") ].residue_id.dropna().tolist())
-                res_map=do_res_map(res_ids=res_ids)    
-                mol_list=self.df.loc[(self.df['molecule_id']== mol_id) & (self.df['pmb_type']== "particle")].particle_id.dropna().tolist()
-                id_list+=mol_list
-                mol_map[mol_id]=mol_list
-        elif object_type == 'residue':     
-            res_ids = self.df.loc[self.df['name']== object_name].residue_id.dropna().tolist()
-            res_map=do_res_map(res_ids=res_ids)
-            id_list=[]
-            for res_id_list in res_map.values():
-                id_list+=res_id_list
-        elif object_type == 'particle':
-            id_list = self.d
     Returns:
         (`bool`): True if `key`  is a supported metal ion, False otherwise.
     """

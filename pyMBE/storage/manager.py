@@ -944,68 +944,30 @@ class Manager:
             provided type and name.
 
         Raises:
-            KeyError: If no template with the given type and name exists in
+            ValueError: If no template with the given type and name exists in
             the internal registry.
         """
         if name not in self._templates[pmb_type]:
-            raise KeyError(f"Template '{name}' not found in type '{pmb_type}'.")
+            raise ValueError(f"Template '{name}' not found in type '{pmb_type}'.")
         else:
             return self._templates[pmb_type][name]
 
     def get_es_types_map(self):
         """
-        Return a mapping from each particle to its states' `es_type`.
-
         Iterates over all particle templates and extracts the ESPResSo type (`es_type`)
-        defined for each state. Produces a nested dictionary of the form:
-
-            {
-                particle_name: {
-                    state_name: es_type,
-                    ...
-                },
-                ...
-            }
+        defined for each state. 
 
         Returns:
-            dict[str, dict[str, int]]:
-                A dictionary mapping each particle name to another dictionary that maps
-                each state name to its corresponding ``es_type``.
+            dict[str, int]:
+                A dictionary mapping each particle state to its corresponding ESPResSo type.
 
-        Raises:
-            KeyError:
-                If the ``"particle"`` template group does not exist in the database.
-
-        Examples:
-            Suppose templates include:
-                Particle A:
-                    HA: es_type = 0
-                    A-: es_type = 1
-                Particle H:
-                    H+: es_type = 2
-
-            Then the method returns:
-                {
-                    "A": {
-                        "HA": 0,
-                        "A-": 1,
-                    },
-                    "H": {
-                        "H+": 2,
-                    }
-                }
         """
         if "particle" not in self._templates:
             return {}          
-
         result = {}
-        for particle_name, tpl in self._templates["particle"].items():
+        for _, tpl in self._templates["particle"].items():
             for state_name, state in tpl.states.items():
-                if particle_name not in result:
-                    result[particle_name] = {state_name: state.es_type}
-                else:
-                    result[particle_name][state_name] = state.es_type
-                
+                result[state_name] = state.es_type
         return result
     
     def get_particle_id_map(self, object_name):
