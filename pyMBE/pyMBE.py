@@ -1496,20 +1496,6 @@ class pymbe_library():
                 pid.vs_auto_relate_to(rigid_object_center.id)
         return
 
-    def filter_df(self, pmb_type):
-        """
-        Filters `pmb.df` and returns a sub-set of it containing only rows with pmb_object_type=`pmb_type` and non-NaN columns.
-        
-        Args:
-            pmb_type(`str`): pmb_object_type to filter in `pmb.df`.
-
-        Returns:
-            pmb_type_df(`Pandas.Dataframe`): filtered `pmb.df`.
-        """
-        pmb_type_df = self.df.loc[self.df['pmb_type']== pmb_type]
-        pmb_type_df = pmb_type_df.dropna( axis=1, thresh=1)
-        return pmb_type_df   
-
     def find_value_from_es_type(self, es_type, column_name):
         """
         Finds a value in `pmb.df` for a `column_name` and `es_type` pair.

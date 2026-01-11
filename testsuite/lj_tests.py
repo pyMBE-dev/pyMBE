@@ -18,7 +18,6 @@
 
 # Import pyMBE and other libraries
 import pyMBE
-import pyMBE.storage.df_management as df_management
 import numpy as np
 import logging
 import io
@@ -41,61 +40,73 @@ input_parameters={"name":"A",
                     "offset":3*pmb.units.nm}
 
 pmb.define_particle(**input_parameters)
+part_tpl = pmb.db.get_template(name="A", pmb_type="particle")
 for parameter_key in input_parameters.keys():
-    np.testing.assert_equal(actual=pmb.df[parameter_key].values[0], 
+    atr = getattr(part_tpl, parameter_key)
+    if isinstance(atr, str):
+        np.testing.assert_equal(actual=atr,
                             desired=input_parameters[parameter_key], 
                             verbose=True)
+    else:
+        np.testing.assert_equal(actual=atr.to_quantity(pmb.units),
+                                desired=input_parameters[parameter_key], 
+                                verbose=True)
+# Clean template from the database
+pmb.db.delete_template(name="A", pmb_type="particle")
+
 print("*** Unit test passed ***")
 print("*** Unit test: check that `offset` defaults to 0***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-# Define dummy particle
-pmb.define_particle(name="A")
+print("*** Unit test: check that `cutoff` defaults to `2**(1./6.) reduced_length` ***")
 
-np.testing.assert_equal(actual=pmb.df["offset"].values[0], 
+input_parameters={"name":"A", 
+                    "sigma":1*pmb.units.nm, 
+                    "epsilon":pmb.units.Quantity(1,"reduced_energy")}
+
+pmb.define_particle(**input_parameters)
+part_tpl = pmb.db.get_template(name="A", pmb_type="particle")
+np.testing.assert_equal(actual=part_tpl.offset.to_quantity(pmb.units),
                     desired=pmb.units.Quantity(0,"reduced_length"), 
                     verbose=True)
-print("*** Unit test passed ***")
-
-print("*** Unit test: check that `cutoff` defaults to `2**(1./6.) reduced_length` ***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-# Define dummy particle
-pmb.define_particle(name="A")
-
-np.testing.assert_equal(actual=pmb.df["cutoff"].values[0], 
+np.testing.assert_equal(actual=part_tpl.cutoff.to_quantity(pmb.units), 
                     desired=pmb.units.Quantity(2**(1./6.),"reduced_length"), 
                     verbose=True)
+# Clean template from the database
+pmb.db.delete_template(name="A", pmb_type="particle")
 print("*** Unit test passed ***")
 
 print("*** Unit test: check that define_particle raises a ValueError if sigma is provided with the wrong dimensionality ***")
 input_parameters={"name":"B", 
-                   "sigma":1*pmb.units.ns }
+                   "sigma":1*pmb.units.ns, 
+                    "epsilon":pmb.units.Quantity(1,"reduced_energy") }
 np.testing.assert_raises(ValueError, pmb.define_particle, **input_parameters)
 print("*** Unit test passed ***")
 
 print("*** Unit test: check that define_particle raises a ValueError if offset is provided with the wrong dimensionality ***")
 input_parameters={"name":"B", 
-                   "offset":1*pmb.units.ns }
+                   "offset":1*pmb.units.ns, 
+                    "sigma":1*pmb.units.nm, 
+                    "epsilon":pmb.units.Quantity(1,"reduced_energy") }
 np.testing.assert_raises(ValueError, pmb.define_particle, **input_parameters)
 print("*** Unit test passed ***")
 
 print("*** Unit test: check that define_particle raises a ValueError if cutoff is provided with the wrong dimensionality ***")
 input_parameters={"name":"B", 
-                   "cutoff":1*pmb.units.ns }
+                   "cutoff":1*pmb.units.ns, 
+                    "sigma":1*pmb.units.nm, 
+                    "epsilon":pmb.units.Quantity(1,"reduced_energy") }
 np.testing.assert_raises(ValueError, pmb.define_particle, **input_parameters)
 print("*** Unit test passed ***")
 
 print("*** Unit test: check that define_particle raises a ValueError if epsilon is provided with the wrong dimensionality ***")
 input_parameters={"name":"B", 
-                   "epsilon":1*pmb.units.ns }
+                   "epsilon":1*pmb.units.ns, 
+                    "sigma":1*pmb.units.nm, }
 np.testing.assert_raises(ValueError, pmb.define_particle, **input_parameters)
 print("*** Unit test passed ***")
 
 print("*** Unit test: test that setup_lj_interactions sets up inert particles correctly ***")
 
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
+
 # Define particles
 A_input_parameters={"name":"A", 
                     "sigma":1*pmb.units.nm, 
@@ -115,23 +126,16 @@ C_input_parameters={"name":"C",
                 "epsilon":pmb.units.Quantity(2,"reduced_energy"), 
                 "cutoff":2*2**(1./6.)*pmb.units.nm, 
                 "offset":2*pmb.units.nm}
-X_input_parameters={"name":"X"}
 
 pmb.define_particle(**A_input_parameters)
 pmb.define_particle(**B_input_parameters)
 pmb.define_particle(**C_input_parameters)
-pmb.define_particle(**X_input_parameters)
 
 # Create a dummy instance of an espresso system
 import espressomd
 espresso_system=espressomd.System(box_l = [50]*3)
 
 pmb.setup_lj_interactions(espresso_system=espresso_system)
-log_contents = log_stream.getvalue()
-assert "The following particles do not have a defined value of sigma or epsilon" in log_contents
-
-df_management._DFManagement._delete_entries_in_df(df=pmb.df, 
-                                                  entry_name="X")     
 
 # ValueError if combining-rule other than Lorentz_-Berthelot is used
 input_params = {"espresso_system":espresso_system, "combining_rule": "Geometric"}
