@@ -26,25 +26,28 @@ import scipy.optimize
 import logging
 import importlib.resources
 
-# Templates
+# Database
 from pyMBE.storage.manager import Manager
-from pyMBE.storage.templates.particle import ParticleTemplate, ParticleState
-from pyMBE.storage.instances.particle import ParticleInstance
-from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 from pyMBE.storage.pint_quantity import PintQuantity
+## Templates
+from pyMBE.storage.templates.particle import ParticleTemplate, ParticleState
 from pyMBE.storage.templates.residue import ResidueTemplate
-from pyMBE.storage.instances.residue import ResidueInstance
 from pyMBE.storage.templates.molecule import MoleculeTemplate
-from pyMBE.storage.instances.molecule import MoleculeInstance
-from pyMBE.storage.templates.bond import BondTemplate
-from pyMBE.storage.instances.bond import BondInstance
 from pyMBE.storage.templates.peptide import PeptideTemplate
-from pyMBE.storage.instances.peptide import PeptideInstance
 from pyMBE.storage.templates.protein import ProteinTemplate
-from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
+from pyMBE.storage.templates.bond import BondTemplate
+from pyMBE.storage.templates.lj import LJInteractionTemplate
+## Instances
+from pyMBE.storage.instances.particle import ParticleInstance
+from pyMBE.storage.instances.residue import ResidueInstance
+from pyMBE.storage.instances.molecule import MoleculeInstance
+from pyMBE.storage.instances.peptide import PeptideInstance
+from pyMBE.storage.instances.protein import ProteinInstance
+from pyMBE.storage.instances.bond import BondInstance
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
-
+## Reactions
+from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 # Utilities
 import pyMBE.lib.handy_functions as hf
 import pyMBE.storage.io as io
@@ -2741,7 +2744,7 @@ class pymbe_library():
 
     def setup_lj_interactions(self, espresso_system, shift_potential=True, combining_rule='Lorentz-Berthelot'):
         """
-        Sets up the Lennard-Jones (LJ) potential between all pairs of particle types with values for `sigma`, `offset`, and `epsilon` stored in `pymbe.df`.
+        Sets up the Lennard-Jones (LJ) potential between all pairs of particle states defined in the pyMBE database.
 
         Args:
             espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
@@ -2750,67 +2753,54 @@ class pymbe_library():
             warning(`bool`, optional): switch to activate/deactivate warning messages. Defaults to True.
 
         Note:
-            - LJ interactions will only be set up between particles with defined values of `sigma` and `epsilon` in the pmb.df. 
             - Currently, the only `combining_rule` supported is Lorentz-Berthelot.
             - Check the documentation of ESPResSo for more info about the potential https://espressomd.github.io/doc4.2.0/inter_non-bonded.html
 
         """
         from itertools import combinations_with_replacement
-        compulsory_parameters_in_df = ['sigma','epsilon']
-        shift=0
-        if shift_potential:
-            shift="auto"
-        # List which particles have sigma and epsilon values defined in pmb.df and which ones don't
-        particles_types_with_LJ_parameters = []
-        non_parametrized_labels= []
-        for particle_type in self.get_type_map().values():
-            check_list=[]
-            for key in compulsory_parameters_in_df:
-                value_in_df=self.find_value_from_es_type(es_type=particle_type,
-                                                        column_name=key)
-                check_list.append(pd.isna(value_in_df))
-            if any(check_list):
-                non_parametrized_labels.append(self.find_value_from_es_type(es_type=particle_type, 
-                                                                            column_name='label'))
-            else:
-                particles_types_with_LJ_parameters.append(particle_type)
-        # Set up LJ interactions between all particle types
-        for type_pair in combinations_with_replacement(particles_types_with_LJ_parameters, 2): 
-            particle_name1 = self.find_value_from_es_type(es_type=type_pair[0],
-                                                        column_name="name")
-            particle_name2 = self.find_value_from_es_type(es_type=type_pair[1],
-                                                        column_name="name")
-            lj_parameters= self.get_lj_parameters(particle_name1 = particle_name1,
-                                                 particle_name2 = particle_name2,
-                                                 combining_rule = combining_rule)
-            
-            # If one of the particle has sigma=0, no LJ interations are set up between that particle type and the others    
+
+        particle_templates = self.db.get_templates("particle")
+
+        shift = "auto" if shift_potential else 0
+
+        # Flatten states with template context
+        state_entries = []
+        for tpl in particle_templates.values():
+            for state in tpl.states.values():
+                state_entries.append((tpl, state))
+
+        # Iterate over all unique state pairs
+        for (tpl1, state1), (tpl2, state2) in combinations_with_replacement(state_entries, 2):
+
+            lj_parameters = self.get_lj_parameters(particle_name1=tpl1.name,
+                                                   particle_name2=tpl2.name,
+                                                   combining_rule=combining_rule)
             if not lj_parameters:
                 continue
-            espresso_system.non_bonded_inter[type_pair[0],type_pair[1]].lennard_jones.set_params(epsilon = lj_parameters["epsilon"].to('reduced_energy').magnitude, 
-                                                                                    sigma = lj_parameters["sigma"].to('reduced_length').magnitude, 
-                                                                                    cutoff = lj_parameters["cutoff"].to('reduced_length').magnitude,
-                                                                                    offset = lj_parameters["offset"].to("reduced_length").magnitude, 
-                                                                                    shift = shift)                                                                                          
-            index = len(self.df)
-            label1 = self.find_value_from_es_type(es_type=type_pair[0], column_name="label")
-            label2 = self.find_value_from_es_type(es_type=type_pair[1], column_name="label")
-            self.df.at [index, 'name'] = f'LJ: {label1}-{label2}'
-            lj_params=espresso_system.non_bonded_inter[type_pair[0], type_pair[1]].lennard_jones.get_params()
 
-            _DFm._add_value_to_df(df = self.df,
-                                  index = index,
-                                  key = ('pmb_type',''),
-                                  new_value = 'LennardJones')
+            espresso_system.non_bonded_inter[state1.es_type, state2.es_type].lennard_jones.set_params(
+                epsilon=lj_parameters["epsilon"].to("reduced_energy").magnitude,
+                sigma=lj_parameters["sigma"].to("reduced_length").magnitude,
+                cutoff=lj_parameters["cutoff"].to("reduced_length").magnitude,
+                offset=lj_parameters["offset"].to("reduced_length").magnitude,
+                shift=shift)
 
-            _DFm._add_value_to_df(df = self.df,
-                                  index = index,
-                                  key = ('parameters_of_the_potential',''),
-                                  new_value = lj_params,
-                                  non_standard_value = True)
-        if non_parametrized_labels:
-            logging.warning(f'The following particles do not have a defined value of sigma or epsilon in pmb.df: {non_parametrized_labels}. No LJ interaction has been added in ESPResSo for those particles.')
-        return
+            lj_template = LJInteractionTemplate(state1=state1.name,
+                                                state2=state2.name,
+                                                sigma=PintQuantity.from_quantity(q=lj_parameters["sigma"],
+                                                                                 expected_dimension="length",
+                                                                                 ureg=self.units),
+                                                epsilon=PintQuantity.from_quantity(q=lj_parameters["epsilon"],
+                                                                                   expected_dimension="energy",
+                                                                                   ureg=self.units),
+                                                cutoff=PintQuantity.from_quantity(q=lj_parameters["cutoff"],
+                                                                                  expected_dimension="length",
+                                                                                  ureg=self.units),
+                                                offset=PintQuantity.from_quantity(q=lj_parameters["offset"],
+                                                                                  expected_dimension="length",
+                                                                                  ureg=self.units),
+                                                shift=shift)
+            self.db._register_template(lj_template)
 
     def write_pmb_df (self, filename):
         '''

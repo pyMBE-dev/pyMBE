@@ -61,8 +61,6 @@ class LJInteractionTemplate(BaseModel):
     Notes:
         - The order of ``state1`` and ``state2`` does **not** matter.
           The name is always generated as ``"min(state1, state2)-max(state1, state2)"``.
-        - Users should store raw LJ parameters (σ, ε) in particle templates.
-          This object stores the *final combined* interaction values.
 
     Examples:
         Creating an LJ interaction:
@@ -97,7 +95,7 @@ class LJInteractionTemplate(BaseModel):
     epsilon: PintQuantity
     cutoff: PintQuantity
     offset: PintQuantity
-    shift: str | PintQuantity
+    shift: str | float
 
 
     @classmethod

@@ -133,14 +133,14 @@ class Test(ut.TestCase):
         
         for pid in particle_ids:
             particle=espresso_system.part.by_id(pid)
-            self.assertEqual(actual=particle.type, 
-                                        desired=type_map["S1"])
-            self.assertEqual(actual=particle.q, 
-                                        desired=particle_parameters["S1"]["z"])
-            self.assertEqual(actual=particle.fix, 
-                                        desired=[True]*3)
-            self.assertEqual(actual=particle.pos, 
-                                        desired=particle_positions[pid])
+            self.assertEqual(first=particle.type, 
+                             second=type_map["S1"])
+            self.assertEqual(first=particle.q, 
+                                        second=particle_parameters["S1"]["z"])
+            self.assertListEqual(list1=list(particle.fix), 
+                                 list2=[True]*3)
+            self.assertListEqual(list1=list(particle.pos), 
+                                 list2=particle_positions[pid])
         starting_number_of_particles=len(espresso_system.part.all())
 
         for number_of_particles in [0, -1]:
@@ -149,15 +149,15 @@ class Test(ut.TestCase):
                                         number_of_particles=number_of_particles)
             self.assertEqual(len(retval), 0)
         # If no particles have been created, only two particles should be in the system (from the previous test)
-        self.assertEqual(actual=len(espresso_system.part.all()), 
-                                desired=starting_number_of_particles)
+        self.assertEqual(first=len(espresso_system.part.all()), 
+                                second=starting_number_of_particles)
         pmb.create_particle(name="S23",
                             espresso_system=espresso_system,
                             number_of_particles=1)
             
         # If no particles have been created, only two particles should be in the system (from the previous test)
-        self.assertEqual(actual=len(espresso_system.part.all()), 
-                                desired=starting_number_of_particles)
+        self.assertEqual(first=len(espresso_system.part.all()), 
+                                second=starting_number_of_particles)
 
         # Unit tests for delete particle
         starting_number_of_particles=len(espresso_system.part.all())
@@ -166,21 +166,18 @@ class Test(ut.TestCase):
         pmb.delete_instances_in_system(instance_id=0,
                                     pmb_type="particle",
                                     espresso_system=espresso_system)
-        self.assertEqual(actual=len(espresso_system.part.all()), 
-                                desired=starting_number_of_particles-1)
+        self.assertEqual(first=len(espresso_system.part.all()), 
+                                second=starting_number_of_particles-1)
         particle_df = pmb.get_instances_df(pmb_type="particle")
-        self.assertEqual(actual=len(particle_df), 
-                                desired=starting_number_of_rows-1)
+        self.assertEqual(first=len(particle_df), 
+                                second=starting_number_of_rows-1)
 
         # Delete the other particle instance to simplify the rest of the tests
         pmb.delete_instances_in_system(instance_id=1,
                                     pmb_type="particle",
                                     espresso_system=espresso_system)
         
-    def test_create_and_delete_residues(self):
-        """
-        Tests for creating and deleting residues        
-        """
+
         central_bead_position=[[0,0,0]]
         backbone_vector=np.array([1.,2.,3.])
 
@@ -198,23 +195,23 @@ class Test(ut.TestCase):
             particle_tpl = pmb.db.get_instance(pmb_type="particle",
                                             instance_id=pid)
             particle_name = particle_tpl.name
-            self.assertEqual(actual=particle.type, 
-                            desired=type_map[particle_name])
-            self.assertEqual(actual=particle.q, 
-                            desired=particle_parameters[particle_name]["z"])
+            self.assertEqual(first=particle.type, 
+                            second=type_map[particle_name])
+            self.assertEqual(first=particle.q, 
+                            second=particle_parameters[particle_name]["z"])
             # Check that the position are correct
             # Central bead
             if particle_name == "S1":
-                self.assertListEqual(actual=particle.pos, 
-                                     desired=central_bead_position[0])
+                self.assertListEqual(list1=list(particle.pos), 
+                                     list2=central_bead_position[0])
             else: # Side chains should be in positions perpendicular to the backbone vector
-                self.assertAlmostEqual(actual=np.dot(particle.pos,backbone_vector), 
-                                        desired=0, 
+                self.assertAlmostEqual(first=np.dot(particle.pos,backbone_vector), 
+                                        second=0, 
                                         places=10)
             # Check that particles have the correct residue id
             residue_id = particle_tpl.residue_id
-            self.assertEqual(actual=residue_id, 
-                            desired=0)
+            self.assertEqual(first=residue_id, 
+                            second=0)
 
         # Check that particles are correctly bonded
         # Central bead S1 (id 0) should be bonded to S2 (id 1) and S3 (id 2)
@@ -232,11 +229,11 @@ class Test(ut.TestCase):
                     partner_id  = bond[1]
                     if partner_id in bonded_pair:
                         bonded_in_espresso=True
-            self.assertEqual(actual=bonded_in_espresso, 
-                            desired=True)
+            self.assertEqual(first=bonded_in_espresso, 
+                            second=True)
 
-        self.assertEqual(actual=frozenset(bonded_pairs), 
-                        desired=frozenset([frozenset([0,1]),frozenset([0,2])]))
+        self.assertEqual(first=frozenset(bonded_pairs), 
+                        second=frozenset([frozenset([0,1]),frozenset([0,2])]))
 
         pmb.create_residue(name="R3",
                             espresso_system=espresso_system,
@@ -250,17 +247,14 @@ class Test(ut.TestCase):
             particle_tpl = pmb.db.get_instance(pmb_type="particle",
                                                 instance_id=pid)
             particle_name = particle_tpl.name
-            np.testing.assert_equal(actual=particle.type, 
-                                        desired=type_map[particle_name], 
-                                        verbose=True)
-            np.testing.assert_equal(actual=particle.q, 
-                                        desired=particle_parameters[particle_name]["z"], 
-                                        verbose=True)
+            self.assertEqual(first=particle.type, 
+                             second=type_map[particle_name])
+            self.assertEqual(first=particle.q, 
+                             second=particle_parameters[particle_name]["z"])
             # Check that particles have the correct residue id
             residue_id = particle_tpl.residue_id
-            np.testing.assert_equal(actual=residue_id, 
-                                        desired=1, 
-                                        verbose=True)
+            self.assertEqual(first=residue_id, 
+                             second=1)
 
         # Check that particles are correctly bonded, new bonds are:
         # Central bead S2 (id 3) should be bonded to R2 central bead S1 (id 4)
@@ -281,10 +275,10 @@ class Test(ut.TestCase):
                     if partner_id in bonded_pair:
                         bonded_in_espresso=True
                         
-            self.assertEqual(actual=bonded_in_espresso, 
-                            desired=True)
-        self.assertEqual(actual=frozenset(bonded_pairs), 
-                        desired=frozenset([frozenset([0,1]),
+            self.assertEqual(first=bonded_in_espresso, 
+                            second=True)
+        self.assertEqual(first=frozenset(bonded_pairs), 
+                        second=frozenset([frozenset([0,1]),
                                             frozenset([0,2]),
                                             frozenset([3,4]),
                                             frozenset([4,5]),
@@ -294,8 +288,8 @@ class Test(ut.TestCase):
                             espresso_system=espresso_system,
                             use_default_bond=True)
         # If no particles have been created, the number of particles should be the same as before
-        self.assertEqual(actual=len(espresso_system.part.all()), 
-                        desired=starting_number_of_particles)
+        self.assertEqual(first=len(espresso_system.part.all()), 
+                        second=starting_number_of_particles)
 
         # Tests for delete_residue
         # This should delete 3 particles (residue 0 is a R2 residue)
@@ -303,22 +297,18 @@ class Test(ut.TestCase):
         pmb.delete_instances_in_system(instance_id=0,
                                     pmb_type="residue",
                                     espresso_system=espresso_system)
-        self.assertEqual(actual=len(espresso_system.part.all()), 
-                         desired=starting_number_of_particles-3)
+        self.assertEqual(first=len(espresso_system.part.all()), 
+                         second=starting_number_of_particles-3)
         # There should be only one residue instance now in the pyMBE database
-        self.assertEqual(actual=len(pmb.get_instances_df(pmb_type="residue")), 
-                                desired=1)
+        self.assertEqual(first=len(pmb.get_instances_df(pmb_type="residue")), 
+                                second=1)
         # And there should be only 4 particles (central bead + 2 side chains + central bead of R3)
-        self.assertEqual(actual=len(pmb.get_instances_df(pmb_type="particle")), 
-                                desired=4)
+        self.assertEqual(first=len(pmb.get_instances_df(pmb_type="particle")), 
+                                second=4)
         # Delete the other residue instance to simplify the rest of the tests
         pmb.delete_instances_in_system(instance_id=1,
                                     pmb_type="residue",
                                     espresso_system=espresso_system)
-    def test_create_and_delete_molecules(self):
-        """
-        Tests for creating and deleting molecules        
-        """
         
         backbone_vector = np.array([1,3,-4])
         magnitude = np.linalg.norm(backbone_vector)
@@ -344,18 +334,18 @@ class Test(ut.TestCase):
             particle_tpl = pmb.db.get_instance(pmb_type="particle",
                                                 instance_id=pid)
             particle_name = particle_tpl.name
-            self.assertEqual(actual=particle.type, 
-                            desired=type_map[particle_name])
-            self.assertEqual(actual=particle.q, 
-                            desired=particle_parameters[particle_name]["z"])
+            self.assertEqual(first=particle.type, 
+                            second=type_map[particle_name])
+            self.assertEqual(first=particle.q, 
+                            second=particle_parameters[particle_name]["z"])
             # Check that particles have the correct residue id
             residue_id = particle_tpl.residue_id
-            self.assertEqual(actual=residue_id, 
-                            desired=residue_ids[pid])
+            self.assertEqual(first=residue_id, 
+                            second=residue_ids[pid])
             # Check that particles have the correct molecule id
             molecule_id = particle_tpl.molecule_id
-            self.assertEqual(actual=molecule_id, 
-                            desired=molecule_ids[pid])
+            self.assertEqual(first=molecule_id, 
+                            second=molecule_ids[pid])
 
         # Check that the molecule has the right residues
         residue_list=[]
@@ -363,8 +353,8 @@ class Test(ut.TestCase):
         for res_index in residue_df[residue_df['molecule_id']==0].index:
             resname = residue_df.loc[res_index,"name"]
             residue_list.append(resname)
-        self.assertEqual(actual=frozenset(residue_list), 
-                         desired=frozenset(molecule_parameters["M2"]["residue_list"]))
+        self.assertEqual(first=frozenset(residue_list), 
+                         second=frozenset(molecule_parameters["M2"]["residue_list"]))
 
         # Expected bonded pairs for the molecule
         # Molecule 0:
@@ -395,17 +385,14 @@ class Test(ut.TestCase):
             bonded_in_espresso = False
             for pid in bonded_pair:
                 for bond in espresso_system.part.by_id(pid).bonds[:]:
-                    bond_object = bond[0]
                     partner_id  = bond[1]
                     if partner_id in bonded_pair:
                         bonded_in_espresso=True
-            self.assertEqual(actual=bonded_in_espresso, 
-                            desired=True)
-        self.assertEqual(actual  = frozenset(bonded_pairs), 
-                        desired = frozenset(bonded_pairs_ref))
-
+            self.assertEqual(first=bonded_in_espresso, 
+                            second=True)
+        self.assertEqual(first  = frozenset(bonded_pairs), 
+                        second = frozenset(bonded_pairs_ref))
         central_bead_positions = []
-
         residue_map=pmb.get_particle_id_map(object_name="M2")["residue_map"]
         for res_id in residue_map.keys():
             central_bead_id = min(residue_map[res_id])
@@ -414,20 +401,14 @@ class Test(ut.TestCase):
 
         # Here one expects 3 central bead positions for residues R1, R2, and R3
         self.assertEqual(len(central_bead_positions),len(molecule_parameters["M2"]["residue_list"]))
-
         backbone_direction_1 = central_bead_positions[1] - central_bead_positions[0]
         backbone_direction_2 = central_bead_positions[2] - central_bead_positions[1]
         backbone_direction_1 /= np.linalg.norm(backbone_direction_1)
         backbone_direction_2 /= np.linalg.norm(backbone_direction_2)
-        np.testing.assert_almost_equal(
-            actual = backbone_direction_1,
-            desired = backbone_vector,
-            verbose = True)
-        np.testing.assert_almost_equal(
-            actual = backbone_direction_2,
-            desired = backbone_vector,
-            verbose = True)
-
+        np.testing.assert_almost_equal(actual=  list(backbone_direction_1),
+                                       desired= list(backbone_vector))
+        np.testing.assert_almost_equal(actual= list(backbone_direction_2),
+                                       desired= list(backbone_vector))
         starting_number_of_particles=len(espresso_system.part.all())
         pmb.create_molecule(name="M2",
                             number_of_molecules=0,
@@ -438,67 +419,64 @@ class Test(ut.TestCase):
                             espresso_system=espresso_system,
                             use_default_bond=True)
         # If no particles have been created, only two particles should be in the system (from the previous test)
-        self.assertEqual(actual=len(espresso_system.part.all()), 
-                        desired=starting_number_of_particles)
+        self.assertEqual(first=len(espresso_system.part.all()), 
+                        second=starting_number_of_particles)
         
         starting_number_of_particles=len(espresso_system.part.all())
         pmb.create_molecule(name="M23",
                             number_of_molecules=1,
                             espresso_system=espresso_system,
                             use_default_bond=True)
-        self.assertEqual(actual=len(espresso_system.part.all()), 
-                        desired=starting_number_of_particles)
-        
+        self.assertEqual(first=len(espresso_system.part.all()), 
+                        second=starting_number_of_particles)
         # Tests for delete_molecule
-        
         # create another molecule just to have two molecules in the system
         pmb.create_molecule(name="M2",
                             number_of_molecules=1,
                             espresso_system=espresso_system,
                             backbone_vector = backbone_vector,
                             use_default_bond=True)
-
         # This should delete 8 particles (molecule 0 is a M2 molecule)
-
         starting_number_of_particles=len(espresso_system.part.all())
         pmb.delete_instances_in_system(instance_id=0,
                                     pmb_type="molecule",
                                     espresso_system=espresso_system)
-        self.assertEqual(actual=len(espresso_system.part.all()), 
-                        desired=starting_number_of_particles-8)
-
+        self.assertEqual(first=len(espresso_system.part.all()), 
+                        second=starting_number_of_particles-8)
         # There should only one molecule instance now in the pyMBE database
-        self.assertEqual(actual=len(pmb.get_instances_df(pmb_type="molecule")), 
-                        desired=1)
+        self.assertEqual(first=len(pmb.get_instances_df(pmb_type="molecule")), 
+                        second=1)
         # There should be only 3 residues (from the remaining M2 molecule)
-        self.assertEqual(actual=len(pmb.get_instances_df(pmb_type="residue")), 
-                                desired=3)
+        self.assertEqual(first=len(pmb.get_instances_df(pmb_type="residue")), 
+                        second=3)
         # There should be only 8 particles (from the remaining M2 molecule)
-        self.assertEqual(actual=len(pmb.get_instances_df(pmb_type="particle")), 
-                                desired=8)
+        self.assertEqual(first=len(pmb.get_instances_df(pmb_type="particle")), 
+                        second=8)
 
     def test_get_radius_map(self):
         """
         Tests for get_radius_map        
         """
 
-        self.assertEqual(actual=len(pmb.get_radius_map()),
-                        desired=len(particle_parameters.values()))
+        self.assertEqual(first=len(pmb.get_radius_map()),
+                         second=len(particle_parameters.values()))
 
         
-        desired_radii=[]
+        second_radii=[]
         for particle in particle_parameters.values():
-            desired_radii.append((particle['sigma'].magnitude+particle['offset'].magnitude)/2)
+            second_radii.append((particle['sigma'].magnitude+particle['offset'].magnitude)/2)
 
-        actual_radii=[pmb.get_radius_map()[0],
+        first_radii=[pmb.get_radius_map()[0],
                     pmb.get_radius_map()[1],
                     pmb.get_radius_map()[2],]
 
-        self.assertEqual(actual=actual_radii,
-                        desired=desired_radii)
+        self.assertEqual(first=first_radii,
+                         second=second_radii)
 
-        self.assertEqual(actual=isinstance(pmb.get_radius_map()[0],float),
-                                desired=True)
+        self.assertEqual(first=isinstance(pmb.get_radius_map()[0],float),
+                         second=True)
+        self.assertEqual(first=pmb.get_radius_map(dimensionless=False)[0].dimensionality,
+                         second=pmb.units.nm.dimensionality)    
 
-        self.assertEqual(actual=pmb.get_radius_map(dimensionless=False)[0].dimensionality,
-                        desired=pmb.units.nm.dimensionality)    
+if __name__ == "__main__":
+    ut.main()

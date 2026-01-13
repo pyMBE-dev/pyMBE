@@ -783,6 +783,24 @@ class Manager:
         if not self._templates[pmb_type]:
             del self._templates[pmb_type]
 
+    def delete_templates(self, pmb_type):
+        """
+        Remove all templates registered in the pyMBE database for a given pyMBE type.
+
+        Args:
+            pmb_type (str):
+                Template category (e.g. ``"particle"``, ``"residue"``,
+                ``"molecule"``, ``"hydrogel"``).
+
+        Notes:
+            - This operation is irreversible.
+            - Instance data is not affected.
+            - If no templates exist for the given type, the method is a no-op.
+        """
+        if pmb_type in self._templates:
+            del self._templates[pmb_type]
+
+
     def delete_instance(self, pmb_type, instance_id, cascade=False):
         """
         Delete an instance from the pyMBE database.
@@ -900,6 +918,39 @@ class Manager:
         if not self._instances[pmb_type]:
             del self._instances[pmb_type]
 
+    def delete_instances(self, pmb_type, cascade=False):
+        """
+        Remove all instances registered for a given pyMBE type.
+
+        Args:
+            pmb_type (str):
+                Instance category (e.g. ``"particle"``, ``"residue"``,
+                ``"molecule"``, ``"protein"``, ``"hydrogel"``).
+            cascade (bool):
+                If True, dependent objects are removed according to the
+                pyMBE hierarchy rules. If False, deletion is forbidden when
+                dependencies exist.
+
+        Raises:
+            ValueError:
+                If ``cascade=False`` and at least one instance has dependencies.
+
+        Notes:
+            - Deletion order is deterministic and safe.
+            - If no instances exist for the given type, the method is a no-op.
+        """
+        if pmb_type not in self._instances:
+            return
+
+        # Copy IDs to avoid modifying dict during iteration
+        instance_ids = list(self._instances[pmb_type].keys())
+
+        for instance_id in instance_ids:
+            self.delete_instance(pmb_type=pmb_type,
+                                instance_id=instance_id,
+                                cascade=cascade)
+
+
     def get_instance(self, pmb_type, instance_id):
         """
         Retrieve a stored instance by type and instance_id.
@@ -926,6 +977,22 @@ class Manager:
         else:
             return self._instances[pmb_type][instance_id]
 
+    def get_instances(self, pmb_type):
+        """
+        Return all instances registered for a given pyMBE type.
+
+        Args:
+            pmb_type (str):
+                The pyMBE type (e.g. 'particle', 'residue', 'molecule', 'hydrogel').
+
+        Returns:
+            dict:
+                Mapping {instance_id: instance_object}.
+                Returns an empty dict if no instances exist for the given type.
+        """
+        return self._instances.get(pmb_type, {}).copy()
+
+
     def get_template(self, pmb_type, name):
         """
         Retrieve a stored template by type and name.
@@ -951,6 +1018,22 @@ class Manager:
             raise ValueError(f"Template '{name}' not found in type '{pmb_type}'.")
         else:
             return self._templates[pmb_type][name]
+
+    def get_templates(self, pmb_type):
+        """
+        Return all templates registered for a given pyMBE type.
+
+        Args:
+            pmb_type (str):
+                The pyMBE type (e.g. 'particle', 'residue', 'molecule', 'hydrogel').
+
+        Returns:
+            dict:
+                Mapping {template_name: template_instance}.
+                Returns an empty dict if no templates exist for the given type.
+        """
+        return self._templates.get(pmb_type, {}).copy()
+
 
     def get_es_types_map(self):
         """

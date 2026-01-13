@@ -69,7 +69,10 @@ def main():
                         offset=0 * units.reduced_length,
                         epsilon=0.2 * units.reduced_energy,
                         z=-1)
-
+    print(pmb.db._get_templates_df(pmb_type="particle"))
+    print("\n=== Setup LJ interactions ===")
+    pmb.setup_lj_interactions(espresso_system=espresso_system)
+    print(pmb.db._get_templates_df(pmb_type="lj"))
     pmb.define_residue(name="R1", central_bead="Z", side_chains=["X","Z"])
     pmb.define_residue(name="R2", central_bead="Z", side_chains=["X","R1"])
     
@@ -313,6 +316,7 @@ def main():
     print(db3._get_templates_df("protein"))
     print(db3._get_templates_df("hydrogel"))
     print(db3._get_templates_df("lj"))
+    exit()
     print("\nLoaded DB3 Instances DataFrame:")
     print(db3._get_instances_df("particle"))
     print(db3._get_instances_df("residue"))
