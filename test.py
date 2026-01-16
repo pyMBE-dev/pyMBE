@@ -69,10 +69,13 @@ def main():
                         offset=0 * units.reduced_length,
                         epsilon=0.2 * units.reduced_energy,
                         z=-1)
+    
     print(pmb.db._get_templates_df(pmb_type="particle"))
+    
     print("\n=== Setup LJ interactions ===")
     pmb.setup_lj_interactions(espresso_system=espresso_system)
     print(pmb.db._get_templates_df(pmb_type="lj"))
+    
     pmb.define_residue(name="R1", central_bead="Z", side_chains=["X","Z"])
     pmb.define_residue(name="R2", central_bead="Z", side_chains=["X","R1"])
     
@@ -195,17 +198,20 @@ def main():
                         espresso_system=espresso_system,
                         number_of_particles=1)
     
+
     print("\n=== Particle Instances DataFrame ===")
     print(pmb.db._get_instances_df(pmb_type="particle"))
-   
+    
     pmb.create_residue(name="R1",
                        espresso_system=espresso_system)
     pmb.create_residue(name="R2",
                        espresso_system=espresso_system)
 
     print("\n=== Residue Instances DataFrame ===")
+    print(pmb.db._get_instances_df(pmb_type="particle"))
     print(pmb.db._get_instances_df(pmb_type="residue"))
-
+    print(pmb.db._get_instances_df(pmb_type="bond"))
+    exit()
     pmb.create_molecule(name="M1",
                         number_of_molecules=2,
                         espresso_system=espresso_system)
@@ -248,7 +254,6 @@ def main():
     pmb.create_hydrogel(name="my_hydrogel",
                         espresso_system=espresso_system)
     print(pmb.db._get_instances_df(pmb_type="hydrogel"))
-
 
     # ============================================================
     # 3. DEFINE A REACTION:  HA <-> A- + H+
