@@ -20,122 +20,96 @@
 import numpy as np
 import pandas as pd
 import pyMBE
-import pyMBE.storage.df_management as df_management
+import unittest as ut
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 
-def check_acid_base_setup(input_parameters, acidity_setup):
-    """
-    Checks if pyMBE stores in the pmb.df the input parameters for acid/base particles correctly.
 
-    Args:
-        input_parameters (`dict`): dictionary with the input parameters for define_particle.
-        acidity_setup (`dict`): dictionary with the expected setup that pyMBE should do in the pmb.df for acid/base particles.
-    """
-    pmb.define_particle(**input_parameters)
-
-    # Handle pd.NA safely
-    if pd.isna(input_parameters.get("acidity", None)):  
-        input_parameters.pop("z", None)  # Use .pop with default to avoid KeyError
-
-    # Checks that the input parameters are stored properly
-    for parameter_key, expected_value in input_parameters.items():
-        actual_value = pmb.df[parameter_key].values[0]
-
-        # Use pd.isna() to compare safely, since pd.NA does not behave like regular values
-        if pd.isna(expected_value) and pd.isna(actual_value):
-            continue  # Skip this check, they are both missing (NA)
-
-        np.testing.assert_equal(actual=actual_value, desired=expected_value, verbose=True)
-
-    # Checks that the setup of the acid/base properties is done correctly
-    for state in ["state_one", "state_two"]:
-        for state_attribute in ["label", "z"]:
-            actual_value = pmb.df[state][state_attribute].values[0]
-            expected_value = acidity_setup[state][state_attribute]
-
-            if pd.isna(expected_value) and pd.isna(actual_value):
-                continue  # Skip this check if both are NA
-
-            np.testing.assert_equal(actual=actual_value, desired=expected_value, verbose=True)
-
-    # Checks that pyMBE assigns different espresso types to each state
-    np.testing.assert_raises(
-        AssertionError, 
-        np.testing.assert_equal, 
-        pmb.df["state_one"]["es_type"].values[0], 
-        pmb.df["state_two"]["es_type"].values[0]
-    )
-
-
-print("*** Particle acidity unit tests ***")
-print("*** Unit test: check that all acid/base input parameters in define_particle for an inert particle are correctly stored in pmb.df***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"I", 
+class Test(ut.TestCase):
+    def test_inert_particles_setup(self):
+        """
+        Test that an inert particle is correctly set up in the pyMBE database.
+        """
+        input_parameters={"name":"I", 
                   "acidity": pd.NA,
                   "pka": pd.NA,
-                  "z":2}
-acidity_setup={"state_one":{"label":f"{input_parameters['name']}",
-                         "z":2},
-            "state_two":{"label": pd.NA,
-                         "z": pd.NA},}
+                  "z":2,
+                  "sigma": 1.0*pmb.units.reduced_length,
+                  "epsilon": 1.0*pmb.units.reduced_energy}
+        pmb.define_particle(**input_parameters)
+        part_tpl = pmb.db.get_template(name="I", 
+                                    pmb_type="particle")
+        self.assertTrue(hasattr(part_tpl, "states"))
+        self.assertEqual(len(part_tpl.states), 1)
+        state_one = part_tpl.states["I"]
+        self.assertEqual(state_one.name, "I")
+        self.assertEqual(state_one.z, 2)
+        pmb.db.delete_template(name="I", pmb_type="particle")   
 
-check_acid_base_setup(input_parameters=input_parameters,
-                      acidity_setup=acidity_setup)
-
-print("*** Unit test passed ***")
-print("*** Unit test: check that a deprecation warning is raised if the keyword 'inert' is used for acidity ***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"I", 
-                  "acidity": "inert",
-                  "pka": pd.NA,
-                  "z":2}
-pmb.define_particle(**input_parameters)
-print("*** Unit test passed ***")
-print("*** Unit test: check that all acid/base input parameters in define_particle for an acid are correctly stored in pmb.df***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"A", 
+    def test_acidic_particles_setup(self):
+        """
+        Test that an acidic particle is correctly set up in the pyMBE database.
+        """
+        input_parameters={"name":"A", 
                   "acidity": "acidic",
-                  "pka":4}
-acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
-                         "z":0},
-            "state_two":{"label":f"{input_parameters['name']}",
-                         "z":-1},}
+                  "pka":4,
+                  "sigma": 1.0*pmb.units.reduced_length,
+                  "epsilon": 1.0*pmb.units.reduced_energy}
+        pmb.define_particle(**input_parameters)
+        part_tpl = pmb.db.get_template(name="A", 
+                                    pmb_type="particle")
+        self.assertTrue(hasattr(part_tpl, "states"))
+        self.assertEqual(len(part_tpl.states), 2)
+        state_one = part_tpl.states["AH"]
+        self.assertEqual(state_one.name, "AH")
+        self.assertEqual(state_one.z, 0)
+        state_two = part_tpl.states["A"]
+        self.assertEqual(state_two.name, "A")
+        self.assertEqual(state_two.z, -1)
+        self.assertNotEqual(state_one.es_type, state_two.es_type)
+        pmb.db.delete_template(name="A", pmb_type="particle")
 
-check_acid_base_setup(input_parameters=input_parameters,
-                      acidity_setup=acidity_setup)
-print("*** Unit test passed ***")
-print("*** Unit test: check that all acid/base input parameters in define_particle for a base are correctly stored in pmb.df***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"B", 
+    def test_basic_particles_setup(self):
+        """
+        Test that a basic particle is correctly set up in the pyMBE database.
+        """
+        input_parameters={"name":"B", 
                   "acidity": "basic",
-                  "pka":9}
-acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
-                         "z":1},
-            "state_two":{"label":f"{input_parameters['name']}",
-                         "z":0},}
+                  "pka":9,
+                  "sigma": 1.0*pmb.units.reduced_length,
+                  "epsilon": 1.0*pmb.units.reduced_energy}
+        pmb.define_particle(**input_parameters)
+        part_tpl = pmb.db.get_template(name="B", 
+                                    pmb_type="particle")
+        self.assertTrue(hasattr(part_tpl, "states"))
+        self.assertEqual(len(part_tpl.states), 2)
+        state_one = part_tpl.states["BH"]
+        self.assertEqual(state_one.name, "BH")
+        self.assertEqual(state_one.z, 1)
+        state_two = part_tpl.states["B"]
+        self.assertEqual(state_two.name, "B")
+        self.assertEqual(state_two.z, 0)
+        self.assertNotEqual(state_one.es_type, state_two.es_type)
+        pmb.db.delete_template(name="B", pmb_type="particle")
 
-check_acid_base_setup(input_parameters=input_parameters,
-                      acidity_setup=acidity_setup)
-print("*** Unit test passed ***")
+    def sanity_tests(self):
+        """
+        Unit tests to check that set_particle_acidity raises ValueErrors when expected.
+        """
+        # Check that set_particle_acidity raises a ValueError if pKa is not provided and pKa is acidic or basic
+        input_parametersA={"name":"A", 
+                        "acidity": "acidic" }
 
-print("*** Unit test: check that set_particle_acidity raises a ValueError if pKa is not provided and pKa is acidic or basic  ***")
-input_parametersA={"name":"A", 
-                   "acidity": "acidic" }
+        input_parametersB= {"name": "B",
+                        "acidity": "basic"}
+        self.assertRaises(ValueError, pmb.set_particle_acidity,**input_parametersA)
+        self.assertRaises(ValueError, pmb.set_particle_acidity, **input_parametersB)
+        # Check that set_particle_acidity raises a ValueError if a non-supported acidity is provided
+        input_parametersA={"name":"A", 
+                        "acidity": "random" }
+        self.assertRaises(ValueError, pmb.set_particle_acidity,**input_parametersA)
 
-input_parametersB= {"name": "B",
-                   "acidity": "basic"}
-np.testing.assert_raises(ValueError, pmb.set_particle_acidity,**input_parametersA)
-np.testing.assert_raises(ValueError, pmb.set_particle_acidity, **input_parametersB)
-print("*** Unit test passed ***")
-print("*** Unit test: check that set_particle_acidity raises a ValueError if a non-supported acidity is provided  ***")
-input_parametersA={"name":"A", 
-                   "acidity": "random" }
-np.testing.assert_raises(ValueError, pmb.set_particle_acidity,**input_parametersA)
-print("*** Unit test passed ***")
-print("*** All unit tests passed ***")
+if __name__ == "__main__":
+    ut.main()
+
