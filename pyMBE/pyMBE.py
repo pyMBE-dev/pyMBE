@@ -643,10 +643,10 @@ class pymbe_library():
 
     def create_counterions(self, object_name, cation_name, anion_name, espresso_system):
         """
-        Creates particles of `cation_name` and `anion_name` in `espresso_system` to counter the net charge of `pmb_object`.
+        Creates particles of `cation_name` and `anion_name` in `espresso_system` to counter the net charge of `object_name`.
         
         Args:
-            object_name(`str`): `name` of a pymbe object.
+            object_name(`str`): `name` of a pyMBE object.
             espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
             cation_name(`str`): `name` of a particle with a positive charge.
             anion_name(`str`): `name` of a particle with a negative charge.
@@ -661,8 +661,8 @@ class pymbe_library():
                                           name=cation_name)
         cation_charge = cation_tpl.states[cation_tpl.initial_state].z
         anion_tpl = self.db.get_template(pmb_type="particle",
-                                          name=cation_name)
-        anion_charge = cation_tpl.states[anion_tpl.initial_state].z
+                                          name=anion_name)
+        anion_charge = anion_tpl.states[anion_tpl.initial_state].z
         object_ids = self.get_particle_id_map(object_name=object_name)["all"]
         counterion_number={}
         object_charge={}
@@ -1637,25 +1637,30 @@ class pymbe_library():
         return bond_tpl
     
     def get_charge_number_map(self):
-        '''
-        Gets the charge number of each `espresso_type` in `pymbe.df`.
-        
+        """
+        Construct a mapping from ESPResSo particle types to their charge numbers.
+
         Returns:
-            charge_number_map(`dict`): {espresso_type: z}.
-        '''
-        if self.df.state_one['es_type'].isnull().values.any():         
-            df_state_one = self.df.state_one.dropna()     
-            df_state_two = self.df.state_two.dropna()  
-        else:    
-            df_state_one = self.df.state_one
-            if self.df.state_two['es_type'].isnull().values.any():
-                df_state_two = self.df.state_two.dropna()   
-            else:
-                df_state_two = self.df.state_two
-        state_one = pd.Series (df_state_one.z.values,index=df_state_one.es_type.values)
-        state_two = pd.Series (df_state_two.z.values,index=df_state_two.es_type.values)
-        charge_number_map  = pd.concat([state_one,state_two],axis=0).to_dict()
+            dict[int, float]:
+                Dictionary mapping ESPResSo particle types to charge numbers,
+                ``{es_type: z}``.
+
+        Notes:
+            - The mapping is built from particle *states*, not instances.
+            - If multiple templates define states with the same ``es_type``,
+            the last encountered definition will overwrite previous ones.
+            This behavior is intentional and assumes database consistency.
+            - Neutral particles (``z = 0``) are included in the map.
+        """
+        charge_number_map = {}
+        particle_templates = self.db.get_templates("particle")
+        for tpl in particle_templates.values():
+            for state in tpl.states.values():
+                if state.es_type is None:
+                    continue
+                charge_number_map[state.es_type] = state.z
         return charge_number_map
+
 
     def get_espresso_bond_instance(self, particle_name1, particle_name2, espresso_system, use_default_bond=False):
         """
