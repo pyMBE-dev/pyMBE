@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2025 pyMBE-dev team
+# Copyright (C) 2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
