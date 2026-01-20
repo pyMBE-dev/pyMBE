@@ -1,22 +1,9 @@
 
 import pyMBE
 from pyMBE.storage.manager import Manager
-from pyMBE.storage.templates.particle import ParticleTemplate, ParticleState
-from pyMBE.storage.instances.particle import ParticleInstance
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 from pyMBE.storage.pint_quantity import PintQuantity
-from pyMBE.storage.templates.residue import ResidueTemplate
-from pyMBE.storage.instances.residue import ResidueInstance
-from pyMBE.storage.templates.molecule import MoleculeTemplate
-from pyMBE.storage.instances.molecule import MoleculeInstance
-from pyMBE.storage.templates.bond import BondTemplate
-from pyMBE.storage.instances.bond import BondInstance
-from pyMBE.storage.templates.peptide import PeptideTemplate
-from pyMBE.storage.instances.peptide import PeptideInstance
-from pyMBE.storage.templates.protein import ProteinTemplate
-from pyMBE.storage.instances.protein import ProteinInstance
-from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
-from pyMBE.storage.instances.hydrogel import HydrogelInstance
+
 from pyMBE.storage.templates.lj import LJInteractionTemplate
 
 from pyMBE.lib.lattice import DiamondLattice
@@ -48,6 +35,10 @@ def main():
     
     pmb = pyMBE.pymbe_library(seed=42)
     units = pmb.units
+
+    path_to_pka=pmb.root / "parameters" / "pka_sets" / "Nozaki1967.json"
+    pmb.load_pka_set(filename=path_to_pka)
+    
     pmb.define_particle(name="Z",
                         sigma=3.5 * units.reduced_length,
                         cutoff=4 * units.reduced_length,
@@ -69,8 +60,10 @@ def main():
                         offset=0 * units.reduced_length,
                         epsilon=0.2 * units.reduced_energy,
                         z=-1)
-    
+    print(pmb.db._get_reactions_df())
     print(pmb.db._get_templates_df(pmb_type="particle"))
+    print(pmb.get_templates_df(pmb_type="particle_state"))
+    print(pmb.get_radius_map(dimensionless=False))
     
     print("\n=== Setup LJ interactions ===")
     pmb.setup_lj_interactions(espresso_system=espresso_system)

@@ -327,48 +327,37 @@ class Manager:
             return pd.DataFrame(rows)
         for tpl in self._templates[pmb_type].values():
             if pmb_type == "particle":
-                for sname, st in tpl.states.items():
-                    rows.append({
-                    "pmb_type": tpl.pmb_type,
-                    "name": tpl.name,
-                    "sigma": tpl.sigma.to_quantity(self._units),
-                    "epsilon": tpl.epsilon.to_quantity(self._units),
-                    "cutoff": tpl.cutoff.to_quantity(self._units),
-                    "offset": tpl.offset.to_quantity(self._units),
-                    "initial_state": tpl.initial_state,
-                    "state": sname,
-                    "z": st.z,
-                    "es_type": st.es_type
-                })  
+                rows.append({"pmb_type": tpl.pmb_type,
+                             "name": tpl.name,
+                             "sigma": tpl.sigma.to_quantity(self._units),
+                             "epsilon": tpl.epsilon.to_quantity(self._units),
+                             "cutoff": tpl.cutoff.to_quantity(self._units),
+                             "offset": tpl.offset.to_quantity(self._units),
+                             "initial_state": tpl.initial_state})  
             elif pmb_type == "lj":
                 shift = tpl.shift
                 if isinstance(shift, dict) and {"magnitude", "units", "dimension"}.issubset(shift.keys()):
                     shift = tpl.shift.to_quantity(self._units)
-                rows.append({
-                    "pmb_type": tpl.pmb_type,
-                    "name": tpl.name,
-                    "state1": tpl.state1,
-                    "state2": tpl.state2,
-                    "sigma": tpl.sigma.to_quantity(self._units),
-                    "epsilon": tpl.epsilon.to_quantity(self._units),
-                    "cutoff": tpl.cutoff.to_quantity(self._units),
-                    "offset": tpl.offset.to_quantity(self._units),
-                    "shift": shift
-                })
+                rows.append({"pmb_type": tpl.pmb_type,
+                             "name": tpl.name,
+                             "state1": tpl.state1,
+                             "state2": tpl.state2,
+                             "sigma": tpl.sigma.to_quantity(self._units),
+                             "epsilon": tpl.epsilon.to_quantity(self._units),
+                             "cutoff": tpl.cutoff.to_quantity(self._units),
+                             "offset": tpl.offset.to_quantity(self._units),
+                             "shift": shift})
 
             elif pmb_type == "bond":
                 parameters = {}
                 for key in tpl.parameters.keys():
                     parameters[key] = tpl.parameters[key].to_quantity(self._units)
-                rows.append({
-                    "pmb_type": tpl.pmb_type,
-                    "name": tpl.name,
-                    "bond_type": tpl.bond_type,
-                    "particle_name1": tpl.particle_name1,
-                    "particle_name2": tpl.particle_name2,
-                    "parameters": parameters,
-                })
-
+                rows.append({"pmb_type": tpl.pmb_type,
+                             "name": tpl.name,
+                             "bond_type": tpl.bond_type,
+                             "particle_name1": tpl.particle_name1,
+                             "particle_name2": tpl.particle_name2,
+                             "parameters": parameters})
             else:
                 # Generic representation for other types
                 rows.append(tpl.model_dump())
@@ -469,21 +458,12 @@ class Manager:
             iid = instance.assembly_id
         else:
             raise TypeError("Unsupported instance type")
-
         self._instances.setdefault(pmb_type, {})
-
         if iid in self._instances[pmb_type]:
             raise ValueError(f"Instance id {iid} already exists in type '{pmb_type}'")
-
         # validate template exists
         if instance.name not in self._templates.get(pmb_type, {}):
             raise ValueError(f"Template '{instance.name}' not found for type '{pmb_type}'")
-
-        # validate state for particle instances
-        if pmb_type == "particle":
-            tpl: ParticleTemplate = self._templates[pmb_type][instance.name]
-            if instance.initial_state not in tpl.states:
-                raise ValueError(f"State '{instance.initial_state}' not defined in template '{instance.name}'")
 
         self._instances[pmb_type][iid] = instance
 
@@ -535,17 +515,8 @@ class Manager:
                 raise TypeError("Unknown template type; set attribute pmb_type or use supported templates")
 
         self._templates.setdefault(pmb_type, {})
-
         if template.name in self._templates[pmb_type]:
             raise ValueError(f"Template '{template.name}' exists in '{pmb_type}'")
-
-        # particle templates must define at least one state
-        if pmb_type == "particle":
-            if not hasattr(template, "states") or len(template.states) == 0:
-                raise ValueError("ParticleTemplate must define at least one state.")
-            # ensure default_state valid if set
-            if getattr(template, "default_state", None) is not None and template.default_state not in template.states:
-                raise ValueError("default_state not in template states")
 
         self._templates[pmb_type][template.name] = template
 
@@ -1049,8 +1020,8 @@ class Manager:
             return {}          
         result = {}
         for _, tpl in self._templates["particle"].items():
-            for state_name, state in tpl.states.items():
-                result[state_name] = state.es_type
+            for state in self.get_particle_states_templates(tpl.name).values():
+                result[state.name] = state.es_type
         return result
     
     def get_particle_id_map(self, object_name):
@@ -1133,3 +1104,22 @@ class Manager:
         # Deduplicate + sort IDs
         id_list = sorted(set(id_list))
         return {"all": id_list, "molecule_map": molecule_map,  "residue_map": residue_map, "assembly_map": assembly_map,}
+    
+    def get_particle_states_templates(self, particle_name):
+        """
+        Retrieve all particle state templates associated with a given particle.
+
+        Args:
+            particle_name (str):  Name of the particle template.
+
+        Returns:
+            Dict[str, ParticleState]:
+                Dictionary mapping state names to `ParticleState` templates.
+        """
+        states = self._templates.get("particle_state", {})
+
+        particle_states = {state.name: state for state in states.values()
+                           if state.particle_name == particle_name}
+        if not particle_states:
+            raise ValueError(f"No particle states registered for particle '{particle_name}'.")
+        return particle_states

@@ -30,7 +30,7 @@ import importlib.resources
 from pyMBE.storage.manager import Manager
 from pyMBE.storage.pint_quantity import PintQuantity
 ## Templates
-from pyMBE.storage.templates.particle import ParticleTemplate, ParticleState
+from pyMBE.storage.templates.particle import ParticleTemplate, ParticleStateTemplate
 from pyMBE.storage.templates.residue import ResidueTemplate
 from pyMBE.storage.templates.molecule import MoleculeTemplate
 from pyMBE.storage.templates.peptide import PeptideTemplate
@@ -571,10 +571,14 @@ class pymbe_library():
         """ 
         cation_tpl = self.db.get_template(pmb_type="particle",
                                           name=cation_name)
-        cation_charge = cation_tpl.states[cation_tpl.initial_state].z
+        cation_state = self.db.get_template(pmb_type="particle_state",
+                                            name=cation_tpl.initial_state)
+        cation_charge = cation_state.z
         anion_tpl = self.db.get_template(pmb_type="particle",
                                           name=anion_name)
-        anion_charge = anion_tpl.states[anion_tpl.initial_state].z
+        anion_state = self.db.get_template(pmb_type="particle_state",
+                                            name=anion_tpl.initial_state)
+        anion_charge = anion_state.z
         if cation_charge <= 0:
             raise ValueError(f'ERROR cation charge must be positive, charge {cation_charge}')
         if anion_charge >= 0:
@@ -788,9 +792,9 @@ class pymbe_library():
         # Generate an arbitrary random unit vector
         if backbone_vector is None:
             backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
-                                                    radius=1, 
-                                                    n_samples=1,
-                                                    on_surface=True)[0]
+                                                                      radius=1, 
+                                                                      n_samples=1,
+                                                                      on_surface=True)[0]
         else:
             backbone_vector = np.array(backbone_vector)
         first_residue = True
@@ -817,9 +821,9 @@ class pymbe_library():
                     
                     # Add molecule_id to the residue instance and all particles associated
                     self.db._propagate_id(root_type="residue", 
-                                           root_id=residue_id,
-                                           attribute="molecule_id", 
-                                           value=molecule_id)
+                                          root_id=residue_id,
+                                          attribute="molecule_id", 
+                                          value=molecule_id)
                     particle_ids_in_residue = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                                                       attribute="residue_id",
                                                                                       value=residue_id)
@@ -844,10 +848,10 @@ class pymbe_library():
                     central_bead_pos = prev_central_bead_pos+backbone_vector*l0
                     # Create the residue
                     residue_id = self.create_residue(name=residue, 
-                                                        espresso_system=espresso_system, 
-                                                        central_bead_position=[central_bead_pos],
-                                                        use_default_bond= use_default_bond, 
-                                                        backbone_vector=backbone_vector)
+                                                     espresso_system=espresso_system, 
+                                                     central_bead_position=[central_bead_pos],
+                                                     use_default_bond= use_default_bond, 
+                                                     backbone_vector=backbone_vector)
                     # Add molecule_id to the residue instance and all particles associated
                     self.db._propagate_id(root_type="residue", 
                                           root_id=residue_id, 
@@ -878,7 +882,6 @@ class pymbe_library():
             first_residue = True
             pos_index+=1
             molecule_ids.append(molecule_id)
-            
         return molecule_id
     
     def create_particle(self, name, espresso_system, number_of_particles, position=None, fix=False):
@@ -902,10 +905,10 @@ class pymbe_library():
         
         part_tpl = self.db.get_template(pmb_type="particle",
                                         name=name)
-        initial_state = part_tpl.states[part_tpl.initial_state]
-        z = initial_state.z
-        es_type = initial_state.es_type
-        
+        part_state = self.db.get_template(pmb_type="particle_state",
+                                         name=part_tpl.initial_state)
+        z = part_state.z
+        es_type = part_state.es_type
         # Create the new particles into  ESPResSo 
         created_pid_list=[]
         for index in range(number_of_particles):
@@ -922,7 +925,7 @@ class pymbe_library():
             espresso_system.part.add(**kwargs)
             part_inst = ParticleInstance(name=name,
                                          particle_id=particle_id,
-                                         initial_state=initial_state.name)
+                                         initial_state=part_state.name)
             self.db._register_instance(part_inst)
                               
         return created_pid_list
@@ -1059,12 +1062,14 @@ class pymbe_library():
         side_chain_beads_ids = []
         for side_chain_name in side_chain_list:
             pmb_type_list = self.db._find_template_types(name=side_chain_name)
-            if len(pmb_type_list) > 1:
-                raise KeyError(f"Detected multiple templates with the same name '{side_chain_name}' in the pyMBE database, pmb_types: {pmb_type_list}. Residue creation aborted to avoid ambiguity.")  
-            elif not pmb_type_list:
-                logging.warning(f"Element in side chain with name '{name}' is not defined in the pyMBE database, nothing will be created.")
-                continue
-            pmb_type = pmb_type_list[0]
+            allowed_types = {"particle", "residue"}
+            filtered_types = allowed_types.intersection(pmb_type_list)
+            if len(filtered_types) > 1:
+                raise KeyError(f"Ambiguous template name '{side_chain_name}': found both 'particle' and 'residue' templates in the pyMBE database. Residue creation aborted.")  
+            if len(filtered_types) == 0:
+                raise KeyError(
+                    f"No 'particle' or 'residue' template found with name '{side_chain_name}'. Found templates of types: {set(pmb_type_list)}.")
+            pmb_type = next(iter(filtered_types))
             if pmb_type == 'particle':
                 lj_parameters = self.get_lj_parameters(particle_name1=central_bead_name,
                                                        particle_name2=side_chain_name)
@@ -1265,6 +1270,35 @@ class pymbe_library():
                                residue_list=residue_list)
         self.db._register_template(tpl)
 
+    def define_monoprototic_acidbase_reaction(self, particle_name, pka, acidity, metadata=None):
+        """
+        Defines an acid-base reaction for a monoprototic particle in the pyMBE database.
+
+        Args:
+            particle_name (str): Unique label that identifies the particle template. 
+            pka (float): pka-value of the acid or base.
+            acidity (str): Identifies whether if the particle is `acidic` or `basic`.
+            metadata (dict, optional): Additional information to be stored in the reaction. Defaults to None.
+        """
+        supported_acidities = ["acidic", "basic"]
+        if acidity not in supported_acidities:
+            raise ValueError(f"Unsupported acidity '{acidity}' for particle '{particle_name}'. Supported acidities are {supported_acidities}.")
+        reaction_type = "monoprotic"
+        if acidity == "basic":
+            reaction_type += "_base"
+        else:
+            reaction_type += "_acid"
+        reaction = Reaction(participants=[ReactionParticipant(particle_name=particle_name,
+                                                              state_name=f"{particle_name}H", 
+                                                              coefficient=-1),
+                                          ReactionParticipant(particle_name=particle_name,
+                                                                  state_name=f"{particle_name}",
+                                                                  coefficient=1)],
+                            reaction_type=reaction_type,
+                            pK=pka,
+                            metadata=metadata)
+        self.db._register_reaction(reaction)
+
     def define_particle(self, name,  sigma, epsilon, z=0, acidity=pd.NA, pka=pd.NA, cutoff=pd.NA, offset=pd.NA):
         """
         Defines a particle template in the pyMBE database.
@@ -1286,26 +1320,67 @@ class pymbe_library():
             - `offset` defaults to 0.
             - For more information on `sigma`, `epsilon`, `cutoff` and `offset` check `pmb.setup_lj_interactions()`.
         """ 
-        
         # If `cutoff` and `offset` are not defined, default them to the following values
         if pd.isna(cutoff):
             cutoff=self.units.Quantity(2**(1./6.), "reduced_length")
         if pd.isna(offset):
             offset=self.units.Quantity(0, "reduced_length")
-
+        
+        # Define particle states
+        if acidity is pd.NA:
+            states = [{"name": f"{name}",  "z": z}]
+            self.define_particle_states(particle_name=name, 
+                                        states=states)
+            initial_state = name
+        else:
+            self.set_monoprototic_particle_states(particle_name=name,
+                                                  acidity=acidity)
+            initial_state = f"{name}H"
+            if pka is not pd.NA:
+                self.define_monoprototic_acidbase_reaction(particle_name=name,
+                                                           acidity=acidity,
+                                                           pka=pka)
         tpl = ParticleTemplate(name=name, 
                                sigma=PintQuantity.from_quantity(q=sigma, expected_dimension="length", ureg=self.units), 
                                epsilon=PintQuantity.from_quantity(q=epsilon, expected_dimension="energy", ureg=self.units),
                                cutoff=PintQuantity.from_quantity(q=cutoff, expected_dimension="length", ureg=self.units), 
-                               offset=PintQuantity.from_quantity(q=offset, expected_dimension="length", ureg=self.units))
-                
-        # Define particle acid/base properties
-        self.set_particle_acidity(particle_template=tpl, 
-                                  acidity=acidity, 
-                                  default_charge_number=z, 
-                                  pka=pka)
-        return 
+                               offset=PintQuantity.from_quantity(q=offset, expected_dimension="length", ureg=self.units),
+                               initial_state=initial_state)
+        self.db._register_template(tpl)
     
+    def define_particle_states(self, particle_name, states):
+        """
+        Define the chemical states of an existing particle template.
+
+        Args:
+            particle_name (`str`):
+                Name of a particle template. 
+
+            states (`list` of `dict`):
+                List of dictionaries defining the particle states. Each dictionary
+                must contain:
+                - `name` (`str`): Name of the particle state (e.g. `"H"`, `"-"`,
+                `"neutral"`).
+                - `z` (`int`): Charge number of the particle in this state.
+                Example:
+                states = [{"name": "AH", "z": 0},     # protonated
+                         {"name": "A-", "z": -1}]    # deprotonated
+        Notes:
+            - Each state is assigned a unique Espresso `es_type` automatically.
+            - Chemical reactions (e.g. acid–base equilibria) are **not** created by
+            this method and must be defined separately (e.g. via
+            `set_particle_acidity()` or custom reaction definitions).
+            - Particles without explicitly defined states are assumed to have a
+            single, implicit state with their default charge.
+        """
+        for s in states:
+            state = ParticleStateTemplate(particle_name=particle_name,
+                                          name=s["name"],
+                                          z=s["z"],
+                                          es_type=self.propose_unused_type())
+            self.db._register_template(state)
+
+
     def define_peptide(self, name, sequence, model):
         """
         Defines a peptide template in the pyMBE database.
@@ -1321,9 +1396,9 @@ class pymbe_library():
         clean_sequence = self.protein_sequence_parser(sequence=sequence)    
         residue_list = self._get_residue_list_from_sequence(sequence=clean_sequence)
         tpl = PeptideTemplate(name=name,
-                              residue_list=residue_list,
-                              model=model,
-                              sequence=sequence)
+                            residue_list=residue_list,
+                            model=model,
+                            sequence=sequence)
         self.db._register_template(tpl)        
     
     def define_protein(self, name, sequence, model):
@@ -1768,21 +1843,64 @@ class pymbe_library():
         """
         return self.db.get_particle_id_map(object_name=object_name)
 
-    def get_pka_set(self):
-        '''
-        Gets the pka-values and acidities of the particles with acid/base properties in `pmb.df`
-        
+    def get_particle_pka(self, particle_name):
+        """
+        Retrieve the pKa value associated with a particle from the pyMBE database.
+
+        Args:
+            particle_name (str): Name of the particle template.
+
         Returns:
-            pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}
-        '''
-        titratables_AA_df = self.df[[('name',''),('pka',''),('acidity','')]].drop_duplicates().dropna()
+            float or None:
+                - The pKa value if the particle participates in a single acid/base reaction
+                - None if the particle is inert (no acid/base reaction)
+        """
+        acid_base_reactions = []
+        for reaction in self.db._reactions.values():
+            if reaction.reaction_type != "acid/base":
+                continue
+            for participant in reaction.participants:
+                if participant.particle_name == particle_name:
+                    acid_base_reactions.append(reaction)
+                    break
+        if len(acid_base_reactions) == 0:
+            return None
+        if len(acid_base_reactions) > 1:
+            raise ValueError(f"Multiple acid/base reactions found for particle '{particle_name}'. "
+                "Ambiguous pKa.")
+        return acid_base_reactions[0].pK
+
+    def get_pka_set(self):
+        """
+        Retrieve the pKa set for all titratable particles in the pyMBE database.
+
+        Returns:
+            dict: Dictionary of the form:
+                {"particle_name": {"pka_value": float,
+                                   "acidity": "acidic" | "basic"}}
+        Note:
+            - If a particle participates in multiple acid/base reactions, an error is raised.
+        """
         pka_set = {}
-        for index in titratables_AA_df.name.keys():
-            name = titratables_AA_df.name[index]
-            pka_value = titratables_AA_df.pka[index]
-            acidity = titratables_AA_df.acidity[index]   
-            pka_set[name] = {'pka_value':pka_value,'acidity':acidity}
-        return pka_set 
+        for reaction in self.db._reactions.values():
+            if "monoprotic" not in reaction.reaction_type:
+                continue
+            if reaction.pK is None:
+                continue
+            # Identify involved particle(s)
+            particle_names = {participant.particle_name for participant in reaction.participants}
+            particle_name = particle_names.pop()
+            if particle_name in pka_set:
+                raise ValueError(f"Multiple acid/base reactions found for particle '{particle_name}'.")
+            pka_set[particle_name] = {"pka_value": reaction.pK}
+            if reaction.reaction_type == "monoprotic_acid":
+                acidity = "acidic"
+            elif reaction.reaction_type == "monoprotic_base":
+                acidity = "basic"
+            else:
+                raise ValueError(f"Cannot infer acidity for particle '{particle_name}' from reaction type: {reaction.reaction_type}")
+            pka_set[particle_name]["acidity"] = acidity
+        return pka_set
     
     def get_radius_map(self, dimensionless=True):
         '''
@@ -1804,7 +1922,7 @@ class pymbe_library():
             radius = (tpl.sigma.to_quantity(self.units) + tpl.offset.to_quantity(self.units))/2.0
             if dimensionless:
                 radius = radius.magnitude
-            for _, state in tpl.states.items():
+            for state in self.db.get_particle_states_templates(particle_name=tpl.name).values():
                 result[state.es_type] = radius
         return result
         
@@ -1963,30 +2081,38 @@ class pymbe_library():
             
         return
     
-    def load_pka_set(self, filename, overwrite=True):
+    def load_pka_set(self, filename):
         """
-        Loads the pka_set stored in `filename` into `pmb.df`.
-        
+        Load a pKa set and attach chemical states and acid–base reactions
+        to existing particle templates.
+
         Args:
-            filename(`str`): name of the file with the pka set to be loaded. Expected format is {name:{"acidity": acidity, "pka_value":pka_value}}.
-            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to True. 
+            filename (`str`): Path to a JSON file containing the pKa set.
+                Expected format:
+                {
+                    "metadata": {...},
+                    "data": {
+                        "A": {"acidity": "acidic", "pka_value": 4.5},
+                        "B": {"acidity": "basic",  "pka_value": 9.8}
+                    }
+                }
+            
+        Notes:
+            - This method is designed for monoprotic acids and bases only.
         """
-        with open(filename, 'r') as f:
+        with open(filename, "r") as f:
             pka_data = json.load(f)
-            pka_set = pka_data["data"]
-
-        self.check_pka_set(pka_set=pka_set)
-
-        for key in pka_set:
-            acidity = pka_set[key]['acidity']
-            pka_value = pka_set[key]['pka_value']
-            self.set_particle_acidity(name=key, 
-                                      acidity=acidity, 
-                                      pka=pka_value, 
-                                      overwrite=overwrite)
-        return
-
-
+        pka_set = pka_data["data"]
+        metadata = pka_data.get("metadata", {})
+        self.check_pka_set(pka_set)
+        for particle_name, entry in pka_set.items():
+            acidity = entry["acidity"]
+            pka = entry["pka_value"]
+            self.define_monoprototic_acidbase_reaction(particle_name=particle_name,
+                                                       pka=pka,
+                                                       acidity=acidity,
+                                                       metadata=metadata)
+            
     def propose_unused_type(self):
         """
         Propose an unused ESPResSo particle type.
@@ -2253,73 +2379,42 @@ class pymbe_library():
                         list_of_particles_in_residue.append(side_chain)
         return list_of_particles_in_residue        
 
-    def set_particle_acidity(self, particle_template, acidity=pd.NA, default_charge_number=0, pka=pd.NA):
+    def set_monoprototic_particle_states(self, particle_name, acidity):
         """
-        Sets the particle acidity including the charges in each of its possible states. 
+        Sets the acidity for a monoprotonic particle template including the charges in each of its possible states. 
 
         Args:
-            name(`str`): Unique label that identifies the `particle`. 
-            acidity(`str`): Identifies whether the particle is `acidic` or `basic`, used to setup constant pH simulations. Defaults to None.
-            default_charge_number (`int`): Charge number of the particle. Defaults to 0.
-            pka(`float`, optional):  If `particle` is an acid or a base, it defines its pka-value. Defaults to pandas.NA.
-            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
-     
-        Note:
-            - For particles with  `acidity = acidic` or `acidity = basic`, `state_one` and `state_two` correspond to the protonated and 
-        deprotonated states, respectively. 
-            - For particles without an acidity `acidity = pandas.NA`, only `state_one` is defined.
-            - Each state has the following properties as sub-indexes: `label`,`charge` and `es_type`. 
+            particle_name(`str`): Unique label that identifies the particle template. 
+            acidity(`str`): Identifies whether the particle is `acidic` or `basic`.
         """
-        acidity_valid_keys = ['inert','acidic', 'basic']
+        acidity_valid_keys = ['acidic', 'basic']
         if not pd.isna(acidity):
             if acidity not in acidity_valid_keys:
-                raise ValueError(f"Acidity {acidity} provided for particle name  {particle_template.name} is not supported. Valid keys are: {acidity_valid_keys}")
-            if acidity in ['acidic', 'basic'] and pd.isna(pka):
-                raise ValueError(f"pKa not provided for particle with name {particle_template.name} with acidity {acidity}. pKa must be provided for acidic or basic particles.")   
-            if acidity == "inert":
-                acidity = pd.NA
-                logging.warning("the keyword 'inert' for acidity has been replaced by setting acidity = pd.NA. For backwards compatibility, acidity has been set to pd.NA. Support for `acidity = 'inert'` may be deprecated in future releases of pyMBE")
+                raise ValueError(f"Acidity {acidity} provided for particle name  {particle_name} is not supported. Valid keys are: {acidity_valid_keys}")
+        if acidity == "acidic":
+            states = [{"name": f"{particle_name}H", "z": 0}, 
+                      {"name": f"{particle_name}",  "z": -1}]
+            
+        elif acidity == "basic":
+            states = [{"name": f"{particle_name}H", "z": 1}, 
+                      {"name": f"{particle_name}",  "z": 0}]
+        self.define_particle_states(particle_name=particle_name, 
+                                    states=states)
 
+    def set_particle_initial_state(self, particle_name, state_name):
+        """
+        Sets the default initial state of a particle template defined in the pyMBE database.
+
+        Args:
+            particle_name(`str`): Unique label that identifies the particle template. 
+            state_name(`str`): Name of the state to be set as default initial state.
+        """
+        part_tpl = self.db.get_template(name=particle_name,
         
-        # Define the first state
-        if pka is pd.NA:
-            # Inert particle with a single state
-            z_state_one = default_charge_number
-            name_state_one = particle_template.name
-        else:
-            if acidity == "acidic":
-                z_state_one = 0
-            elif acidity == "basic":
-                z_state_one = 1
-            name_state_one = particle_template.name + "H"
+                                        pmb_type="particle")
+        part_tpl.initial_state = state_name
+        logging.info(f"Default initial state of particle {particle_name} set to {state_name}.")
 
-        particle_template.add_state(ParticleState(name=name_state_one,
-                                    z=z_state_one,
-                                    es_type=self.propose_unused_type()))
-        self.db._register_template(particle_template)
-
-        # For monoprotic acid/base particles, define the second state
-        if pka is not pd.NA:
-            if acidity == "acidic":
-                z_state_two = -1
-            elif acidity == "basic":
-                z_state_two = 0
-            name_state_two = particle_template.name
-            particle_template.add_state(ParticleState(name=name_state_two,
-                                        z=z_state_two,
-                                        es_type=self.propose_unused_type()))
-        
-            reaction = Reaction(participants=[ReactionParticipant(particle_name=particle_template.name,
-                                                                  state_name=name_state_one, 
-                                                                  coefficient=-1),
-                                              ReactionParticipant(particle_name=particle_template.name,
-                                                                  state_name=name_state_two,
-                                                                  coefficient=1)],
-                                reaction_type="acid/base",
-                                pK=pka)
-            self.db._register_reaction(reaction)
-
-    
     def set_reduced_units(self, unit_length=None, unit_charge=None, temperature=None, Kw=None):
         """
         Sets the set of reduced units used by pyMBE.units and it prints it.
@@ -2806,7 +2901,7 @@ class pymbe_library():
         # Flatten states with template context
         state_entries = []
         for tpl in particle_templates.values():
-            for state in tpl.states.values():
+            for state in self.db.get_particle_states_templates(particle_name=tpl.name).values():
                 state_entries.append((tpl, state))
 
         # Iterate over all unique state pairs
@@ -2841,20 +2936,3 @@ class pymbe_library():
                                                                                   ureg=self.units),
                                                 shift=shift)
             self.db._register_template(lj_template)
-
-    def write_pmb_df (self, filename):
-        '''
-        Writes the pyMBE dataframe into a csv file
-        
-        Args:
-            filename(`str`): Path to the csv file 
-        '''
-
-        columns_with_list_or_dict = ['residue_list','side_chains', 'parameters_of_the_potential','sequence']
-        df = self.df.copy(deep=True)
-        for column_name in columns_with_list_or_dict:
-            df[column_name] = df[column_name].apply(lambda x: json.dumps(x) if isinstance(x, (np.ndarray, tuple, list, dict)) or pd.notnull(x) else x)
-        df['bond_object'] = df['bond_object'].apply(lambda x: f'{x.__class__.__name__}({json.dumps({**x.get_params(), "bond_id": x._bond_id})})' if pd.notnull(x) else x)
-        df.fillna(pd.NA, inplace=True)
-        df.to_csv(filename)
-        return

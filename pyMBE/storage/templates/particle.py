@@ -23,7 +23,7 @@ from pydantic import Field, field_validator
 from ..base_type import PMBBaseModel
 from ..pint_quantity import PintQuantity
 
-class ParticleState(PMBBaseModel):
+class ParticleStateTemplate(PMBBaseModel):
     """
     Represents a single state of a particle in pyMBE.
 
@@ -34,10 +34,10 @@ class ParticleState(PMBBaseModel):
         es_type (float): Identifier for the state used in Espresso simulations.
     """
     pmb_type: Literal["particle_state"] = "particle_state"
+    particle_name: str
     name: str                      # e.g. "HA", "A-", "H+"
     z: int
     es_type: int                  # label in espresso
-
 
 class ParticleTemplate(PMBBaseModel):
     """
@@ -61,29 +61,7 @@ class ParticleTemplate(PMBBaseModel):
     cutoff: PintQuantity
     offset: PintQuantity
     epsilon: PintQuantity
-    states: Dict[str, ParticleState] = {}
     initial_state: Optional[str] = None
-
-    def add_state(self, state):
-        """
-        Add a new state to the particle template.
-
-        This method registers a new `ParticleState` in the template's `states` dictionary.
-        If a state with the same name already exists, a `ValueError` is raised.
-
-        Args:
-            state (ParticleState): The particle state to add.
-
-        Raises:
-            ValueError: If a state with the same name already exists in the template.
-        """
-        if state.name in self.states:
-            raise ValueError(f"State {state.name} already exists in template {self.name}")
-        self.states[state.name] = state
-
-         # Automatically assign initial state if this is the first state
-        if self.initial_state is None:
-            self.initial_state = state.name
 
     def get_lj_parameters(self, ureg):
         """

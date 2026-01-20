@@ -15,7 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
+
 
 import os
 import json
@@ -26,7 +26,7 @@ import pandas as pd
 from pint import UnitRegistry
 
 from pyMBE.storage.pint_quantity import PintQuantity
-from pyMBE.storage.templates.particle import ParticleTemplate, ParticleState
+from pyMBE.storage.templates.particle import ParticleTemplate, ParticleStateTemplate
 from pyMBE.storage.templates.residue import ResidueTemplate
 from pyMBE.storage.templates.molecule import MoleculeTemplate
 from pyMBE.storage.templates.bond import BondTemplate
@@ -163,21 +163,13 @@ def _load_database_csv(db, folder):
                 cutoff = PintQuantity.from_dict(cutoff_d) if cutoff_d is not None else None
                 offset = PintQuantity.from_dict(offset_d) if offset_d is not None else None
 
-                states: Dict[str, ParticleState] = {}
-                if isinstance(states_d, dict):
-                    for sname, sdata in states_d.items():
-                        # sdata expected to be a dict matching ParticleState fields
-                        states[sname] = ParticleState(**sdata)
-
                 tpl = ParticleTemplate(
                     name=row["name"],
                     sigma=sigma,
                     epsilon=epsilon,
                     cutoff=cutoff,
                     offset=offset,
-                    states=states,
-                    initial_state=row["initial_state"]
-                )
+                    initial_state=row["initial_state"])
                 templates[tpl.name] = tpl
 
             elif pmb_type == "residue":

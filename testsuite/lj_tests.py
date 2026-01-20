@@ -64,7 +64,9 @@ class Test(ut.TestCase):
                                     second=input_parameters[parameter_key].to("reduced_length").magnitude)
             # Clean template from the database
         pmb.db.delete_template(name="D", 
-                            pmb_type="particle")
+                               pmb_type="particle")
+        pmb.db.delete_template(name="D", 
+                               pmb_type="particle_state")
 
         input_parameters={"name":"D", 
                             "sigma":1*pmb.units.nm, 

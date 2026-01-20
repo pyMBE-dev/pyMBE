@@ -31,20 +31,20 @@ epsilon = 1 * pmb.units.reduced_energy
 # Define a set of ions
 pmb.define_particle(name="Na", 
                     z=1,
-                    sigma=sigma,
-                    epsilon=epsilon)
+                    sigma=0.3*pmb.units.nm,
+                    epsilon=1*pmb.units.Quantity(1,"reduced_energy"))
 pmb.define_particle(name="Ca", 
                     z=2,
-                    sigma=sigma,
-                    epsilon=epsilon)
+                    sigma=0.3*pmb.units.nm,
+                    epsilon=1*pmb.units.Quantity(1,"reduced_energy"))
 pmb.define_particle(name="Cl", 
                     z=-1,
-                    sigma=sigma,
-                    epsilon=epsilon)
+                    sigma=0.3*pmb.units.nm,
+                    epsilon=1*pmb.units.Quantity(1,"reduced_energy"))
 pmb.define_particle(name="SO4", 
                     z=-2,
-                    sigma=sigma,
-                    epsilon=epsilon)
+                    sigma=0.3*pmb.units.nm,
+                    epsilon=1*pmb.units.Quantity(1,"reduced_energy"))
 
 type_map=pmb.get_type_map()
 # System parameters
