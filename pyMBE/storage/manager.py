@@ -166,10 +166,6 @@ class Manager:
                 A list of instance IDs whose underlying template name matches
                 ``name``. The list is empty if no such instances exist.
 
-        Raises:
-            KeyError:
-                If ``pmb_type`` is not a recognized instance category.
-
         Examples:
             >>> db._find_instance_ids_by_name("particle", "A")
             [0, 3, 7][]
@@ -379,19 +375,15 @@ class Manager:
                 ``True`` if the instance exists in the given category,
                 ``False`` otherwise.
 
-        Raises:
-            KeyError:
-                If ``pmb_type`` is not a known instance category in the database.
-
         Examples:
             >>> db._has_instance("particle", 3)
             True
 
             >>> db._has_instance("nonexistent_type", 5)
-            KeyError
+            ValueError
         """
         if pmb_type not in self._instances:
-            raise KeyError(f"Instance type '{pmb_type}' not found in the database.")
+            raise ValueError(f"Instance type '{pmb_type}' not found in the database.")
 
         return instance_id in self._instances[pmb_type]
 
@@ -410,17 +402,9 @@ class Manager:
             bool:
                 ``True`` if a template named ``name`` exists under ``pmb_type``;
                 ``False`` otherwise.
-
-        Raises:
-            KeyError:
-                If ``pmb_type`` is not a recognized template category in the database.
-
-        Examples:
-            >>> db.has_template("particle", "A")
-            True
         """
         if pmb_type not in self._templates:
-            raise KeyError(f"Template type '{pmb_type}' not found in the database.")
+            raise ValueError(f"Template type '{pmb_type}' not found in the database.")
         template_in_db = name in self._templates.get(pmb_type, {})
         return template_in_db
 
@@ -430,9 +414,6 @@ class Manager:
 
         Args:
             instance: Any instance conforming to the pyMBE instance models.
-
-        Raises:
-            ValueError: If the id or instance model does not exist or is duplicated.
         """
         # infer pmb_type from instance class
         if isinstance(instance, ParticleInstance):
@@ -473,9 +454,6 @@ class Manager:
 
         Args:
             reaction (Reaction): Reaction object.
-
-        Raises:
-            ValueError: If reaction name already exists.
         """
         if reaction.name in self._reactions:
             raise ValueError(f"Reaction '{reaction.name}' already exists.")
@@ -489,8 +467,6 @@ class Manager:
         Args:
             template: Any template object conforming to the pyMBE template models.
 
-        Raises:
-            ValueError: If a template with the same name already exists.
         """
         pmb_type = getattr(template, "pmb_type", None)
         if pmb_type is None:
@@ -536,14 +512,6 @@ class Manager:
             value (Any):
                 New value to assign to the specified attribute.
 
-        Raises:
-            KeyError:
-                If the provided ``instance_id`` does not exist for the given
-                ``pmb_type``.
-            ValueError:
-                If attempting to modify an attribute that is not permitted
-                for the instance's PMB type.
-
         Notes:
             - Allowed updates:
                 * ``particle``: ``initial_state``, ``residue_id``, ``molecule_id``, ``assembly_id`` 
@@ -556,7 +524,7 @@ class Manager:
         """
         
         if instance_id not in self._instances[pmb_type]:
-            raise KeyError(f"Instance '{instance_id}' not found for type '{pmb_type}' in the pyMBE database.")
+            raise ValueError(f"Instance '{instance_id}' not found for type '{pmb_type}' in the pyMBE database.")
                                 
         if pmb_type == "particle":
             allowed = ["initial_state", "residue_id", "molecule_id", "assembly_id"]
@@ -597,11 +565,6 @@ class Manager:
             list[int]:
                 A flat list of all instance IDs updated (including root).
 
-        Raises:
-            KeyError:
-                If the root instance does not exist.
-            ValueError:
-                If an unsupported type or attribute is given.
         """
         updated = []
         # Map each type to its own identity attribute
@@ -676,7 +639,7 @@ class Manager:
 
         """
         if reaction_name not in self._reactions:
-            raise KeyError(f"Reaction '{reaction_name}' not found in the pyMBE database.")
+            raise ValueError(f"Reaction '{reaction_name}' not found in the pyMBE database.")
 
         rxn = self._reactions[reaction_name].add_participant(particle_name=particle_name,
                                                              state_name=state_name,
@@ -725,18 +688,12 @@ class Manager:
                 The template category.
             name (str):
                 The name of the template to delete.
-
-        Raises:
-            KeyError:
-                If the template type or name does not exist.
-            ValueError:
-                If one or more instances reference the template.
         """
         # Check template exists
         if pmb_type not in self._templates:
-            raise KeyError(f"Template type '{pmb_type}' not found.")
+            raise ValueError(f"Template type '{pmb_type}' not found.")
         if name not in self._templates[pmb_type]:
-            raise KeyError(f"Template '{name}' not found in type '{pmb_type}'.")
+            raise ValueError(f"Template '{name}' not found in type '{pmb_type}'.")
 
         # Check if any instance depends on this template
         if pmb_type in self._instances:
@@ -792,18 +749,13 @@ class Manager:
             cascade (bool):
                 If True, automatically delete dependent objects.
 
-        Raises:
-            KeyError:
-                If the instance does not exist.
-            ValueError:
-                If cascade is False but dependencies exist.
         """
 
         # ---- Basic checks ----
         if pmb_type not in self._instances:
-            raise KeyError(f"Instance type '{pmb_type}' not found.")
+            raise ValueError(f"Instance type '{pmb_type}' not found.")
         if instance_id not in self._instances[pmb_type]:
-            raise KeyError(f"Instance ID '{instance_id}' not found in '{pmb_type}'.")
+            raise ValueError(f"Instance ID '{instance_id}' not found in '{pmb_type}'.")
         inst = self._instances[pmb_type][instance_id]
         # ===============  CASCADE DELETION  =========================
         if cascade:
@@ -902,10 +854,6 @@ class Manager:
                 pyMBE hierarchy rules. If False, deletion is forbidden when
                 dependencies exist.
 
-        Raises:
-            ValueError:
-                If ``cascade=False`` and at least one instance has dependencies.
-
         Notes:
             - Deletion order is deterministic and safe.
             - If no instances exist for the given type, the method is a no-op.
@@ -929,7 +877,7 @@ class Manager:
         Looks up an instance within the internal instance registry
         (`self._instances`) using its pyMBE type (e.g., "particle", "residue",
         "bond", ...) and its unique id. If the instance does not exist,
-        a `KeyError` is raised.
+        a `ValueError` is raised.
 
         Args:
             pmb_type (str): The instance pyMBE category.
@@ -939,12 +887,9 @@ class Manager:
             InstanceType: The stored InstanceTemplate instance corresponding to the
             provided type and name.
 
-        Raises:
-            KeyError: If no template with the given type and name exists in
-            the internal registry.
         """
         if instance_id not in self._instances[pmb_type]:
-            raise KeyError(f"InstanceTemplate with id = '{instance_id}' not found in type '{pmb_type}'.")
+            raise ValueError(f"InstanceTemplate with id = '{instance_id}' not found in type '{pmb_type}'.")
         else:
             return self._instances[pmb_type][instance_id]
 
@@ -971,7 +916,7 @@ class Manager:
         Looks up a template within the internal template registry
         (`self._templates`) using its pyMBE type (e.g., "particle", "residue",
         "bond", ...) and its unique name. If the template does not exist,
-        a `KeyError` is raised.
+        a `ValueError` is raised.
 
         Args:
             pmb_type (str): The template pyMBE category.
@@ -981,9 +926,6 @@ class Manager:
             TemplateType: The stored template instance corresponding to the
             provided type and name.
 
-        Raises:
-            ValueError: If no template with the given type and name exists in
-            the internal registry.
         """
         if name not in self._templates[pmb_type]:
             raise ValueError(f"Template '{name}' not found in type '{pmb_type}'.")
@@ -1048,7 +990,7 @@ class Manager:
                         object_ids.append(inst_id)
 
         if object_type is None:
-            raise KeyError(f"No object named '{object_name}' found in database.")
+            raise ValueError(f"No object named '{object_name}' found in database.")
         # Maps to return
         id_list = []
         residue_map = {}

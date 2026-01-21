@@ -501,7 +501,7 @@ class pymbe_library():
             mean_charge=np.mean(np.array([value.magnitude for value in net_charge_molecules.values()]))*self.units.Quantity(1,'reduced_charge')
         return {"mean": mean_charge, "molecules": net_charge_molecules, "residues": net_charge_residues}
 
-    def center_molecule_in_simulation_box(self, molecule_id, espresso_system):
+    def center_molecule_in_simulation_box(self, molecule_id, espresso_system, pmb_type="molecule"):
         """
         Centers the pmb object matching `molecule_id` in the center of the simulation box in `espresso_md`.
         
@@ -509,18 +509,19 @@ class pymbe_library():
             molecule_id(`int`): Id of the molecule to be centered.
             espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
         """
-        if len(self.df.loc[self.df['molecule_id']==molecule_id].pmb_type) == 0:
-            raise ValueError("The provided molecule_id is not present in the pyMBE dataframe.")      
-        center_of_mass = self.calculate_center_of_mass_of_molecule(molecule_id=molecule_id,espresso_system=espresso_system)
+        if pmb_type not in self.db._molecule_like_types:
+            raise ValueError(f"Input pmb_type = {pmb_type} not supported, supported pyMBE types are: {self.db._molecule_like_types}.")
+        mol_inst = self.db.get_instance(instance_id=molecule_id,
+                                        pmb_type=pmb_type)
+        center_of_mass = self.calculate_center_of_mass_of_molecule(molecule_id=molecule_id,
+                                                                   espresso_system=espresso_system)
         box_center = [espresso_system.box_l[0]/2.0,
                       espresso_system.box_l[1]/2.0,
                       espresso_system.box_l[2]/2.0]
-        molecule_name = self.df.loc[(self.df['molecule_id']==molecule_id) & (self.df['pmb_type'].isin(["molecule","protein"]))].name.values[0]
-        particle_id_list = self.get_particle_id_map(object_name=molecule_name)["all"]
+        particle_id_list = self.get_particle_id_map(object_name=mol_inst.name)["all"]
         for pid in particle_id_list:
             es_pos = espresso_system.part.by_id(pid).pos
             espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
-        return 
 
     def check_dimensionality(self, variable, expected_dimensionality):
         """
@@ -885,7 +886,7 @@ class pymbe_library():
             first_residue = True
             pos_index+=1
             molecule_ids.append(molecule_id)
-        return molecule_id
+        return molecule_ids
     
     def create_particle(self, name, espresso_system, number_of_particles, position=None, fix=False):
         """

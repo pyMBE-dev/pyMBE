@@ -21,15 +21,8 @@ import pyMBE
 import numpy as np
 import pandas as pd
 import espressomd
-import logging
-import io
 import unittest as ut
 
-# Create an in-memory log stream
-log_stream = io.StringIO()
-logging.basicConfig(level=logging.INFO, 
-                    format="%(levelname)s: %(message)s",
-                    handlers=[logging.StreamHandler(log_stream)])
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
