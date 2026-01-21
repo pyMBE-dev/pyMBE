@@ -32,43 +32,42 @@ class Test(ut.TestCase):
         Test that an inert particle is correctly set up in the pyMBE database.
         """
         input_parameters={"name":"I", 
-                  "acidity": pd.NA,
-                  "pka": pd.NA,
-                  "z":2,
-                  "sigma": 1.0*pmb.units.reduced_length,
-                  "epsilon": 1.0*pmb.units.reduced_energy}
+                          "acidity": pd.NA,
+                          "pka": pd.NA,
+                          "z":2,
+                          "sigma": 1.0*pmb.units.reduced_length,
+                          "epsilon": 1.0*pmb.units.reduced_energy}
         pmb.define_particle(**input_parameters)
-        part_tpl = pmb.db.get_template(name="I", 
-                                    pmb_type="particle")
-        self.assertTrue(hasattr(part_tpl, "states"))
-        self.assertEqual(len(part_tpl.states), 1)
-        state_one = part_tpl.states["I"]
-        self.assertEqual(state_one.name, "I")
-        self.assertEqual(state_one.z, 2)
+        state_tpl = pmb.db.get_template(name="I", 
+                                    pmb_type="particle_state")
+
+        self.assertEqual(state_tpl.name, "I")
+        self.assertEqual(state_tpl.z, 2)
         pmb.db.delete_template(name="I", pmb_type="particle")   
+        pmb.db.delete_template(name="I", pmb_type="particle_state")   
 
     def test_acidic_particles_setup(self):
         """
         Test that an acidic particle is correctly set up in the pyMBE database.
         """
         input_parameters={"name":"A", 
-                  "acidity": "acidic",
-                  "pka":4,
-                  "sigma": 1.0*pmb.units.reduced_length,
-                  "epsilon": 1.0*pmb.units.reduced_energy}
+                          "acidity": "acidic",
+                          "pka":4,
+                          "sigma": 1.0*pmb.units.reduced_length,
+                          "epsilon": 1.0*pmb.units.reduced_energy}
         pmb.define_particle(**input_parameters)
-        part_tpl = pmb.db.get_template(name="A", 
-                                    pmb_type="particle")
-        self.assertTrue(hasattr(part_tpl, "states"))
-        self.assertEqual(len(part_tpl.states), 2)
-        state_one = part_tpl.states["AH"]
-        self.assertEqual(state_one.name, "AH")
-        self.assertEqual(state_one.z, 0)
-        state_two = part_tpl.states["A"]
-        self.assertEqual(state_two.name, "A")
-        self.assertEqual(state_two.z, -1)
-        self.assertNotEqual(state_one.es_type, state_two.es_type)
+        protonated_state = pmb.db.get_template(name="AH", 
+                                    pmb_type="particle_state")
+        deprotonated_state = pmb.db.get_template(name="A", 
+                                    pmb_type="particle_state")
+        self.assertEqual(protonated_state.name, "AH")
+        self.assertEqual(protonated_state.z, 0)
+        self.assertEqual(deprotonated_state.name, "A")
+        self.assertEqual(deprotonated_state.z, -1)
+        self.assertNotEqual(protonated_state.es_type, deprotonated_state.es_type)
         pmb.db.delete_template(name="A", pmb_type="particle")
+        pmb.db.delete_template(name="AH", pmb_type="particle_state")
+        pmb.db.delete_template(name="A", pmb_type="particle_state")
 
     def test_basic_particles_setup(self):
         """
@@ -80,35 +79,30 @@ class Test(ut.TestCase):
                   "sigma": 1.0*pmb.units.reduced_length,
                   "epsilon": 1.0*pmb.units.reduced_energy}
         pmb.define_particle(**input_parameters)
-        part_tpl = pmb.db.get_template(name="B", 
-                                    pmb_type="particle")
-        self.assertTrue(hasattr(part_tpl, "states"))
-        self.assertEqual(len(part_tpl.states), 2)
-        state_one = part_tpl.states["BH"]
-        self.assertEqual(state_one.name, "BH")
-        self.assertEqual(state_one.z, 1)
-        state_two = part_tpl.states["B"]
-        self.assertEqual(state_two.name, "B")
-        self.assertEqual(state_two.z, 0)
-        self.assertNotEqual(state_one.es_type, state_two.es_type)
+
+        protonated_state = pmb.db.get_template(name="BH", 
+                                    pmb_type="particle_state")
+        deprotonated_state = pmb.db.get_template(name="B", 
+                                    pmb_type="particle_state")
+
+        self.assertEqual(protonated_state.name, "BH")
+        self.assertEqual(protonated_state.z, 1)
+        self.assertEqual(deprotonated_state.name, "B")
+        self.assertEqual(deprotonated_state.z, 0)
+        self.assertNotEqual(protonated_state.es_type, deprotonated_state.es_type)
         pmb.db.delete_template(name="B", pmb_type="particle")
+        pmb.db.delete_template(name="BH", pmb_type="particle_state")
+        pmb.db.delete_template(name="B", pmb_type="particle_state")
 
-    def sanity_tests(self):
+    def test_sanity_acidity(self):
         """
-        Unit tests to check that set_particle_acidity raises ValueErrors when expected.
+        Unit tests to check that define_monoprototic_acidbase_reaction raises ValueErrors when expected.
         """
-        # Check that set_particle_acidity raises a ValueError if pKa is not provided and pKa is acidic or basic
-        input_parametersA={"name":"A", 
-                        "acidity": "acidic" }
-
-        input_parametersB= {"name": "B",
-                        "acidity": "basic"}
-        self.assertRaises(ValueError, pmb.set_particle_acidity,**input_parametersA)
-        self.assertRaises(ValueError, pmb.set_particle_acidity, **input_parametersB)
-        # Check that set_particle_acidity raises a ValueError if a non-supported acidity is provided
-        input_parametersA={"name":"A", 
-                        "acidity": "random" }
-        self.assertRaises(ValueError, pmb.set_particle_acidity,**input_parametersA)
+        # Check that define_monoprototic_acidbase_reaction raises a ValueError if a non-supported acidity is provided
+        input_parametersA={"particle_name":"A", 
+                           "acidity": "random",
+                           "pka":4,}
+        self.assertRaises(ValueError, pmb.define_monoprototic_acidbase_reaction,**input_parametersA)
 
 if __name__ == "__main__":
     ut.main()

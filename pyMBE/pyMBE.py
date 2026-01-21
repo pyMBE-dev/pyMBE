@@ -663,10 +663,14 @@ class pymbe_library():
         """ 
         cation_tpl = self.db.get_template(pmb_type="particle",
                                           name=cation_name)
-        cation_charge = cation_tpl.states[cation_tpl.initial_state].z
+        cation_state = self.db.get_template(pmb_type="particle_state",
+                                            name=cation_tpl.initial_state)
+        cation_charge = cation_state.z
         anion_tpl = self.db.get_template(pmb_type="particle",
                                           name=anion_name)
-        anion_charge = anion_tpl.states[anion_tpl.initial_state].z
+        anion_state = self.db.get_template(pmb_type="particle_state",
+                                            name=anion_tpl.initial_state)
+        anion_charge = anion_state.z
         object_ids = self.get_particle_id_map(object_name=object_name)["all"]
         counterion_number={}
         object_charge={}
@@ -781,14 +785,13 @@ class pymbe_library():
                 raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
         # Sanity tests, this function should work for both molecules and peptides
         registered_pmb_types_with_name = self.db._find_template_types(name=name)
-        if len(registered_pmb_types_with_name) > 1: 
-            raise KeyError(f"Detected multiple templates with the same name '{name}' in the pyMBE database, pmb_types: {registered_pmb_types_with_name}. Molecule creation aborted to avoid ambiguity.")  
-        elif len(registered_pmb_types_with_name) == 0:
-            logging.warning(f"No template with name '{name}'  defined in the pyMBE database, nothing will be created.")   
-            return
-        pmb_type = registered_pmb_types_with_name[0]
-        if pmb_type not in supported_pmb_types:
-            raise KeyError(f"Unsupported template type {pmb_type} for template {name}. Supported template types are {supported_pmb_types}")
+        allowed_types = {"molecule", "peptide"}
+        filtered_types = allowed_types.intersection(registered_pmb_types_with_name)
+        if len(filtered_types) > 1:
+            raise ValueError(f"Ambiguous template name '{name}': found both 'molecule' and 'peptide' templates in the pyMBE database. Molecule creation aborted.")  
+        if len(filtered_types) == 0:
+            raise ValueError(f"No 'molecule' or 'peptide' template found with name '{name}'. Found templates of types: {filtered_types}.")
+        pmb_type = next(iter(filtered_types))
         # Generate an arbitrary random unit vector
         if backbone_vector is None:
             backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
@@ -1730,7 +1733,7 @@ class pymbe_library():
         charge_number_map = {}
         particle_templates = self.db.get_templates("particle")
         for tpl in particle_templates.values():
-            for state in tpl.states.values():
+            for state in self.db.get_particle_states_templates(particle_name=tpl.name).values():
                 if state.es_type is None:
                     continue
                 charge_number_map[state.es_type] = state.z

@@ -421,14 +421,13 @@ class Test(ut.TestCase):
         # If no particles have been created, only two particles should be in the system (from the previous test)
         self.assertEqual(first=len(espresso_system.part.all()), 
                         second=starting_number_of_particles)
+        # Check that providing the wrong molecule name raises a ValueError
+        self.assertRaises(ValueError, pmb.create_molecule,
+                        name="M3",
+                        number_of_molecules=1,
+                        espresso_system=espresso_system,
+                        use_default_bond=True)
         
-        starting_number_of_particles=len(espresso_system.part.all())
-        pmb.create_molecule(name="M23",
-                            number_of_molecules=1,
-                            espresso_system=espresso_system,
-                            use_default_bond=True)
-        self.assertEqual(first=len(espresso_system.part.all()), 
-                        second=starting_number_of_particles)
         # Tests for delete_molecule
         # create another molecule just to have two molecules in the system
         pmb.create_molecule(name="M2",

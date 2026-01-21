@@ -1005,7 +1005,6 @@ class Manager:
         """
         return self._templates.get(pmb_type, {}).copy()
 
-
     def get_es_types_map(self):
         """
         Iterates over all particle templates and extracts the ESPResSo type (`es_type`)
@@ -1016,12 +1015,11 @@ class Manager:
                 A dictionary mapping each particle state to its corresponding ESPResSo type.
 
         """
-        if "particle" not in self._templates:
+        if "particle_state" not in self._templates:
             return {}          
         result = {}
-        for _, tpl in self._templates["particle"].items():
-            for state in self.get_particle_states_templates(tpl.name).values():
-                result[state.name] = state.es_type
+        for _, tpl in self._templates["particle_state"].items():
+            result[tpl.name] = tpl.es_type
         return result
     
     def get_particle_id_map(self, object_name):
