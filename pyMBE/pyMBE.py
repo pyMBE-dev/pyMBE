@@ -1329,7 +1329,6 @@ class pymbe_library():
             cutoff=self.units.Quantity(2**(1./6.), "reduced_length")
         if pd.isna(offset):
             offset=self.units.Quantity(0, "reduced_length")
-        
         # Define particle states
         if acidity is pd.NA:
             states = [{"name": f"{name}",  "z": z}]
@@ -1383,7 +1382,6 @@ class pymbe_library():
                                           z=s["z"],
                                           es_type=self.propose_unused_type())
             self.db._register_template(state)
-
 
     def define_peptide(self, name, sequence, model):
         """
@@ -2007,83 +2005,6 @@ class pymbe_library():
         if format == 'csv':
             io._load_database_csv(self.db, 
                                 folder=folder)
-            
-
-    def load_interaction_parameters(self, filename, overwrite=False):
-        """
-        Loads the interaction parameters stored in `filename` into `pmb.df`
-        
-        Args:
-            filename(`str`): name of the file to be read
-            overwrite(`bool`, optional): Switch to enable overwriting of already existing values in pmb.df. Defaults to False. 
-        """
-        without_units = ['z','es_type']
-        with_units = ['sigma','epsilon','offset','cutoff']
-
-        with open(filename, 'r') as f:
-            interaction_data = json.load(f)
-            interaction_parameter_set = interaction_data["data"]
-
-        for key in interaction_parameter_set:
-            param_dict=interaction_parameter_set[key]
-            object_type=param_dict.pop('object_type')
-            if object_type == 'particle':
-                not_required_attributes={}    
-                for not_required_key in without_units+with_units:
-                    if not_required_key in param_dict.keys():
-                        if not_required_key in with_units:
-                            not_required_attributes[not_required_key] = _DFm._create_variable_with_units(variable=param_dict.pop(not_required_key), 
-                                                                                                         units_registry=self.units)
-                        elif not_required_key in without_units:
-                            not_required_attributes[not_required_key]=param_dict.pop(not_required_key)
-                    else:
-                        not_required_attributes[not_required_key]=pd.NA
-                self.define_particle(name=param_dict.pop('name'),
-                                z=not_required_attributes.pop('z'),
-                                sigma=not_required_attributes.pop('sigma'),
-                                offset=not_required_attributes.pop('offset'),
-                                cutoff=not_required_attributes.pop('cutoff'),
-                                epsilon=not_required_attributes.pop('epsilon'),
-                                overwrite=overwrite)
-            elif object_type == 'residue':
-                self.define_residue(**param_dict)
-            elif object_type == 'molecule':
-                self.define_molecule(**param_dict)
-            elif object_type == 'peptide':
-                self.define_peptide(**param_dict)
-            elif object_type == 'bond':
-                particle_pairs = param_dict.pop('particle_pairs')
-                bond_parameters = param_dict.pop('bond_parameters')
-                bond_type = param_dict.pop('bond_type')
-                if bond_type == 'harmonic':
-                    k =  _DFm._create_variable_with_units(variable=bond_parameters.pop('k'), 
-                                                          units_registry=self.units)
-                    r_0 = _DFm._create_variable_with_units(variable=bond_parameters.pop('r_0'), 
-                                                          units_registry=self.units)
-                    bond = {'r_0'    : r_0,
-                            'k'      : k,
-                            }
-
-                elif bond_type == 'FENE':
-                    k = _DFm._create_variable_with_units(variable=bond_parameters.pop('k'), 
-                                                         units_registry=self.units)
-                    r_0 = _DFm._create_variable_with_units(variable=bond_parameters.pop('r_0'), 
-                                                           units_registry=self.units)
-                    d_r_max = _DFm._create_variable_with_units(variable=bond_parameters.pop('d_r_max'), 
-                                                               units_registry=self.units)
-                    bond =  {'r_0'    : r_0,
-                             'k'      : k,
-                             'd_r_max': d_r_max,
-                             }
-                else:
-                    raise ValueError("Current implementation of pyMBE only supports harmonic and FENE bonds")
-                self.define_bond(bond_type=bond_type, 
-                                bond_parameters=bond, 
-                                particle_pairs=particle_pairs)
-            else:
-                raise ValueError(object_type+' is not a known pmb object type')
-            
-        return
     
     def load_pka_set(self, filename):
         """

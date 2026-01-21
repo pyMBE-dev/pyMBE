@@ -154,12 +154,23 @@ def define_protein_AA_particles(topology_dict, pmb, lj_setup_mode="wca"):
 
 def define_protein_AA_residues(topology_dict, model, pmb):
     """
-    Define residue templates in the pyMBE database for a peptide or protein sequence.
+    Define residue templates in the pyMBE database for a protein topology dict.
 
     Args:
-        sequence (list of str):
-            Ordered amino-acid sequence of the peptide or protein. Each element must
-            be a residue identifier compatible with the selected model.
+        topology_dict (dict):
+                Dictionary defining the internal structure of the protein.
+                Expected format:
+                    {
+                        "ResidueName1": {
+                            "initial_pos": np.ndarray,
+                            "chain_id": int,
+                            "radius": float
+                        },
+                        "ResidueName2": { ... },
+                        ...
+                    }
+                The `"initial_pos"` entry is required and represents the residue’s
+                reference coordinates before shifting to the protein's center-of-mass.
 
         model (str):
             Coarse-grained representation to use. Supported options:
@@ -178,12 +189,6 @@ def define_protein_AA_residues(topology_dict, model, pmb):
                 * All other residues use `"CA"` (central bead) plus one side-chain bead named after the amino acid.
 
         - Residue names are constructed as `"AA-<residue>"`, e.g., `"AA-A"`, `"AA-L"`.
-
-    Returns:
-        None
-            The function operates by side effect, populating the pyMBE residue
-            template database.
-
     """
 
     residue_list = []
@@ -207,6 +212,52 @@ def define_protein_AA_residues(topology_dict, model, pmb):
                                 central_bead = central_bead,
                                 side_chains = side_chains)              
             residue_list.append(residue_name)
+
+def define_peptide_AA_residues(sequence,model, pmb):
+    """
+    Define residue templates in the pyMBE database for a protein topology dict.
+
+    Args:
+        sequence (list of str):
+            Ordered amino-acid sequence of the peptide or protein. Each element must
+            be a residue identifier compatible with the selected model.
+
+        model (str):
+            Coarse-grained representation to use. Supported options:
+                - `"1beadAA"`
+                - `"2beadAA"`
+
+        pmb (pyMBE.pymbe_library):
+            Instance of the pyMBE library.
+
+    Notes:
+        - Supported models:
+            - `"1beadAA"`: Each amino acid is represented by a single bead.  
+                The central bead is the amino-acid name itself, and no side chains are used.
+            - `"2beadAA"`: Each amino acid is represented by two beads, except for terminal or special residues:
+                * `"c"`, `"n"`, and `"G"` (glycine) are treated as single-bead residues.
+                * All other residues use `"CA"` (central bead) plus one side-chain bead named after the amino acid.
+
+        - Residue names are constructed as `"AA-<residue>"`, e.g., `"AA-A"`, `"AA-L"`.
+    """
+    defined_residues = []
+    for residue_name in sequence:
+        if model == '1beadAA':
+            central_bead = residue_name
+            side_chains = []
+        elif model == '2beadAA':
+            if residue_name in ['c','n', 'G']: 
+                central_bead = residue_name
+                side_chains = []
+            else:
+                central_bead = 'CA'              
+                side_chains = [residue_name]
+        residue_name='AA-'+residue_name
+        if residue_name not in defined_residues:   
+            pmb.define_residue(name = residue_name, 
+                                central_bead = central_bead,
+                                side_chains = side_chains)              
+            defined_residues.append(residue_name)
 
 def get_residues_from_topology_dict(topology_dict, model):
     if model == "1beadAA":

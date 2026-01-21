@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -19,71 +19,65 @@
 import numpy as np 
 import espressomd
 import pyMBE
-import logging
-import io
+from pyMBE.lib import handy_functions as hf
+import unittest as ut
 
-# Create an in-memory log stream
-log_stream = io.StringIO()
-logging.basicConfig(level=logging.INFO, 
-                    format="%(levelname)s: %(message)s",
-                    handlers=[logging.StreamHandler(log_stream)])
 espresso_system = espressomd.System(box_l = [100]*3)
 
 def build_peptide_in_espresso(seed):
     pmb = pyMBE.pymbe_library(seed=seed)
-
-    # Simulation parameters
-    pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
-
     # Peptide parameters
     sequence = 'EEEEEEE'
     model = '2beadAA'  # Model with 2 beads per each aminoacid
-
     # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
-    path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021.json"
+    path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021"
     path_to_pka=pmb.root / "parameters" / "pka_sets" / "CRC1991.json"
-    pmb.load_interaction_parameters(filename=path_to_interactions) 
+    pmb.load_database(folder=path_to_interactions) 
     pmb.load_pka_set(path_to_pka)
-
+    pka_set = pmb.get_pka_set()
+    for particle_name in pka_set.keys():
+        pmb.set_monoprototic_particle_states(acidity=pka_set[particle_name]["acidity"],
+                                             particle_name=particle_name)
+    # define residues
+    hf.define_peptide_AA_residues(sequence=sequence,
+                                  model=model, 
+                                  pmb=pmb)
     # Defines the peptide in the pyMBE data frame
     peptide_name = 'generic_peptide'
     pmb.define_peptide(name=peptide_name, 
                        sequence=sequence, 
                        model=model)
-
     # Bond parameters
     generic_bond_length=0.4 * pmb.units.nm
     generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
-
     HARMONIC_parameters = {'r_0'    : generic_bond_length,
                            'k'      : generic_harmonic_constant}
-
     pmb.define_default_bond(bond_type = 'harmonic',
                             bond_parameters = HARMONIC_parameters)
-
-    # Add all bonds to espresso system
-    pmb.add_bonds_to_espresso(espresso_system=espresso_system)
-
     # Create molecule in the espresso system
     pmb.create_molecule(name=peptide_name, 
                         number_of_molecules=1, 
                         espresso_system=espresso_system, 
                         use_default_bond=True)
-
     # Extract positions of particles in the peptide
+    particle_id_list = pmb.get_particle_id_map("generic_peptide")["all"]
     positions = []
-    molecule_id = pmb.df.loc[pmb.df['name']==peptide_name].molecule_id.values[0]
-    particle_id_list = pmb.df.loc[pmb.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
     for pid in particle_id_list:
         positions.append(espresso_system.part.by_id(pid).pos)
-
+    pmb.delete_instances_in_system(espresso_system=espresso_system,
+                                   instance_id=0,
+                                   pmb_type="peptide")
     return np.asarray(positions)
 
+class Test(ut.TestCase):
+    def test_deterministic_build_pyMBE(self):
+        """
+        Check that the using the same seed results in the same initial particle positions
+        """
+        positions1 = build_peptide_in_espresso(42)
+        positions2 = build_peptide_in_espresso(42)
+        np.testing.assert_equal(positions1, 
+                                positions2)
 
-print("*** Check that the using the same seed results in the same initial particle positions***")
-positions1 = build_peptide_in_espresso(42)
-positions2 = build_peptide_in_espresso(42)
-
-np.testing.assert_almost_equal(positions1, positions2)
-
-print("*** Test passed ***")
+if __name__ == "__main__":
+    ut.main()

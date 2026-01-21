@@ -1,0 +1,7 @@
+pmb_type,name,particle_name,z,es_type
+particle_state,S,S,0,0
+particle_state,A,A,0,1
+particle_state,K,K,0,2
+particle_state,G,G,0,3
+particle_state,F,F,0,4
+
