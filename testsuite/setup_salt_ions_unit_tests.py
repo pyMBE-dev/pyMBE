@@ -322,7 +322,7 @@ class Test(ut.TestCase):
                 "cation_name":"Na",
                 "anion_name":"Cl",
                 "espresso_system":espresso_system}
-        self.assertRaises(KeyError,
+        self.assertRaises(ValueError,
                           pmb.create_counterions,
                           **inputs)
         inputs = {"object_name":'isoelectric_polyampholyte',
