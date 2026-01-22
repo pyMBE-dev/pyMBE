@@ -326,8 +326,7 @@ def _load_database_csv(db, folder):
                           pK=float(row["pK"]) if (row.get("pK") not in (None, "", "nan")) else None,
                           reaction_type=row.get("reaction_type", None),
                           metadata=metadata)
-            reactions[rx.name] = rx
-    db._reactions = reactions
+            db._reactions[rx.name] = rx
 
     # Metadata
     json_file = folder / "metadata.json"

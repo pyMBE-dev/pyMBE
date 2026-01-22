@@ -674,68 +674,6 @@ class Manager:
                 return 0
             used_ids = list(self._instances[pmb_type].keys())
         return max(used_ids) + 1
-
-    def delete_template(self, pmb_type, name):
-        """
-        Delete a template from the pyMBE database.
-
-        This method removes a template identified by its pyMBE type and name.
-        Before deletion, it checks whether any instance in the database uses
-        this template. If any instance depends on it, a ``ValueError`` is raised
-        to prevent breaking database integrity.
-
-        Args:
-            pmb_type (str):
-                The template category.
-            name (str):
-                The name of the template to delete.
-        """
-        # Check template exists
-        if pmb_type not in self._templates:
-            raise ValueError(f"Template type '{pmb_type}' not found.")
-        if name not in self._templates[pmb_type]:
-            raise ValueError(f"Template '{name}' not found in type '{pmb_type}'.")
-
-        # Check if any instance depends on this template
-        if pmb_type in self._instances:
-            for inst in self._instances[pmb_type].values():
-                if getattr(inst, "name", None) == name:
-                    raise ValueError(
-                        f"Cannot delete template '{name}' from '{pmb_type}': "
-                        f"Instance with ID {getattr(inst, pmb_type + '_id')} depends on it."
-                    )
-
-        # Delete
-        del self._templates[pmb_type][name]
-        # if it is a bond template delete also stored espresso bond instances
-        if pmb_type == "bond":
-            if name in self.espresso_bond_instances.keys():
-                del self.espresso_bond_instances[name]
-
-        # Delete empty groups
-        if not self._templates[pmb_type]:
-            del self._templates[pmb_type]
-
-    def delete_templates(self, pmb_type):
-        """
-        Remove all templates registered in the pyMBE database for a given pyMBE type.
-
-        Args:
-            pmb_type (str):
-                Template category (e.g. ``"particle"``, ``"residue"``,
-                ``"molecule"``, ``"hydrogel"``).
-
-        Notes:
-            - This operation is irreversible.
-            - Instance data is not affected.
-            - If no templates exist for the given type, the method is a no-op.
-        """
-        if pmb_type in self._templates:
-            templates = list(self._templates[pmb_type].keys())
-            for template in templates:
-                self.delete_template(pmb_type=pmb_type,
-                                     name=template)
-
     def delete_instance(self, pmb_type, instance_id, cascade=False):
         """
         Delete an instance from the pyMBE database.
@@ -876,6 +814,77 @@ class Manager:
                                 instance_id=instance_id,
                                 cascade=cascade)
 
+    def delete_reaction(self, reaction_name):
+        """
+        Delete a reaction template from the pyMBE database.
+
+        Args:
+            reaction_name (str): label identifying the reaction template in the database.
+        """
+        if reaction_name not in self._reactions:
+            raise ValueError(f"Reaction '{reaction_name}' not found in the pyMBE database.")
+        del self._reactions[reaction_name]
+
+    def delete_reactions(self):
+        """
+        Deletes all reaction templates from the pyMBE database.
+        """
+        keys = list(self._reactions.keys())
+        for key in keys:
+            self.delete_reaction(reaction_name=key)
+
+    def delete_template(self, pmb_type, name):
+        """
+        Delete a template from the pyMBE database.
+
+        Args:
+            pmb_type (str): The template category.
+            name (str): The name of the template to delete.
+        """
+        # Check template exists
+        if pmb_type not in self._templates:
+            raise ValueError(f"Template type '{pmb_type}' not found.")
+        if name not in self._templates[pmb_type]:
+            raise ValueError(f"Template '{name}' not found in type '{pmb_type}'.")
+
+        # Check if any instance depends on this template
+        if pmb_type in self._instances:
+            for inst in self._instances[pmb_type].values():
+                if getattr(inst, "name", None) == name:
+                    raise ValueError(f"Cannot delete template '{name}' from '{pmb_type}': Instance with ID {getattr(inst, pmb_type + '_id')} depends on it.")
+
+        # Delete
+        del self._templates[pmb_type][name]
+        # if it is a bond template delete also stored espresso bond instances
+        if pmb_type == "bond":
+            if name in self.espresso_bond_instances.keys():
+                del self.espresso_bond_instances[name]
+
+        # Delete empty groups
+        if not self._templates[pmb_type]:
+            del self._templates[pmb_type]
+
+    def delete_templates(self, pmb_type):
+        """
+        Remove all templates registered in the pyMBE database for a given pyMBE type.
+
+        Args:
+            pmb_type (str):
+                Template category (e.g. ``"particle"``, ``"residue"``,
+                ``"molecule"``, ``"hydrogel"``).
+
+        Notes:
+            - This operation is irreversible.
+            - Instance data is not affected.
+            - If no templates exist for the given type, the method is a no-op.
+        """
+        if pmb_type in self._templates:
+            templates = list(self._templates[pmb_type].keys())
+            for template in templates:
+                self.delete_template(pmb_type=pmb_type,
+                                     name=template)
+
+    
 
     def get_instance(self, pmb_type, instance_id):
         """

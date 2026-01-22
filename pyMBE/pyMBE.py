@@ -1949,7 +1949,16 @@ class pymbe_library():
             for state in self.db.get_particle_states_templates(particle_name=tpl.name).values():
                 result[state.es_type] = radius
         return result
-        
+
+    def get_reactions_df(self):
+        """
+        Returns a dataframe with all reaction templates ` in the pyMBE database.
+
+        Returns:
+            (Pandas.Dataframe): Dataframe with all  reaction templates.
+        """
+        return self.db._get_reactions_df()
+
     def get_reduced_units(self):
         """
         Returns the  current set of reduced units defined in pyMBE.
@@ -1974,10 +1983,10 @@ class pymbe_library():
         Returns a dataframe with all templates of type `pmb_type` in the pyMBE database.
 
         Args:
-            pmb_type(`str`): pmb type to search templates in the pyMBE database.
+            pmb_type(str): pmb type to search templates in the pyMBE database.
         
         Returns:
-            templates_df(`Pandas.Dataframe`): Dataframe with all templates of type `pmb_type`.
+            (Pandas.Dataframe): Dataframe with all templates of type `pmb_type`.
         """
         return self.db._get_templates_df(pmb_type=pmb_type)
 

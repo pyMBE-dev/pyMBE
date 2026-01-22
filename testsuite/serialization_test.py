@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -16,32 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import json
 import unittest as ut
 import numpy as np
-import pandas as pd
 import pyMBE
 import pyMBE.lib.analysis
 import scipy.constants
-import pyMBE.storage.df_management as df_management
 
 class Serialization(ut.TestCase):
-
-    def test_json_encoder(self):
-        encoder = df_management._DFManagement._NumpyEncoder
-        # Python types
-        self.assertEqual(json.dumps(1, cls=encoder), "1")
-        self.assertEqual(json.dumps([1, 2], cls=encoder), "[1, 2]")
-        self.assertEqual(json.dumps((1, 2), cls=encoder), "[1, 2]")
-        self.assertEqual(json.dumps({1: 2}, cls=encoder), """{"1": 2}""")
-        # NumPy types
-        self.assertEqual(json.dumps(np.array([1, 2]), cls=encoder), "[1, 2]")
-        self.assertEqual(json.dumps(np.array(1), cls=encoder), "1")
-        self.assertEqual(json.dumps(np.int32(1), cls=encoder), "1")
-        # Pandas types
-        with self.assertRaisesRegex(TypeError, "Object of type Series is not JSON serializable"):
-            json.dumps(pd.Series([1, 2]), cls=encoder)
-
+   
     def test_parameters_to_path(self):
         params = {"kT": 2., "phi": -np.pi, "n": 3, "fene": True, "name": "pep"}
         name = pyMBE.lib.analysis.built_output_name(params)
@@ -68,7 +50,6 @@ class Serialization(ut.TestCase):
         self.assertAlmostEqual((pmb.kT / pmb.kB).magnitude, 298.15, delta=1e-7)
         self.assertAlmostEqual((pmb.kT / scipy.constants.k).magnitude, 298.15,
                                delta=1e-7)
-
 
 if __name__ == "__main__":
     ut.main()

@@ -49,32 +49,26 @@ class Test(ut.TestCase):
         """
         Check that get_charge_number_map works correctly for inert particles
         """
-        self.assertEqual(actual=charge_map[type_map["I"]],
-                        desired=5,
-                        verbose=True)
+        self.assertEqual(charge_map[type_map["I"]],
+                        5)
 
     def test_acidic_particle(self):
         """
         Check that get_charge_number_map works correctly for acidic particles
         """
-        self.assertEqual(actual=charge_map[type_map["AH"]],
-                        desired=0,
-                        verbose=True)
-        self.assertEqual(actual=charge_map[type_map["A"]],
-                        desired=-1,
-                        verbose=True)
+        self.assertEqual(charge_map[type_map["AH"]],
+                         0)
+        self.assertEqual(charge_map[type_map["A"]],
+                         -1)
 
     def test_basic_particle(self):
         """
         Check that get_charge_number_map works correctly for basic particles
         """
-        self.assertEqual(actual=charge_map[type_map["BH"]],
-                        desired=1,
-                        verbose=True)
-        self.assertEqual(actual=charge_map[type_map["B"]],
-                        desired=0,
-                        verbose=True)
-
+        self.assertEqual(charge_map[type_map["BH"]],
+                         1)
+        self.assertEqual(charge_map[type_map["B"]],
+                         0)
 
 if __name__ == '__main__':
     ut.main()
