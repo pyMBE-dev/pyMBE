@@ -88,6 +88,7 @@ class Manager:
                                      "protein"]
         self._assembly_like_types = ["hydrogel"]
         self._pmb_types =  ["particle", "residue"] + self._molecule_like_types + self._assembly_like_types
+        self.espresso_bond_instances= {}
 
     def _delete_bonds_of_particle(self, pid):
         """
@@ -706,6 +707,10 @@ class Manager:
 
         # Delete
         del self._templates[pmb_type][name]
+        # if it is a bond template delete also stored espresso bond instances
+        if pmb_type == "bond":
+            if name in self.espresso_bond_instances.keys():
+                del self.espresso_bond_instances[name]
 
         # Delete empty groups
         if not self._templates[pmb_type]:
@@ -726,8 +731,10 @@ class Manager:
             - If no templates exist for the given type, the method is a no-op.
         """
         if pmb_type in self._templates:
-            del self._templates[pmb_type]
-
+            templates = list(self._templates[pmb_type].keys())
+            for template in templates:
+                self.delete_template(pmb_type=pmb_type,
+                                     name=template)
 
     def delete_instance(self, pmb_type, instance_id, cascade=False):
         """

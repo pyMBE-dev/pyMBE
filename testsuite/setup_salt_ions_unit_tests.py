@@ -16,7 +16,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import numpy as np
 import espressomd
 from pyMBE.lib.handy_functions import get_number_of_particles
 import unittest as ut

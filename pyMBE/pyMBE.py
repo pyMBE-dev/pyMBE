@@ -107,8 +107,27 @@ class pymbe_library():
         self.db = Manager(units=self.units)
         self.lattice_builder = None
         self.root = importlib.resources.files(__package__)
-        self._bond_instances={}   
+           
 
+    def _check_bond_inputs(self, bond_type, bond_parameters):
+        """
+        Checks that the input bond parameters are valid within the current pyMBE implementation.
+
+        Args:
+            bond_type(`str`): label to identify the potential to model the bond.
+            bond_parameters(`dict`): parameters of the potential of the bond.
+
+
+        """
+        valid_bond_types   = ["harmonic", "FENE"] 
+        if bond_type not in valid_bond_types:
+            raise NotImplementedError(f"Bond type '{bond_type}' currently not implemented in pyMBE, accepted types are {valid_bond_types}")
+        required_parameters = {"harmonic": ["r_0","k"],
+                                "FENE": ["r_0","k","d_r_max"]}
+        for required_parameter in required_parameters[bond_type]:
+            if required_parameter not in bond_parameters.keys():
+                raise ValueError(f"Missing required parameter {required_parameter} for {bond_type} bond")
+            
     def _create_espresso_bond_instance(self, bond_type, bond_parameters):
         """
         Creates an ESPResSo bond instance.
@@ -134,14 +153,8 @@ class pymbe_library():
             (`espressomd.interactions`): instance of an ESPResSo bond object
         """
         from espressomd import interactions
-        valid_bond_types   = ["harmonic", "FENE"] 
-        if bond_type not in valid_bond_types:
-            raise NotImplementedError(f"Bond type '{bond_type}' currently not implemented in pyMBE, accepted types are {valid_bond_types}")
-        required_parameters = {"harmonic": ["r_0","k"],
-                                "FENE": ["r_0","k","d_r_max"]}
-        for required_parameter in required_parameters[bond_type]:
-            if required_parameter not in bond_parameters.keys():
-                raise ValueError(f"Missing required parameter {required_parameter} for {bond_type} bond")
+        self._check_bond_inputs(bond_parameters=bond_parameters,
+                                bond_type=bond_type)
         if bond_type == 'harmonic':
             bond_instance = interactions.HarmonicBond(k = bond_parameters["k"].m_as("reduced_energy/reduced_length**2"),
                                                       r_0 = bond_parameters["r_0"].m_as("reduced_length"))
@@ -215,12 +228,14 @@ class pymbe_library():
         chain_pids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                              attribute="molecule_id",
                                                              value=mol_id)
-        start_bond_instance = self.get_espresso_bond_instance(particle_name1=nodes[node_start_label]["name"],
-                                                              particle_name2=part_start_chain_name,
-                                                              espresso_system=espresso_system)    
-        end_bond_instance = self.get_espresso_bond_instance(particle_name1=nodes[node_end_label]["name"],
-                                                              particle_name2=part_end_chain_name,
-                                                              espresso_system=espresso_system)
+        bond_tpl1 = self.get_bond_template(particle_name1=nodes[node_start_label]["name"],
+                                            particle_name2=part_start_chain_name)
+        start_bond_instance = self._get_espresso_bond_instance(bond_template=bond_tpl1,
+                                                              espresso_system=espresso_system) 
+        bond_tpl2 = self.get_bond_template(particle_name1=nodes[node_end_label]["name"],
+                                           particle_name2=part_end_chain_name)   
+        end_bond_instance = self._get_espresso_bond_instance(bond_template=bond_tpl2,
+                                                             espresso_system=espresso_system)
         espresso_system.part.by_id(start_node_id).add_bond((start_bond_instance, chain_pids[0]))
         espresso_system.part.by_id(chain_pids[-1]).add_bond((end_bond_instance, end_node_id))
         return mol_id
@@ -624,24 +639,24 @@ class pymbe_library():
             particle_id2 (int): pyMBE and ESPResSo ID of the second particle.
             espresso_system (espressomd.system.System): ESPResSo system object where the bond will be created.
             use_default_bond (bool, optional): If True, use a default bond template if no specific template exists. Defaults to False.
+
+        Returns:
+            (int): bond_id of the bond instance created in the pyMBE database.
         """
         particle_inst_1 = self.db.get_instance(pmb_type="particle",
                                                instance_id=particle_id1)
         particle_inst_2 = self.db.get_instance(pmb_type="particle",
                                                instance_id=particle_id2)
-
-        bond_inst = self.get_espresso_bond_instance(particle_name1=particle_inst_1.name,
-                                                particle_name2=particle_inst_2.name,
-                                                espresso_system=espresso_system,
-                                                use_default_bond=use_default_bond)
+        bond_tpl = self.get_bond_template(particle_name1=particle_inst_1.name,
+                                          particle_name2=particle_inst_2.name,
+                                          use_default_bond=use_default_bond)
+        bond_inst = self._get_espresso_bond_instance(bond_template=bond_tpl,
+                                                    espresso_system=espresso_system,
+                                                    use_default_bond=use_default_bond)
         espresso_system.part.by_id(particle_id1).add_bond((bond_inst, particle_id2))
-        if use_default_bond:
-            bond_name = "default"
-        else:
-            bond_name = BondTemplate.make_bond_key(pn1=particle_inst_1.name, 
-                                                   pn2=particle_inst_2.name)
-        pmb_bond_instance = BondInstance(bond_id=self.db._propose_instance_id(pmb_type="bond"),
-                                         name=bond_name,
+        bond_id = self.db._propose_instance_id(pmb_type="bond")
+        pmb_bond_instance = BondInstance(bond_id=bond_id,
+                                         name=bond_tpl.name,
                                          particle_id1=particle_id1,
                                          particle_id2=particle_id2)
         self.db._register_instance(instance=pmb_bond_instance)
@@ -1169,7 +1184,8 @@ class pymbe_library():
                 - d_r_max (`pint.Quantity`): Maximal stretching length for FENE. It should have 
                 units of length using the `pmb.units` UnitRegistry. Default 'None'.
         """
-
+        self._check_bond_inputs(bond_parameters=bond_parameters,
+                                bond_type=bond_type)
         parameters_expected_dimensions={"r_0": "length",
                                         "k": "energy/length**2",
                                         "d_r_max": "length"}
@@ -1206,6 +1222,8 @@ class pymbe_library():
         Note:
             - Currently, only harmonic and FENE bonds are supported. 
         """
+        self._check_bond_inputs(bond_parameters=bond_parameters,
+                                bond_type=bond_type)
         parameters_expected_dimensions={"r_0": "length",
                                         "k": "energy/length**2",
                                         "d_r_max": "length"}
@@ -1462,6 +1480,7 @@ class pymbe_library():
         particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                                attribute=instance_identifier,
                                                                value=instance_id)
+
         self._delete_particles_from_espresso(particle_ids=particle_ids,
                                              espresso_system=espresso_system)
         
@@ -1701,16 +1720,24 @@ class pymbe_library():
             bond(`espressomd.interactions.BondedInteractions`): bond object from the espressomd library.
         
         Note:
-            - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in `pmb.df`.
+            - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in the pyMBE database.
         """
-        if use_default_bond:
-            bond_key = "default"
-        else:
-            bond_key = BondTemplate.make_bond_key(pn1=particle_name1,
+        # Try to find a specific bond template
+        bond_key = BondTemplate.make_bond_key(pn1=particle_name1,
                                               pn2=particle_name2)
-        bond_tpl = self.db.get_template(name=bond_key,
+        try:
+            return self.db.get_template(name=bond_key, 
                                         pmb_type="bond")
-        return bond_tpl
+        except ValueError:
+            pass
+
+        #  Fallback to default bond if allowed
+        if use_default_bond:
+            return self.db.get_template(name="default", 
+                                        pmb_type="bond")
+
+        # No bond template found
+        raise ValueError(f"No bond template found between '{particle_name1}' and '{particle_name2}', and default bonds are deactivated.")
     
     def get_charge_number_map(self):
         """
@@ -1738,7 +1765,7 @@ class pymbe_library():
         return charge_number_map
 
 
-    def get_espresso_bond_instance(self, particle_name1, particle_name2, espresso_system, use_default_bond=False):
+    def _get_espresso_bond_instance(self, bond_template, espresso_system, use_default_bond=False):
         """
         Retrieve or create a bond instance in an ESPResSo system for a given pair of particle names.
 
@@ -1747,8 +1774,7 @@ class pymbe_library():
         instance. Otherwise, it creates a new ESPResSo bond instance using the bond template.
 
         Args:
-            particle_name1 (str): Name of the first particle involved in the bond.
-            particle_name2 (str): Name of the second particle involved in the bond.
+            bond_template (BondTemplate): BondTemplate object from the pyMBE database.
             espresso_system: An ESPResSo system object where the bond will be added or retrieved.
             use_default_bond (bool, optional): If True, use a default bond template when no 
                 specific template exists for the particle pair. Defaults to False.
@@ -1762,16 +1788,14 @@ class pymbe_library():
         Note:
             When a new bond instance is created, it is not added to the ESPResSo system.
         """
-        bond_tpl = self.get_bond_template(particle_name1=particle_name1,
-                                          particle_name2=particle_name2,
-                                          use_default_bond=use_default_bond)        
-        if bond_tpl.name in self._bond_instances.keys():
-            bond_inst = self._bond_instances[bond_tpl.name]
+  
+        if bond_template.name in self.db.espresso_bond_instances.keys():
+            bond_inst = self.db.espresso_bond_instances[bond_template.name]
         else:   
             # Create an instance of the bond 
-            bond_inst = self._create_espresso_bond_instance(bond_type=bond_tpl.bond_type,
-                                                             bond_parameters=bond_tpl.get_parameters(self.units))
-            self._bond_instances[bond_tpl.name]= bond_inst
+            bond_inst = self._create_espresso_bond_instance(bond_type=bond_template.bond_type,
+                                                             bond_parameters=bond_template.get_parameters(self.units))
+            self.db.espresso_bond_instances[bond_template.name]= bond_inst
             espresso_system.bonded_inter.add(bond_inst)
         return bond_inst
 

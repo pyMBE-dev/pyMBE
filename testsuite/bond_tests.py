@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024-2025 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -20,11 +20,9 @@
 import pyMBE
 import numpy as np
 import unittest as ut
-import json.decoder
-import json
 import io
 import logging
-import pyMBE.storage.df_management as df_management
+import espressomd
 
 # Create an in-memory log stream
 log_stream = io.StringIO()
@@ -33,16 +31,39 @@ logging.basicConfig(level=logging.INFO,
                     handlers=[logging.StreamHandler(log_stream)] )
 
 # Create an instance of pyMBE library
+espresso_system=espressomd.System (box_l = [10]*3)
+
 pmb = pyMBE.pymbe_library(seed=42)
+pmb.define_particle(name='A', 
+            z=0, 
+            sigma=0.4*pmb.units.nm, 
+            epsilon=1*pmb.units('reduced_energy'))
+
+pmb.define_particle(name='B', 
+                    z=0, 
+                    sigma=0.4*pmb.units.nm, 
+                    epsilon=1*pmb.units('reduced_energy'))
+
+harmonic_params = {'r_0'    : 0.4 * pmb.units.nm,
+                    'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
+
+FENE_params = {'r_0'    : 0.4 * pmb.units.nm,
+             'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
+             'd_r_max': 0.8 * pmb.units.nm}
 
 class Test(ut.TestCase):
 
-    def setUp(self):
-        pmb.df = df_management._DFManagement._setup_df()
+    def get_bond_object(self, particle_id_pair):
+        """
+        Returns the bond object stored in espresso betwen a given pair of bonded particle ids.
+        """
+        for pid in particle_id_pair:
+            if espresso_system.part.by_id(pid).bonds:
+                return espresso_system.part.by_id(pid).bonds[0][0]
 
     def check_bond_setup(self, bond_object, input_parameters, bond_type):
         """
-        Checks that pyMBE sets up a bond object correctly.
+        Checks that pyMBE sets up a harmonic bond object correctly.
 
         Args:
                 bond_object(`espressomd.interactions`): instance of a espresso bond object.
@@ -59,131 +80,191 @@ class Test(ut.TestCase):
                          'd_r_max': 'reduced_length'}
         for key in input_parameters.keys():
             np.testing.assert_equal(actual=bond_params[key],
-                    desired=input_parameters[key].m_as(reduced_units[key]),
-                    verbose=True)
+                                    desired=input_parameters[key].m_as(reduced_units[key]),
+                                    verbose=True)   
+
+    def test_bond_setup(self):
+        """
+        Unit test to check the setup of bonds in pyMBE
+        """
+        #Define bond
+        # check particle bond
+        pmb.define_bond(bond_type = "harmonic",
+                        bond_parameters = harmonic_params,
+                        particle_pairs = [['A', 'A']])
+        # Create two particles
+        pids = pmb.create_particle(name="A",
+                                   espresso_system=espresso_system,
+                                   number_of_particles=2)
+
+        pmb.create_bond(particle_id1=pids[0],
+                        particle_id2=pids[1],
+                        espresso_system=espresso_system,
+                        use_default_bond=False)
         
-    def test_bond_harmonic(self):
-        pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-
-        bond_type = 'harmonic'
-        bond = {'r_0'    : 0.4 * pmb.units.nm,
-                'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
-
-        # check default bond
-        pmb.define_default_bond(bond_type = bond_type,
-                                bond_parameters = bond)
-
-        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[0]
+        bond_object = self.get_bond_object(particle_id_pair=pids)
+        
         self.check_bond_setup(bond_object=bond_object,
-                        input_parameters=bond,
-                        bond_type=bond_type)
+                              input_parameters=harmonic_params,
+                              bond_type="harmonic")
+        # Clean-up database
+        for inst_id in pids:
+            pmb.delete_instances_in_system(instance_id=inst_id,
+                                           pmb_type="particle",
+                                           espresso_system=espresso_system)
+        pid_A = pmb.create_particle(name="A",
+                                   espresso_system=espresso_system,
+                                   number_of_particles=1)
 
-        # check particle bond
-        pmb.define_bond(bond_type = bond_type,
-                        bond_parameters = bond,
+        harmonic_params_test = {'r_0'    : 0.5 * pmb.units.nm,
+                                'k'      : 500 * pmb.units('reduced_energy / reduced_length**2')}
+        pmb.define_bond(bond_type = "harmonic",
+                bond_parameters = harmonic_params_test,
+                particle_pairs = [['A', 'B']])
+        
+        pid_B = pmb.create_particle(name="B",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+        
+        # Test that the bond is properly setup when there is a default bond
+        pmb.define_default_bond(bond_type = "harmonic",
+                                bond_parameters = harmonic_params)
+
+        pmb.create_bond(particle_id1=pid_B[0],
+                        particle_id2=pid_A[0],
+                        espresso_system=espresso_system,
+                        use_default_bond=True)
+        
+        bond_object = self.get_bond_object(particle_id_pair=[pid_B[0],pid_A[0]])
+        
+        self.check_bond_setup(bond_object=bond_object,
+                              input_parameters=harmonic_params_test,
+                              bond_type="harmonic")
+        # Clean-up database
+        for inst_id in pid_B+pid_A:
+            pmb.delete_instances_in_system(instance_id=inst_id,
+                                           pmb_type="particle",
+                                           espresso_system=espresso_system)
+        pmb.db.delete_templates(pmb_type="bond")
+        
+        # Test setup of FENE bonds
+        pmb.define_bond(bond_type = "FENE",
+                        bond_parameters = FENE_params,
                         particle_pairs = [['A', 'A']])
+        # Create two particles
+        pids = pmb.create_particle(name="A",
+                                   espresso_system=espresso_system,
+                                   number_of_particles=2)
 
-        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[1]
+        pmb.create_bond(particle_id1=pids[0],
+                        particle_id2=pids[1],
+                        espresso_system=espresso_system,
+                        use_default_bond=False)
+        
+        bond_object = self.get_bond_object(particle_id_pair=pids)
+        
         self.check_bond_setup(bond_object=bond_object,
-                              input_parameters=bond,
-                              bond_type=bond_type)
+                              input_parameters=FENE_params,
+                              bond_type="FENE")
+        # Clean-up database
+        for inst_id in pids:
+            pmb.delete_instances_in_system(instance_id=inst_id,
+                                           pmb_type="particle",
+                                           espresso_system=espresso_system)
+        pid_A = pmb.create_particle(name="A",
+                                   espresso_system=espresso_system,
+                                   number_of_particles=1)
 
-        # check bond deserialization
-        bond_params =  bond_object.get_params()
-        bond_params["bond_id"] = bond_object._bond_id
-        deserialized = df_management._DFManagement._convert_str_to_bond_object(
-            f'{bond_object.__class__.__name__}({json.dumps(bond_params)})')
-        self.check_bond_setup(bond_object=deserialized,
-                              input_parameters=bond,
-                              bond_type=bond_type)
+        FENE_params_test =  {'r_0'    : 0.5 * pmb.units.nm,
+                             'k'      : 500 * pmb.units('reduced_energy / reduced_length**2'),
+                             'd_r_max': 0.5 * pmb.units.nm}
+        pmb.define_bond(bond_type = "FENE",
+                bond_parameters = FENE_params_test,
+                particle_pairs = [['A', 'B']])
+        
+        pid_B = pmb.create_particle(name="B",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+        
+        # Test that the FENE bond is properly setup when there is a default bond
+        pmb.define_default_bond(bond_type = "harmonic",
+                                bond_parameters = harmonic_params)
 
-    def test_bond_fene(self):
-        pmb.define_particle(name='A',
-                             z=0, 
-                             sigma=0.4*pmb.units.nm, 
-                             epsilon=1*pmb.units('reduced_energy'))
-
-        bond_type = 'FENE'
-        bond = {'r_0'    : 0.4 * pmb.units.nm,
-                'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
-                'd_r_max': 0.8 * pmb.units.nm}
-
-        # check default bond
-        pmb.define_default_bond(bond_type = bond_type,
-                                bond_parameters = bond)
-
-        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[0]
+        pmb.create_bond(particle_id1=pid_B[0],
+                        particle_id2=pid_A[0],
+                        espresso_system=espresso_system,
+                        use_default_bond=True)
+        
+        bond_object = self.get_bond_object(particle_id_pair=[pid_B[0],pid_A[0]])
+        
         self.check_bond_setup(bond_object=bond_object,
-                              input_parameters=bond,
-                              bond_type=bond_type)
+                              input_parameters=FENE_params_test,
+                              bond_type="FENE")
+        # Clean-up database
+        for inst_id in pid_B+pid_A:
+            pmb.delete_instances_in_system(instance_id=inst_id,
+                                           pmb_type="particle",
+                                           espresso_system=espresso_system)
+        
+        pmb.db.delete_templates(pmb_type="bond")
+        
+        # Test setup of the default bond
+        pmb.define_default_bond(bond_type = "harmonic",
+                                bond_parameters = harmonic_params)
 
-        # check particle bond
-        pmb.define_bond(bond_type = bond_type,
-                        bond_parameters = bond,
-                        particle_pairs = [['A', 'A']])
+        pids = pmb.create_particle(name="A",
+                                   espresso_system=espresso_system,
+                                   number_of_particles=2)
 
-        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[1]
+        pmb.create_bond(particle_id1=pids[0],
+                        particle_id2=pids[1],
+                        espresso_system=espresso_system,
+                        use_default_bond=True)
+        
+        bond_object = self.get_bond_object(particle_id_pair=pids)
+        
         self.check_bond_setup(bond_object=bond_object,
-                              input_parameters=bond,
-                              bond_type=bond_type)
+                              input_parameters=harmonic_params,
+                              bond_type="harmonic")
+        # Clean-up database
+        for inst_id in pids:
+            pmb.delete_instances_in_system(instance_id=inst_id,
+                                           pmb_type="particle",
+                                           espresso_system=espresso_system)
+        pmb.db.delete_templates(pmb_type="bond")
+        
+        # Test setup of default bond when there are other bonds defined
+        pid_A = pmb.create_particle(name="A",
+                                   espresso_system=espresso_system,
+                                   number_of_particles=1)
+        pid_B = pmb.create_particle(name="B",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
 
-        # check bond deserialization
-        bond_params =  bond_object.get_params()
-        bond_params["bond_id"] = bond_object._bond_id
-        deserialized = df_management._DFManagement._convert_str_to_bond_object(
-            f'{bond_object.__class__.__name__}({json.dumps(bond_params)})')
-        self.check_bond_setup(bond_object=deserialized,
-                              input_parameters=bond,
-                              bond_type=bond_type)
+        pmb.define_default_bond(bond_type = "FENE",
+                                bond_parameters = FENE_params_test)
+        pmb.define_bond(bond_type = "harmonic",
+                        bond_parameters = harmonic_params_test,
+                        particle_pairs = [['A', 'A'], ['B','B']])
 
-        # check bond default equilibrium length
-        bond_type = 'FENE'
-        bond = {'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
-                'd_r_max': 0.8 * pmb.units.nm}
-
-        pmb.define_bond(bond_type = bond_type,
-                            bond_parameters = bond,
-                            particle_pairs = [['A', 'A']])
-        log_contents = log_stream.getvalue()
-        self.assertIn("no value provided for r_0. Defaulting to r_0 = 0", log_contents)  
-        bond['r_0'] = 0. * pmb.units.nm
-        bond_object = pmb.filter_df(pmb_type='bond')['bond_object'].values[2]
+        pmb.create_bond(particle_id1=pid_B[0],
+                        particle_id2=pid_A[0],
+                        espresso_system=espresso_system,
+                        use_default_bond=True)
+        
+        bond_object = self.get_bond_object(particle_id_pair=[pid_B[0],pid_A[0]])
+        
         self.check_bond_setup(bond_object=bond_object,
-                              input_parameters=bond,
-                              bond_type=bond_type)
-
-    def test_bond_harmonic_and_fene(self):
-        pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-        pmb.define_particle(name='B', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-
-        bond_type_1 = 'harmonic'
-        bond_1 = {'r_0'    : 0.4 * pmb.units.nm,
-                  'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
-        pmb.define_bond(bond_type = bond_type_1,
-                        bond_parameters = bond_1,
-                        particle_pairs = [['A', 'A']])
-
-        bond_type_2 = 'FENE'
-        bond_2 = {'r_0'    : 0.4 * pmb.units.nm,
-                  'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
-                  'd_r_max': 0.8 * pmb.units.nm}
-
-        pmb.define_bond(bond_type = bond_type_2,
-                        bond_parameters = bond_2,
-                        particle_pairs = [['B', 'B']])
-
-        bond_object_1 = pmb.filter_df(pmb_type='bond')['bond_object'][2]
-        bond_object_2 = pmb.filter_df(pmb_type='bond')['bond_object'][3]
-
-        self.check_bond_setup(bond_object=bond_object_1,
-                              input_parameters=bond_1,
-                              bond_type=bond_type_1)
-        self.check_bond_setup(bond_object=bond_object_2,
-                              input_parameters=bond_2,
-                              bond_type=bond_type_2)
+                              input_parameters=FENE_params_test,
+                              bond_type="FENE")
+        # Clean-up database
+        for inst_id in pid_B+pid_A:
+            pmb.delete_instances_in_system(instance_id=inst_id,
+                                           pmb_type="particle",
+                                           espresso_system=espresso_system)
+        pmb.db.delete_templates(pmb_type="bond")
 
     def test_bond_raised_exceptions(self):
-        pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
         for callback in [pmb.define_bond, pmb.define_default_bond]:
             with self.subTest(msg=f'using method {callback.__qualname__}()'):
                 self.check_bond_exceptions(callback)
@@ -241,91 +322,6 @@ class Test(ut.TestCase):
             input_parameters["particle_pairs"] = [['A', 'A']]
 
         np.testing.assert_raises(ValueError, callback, **input_parameters)
-
-    def test_bond_framework(self):
-        pmb.define_particle(name='A', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-        pmb.define_particle(name='B', z=0, sigma=0.4*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-
-        pmb.add_bonds_to_espresso(None)
-        log_contents = log_stream.getvalue()
-        assert "there are no bonds defined in pymbe.df" in log_contents
-
-        bond_type_1 = 'harmonic'
-        bond_1 = {'r_0'    : 0.4 * pmb.units.nm,
-                  'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
-        pmb.define_bond(bond_type = bond_type_1,
-                        bond_parameters = bond_1,
-                        particle_pairs = [['A', 'A']])
-
-        bond_type_2 = 'FENE'
-        bond_2 = {'r_0'    : 0.4 * pmb.units.nm,
-                  'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
-                  'd_r_max': 0.8 * pmb.units.nm}
-
-        pmb.define_bond(bond_type = bond_type_2,
-                        bond_parameters = bond_2,
-                        particle_pairs = [['B', 'B']])
-
-        bond_object_1 = pmb.filter_df(pmb_type='bond')['bond_object'][2]
-        bond_object_2 = pmb.filter_df(pmb_type='bond')['bond_object'][3]
-
-        self.check_bond_setup(bond_object=bond_object_1,
-                              input_parameters=bond_1,
-                              bond_type=bond_type_1)
-        self.check_bond_setup(bond_object=bond_object_2,
-                              input_parameters=bond_2,
-                              bond_type=bond_type_2)
-
-        # check deserialization exceptions
-        with self.assertRaises(ValueError):
-            df_management._DFManagement._convert_str_to_bond_object('Not_A_Bond()')
-        with self.assertRaises(json.decoder.JSONDecodeError):
-            df_management._DFManagement._convert_str_to_bond_object('HarmonicBond({invalid_json})')
-        with self.assertRaises(NotImplementedError):
-            df_management._DFManagement._convert_str_to_bond_object('QuarticBond({"r_0": 1., "k": 1.})')
-
-        # check bond keys
-        self.assertEqual(df_management._DFManagement._find_bond_key(df = pmb.df, particle_name1 = 'A', particle_name2 = 'A'), 'A-A')
-        self.assertEqual(df_management._DFManagement._find_bond_key(df = pmb.df, particle_name1 = 'B', particle_name2 = 'B'), 'B-B')
-        self.assertEqual(df_management._DFManagement._find_bond_key(df = pmb.df, particle_name1 = 'A', particle_name2 = 'A', use_default_bond=True), 'A-A')
-        self.assertEqual(df_management._DFManagement._find_bond_key(df = pmb.df, particle_name1 = 'Z', particle_name2 = 'Z', use_default_bond=True), 'default')
-        self.assertIsNone(df_management._DFManagement._find_bond_key(df = pmb.df, particle_name1 = 'A', particle_name2 = 'B'))
-        self.assertIsNone(df_management._DFManagement._find_bond_key(df = pmb.df, particle_name1 = 'B', particle_name2 = 'A'))
-        self.assertIsNone(df_management._DFManagement._find_bond_key(df = pmb.df, particle_name1 = 'Z', particle_name2 = 'Z'))
-        self.assertEqual(df_management._DFManagement._find_bond_key(df = pmb.df, particle_name1 = 'A', particle_name2 = 'B', use_default_bond=True), 'default')
-
-        self.assertIsNone(pmb.search_bond('A', 'B', hard_check=False))
-        log_contents = log_stream.getvalue()
-        self.assertIn("Bond not defined between particles A and B", log_contents)
-        
-        with self.assertRaises(ValueError):
-            pmb.search_bond('A', 'B', use_default_bond=True)
-
-        with self.assertRaises(ValueError):
-            pmb.search_bond('A', 'B' , hard_check=True)
-
-        # check invalid bond index
-        df_management._DFManagement._add_value_to_df(df = pmb.df,
-                                                     key = ('particle_id',''), 
-                                                     new_value = 10,
-                                                     index = np.where(pmb.df['name']=='A')[0][0])
-        df_management._DFManagement._add_value_to_df(df = pmb.df,
-                                                     key = ('particle_id',''), 
-                                                     new_value = 20,
-                                                     index = np.where(pmb.df['name']=='B')[0][0])
-        self.assertIsNone(df_management._DFManagement._add_bond_in_df(pmb.df, 10, 20, use_default_bond=False))
-        self.assertIsNone(df_management._DFManagement._add_bond_in_df(pmb.df, 10, 20, use_default_bond=True))
-
-        # check bond lengths
-        self.assertAlmostEqual(pmb.get_bond_length('A', 'A'),
-                               bond_object_1.r_0, delta=1e-7)
-        self.assertAlmostEqual(pmb.get_bond_length('B', 'B'),
-                               bond_object_2.r_0, delta=1e-7)
-        self.assertIsNone(pmb.get_bond_length('A', 'B'))
-        log_contents = log_stream.getvalue()
-        self.assertIn("Bond not defined between particles A and B", log_contents)
-        with self.assertRaises(ValueError):
-            pmb.get_bond_length('A', 'B', hard_check=True)
 
 
 if __name__ == '__main__':
