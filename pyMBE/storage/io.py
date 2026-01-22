@@ -21,9 +21,8 @@ import os
 import json
 from pathlib import Path
 from typing import Any, Dict
-
 import pandas as pd
-from pint import UnitRegistry
+import logging
 
 from pyMBE.storage.pint_quantity import PintQuantity
 from pyMBE.storage.templates.particle import ParticleTemplate, ParticleStateTemplate
@@ -119,8 +118,8 @@ def _load_database_csv(db, folder):
         db (Manager): Database manager object to populate.
         folder (str or Path): Path to the folder containing CSV files.
 
-    Raises:
-        FileNotFoundError: If the folder does not exist.
+    Return:
+        (dict): metadata with additional information about the source of the information in the database.
 
     Notes:
         - PintQuantity objects are reconstructed from their dictionary representation.
@@ -329,6 +328,21 @@ def _load_database_csv(db, folder):
                           metadata=metadata)
             reactions[rx.name] = rx
     db._reactions = reactions
+
+    # Metadata
+    json_file = folder / "metadata.json"
+    if json_file.exists():
+        try:
+            with open(json_file, "r", encoding="utf-8") as fh:
+                metadata = json.load(fh)
+            if not isinstance(metadata, dict):
+                raise ValueError("metadata.json must contain a JSON object")
+        except Exception as err:
+            logging.warning(f"Failed to read metadata file '{json_file}': {err}. Metadata will be ignored.")
+            metadata = {}
+    else:
+        metadata = {}
+    return metadata
 
 def _load_reaction_set(path):
     """
