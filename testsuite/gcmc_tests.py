@@ -25,13 +25,12 @@ import pyMBE
 from pyMBE.lib import analysis
 import numpy as np
 
+import unittest as ut
+
+
 # Template of the test
 
 def gcmc_test(script_path, mode):
-    if mode == "ideal":
-        print("*** Running test for GCMC of salt solution (ideal). ***")
-    elif mode == "interacting":
-        print("*** Running test for GCMC of salt solution (interacting). ***")
     with tempfile.TemporaryDirectory() as time_series_path:
         for c_salt_res in salt_concentrations:
             print(f"c_salt_res = {c_salt_res}")
@@ -42,12 +41,10 @@ def gcmc_test(script_path, mode):
         data=analysis.analyze_time_series(path_to_datafolder=time_series_path,
                                           filename_extension="_time_series.csv")
 
-    print(data["csalt","value"])
     # Check concentration
     test_concentration=np.sort(data["csalt","value"].to_numpy(dtype=float))
     ref_concentration=np.sort(data["mean","c_salt"].to_numpy())
     np.testing.assert_allclose(test_concentration, ref_concentration, rtol=rtol, atol=atol)
-    print("*** Test was successful ***")
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -58,8 +55,18 @@ salt_concentrations=[0.0001, 0.001, 0.01, 0.1]
 rtol=0.05 # relative tolerance
 atol=0.0 # absolute tolerance
 
-# Ideal test
-gcmc_test(script_path, "ideal")
+class Test(ut.TestCase):
+    def test_gcmc_ideal(self):
+        """
+        Functional test to test the GCMC implementation in pyMBE for an ideal system.
+        """
+        gcmc_test(script_path, "ideal")
 
-# Interacting test
-gcmc_test(script_path, "interacting")
+    def test_gcmc_interacting(self):
+        """
+        Functional test to test the GCMC implementation in pyMBE for an interacting system.
+        """
+        gcmc_test(script_path, "interacting")
+
+if __name__ == "__main__":
+    ut.main()
