@@ -469,7 +469,7 @@ class pymbe_library():
 
         return {"charges_dict": Z_HH_Donnan, "pH_system_list": pH_system_list, "partition_coefficients": partition_coefficients_list}
 
-    def calculate_net_charge(self, espresso_system, molecule_name, dimensionless=False):
+    def calculate_net_charge(self, espresso_system, molecule_name, pmb_type, dimensionless=False):
         '''
         Calculates the net charge per molecule of molecules with `name` = molecule_name. 
         Returns the net charge per molecule and a maps with the net charge per residue and molecule.
@@ -485,10 +485,9 @@ class pymbe_library():
         Note:
             - The net charge of the molecule is averaged over all molecules of type `name` 
             - The net charge of each particle type is averaged over all particle of the same type in all molecules of type `name`
-        '''        
-        self._check_supported_molecule(molecule_name=molecule_name,
-                                        valid_pmb_types=["molecule","protein","peptide"])
-
+        '''
+        if pmb_type not in self.db._molecule_like_types:
+            raise ValueError(f"{pmb_type} are not supported. Current supported types are: {self.db._molecule_like_types}")        
         id_map = self.get_particle_id_map(object_name=molecule_name)
         def create_charge_map(espresso_system,id_map,label):
             charge_number_map={}

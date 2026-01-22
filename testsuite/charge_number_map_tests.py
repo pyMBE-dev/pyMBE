@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -19,64 +19,62 @@
 # Import pyMBE and other libraries
 import pyMBE
 import numpy as np
-import pyMBE.storage.df_management as df_management
+import unittest as ut
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
+pmb.define_particle(name="I", 
+                    pka = np.nan,
+                    sigma = 1* pmb.units.nm,
+                    epsilon= 1 *pmb.units.reduced_energy,
+                    z =5)
 
-def check_charge_number_map(input_parameters):
-    """
-    Checks if pyMBE stores in the pmb.df the input parameters for acid/base particles correctly.
+pmb.define_particle(name = "A", 
+                    acidity = "acidic",
+                    sigma = 1* pmb.units.nm,
+                    epsilon = 1 *pmb.units.reduced_energy,
+                    pka =4)
 
-    Args:
-        input_parameters(`dict`): dictionary with the input parameters for define_particle.
+pmb.define_particle(name ="B", 
+                    acidity = "basic",
+                    sigma = 1* pmb.units.nm,
+                    epsilon = 1 *pmb.units.reduced_energy,
+                    pka =   4)
 
-    """
-    pmb.define_particle(**input_parameters)
+charge_map = pmb.get_charge_number_map()
+type_map = pmb.get_type_map()
 
-    if input_parameters["acidity"] == "inert":
-        np.testing.assert_equal(actual=pmb.get_charge_number_map(),
-                                desired={0: input_parameters["z"]},
-                                verbose=True)
-    elif input_parameters["acidity"] == "acidic":
-        np.testing.assert_equal(actual=pmb.get_charge_number_map(),
-                                desired={0: 0, 1: -1},
-                                verbose=True)
-    elif input_parameters["acidity"] == "basic":
-        np.testing.assert_equal(actual=pmb.get_charge_number_map(),
-                                desired={0: 1, 1: 0},
-                                verbose=True)
+class Test(ut.TestCase):
+    def test_inert_particle(self):
+        """
+        Check that get_charge_number_map works correctly for inert particles
+        """
+        self.assertEqual(actual=charge_map[type_map["I"]],
+                        desired=5,
+                        verbose=True)
 
-print("*** get_charge_number_map unit tests ***")
-print("*** Unit test: check that get_charge_number_map works correctly for inert particles***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"I", 
-                  "acidity": "inert",
-                  "pka": np.nan,
-                  "z":5}
+    def test_acidic_particle(self):
+        """
+        Check that get_charge_number_map works correctly for acidic particles
+        """
+        self.assertEqual(actual=charge_map[type_map["AH"]],
+                        desired=0,
+                        verbose=True)
+        self.assertEqual(actual=charge_map[type_map["A"]],
+                        desired=-1,
+                        verbose=True)
 
-check_charge_number_map(input_parameters)
+    def test_basic_particle(self):
+        """
+        Check that get_charge_number_map works correctly for basic particles
+        """
+        self.assertEqual(actual=charge_map[type_map["BH"]],
+                        desired=1,
+                        verbose=True)
+        self.assertEqual(actual=charge_map[type_map["B"]],
+                        desired=0,
+                        verbose=True)
 
-print("*** Unit test passed ***")
-print("*** Unit test: check that get_charge_number_map works correctly for acidic particles***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"A", 
-                  "acidity": "acidic",
-                  "pka":4}
 
-check_charge_number_map(input_parameters)
-
-print("*** Unit test passed ***")
-print("*** Unit test: check that get_charge_number_map works correctly for basic particles***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"B", 
-                  "acidity": "basic",
-                  "pka":4}
-
-check_charge_number_map(input_parameters)
-
-print("*** Unit test passed ***")
-print("*** All unit tests passed ***")
+if __name__ == '__main__':
+    ut.main()

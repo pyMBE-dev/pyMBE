@@ -20,15 +20,7 @@
 import pyMBE
 import numpy as np
 import unittest as ut
-import io
-import logging
 import espressomd
-
-# Create an in-memory log stream
-log_stream = io.StringIO()
-logging.basicConfig(level=logging.INFO, 
-                    format="%(levelname)s: %(message)s",
-                    handlers=[logging.StreamHandler(log_stream)] )
 
 # Create an instance of pyMBE library
 espresso_system=espressomd.System (box_l = [10]*3)

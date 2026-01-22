@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -18,20 +18,26 @@
 
 import numpy as np
 import espressomd
+import unittest as ut
+
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library(seed=42)
 
-print("*** Unit test: check that calculate_net_charge calculates the charge in a molecule properly ***")
-
 pmb.define_particle(name='0P',
-                        z=0)
+                    z=0,
+                    sigma=1*pmb.units.reduced_length,
+                    epsilon=1*pmb.units.reduced_energy)
 
 pmb.define_particle(name='+1p',
-                    z=+1)
+                    z=+1,
+                    sigma=1*pmb.units.reduced_length,
+                    epsilon=1*pmb.units.reduced_energy)
 
 pmb.define_particle(name='-1p',
-                    z=-1)
+                    z=-1,
+                    sigma=1*pmb.units.reduced_length,
+                    epsilon=1*pmb.units.reduced_energy)
 
 pmb.define_residue(
     name = 'R1',
@@ -63,52 +69,68 @@ pmb.define_molecule(name=molecule_name,
 # Create an instance of an espresso system
 espresso_system=espressomd.System(box_l = [10]*3)
 
-# Add all bonds to espresso system
-pmb.add_bonds_to_espresso(espresso_system=espresso_system)
-
 # Create your molecules into the espresso system
-molecules = pmb.create_molecule(name=molecule_name,
-                        number_of_molecules= 2,
-                        espresso_system=espresso_system,
-                        use_default_bond=True,)
+pmb.create_molecule(name=molecule_name,
+                    number_of_molecules= 2,
+                    espresso_system=espresso_system,
+                    use_default_bond=True)
 
-# Check the case where the returned charge has a dimension
-charge_map=pmb.calculate_net_charge(molecule_name=molecule_name,
-                                    espresso_system=espresso_system)
+class Test(ut.TestCase):
+    def test_calculate_net_charge_with_units(self):
+        """
+        *** Unit test: check that calculate_net_charge calculates the charge in a molecule properly with units
+        """
+        
 
-# Check mean charge
-np.testing.assert_equal(charge_map["mean"], 2.0*pmb.units.Quantity(1,'reduced_charge'))
-# Check molecule charge map
-np.testing.assert_equal(charge_map["molecules"],{0: 2.0*pmb.units.Quantity(1,'reduced_charge'), 1: 2.0*pmb.units.Quantity(1,'reduced_charge')})
-# Check residue charge map
-np.testing.assert_equal(charge_map["residues"],{0: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
-                                                1: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
-                                                2: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
-                                                3: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
-                                                4: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
-                                                5: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
-                                                6: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
-                                                7: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
-                                                8: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
-                                                9: 0.0*pmb.units.Quantity(1,'reduced_charge')})
+        # Check the case where the returned charge has a dimension
+        charge_map=pmb.calculate_net_charge(molecule_name=molecule_name,
+                                            espresso_system=espresso_system,
+                                            pmb_type="molecule")
 
-# Check the case where the returned charge is dimensionless
-charge_map=pmb.calculate_net_charge(molecule_name=molecule_name,
-                                    espresso_system=espresso_system,
-                                    dimensionless=True)
+        # Check mean charge
+        np.testing.assert_equal(charge_map["mean"], 2.0*pmb.units.Quantity(1,'reduced_charge'))
+        # Check molecule charge map
+        np.testing.assert_equal(charge_map["molecules"],{0: 2.0*pmb.units.Quantity(1,'reduced_charge'), 1: 2.0*pmb.units.Quantity(1,'reduced_charge')})
+        # Check residue charge map
+        np.testing.assert_equal(charge_map["residues"],{0: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                        1: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                        2: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                        3: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                        4: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                        5: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                        6: 1.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                        7: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                        8: 0.0*pmb.units.Quantity(1,'reduced_charge'), 
+                                                        9: 0.0*pmb.units.Quantity(1,'reduced_charge')})
 
-# Check mean charge
-np.testing.assert_equal(charge_map["mean"], 2.0)
-# Check molecule charge map
-np.testing.assert_equal(charge_map["molecules"],{0: 2.0, 1: 2.0})
-# Check residue charge map
-np.testing.assert_equal(charge_map["residues"],{0: 1.0, 1: 1.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 1.0, 6: 1.0, 7: 0.0, 8: 0.0, 9: 0.0})
+    def test_calculate_net_charge_without_units(self):
+        """
+        *** Unit test: check that calculate_net_charge calculates the charge in a molecule properly without units
+        """
+
+        # Check the case where the returned charge is dimensionless
+        charge_map=pmb.calculate_net_charge(molecule_name=molecule_name,
+                                        espresso_system=espresso_system,
+                                        dimensionless=True,
+                                        pmb_type="molecule")
+
+        # Check mean charge
+        np.testing.assert_equal(charge_map["mean"], 2.0)
+        # Check molecule charge map
+        np.testing.assert_equal(charge_map["molecules"],{0: 2.0, 1: 2.0})
+        # Check residue charge map
+        np.testing.assert_equal(charge_map["residues"],{0: 1.0, 1: 1.0, 2: 0.0, 3: 0.0, 4: 0.0, 5: 1.0, 6: 1.0, 7: 0.0, 8: 0.0, 9: 0.0})
 
 
-print("*** Unit test passed ***")
-print("*** Unit test: check that calculate_net_charge raises a ValueError if one provides the name of an object that is not a molecule ***")
-input_parameters={"molecule_name":"R1", 
-                   "espresso_system":espresso_system}
-np.testing.assert_raises(ValueError, pmb.calculate_net_charge, **input_parameters)
-print("*** Unit test passed ***")
+    def test_sanitity_calculate_net_charge(self):
+        """
+        Sanity check that calculate_net_charge raises a ValueError if one provides the name of an object that is not a molecule 
+        """
+        input_parameters={"molecule_name":"R1", 
+                        "espresso_system":espresso_system,
+                        "pmb_type": "residue"}
+        np.testing.assert_raises(ValueError, pmb.calculate_net_charge, **input_parameters)
+
+if __name__ == '__main__':
+    ut.main()
 
