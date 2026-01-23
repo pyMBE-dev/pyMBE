@@ -18,12 +18,7 @@
 #
 
 import pandas as pd
-import json
-import re
-import numpy as np
-import logging
-import warnings
-
+from collections import defaultdict
 from typing import Dict, Any
 from pyMBE.storage.templates.particle import ParticleTemplate
 from pyMBE.storage.templates.residue import ResidueTemplate
@@ -89,6 +84,54 @@ class Manager:
         self._assembly_like_types = ["hydrogel"]
         self._pmb_types =  ["particle", "residue"] + self._molecule_like_types + self._assembly_like_types
         self.espresso_bond_instances= {}
+
+    def _collect_particle_templates(self, name, pmb_type):
+        """
+        Recursively collects particle template names reachable from a given
+        template in the hierarchy.
+
+        Args:
+            name (str):
+                Name of the current template being processed.
+            pmb_type (str):
+                Type of the current template.
+
+        Returns:
+            set[str]:
+                Set of particle template names reachable from the current template.
+
+        Notes:
+            - Particle state templates are resolved to their parent particle
+            template.
+        """
+        counts = defaultdict(int)
+        if pmb_type == "particle":
+            counts[name] += 1
+            return counts
+        if pmb_type == "particle_state":
+            particle_name = self.get_template(name=name, pmb_type=pmb_type).particle_name
+            counts[particle_name] += 1
+            return counts
+        if pmb_type == "residue":
+            tpl = self.get_template(name=name, 
+                                    pmb_type=pmb_type)
+            for pname in [tpl.central_bead] + tpl.side_chains:
+                sub = self._collect_particle_templates(name=pname, 
+                                                       pmb_type="particle")
+                for k, v in sub.items():
+                    counts[k] += v
+            return counts
+        if pmb_type in self._molecule_like_types:
+            tpl = self.get_template(name=name, 
+                                    pmb_type=pmb_type)
+            for res_name in tpl.residue_list:
+                sub = self._collect_particle_templates(name=res_name, 
+                                                       pmb_type="residue")
+                for k, v in sub.items():
+                    counts[k] += v
+            return counts
+        raise NotImplementedError(f"Method not implemented for pmb_type='{pmb_type}'")
+
 
     def _delete_bonds_of_particle(self, pid):
         """
@@ -674,6 +717,7 @@ class Manager:
                 return 0
             used_ids = list(self._instances[pmb_type].keys())
         return max(used_ids) + 1
+    
     def delete_instance(self, pmb_type, instance_id, cascade=False):
         """
         Delete an instance from the pyMBE database.
@@ -884,8 +928,6 @@ class Manager:
                 self.delete_template(pmb_type=pmb_type,
                                      name=template)
 
-    
-
     def get_instance(self, pmb_type, instance_id):
         """
         Retrieve a stored instance by type and instance_id.
@@ -924,6 +966,43 @@ class Manager:
         """
         return self._instances.get(pmb_type, {}).copy()
 
+    def get_particle_templates_under(self, template_name, pmb_type=None, return_counts=False):
+        """
+        Returns the names of all particle templates associated with a given
+        template by traversing the template hierarchy downward.
+
+        Args:
+            template_name (str):
+                Name of the starting template.
+            pmb_type (str, optional):
+                Type of the starting template. If not provided, the type is
+                inferred from the database. In this case, the template name
+                must be unique across all template types.
+            return_counts (bool, optional):
+                If False (default), returns a set of unique particle template
+                names. If True, returns a dictionary mapping particle template
+                names to the number of times they appear in the hierarchy.
+        Returns:
+            set[str] or dict[str, int]:
+                - If `return_counts=False`: unique particle template names
+                - If `return_counts=True`: particle template multiplicities
+
+        Notes:
+            - Counting reflects **structural multiplicity**, not instantiated
+            particle counts.
+            - The returned set contains particle template names only; particle
+            states are resolved to their parent particle templates.
+        """
+        if pmb_type is None:
+            pmb_types = self._find_template_types(template_name)
+            if len(pmb_types) != 1:
+                raise ValueError(f"Template name '{template_name}' is ambiguous: {pmb_types}")
+            pmb_type = pmb_types[0]
+        counts = self._collect_particle_templates(name=template_name, pmb_type=pmb_type)
+        if return_counts:
+            return dict(counts)
+        return set(counts.keys())
+
 
     def get_template(self, pmb_type, name):
         """
@@ -943,6 +1022,9 @@ class Manager:
             provided type and name.
 
         """
+        if pmb_type not in self._templates:
+            raise ValueError(f"There are no {pmb_type} templates defined in the database")
+
         if name not in self._templates[pmb_type]:
             raise ValueError(f"Template '{name}' not found in type '{pmb_type}'.")
         else:
@@ -1048,7 +1130,7 @@ class Manager:
                 add_to_map(molecule_map, p.molecule_id, pid)
                 add_to_map(assembly_map, p.assembly_id, pid)
         # Case 4: object is an assembly
-        elif object_type == "assembly":
+        elif object_type in self._assembly_like_types:
             for assembly_id in object_ids:
                 assembly_map[assembly_id] = []
                 for pid, p in particles.items():

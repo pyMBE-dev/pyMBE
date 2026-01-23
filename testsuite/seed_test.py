@@ -36,7 +36,7 @@ def build_peptide_in_espresso(seed):
     pmb.load_pka_set(path_to_pka)
     pka_set = pmb.get_pka_set()
     for particle_name in pka_set.keys():
-        pmb.set_monoprototic_particle_states(acidity=pka_set[particle_name]["acidity"],
+        pmb.define_monoprototic_particle_states(acidity=pka_set[particle_name]["acidity"],
                                              particle_name=particle_name)
     # define residues
     hf.define_peptide_AA_residues(sequence=sequence,

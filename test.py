@@ -162,7 +162,7 @@ def main():
     print("\n=== Protein Templates DataFrame ===")
     path = importlib.resources.files(pyMBE) / "parameters" / "globular_proteins" / f"1beb.vtf",
     
-    topology_dict = pmb.read_protein_vtf_in_df (filename=path[0])
+    topology_dict = pmb.read_protein_vtf (filename=path[0])
 
     # Define AA particles and residues
     hf.define_protein_AA_particles(topology_dict=topology_dict,

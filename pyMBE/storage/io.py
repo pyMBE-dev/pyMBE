@@ -205,16 +205,20 @@ def _load_database_csv(db, folder):
             elif pmb_type == "bond":
                 params_raw = _decode(row.get("parameters", "")) or {}
                 parameters: Dict[str, Any] = {}
+                # For the default bond case, map empty particle names to None
+                particle_name1 = row.get("particle_name1", "") or ""
+                particle_name2 = row.get("particle_name2", "") or ""
                 for k, v in params_raw.items():
                     # if v is a dict, assume PintQuantity dict
                     if isinstance(v, dict) and {"magnitude", "units", "dimension"}.issubset(v.keys()):
                         parameters[k] = PintQuantity.from_dict(v)
                     else:
                         parameters[k] = v
-                tpl = BondTemplate(
-                    name=row["name"],
-                    bond_type=row.get("bond_type", ""),
-                    parameters=parameters)
+                tpl = BondTemplate(name=row["name"],
+                                   bond_type=row.get("bond_type", ""),
+                                   particle_name1=None if particle_name1 == "" else particle_name1,
+                                   particle_name2=None if particle_name2 == "" else particle_name2,
+                                   parameters=parameters)
                 templates[tpl.name] = tpl
             elif pmb_type == "hydrogel":
                 node_map_raw = _decode(row.get("node_map", "")) or []
