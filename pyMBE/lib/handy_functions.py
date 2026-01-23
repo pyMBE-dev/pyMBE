@@ -213,6 +213,8 @@ def define_protein_AA_residues(topology_dict, model, pmb):
 
         pmb (pyMBE.pymbe_library):
             Instance of the pyMBE library.
+    Return:
+        (list of str): List of the defined residue names
 
     Notes:
         - Supported models:
@@ -246,6 +248,7 @@ def define_protein_AA_residues(topology_dict, model, pmb):
                                 central_bead = central_bead,
                                 side_chains = side_chains)              
             residue_list.append(residue_name)
+    return residue_list
 
 def define_peptide_AA_residues(sequence,model, pmb):
     """

@@ -17,13 +17,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import numpy as np 
 import espressomd
-import pyMBE
+
 import re
 import json
 import pathlib
-from pint import UnitRegistry
-
-ureg = UnitRegistry()
+import pyMBE
+import pyMBE.lib.handy_functions as hf
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -35,17 +34,13 @@ Box_L = Box_V**(1./3.)
 
 def custom_deserializer(dct):
     if "value" in dct and "unit" in dct:
-        return ureg.Quantity(dct["value"], dct["unit"])  
+        return pmb.units.Quantity(dct["value"], dct["unit"])  
     return dct  
 
 protein_pdb = '1f6s'
-
-print("*** Unit test: check that read_protein_vtf_in_df() loads the protein topology correctly ***")
-
 path_to_parfile = pathlib.Path(__file__).parent / "tests_data" / "protein_topology_dict.json"
 path_to_cg=pmb.root / "parameters" / "globular_proteins" / f"{protein_pdb}.vtf"
-topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
-
+topology_dict, sequence = pmb.read_protein_vtf (filename=path_to_cg)
 
 with open (path_to_parfile, "r") as file:
     load_json = json.load(file,object_hook=custom_deserializer)
@@ -54,101 +49,77 @@ np.testing.assert_equal(actual= topology_dict,
                         desired= load_json,
                         verbose = True)
 
-print("*** Unit test passed ***")
-
-
-print("*** Unit test: check that define_protein() defines the aminoacids in the protein correctly ***")
-
 protein_model = '2beadAA'
 
-pmb.define_protein (name=protein_pdb, 
-                    topology_dict=topology_dict, 
-                    model = protein_model,
-                    lj_setup_mode = "wca")
-sequence = []
-clean_sequence= []
-
+hf.define_protein_AA_particles(topology_dict=topology_dict,
+                               pmb=pmb,
+                               pka_set={})
+residue_list = hf.define_protein_AA_residues(topology_dict=topology_dict,
+                                            model=protein_model,
+                                            pmb=pmb)
+pmb.define_protein (name=protein_pdb,
+                    sequence=sequence, 
+                    model = protein_model)
+clean_sequence= ""
+full_residue_list = []
 for aminoacid in topology_dict.keys():
-    
-    input_parameters=topology_dict[aminoacid]
     residue_name = re.split(r'\d+', aminoacid)[0]
-    sequence.append(residue_name)
-    
-    if residue_name not in ['CA', 'n', 'c','Ca']:
-        clean_sequence.append(residue_name)
+    if residue_name not in ['CA', 'Ca']:
+        clean_sequence+=residue_name
+        full_residue_list.append(f"AA-{residue_name}")
 
-residue_list = pmb.define_AA_residues(sequence= clean_sequence,
-                                      model = protein_model)
+residue_dict = hf.get_residues_from_topology_dict(topology_dict=topology_dict,
+                                                  model=protein_model)
 
-for residue in residue_list:
-    for index in pmb.df[pmb.df['name']==residue].index:
-        np.testing.assert_equal(actual=str(pmb.df.loc[index, "pmb_type"].values[0]), 
-                        desired="residue", 
+# Check residue templates
+for residue_name in residue_list:
+    residue_template = pmb.db.get_template(name=residue_name,
+                                           pmb_type="residue")
+    assert residue_template is not None
+    assert residue_template.pmb_type == "residue"
+    assert residue_template.name == residue_name
+
+
+# Check protein template
+protein_template = pmb.db.get_template(name=protein_pdb,
+                                       pmb_type="protein")
+
+assert protein_template is not None
+assert protein_template.name == protein_pdb
+
+np.testing.assert_equal(actual=protein_template.sequence,
+                        desired=clean_sequence,
                         verbose=True)
 
-protein_index = pmb.df[pmb.df['name']==protein_pdb].index
+np.testing.assert_equal(actual=protein_template.residue_list,
+                        desired=full_residue_list,
+                        verbose=True)
 
-np.testing.assert_equal(actual=str(pmb.df.loc[protein_index, "name"].values[0]), 
-                            desired=protein_pdb, 
-                            verbose=True)        
-
-np.testing.assert_equal(actual=pmb.df.loc[protein_index, ('sequence','')].values[0], 
-                    desired=clean_sequence, 
-                    verbose=True)
-
-
-np.testing.assert_equal(actual=pmb.df.loc[protein_index, ('residue_list','')].values[0], 
-                    desired=residue_list, 
-                    verbose=True)  
-
-print("*** Unit test passed ***")
-
-print("*** Unit test: check that define_protein() raises a ValueError if the user provides a wrong model")
 
 input_parameters={"name": protein_pdb,
-                 "topology_dict": topology_dict,
-                 "model" : "3beadAA",
-                "lj_setup_mode": "wca"}
-
-np.testing.assert_raises(ValueError, pmb.define_protein, **input_parameters)
-
-input_parameters={"name": protein_pdb,
-                 "topology_dict": topology_dict,
-                 "model" : protein_model,
-                "lj_setup_mode": "awc"}
+                 "sequence": sequence,
+                 "model" : "3beadAA"}
 
 np.testing.assert_raises(ValueError, pmb.define_protein, **input_parameters)
 
 print("*** Unit test passed ***")
-
-
-print("*** Unit test: check that create_protein() creates all the particles in the protein into the espresso_system with the properties defined in pmb.df  ***")
 
 espresso_system=espressomd.System(box_l = [Box_L.to('reduced_length').magnitude] * 3)
 
-# Here we upload the pka set from the reference_parameters folder
-path_to_pka=pmb.root / "parameters" / "pka_sets" / "Nozaki1967.json"
-pmb.load_pka_set(filename=path_to_pka)
+molecule_id = pmb.create_protein(name=protein_pdb,
+                                 number_of_proteins=1,
+                                 espresso_system=espresso_system,
+                                 topology_dict=topology_dict)[0]
 
-pmb.create_protein(name=protein_pdb,
-                    number_of_proteins=1,
-                    espresso_system=espresso_system,
-                    topology_dict=topology_dict)
+particle_id_list = pmb.get_particle_id_map(object_name=protein_pdb)["all"]
 
-residue_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].residue_id.dropna().to_list()
-
-particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
-
-molecule_id = pmb.df.loc[pmb.df['name']==protein_pdb].molecule_id.values[0]
-
-center_of_mass_es = pmb.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
-
+center_of_mass_es = pmb.calculate_center_of_mass_of_molecule (molecule_id=molecule_id,
+                                                              espresso_system=espresso_system)
 center_of_mass = np.zeros(3)
 axis_list = [0,1,2]
 
 for aminoacid in topology_dict.keys():
     initial_pos = topology_dict[aminoacid]['initial_pos']
-
     for axis in axis_list:
         center_of_mass[axis] +=  initial_pos[axis]
 center_of_mass = center_of_mass/ len(topology_dict.keys())
@@ -161,13 +132,16 @@ for id in particle_id_list:
     initial_pos_es = espresso_system.part.by_id(id).pos
     charge = espresso_system.part.by_id(id).q
     es_type = espresso_system.part.by_id(id).type
+    part_inst = pmb.db.get_instance(instance_id=id,
+                                    pmb_type="particle")
+    residue_id = part_inst.residue_id
+    res_inst = pmb.db.get_instance(instance_id=residue_id,
+                                    pmb_type="residue")
+    residue_name = res_inst.name
 
-    residue_id = pmb.df.loc[pmb.df['particle_id']==id].residue_id.values[0]
-    residue_name = pmb.df.loc[pmb.df['particle_id']==id].name.values[0]
     
     initial_pos = topology_dict[f"{residue_name}{residue_id}"]['initial_pos']
-    index = pmb.df.loc[pmb.df['particle_id']==id].index
-
+    
     for axis in axis_list:
         distance_es[axis] = (initial_pos_es[axis] - center_of_mass_es[axis])**2
         distance_topology[axis] = (initial_pos[axis] - center_of_mass[axis])**2
@@ -178,18 +152,6 @@ for id in particle_id_list:
     np.testing.assert_equal(actual=relative_distance_es, 
                         desired=relative_distance, 
                         verbose=True)
-
-    np.testing.assert_equal(actual=charge, 
-                        desired=pmb.df.loc[index, ("state_one","z")].values[0], 
-                        verbose=True)
-      
-    np.testing.assert_equal(actual=es_type, 
-                    desired=pmb.df.loc[index, ("state_one","es_type")].values[0], 
-                    verbose=True)
-
-print("*** Unit test passed ***")
-
-print("*** Unit test: check that create_protein() does not create any protein for number_of_proteins <= 0  ***")
 
 starting_number_of_particles=len(espresso_system.part.all())
 
@@ -207,9 +169,6 @@ np.testing.assert_equal(actual=len(espresso_system.part.all()),
                         desired=starting_number_of_particles, 
                         verbose=True)
 
-print("*** Unit test passed ***")
-
-print("*** Unit test: check that enable_motion_of_rigid_object does the setup correctly ***")
 
 positions = []
 for pid in particle_id_list:

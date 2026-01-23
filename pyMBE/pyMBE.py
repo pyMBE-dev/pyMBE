@@ -107,7 +107,6 @@ class pymbe_library():
         self.db = Manager(units=self.units)
         self.lattice_builder = None
         self.root = importlib.resources.files(__package__)
-           
 
     def _check_bond_inputs(self, bond_type, bond_parameters):
         """
@@ -289,6 +288,8 @@ class pymbe_library():
         self.lattice_builder.nodes[key] = node_name
         return node_position.tolist(), p_id[0]
 
+    
+
     def _get_residue_list_from_sequence(self, sequence):
         """
         Convinience function to get a `residue_list` from a protein or peptide `sequence`.
@@ -305,6 +306,30 @@ class pymbe_library():
             residue_list.append(residue_name)
         return residue_list
     
+    def _get_template_type(self, name, allowed_types):
+        """
+        Validate that a template name resolves unambiguously to exactly one
+        allowed pmb_type in the pyMBE database and return it.
+
+        
+        Args:
+            name(str): Name of the template to validate.
+            allowed_types(set[str]):  Set of allowed pmb_type values (e.g. {"molecule", "peptide"}).
+
+        Returns:
+            str: Resolved pmb_type.
+
+        Notes:
+            This method does *not* return the template itself, only the validated pmb_type. 
+        """
+        registered_pmb_types_with_name = self.db._find_template_types(name=name)
+        filtered_types = allowed_types.intersection(registered_pmb_types_with_name)
+        if len(filtered_types) > 1:
+            raise ValueError(f"Ambiguous template name '{name}': found both 'molecule' and 'peptide' templates in the pyMBE database. Molecule creation aborted.")  
+        if len(filtered_types) == 0:
+            raise ValueError(f"No 'molecule' or 'peptide' template found with name '{name}'. Found templates of types: {filtered_types}.")
+        return next(iter(filtered_types))
+
     def _delete_particles_from_espresso(self, particle_ids, espresso_system):
         """
         Remove a list of particles from an ESPResSo simulation system.
@@ -328,7 +353,7 @@ class pymbe_library():
             espresso_system.part.by_id(pid).remove()
 
 
-    def calculate_center_of_mass_of_molecule(self, molecule_id, espresso_system):
+    def calculate_center_of_mass_of_molecule(self, molecule_id, pmb_type, espresso_system):
         """
         Calculates the center of the molecule with a given molecule_id.
 
@@ -795,15 +820,8 @@ class pymbe_library():
 
             if len(list_of_first_residue_positions) != number_of_molecules:
                 raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
-        # Sanity tests, this function should work for both molecules and peptides
-        registered_pmb_types_with_name = self.db._find_template_types(name=name)
-        allowed_types = {"molecule", "peptide"}
-        filtered_types = allowed_types.intersection(registered_pmb_types_with_name)
-        if len(filtered_types) > 1:
-            raise ValueError(f"Ambiguous template name '{name}': found both 'molecule' and 'peptide' templates in the pyMBE database. Molecule creation aborted.")  
-        if len(filtered_types) == 0:
-            raise ValueError(f"No 'molecule' or 'peptide' template found with name '{name}'. Found templates of types: {filtered_types}.")
-        pmb_type = next(iter(filtered_types))
+        pmb_type = self._get_template_type(name=name,
+                                           allowed_types={"molecule", "peptide"})
         # Generate an arbitrary random unit vector
         if backbone_vector is None:
             backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
@@ -1082,15 +1100,8 @@ class pymbe_library():
         side_chain_list = res_tpl.side_chains
         side_chain_beads_ids = []
         for side_chain_name in side_chain_list:
-            pmb_type_list = self.db._find_template_types(name=side_chain_name)
-            allowed_types = {"particle", "residue"}
-            filtered_types = allowed_types.intersection(pmb_type_list)
-            if len(filtered_types) > 1:
-                raise KeyError(f"Ambiguous template name '{side_chain_name}': found both 'particle' and 'residue' templates in the pyMBE database. Residue creation aborted.")  
-            if len(filtered_types) == 0:
-                raise KeyError(
-                    f"No 'particle' or 'residue' template found with name '{side_chain_name}'. Found templates of types: {set(pmb_type_list)}.")
-            pmb_type = next(iter(filtered_types))
+            pmb_type = self._get_template_type(name=side_chain_name,
+                                               allowed_types={"particle", "residue"})
             if pmb_type == 'particle':
                 lj_parameters = self.get_lj_parameters(particle_name1=central_bead_name,
                                                        particle_name2=side_chain_name)
@@ -2134,24 +2145,22 @@ class pymbe_library():
         Loads a coarse-grained protein model in a VTF file `filename`.
 
         Args:
-            filename(`str`): Path to the VTF file with the coarse-grained model.
-            unit_length(`obj`): unit of length of the the coordinates in `filename` using the pyMBE UnitRegistry. Defaults to None.
+            filename(str): Path to the VTF file with the coarse-grained model.
+            unit_length(obj): unit of length of the the coordinates in `filename` using the pyMBE UnitRegistry. Defaults to None.
 
         Returns:
-            topology_dict(`dict`): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
+            topology_dict(dict): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
+            sequence(str): Amino acid sequence, following the one letter code convection.
 
         Note:
             - If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
         """
 
         logging.info(f'Loading protein coarse grain model file: {filename}')
-
         coord_list = []
         particles_dict = {}
-
         if unit_length is None:
             unit_length = 1 * self.units.angstrom 
-
         with open (filename,'r') as protein_model:
             for line in protein_model :
                 line_split = line.split()
@@ -2168,26 +2177,21 @@ class pymbe_library():
                         atom_coord = line_split[1:] 
                         atom_coord = [(float(i)*unit_length).to('reduced_length').magnitude for i in atom_coord]
                         coord_list.append (atom_coord)
-
         numbered_label = []
-        i = 0   
-        
+        i = 0
+        sequence = ""   
         for atom_id in particles_dict.keys():
-    
             if atom_id == 1:
                 atom_name = particles_dict[atom_id][0]
                 numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
                 numbered_label.append(numbered_name)
-
             elif atom_id != 1: 
-            
                 if particles_dict[atom_id-1][1] != particles_dict[atom_id][1]:
                     i += 1                    
                     count = 1
                     atom_name = particles_dict[atom_id][0]
                     numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
                     numbered_label.append(numbered_name)
-                    
                 elif particles_dict[atom_id-1][1] == particles_dict[atom_id][1]:
                     if count == 2 or particles_dict[atom_id][1] == 'GLY':
                         i +=1  
@@ -2196,15 +2200,15 @@ class pymbe_library():
                     numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
                     numbered_label.append(numbered_name)
                     count +=1
-
+            if atom_name not in ["CA", "Ca"]:
+                sequence += atom_name
         topology_dict = {}
-
         for i in range (0, len(numbered_label)):   
             topology_dict [numbered_label[i][0]] = {'initial_pos': coord_list[i] ,
                                                     'chain_id':numbered_label[i][1],
                                                     'radius':numbered_label[i][2] }
 
-        return topology_dict
+        return topology_dict, sequence
 
     def save_database(self, folder, format='csv'):
         """
