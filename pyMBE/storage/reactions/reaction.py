@@ -53,53 +53,34 @@ class Reaction(BaseModel):
     """
     Defines a chemical reaction between particle states.
 
-    A ``Reaction`` object captures the stoichiometry and thermodynamic
-    properties of a chemical equilibrium. 
-    This can represent phenomena such as acid–base reactionsor any multi-species reaction scheme 
-    supported by the simulation engine.
-
     Attributes:
-        name (str):
+        name ('str'):
             Unique identifier for the reaction.
-        participants (List[ReactionParticipant]):
+
+        participants ('List[ReactionParticipant]'):
             List of reactants and products with stoichiometric coefficients.
             Must include at least two participants.
-        pK (float):
+
+        pK ('float'):
             Reaction equilibrium parameter (e.g., pKa, log K). The meaning
             depends on ``reaction_type``.
-        reaction_type (str):
+
+        reaction_type ('str'):
             A categorical descriptor of the reaction, such as ``"acid_base"``
-        metadata (Optional[Dict]):
+
+        simulation_method ('str', optional):
+            Simulation method used to study the reaction.
+
+        metadata ('dict', optional):
             Optional free-form metadata for additional reaction details,
             notes, or model-specific configuration.
-
-    Validation:
-        - At least one participant are required.
-        - All participants must have non-zero stoichiometric coefficients.
-
-    Examples:
-        Acid dissociation of HA:
-            HA ↔ H⁺ + A⁻
-
-        Represented as:
-            Reaction(
-                name="acid_dissociation",
-                participants=[
-                    ReactionParticipant("A", "HA", -1),
-                    ReactionParticipant("A", "A-", 1),
-                    ReactionParticipant("H", "H+", 1),
-                ],
-                pK=4.75,
-                reaction_type="acid_base",
-            )
     """
-    
     participants: List[ReactionParticipant]
-    pK: float = Field(..., description="pKa, logK, eq constant, etc.")
-    reaction_type: str = Field(..., description="acid_base, binding, redox, ...")
+    pK: float 
+    reaction_type: str 
     metadata: Optional[Dict] = None
-
-    name: str = Field(default="", description="Automatically generated reaction name")
+    simulation_method: Optional[str] = None
+    name: Optional[str] = None 
 
     @model_validator(mode="after")
     def generate_name(self):
@@ -127,68 +108,43 @@ class Reaction(BaseModel):
     @field_validator("participants")
     def at_least_two_participants(cls, v):
         if len(v) < 2:
-            raise ValueError("A reaction must have at least 1 participant.")
+            raise ValueError("A reaction must have at least 2 participants.")
         return v
 
     @field_validator("participants")
     def no_zero_coeff(cls, v):
         for p in v:
             if p.coefficient == 0:
-                raise ValueError(f"Participant {p.name} has coefficient 0.")
+                raise ValueError(f"Participant {p.state_name} has coefficient 0.")
         return v
 
     def add_participant(self, particle_name, state_name, coefficient):
         """
         Add a new reaction participant to the reaction.
 
-        Creates a new :class:`ReactionParticipant` with the provided particle name,
-        state name and stoichiometric coefficient, and returns an updated 
-        :class:`Reaction` instance containing the additional participant.
-
-        The reaction object itself is not modified in place. Instead, a new 
-        validated copy is returned, following Pydantic's immutable data model
-        best practices.
-d
         Args:
-            particle_name (str):
+            particle_name ('str'):
                 Name of the particle participating in the reaction.
-            state_name (str):
-                Specific state of the particle (e.g., protonation or charge state).
-            coefficient (int):
-                Stoichiometric coefficient for the participant:
-                - ``coefficient < 0`` → reactant  
-                - ``coefficient > 0`` → product  
-                Coefficients equal to zero are not allowed.
+            state_name ('str'):
+                Specific state of the particle.
+            coefficient ('int'):
+                Stoichiometric coefficient for the participant.
 
-        Returns:
-            Reaction:
-                A new :class:`Reaction` object with the participant added.
-
-        Raises:
-            ValueError:
-                If ``coefficient`` is zero.
-
-        Examples:
-            >>> rxn = Reaction(
-            ...     name="acid_dissociation",
-            ...     participants=[
-            ...         ReactionParticipant("A", "HA", -1),
-            ...         ReactionParticipant("A", "A-", 1),
-            ...     ],
-            ...     pK=4.7,
-            ...     reaction_type="acid_base",
-            ... )
-            >>> rxn = rxn.add_participant("H", "H+", 1)
         """
         if coefficient == 0:
             raise ValueError("Stoichiometric coefficient cannot be zero.")
-
-        new_participant = ReactionParticipant(
-            particle_name=particle_name,
-            state_name=state_name,
-            coefficient=coefficient,
-        )
-
-        new_reaction = self.model_copy(update={"participants": self.participants + [new_participant]})
+        new_participant = ReactionParticipant(particle_name=particle_name,
+                                            state_name=state_name,
+                                            coefficient=coefficient)
+        self.participants.append(new_participant)
+        self.generate_name()
+        
     
-        return new_reaction.generate_name()
+    def add_simulation_method(self, simulation_method):
+        """
+        Adds which simulation is used to simulate the reaction
+
+        Args:
+            simulation_method ('str'): label of the simulation method
+        """
+        self.simulation_method = simulation_method

@@ -382,13 +382,13 @@ class Test(ut.TestCase):
         pmb.db.delete_reactions()
         # Test instances of a protein (tests protein, residue and particle instances)
         path_to_protein_structure = pmb.root / "parameters" / "globular_proteins" / f"1beb.vtf",    
-        topology_dict, _ = pmb.read_protein_vtf (filename=path_to_protein_structure[0])
+        topology_dict, sequence = pmb.read_protein_vtf (filename=path_to_protein_structure[0])
         pmb.load_pka_set(filename=path_to_pka)
         # Define AA particles and residues
         hf.define_protein_AA_particles(topology_dict=topology_dict,
                                        pmb=pmb,
                                        pka_set=pka_set)
-        hf.define_protein_AA_residues(topology_dict=topology_dict,
+        hf.define_protein_AA_residues(sequence=sequence,
                                       model="2beadAA",
                                       pmb=pmb)
         pmb.define_protein(name="1beb",

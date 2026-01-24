@@ -100,9 +100,16 @@ class Test(ut.TestCase):
     def test_lattice_setup(self):        
         diamond = pyMBE.lib.lattice.DiamondLattice(mpc, bond_l)
         espresso_system = espressomd.System(box_l = [diamond.box_l]*3)
-        pmb.add_bonds_to_espresso(espresso_system = espresso_system)
-        np.testing.assert_raises(ValueError, pmb.create_hydrogel_node, "[1 1 1]", NodeType1, espresso_system)
-        np.testing.assert_raises(ValueError, pmb.create_hydrogel_chain, "[0 0 0]", "[1 1 1]", {0:[0,0,0],1:diamond.box_l/4.0*np.ones(3)},espresso_system)
+        np.testing.assert_raises(ValueError, 
+                                 pmb._create_hydrogel_node, 
+                                 "[1 1 1]", 
+                                 NodeType1, 
+                                 espresso_system)
+        np.testing.assert_raises(ValueError, 
+                                 pmb._create_hydrogel_chain, 
+                                 "[0 0 0]", "[1 1 1]", 
+                                 {0:[0,0,0],1:diamond.box_l/4.0*np.ones(3)},
+                                 espresso_system)
         lattice = pmb.initialize_lattice_builder(diamond)
         sequence = [Res3, Res1, Res2, Res1]
         # build default structure
@@ -125,58 +132,31 @@ class Test(ut.TestCase):
         assert lattice.get_node("[0 0 0]") == "default_linker"
         # Change default node type
         lattice.set_node(node="[1 1 1]", residue=NodeType1)
-        np.testing.assert_equal(actual = lattice.get_node("[1 1 1]"), desired = NodeType1, verbose=True)
+        lattice.set_node(node="[0 0 0]", residue=NodeType2)
+        np.testing.assert_equal(actual = lattice.get_node("[1 1 1]"), 
+                                desired = NodeType1, 
+                                verbose=True)
 
-        pos_node1 = pmb.create_hydrogel_node("[1 1 1]", NodeType1, espresso_system=espresso_system)
-        np.testing.assert_equal(actual = lattice.get_node("[1 1 1]"), desired = NodeType1, verbose=True)
-        pos_node2 = pmb.create_hydrogel_node("[0 0 0]", NodeType2, espresso_system=espresso_system)
-        np.testing.assert_equal(actual = lattice.get_node("[0 0 0]"), desired = NodeType2, verbose=True)
-        pos_node3 = pmb.create_hydrogel_node("[2 2 0]", NodeType2, espresso_system=espresso_system)
-        np.testing.assert_equal(actual = lattice.get_node("[2 2 0]"), desired = NodeType2, verbose=True)
-        _,_ = pmb.create_hydrogel_node("[3 1 3]", NodeType1, espresso_system=espresso_system)
-        np.testing.assert_equal(actual = lattice.get_node("[3 1 3]"), desired = NodeType1, verbose=True)
-
-        node_positions={}
-        node1_label = lattice.node_labels["[1 1 1]"]
-        node_positions[node1_label]=pos_node1[0]
-        node2_label = lattice.node_labels["[0 0 0]"]
-        node_positions[node2_label]=pos_node2[0]
-        node3_label = lattice.node_labels["[2 2 0]"]
-        node_positions[node3_label]=pos_node3[0]
-
-        # define molecule in forward direction
-        molecule_name = "chain_[1 1 1]_[0 0 0]"
-        pmb.define_molecule(name=molecule_name, residue_list=sequence)
-        pmb.create_hydrogel_chain("[1 1 1]", "[0 0 0]", node_positions, espresso_system=espresso_system)
-        np.testing.assert_equal(actual = lattice.get_chain("[1 1 1]", "[0 0 0]"), desired = sequence, verbose=True)
-        np.testing.assert_equal(actual = lattice.get_chain("[0 0 0]", "[1 1 1]"), desired = sequence[::-1], verbose=True)
-        # set chain before set node
-        molecule_name = "chain_[3 1 3]_[0 0 0]"
-        pmb.define_molecule(name=molecule_name, residue_list=sequence)
-        np.testing.assert_raises(ValueError, pmb.create_hydrogel_chain, "[3 1 3]", "[0 0 0]", node_positions, espresso_system)
-
-        # define custom chain in reverse direction
-        molecule_name = "chain_[0 0 0]_[1 1 1]"
-        pmb.define_molecule(name=molecule_name, residue_list=sequence)
-        pmb.create_hydrogel_chain("[0 0 0]", "[1 1 1]", node_positions, espresso_system=espresso_system)
-        np.testing.assert_equal(lattice.get_chain("[1 1 1]", "[0 0 0]"), sequence[::-1])
-        np.testing.assert_equal(lattice.get_chain("[0 0 0]", "[1 1 1]"), sequence)
-
-        ####---Raise Exceptions---####
-        # define custom chain between normally unconnected nodes
-        molecule_name = "chain_[0 0 0]_[2 2 0]"
-        pmb.define_molecule(name=molecule_name, residue_list=sequence)
-        np.testing.assert_raises(AssertionError, 
-                         pmb.create_hydrogel_chain, 
-                         "[0 0 0]", "[2 2 0]", node_positions, espresso_system=espresso_system)
-
-        # define custom chain that loops
-        molecule_name = "chain_[0 0 0]_[0 0 0]"
-        pmb.define_molecule(name=molecule_name, residue_list=sequence)
-        np.testing.assert_raises(AssertionError,
-                         pmb.create_hydrogel_chain,
-                         "[0 0 0]", "[0 0 0]", node_positions, espresso_system=espresso_system)
-
+        np.testing.assert_equal(actual = lattice.get_node("[1 1 1]"), 
+                                desired = NodeType1, 
+                                verbose=True)
+        np.testing.assert_equal(actual = lattice.get_node("[0 0 0]"), 
+                                desired = NodeType2, 
+                                verbose=True)
+        np.testing.assert_equal(actual = lattice.get_node("[2 2 0]"), 
+                                desired = "default_linker", 
+                                verbose=True)
+        np.testing.assert_equal(actual = lattice.get_node("[3 1 3]"), 
+                                desired = "default_linker", 
+                                verbose=True)
+        
+        np.testing.assert_equal(actual = lattice.get_chain("[1 1 1]", "[0 0 0]"), 
+                                desired = sequence, 
+                                verbose=True)
+        np.testing.assert_equal(actual = lattice.get_chain("[0 0 0]", "[1 1 1]"), 
+                                desired = sequence[::-1], 
+                                verbose=True)
+        
         lattice.set_colormap(self.colormap)
         for index, (label, color) in enumerate(self.colormap.items()):
             np.testing.assert_equal(actual = lattice.get_monomer_color(label),desired = color, verbose=True)

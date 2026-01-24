@@ -334,13 +334,12 @@ class Manager:
                 f"{p.state_name}": p.coefficient
                 for p in r.participants
             }
-            rows.append({
-                "reaction": r.name,
-                "stoichiometry": stoich,
-                "pK": r.pK,
-                "reaction_type": r.reaction_type,
-                "metadata": r.metadata,
-            })
+            rows.append({"reaction": r.name,
+                        "stoichiometry": stoich,
+                        "pK": r.pK,
+                        "reaction_type": r.reaction_type,
+                        "metadata": r.metadata,
+                        "simulation_method": r.simulation_method})
         return pd.DataFrame(rows)
 
     def _get_templates_df(self, pmb_type):
@@ -966,6 +965,31 @@ class Manager:
         """
         return self._instances.get(pmb_type, {}).copy()
 
+    def get_reaction(self,  name):
+        """
+        Retrieve a reaction stored in the pyMBE database by  name.
+
+        Args:
+            name ('str'): The unique id of the reaction to retrieve.
+
+        Returns:
+            'Reaction': The stored reaction instance corresponding to the provided name.
+
+        """
+        if name not in self._reactions[name]:
+            raise ValueError(f"Reaction '{name}' not found in the pyMBE database.")
+        else:
+            return self._reactions[name]
+        
+    def get_reactions(self):
+        """
+        Retrieve all reactions stored in the pyMBE database.
+
+        Returns:
+            'list of Reaction': List with all stored reaction instances.
+        """
+        return list(self._reactions.values())
+
     def get_particle_templates_under(self, template_name, pmb_type=None, return_counts=False):
         """
         Returns the names of all particle templates associated with a given
@@ -1148,16 +1172,14 @@ class Manager:
         Retrieve all particle state templates associated with a given particle.
 
         Args:
-            particle_name (str):  Name of the particle template.
+            particle_name ('str'):  
+                Name of the particle template.
 
         Returns:
-            Dict[str, ParticleState]:
+            'Dict[str, ParticleState]':
                 Dictionary mapping state names to `ParticleState` templates.
         """
         states = self._templates.get("particle_state", {})
-
         particle_states = {state.name: state for state in states.values()
                            if state.particle_name == particle_name}
-        if not particle_states:
-            raise ValueError(f"No particle states registered for particle '{particle_name}'.")
         return particle_states

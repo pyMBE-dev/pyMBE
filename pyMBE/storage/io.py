@@ -329,6 +329,7 @@ def _load_database_csv(db, folder):
                           participants=participants,
                           pK=float(row["pK"]) if (row.get("pK") not in (None, "", "nan")) else None,
                           reaction_type=row.get("reaction_type", None),
+                          simulation_method=row.get("simulation_method", None),
                           metadata=metadata)
             db._reactions[rx.name] = rx
 

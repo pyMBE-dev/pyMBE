@@ -238,7 +238,7 @@ class pymbe_library():
         node_end_label = self.lattice_builder._create_node_label(node_end)
         _, reverse = self.lattice_builder._get_node_vector_pair(node_start, node_end)
         if node_start != node_end or residue_list == residue_list[::-1]:
-            RuntimeError(f"Aborted creation because hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
+            ValueError(f"Aborted creation of hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
         if reverse:
             residue_list = residue_list[::-1]
         start_node_id = nodes[node_start_label]["id"]
@@ -303,7 +303,6 @@ class pymbe_library():
         """
         if self.lattice_builder is None:
             raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
-
         node_position = np.array(node_index)*0.25*self.lattice_builder.box_l
         p_id = self.create_particle(name = node_name,
                                     espresso_system=espresso_system,
@@ -1403,8 +1402,8 @@ class pymbe_library():
                                                               state_name=f"{particle_name}H", 
                                                               coefficient=-1),
                                           ReactionParticipant(particle_name=particle_name,
-                                                                  state_name=f"{particle_name}",
-                                                                  coefficient=1)],
+                                                              state_name=f"{particle_name}",
+                                                              coefficient=1)],
                             reaction_type=reaction_type,
                             pK=pka,
                             metadata=metadata)
@@ -2431,7 +2430,7 @@ class pymbe_library():
         self.units.define(f'reduced_charge = {unit_charge}')
         logging.info(self.get_reduced_units())
 
-    def setup_cpH (self, counter_ion, constant_pH, exclusion_range=None, pka_set=None, use_exclusion_radius_per_type = False):
+    def setup_cpH (self, counter_ion, constant_pH, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
         Sets up the Acid/Base reactions for acidic/basic `particles` defined in `pmb.df` to be sampled in the constant pH ensemble. 
 
@@ -2440,7 +2439,6 @@ class pymbe_library():
             constant_pH(`float`): pH-value.
             exclusion_range(`pint.Quantity`, optional): Below this value, no particles will be inserted.
             use_exclusion_radius_per_type(`bool`,optional): Controls if one exclusion_radius for each espresso_type is used. Defaults to `False`.
-            pka_set(`dict`,optional): Desired pka_set, pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}. Defaults to None.
 
         Returns:
             RE(`reaction_methods.ConstantpHEnsemble`): Instance of a reaction_methods.ConstantpHEnsemble object from the espressomd library.
@@ -2449,38 +2447,47 @@ class pymbe_library():
         from espressomd import reaction_methods
         if exclusion_range is None:
             exclusion_range = max(self.get_radius_map().values())*2.0
-        if pka_set is None:
-            pka_set=self.get_pka_set()    
-        self._check_pka_set(pka_set=pka_set)
         if use_exclusion_radius_per_type:
             exclusion_radius_per_type = self.get_radius_map()
         else:
             exclusion_radius_per_type = {}
-        
         RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude,
-                                                    exclusion_range=exclusion_range, 
-                                                    seed=self.seed, 
-                                                    constant_pH=constant_pH,
-                                                    exclusion_radius_per_type = exclusion_radius_per_type
-                                                    )
-        sucessfull_reactions_labels=[]
-        charge_number_map = self.get_charge_number_map()
-        for name in pka_set.keys():
-            if not _DFm._check_if_name_is_defined_in_df(name=name, df=self.df):
-                logging.warning(f'The acid-base reaction of {name} has not been set up because its particle type is not defined in the pyMBE DataFrame.')
+                                                exclusion_range=exclusion_range, 
+                                                seed=self.seed, 
+                                                constant_pH=constant_pH,
+                                                exclusion_radius_per_type = exclusion_radius_per_type)
+        conterion_tpl = self.db.get_template(name=counter_ion,
+                                             pmb_type="particle")
+        conterion_state = self.db.get_template(name=conterion_tpl.initial_state,
+                                               pmb_type="particle_state")
+        for reaction in self.db.get_reactions():
+            if reaction.reaction_type not in ["monoprotic_acid", "monoprotic_base"]:
                 continue
-            gamma=10**-pka_set[name]['pka_value']
-            state_one_type   = self.df.loc[self.df['name']==name].state_one.es_type.values[0]
-            state_two_type   = self.df.loc[self.df['name']==name].state_two.es_type.values[0]
-            counter_ion_type = self.df.loc[self.df['name']==counter_ion].state_one.es_type.values[0]
+            default_charges = {}
+            reactant_types  = []
+            product_types   = []
+            for participant in reaction.participants:
+                state_tpl = self.db.get_template(name=participant.state_name,
+                                                 pmb_type="particle_state")
+                default_charges[state_tpl.es_type] = state_tpl.z
+                if participant.coefficient < 0:
+                    reactant_types.append(state_tpl.es_type)
+                elif participant.coefficient > 0:
+                    product_types.append(state_tpl.es_type)
+            # Add counterion to the products
+            if conterion_state.es_type not in product_types:
+                product_types.append(conterion_state.es_type)
+                default_charges[conterion_state.es_type] = conterion_state.z
+                reaction.add_participant(particle_name=counter_ion,
+                                         state_name=conterion_tpl.initial_state,
+                                         coefficient=1)
+            gamma=10**-reaction.pK
             RE.add_reaction(gamma=gamma,
-                            reactant_types=[state_one_type],
-                            product_types=[state_two_type, counter_ion_type],
-                            default_charges={state_one_type: charge_number_map[state_one_type],
-                            state_two_type: charge_number_map[state_two_type],
-                            counter_ion_type: charge_number_map[counter_ion_type]})
-            sucessfull_reactions_labels.append(name)
-        return RE, sucessfull_reactions_labels
+                            reactant_types=reactant_types,
+                            product_types=product_types,
+                            default_charges=default_charges)
+            reaction.add_simulation_method(simulation_method="cpH")
+        return RE
 
     def setup_gcmc(self, c_salt_res, salt_cation_name, salt_anion_name, activity_coefficient, exclusion_range=None, use_exclusion_radius_per_type = False):
         """
