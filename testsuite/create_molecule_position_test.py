@@ -116,10 +116,12 @@ class Test(ut.TestCase):
                                            list_of_first_residue_positions = pos_list)
 
         # Check that center_molecule_in_simulation_box works correctly for cubic boxes
-        pmb.center_molecule_in_simulation_box(molecule_id=molecule_ids[0], 
-                                            espresso_system=espresso_system)
-        center_of_mass = pmb.calculate_center_of_mass_of_molecule(molecule_id=molecule_ids[0], 
-                                                                espresso_system=espresso_system)
+        pmb.center_object_in_simulation_box(instance_id=molecule_ids[0], 
+                                            espresso_system=espresso_system,
+                                            pmb_type="molecule")
+        center_of_mass = pmb.calculate_center_of_mass(instance_id=molecule_ids[0],
+                                                      pmb_type="molecule", 
+                                                      espresso_system=espresso_system)
         center_of_mass_ref = [L/2]*3
         for ind in range(len(center_of_mass)):
             self.assertAlmostEqual(center_of_mass[ind], 
@@ -127,26 +129,29 @@ class Test(ut.TestCase):
         #Check that center_molecule_in_simulation_box works correctly for non-cubic boxes
         espresso_system.change_volume_and_rescale_particles(d_new=3*L, dir="z")
         
-        pmb.center_molecule_in_simulation_box(molecule_id=molecule_ids[2], 
-                                              espresso_system=espresso_system)
-        center_of_mass = pmb.calculate_center_of_mass_of_molecule(molecule_id=molecule_ids[2], 
-                                                                  espresso_system=espresso_system)
+        pmb.center_object_in_simulation_box(instance_id=molecule_ids[2],
+                                            pmb_type="molecule", 
+                                            espresso_system=espresso_system)
+        center_of_mass = pmb.calculate_center_of_mass(instance_id=molecule_ids[2],
+                                                      pmb_type="molecule", 
+                                                      espresso_system=espresso_system)
         center_of_mass_ref = [L/2, L/2, 1.5*L]
         for ind in range(len(center_of_mass)):
             self.assertAlmostEqual(center_of_mass[ind], 
                                 center_of_mass_ref[ind])
 
-    def test_sanity_center_molecule_in_simulation_box(self):
+    def test_sanity_center_object_in_simulation_box(self):
         """
         Sanity tests for center_molecule_in_simulation_box
         """
         # Check that center_molecule_in_simulation_box raises a Value Error if a wrong molecule_id is provided
 
-        input_parameters = {"molecule_id": 20 ,
+        input_parameters = {"instance_id": 20 ,
+                            "pmb_type": "molecule",
                             "espresso_system":espresso_system}
 
         self.assertRaises(ValueError, 
-                          pmb.center_molecule_in_simulation_box, 
+                          pmb.center_object_in_simulation_box, 
                            **input_parameters)
 
 

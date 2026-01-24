@@ -65,9 +65,9 @@ class Test(ut.TestCase):
         Check that  check_pka_set raises a ValueError if data is missing important fields
         """
         pmb = pyMBE.pymbe_library(seed=42)
-        np.testing.assert_raises(ValueError, pmb.check_pka_set, {"name" : {}})
-        np.testing.assert_raises(ValueError, pmb.check_pka_set, {"name" : {"pka_value": 1.}})
-        np.testing.assert_raises(ValueError, pmb.check_pka_set, {"name" : {"acidity": 1.}})
+        np.testing.assert_raises(ValueError, pmb._check_pka_set, {"name" : {}})
+        np.testing.assert_raises(ValueError, pmb._check_pka_set, {"name" : {"pka_value": 1.}})
+        np.testing.assert_raises(ValueError, pmb._check_pka_set, {"name" : {"acidity": 1.}})
 
 if __name__ == "__main__":
     ut.main()

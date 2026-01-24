@@ -186,7 +186,7 @@ def define_protein_AA_particles(topology_dict, pmb, pka_set,  lj_setup_mode="wca
             pmb.define_particle(**part_dict)
             defined_particles.append(particle_name)
 
-def define_protein_AA_residues(topology_dict, model, pmb):
+def define_protein_AA_residues(sequence, model, pmb):
     """
     Define residue templates in the pyMBE database for a protein topology dict.
 
@@ -226,12 +226,8 @@ def define_protein_AA_residues(topology_dict, model, pmb):
 
         - Residue names are constructed as `"AA-<residue>"`, e.g., `"AA-A"`, `"AA-L"`.
     """
-
     residue_list = []
-    residues = get_residues_from_topology_dict(topology_dict=topology_dict,
-                                               model=model)
-    for res_id in residues.keys():
-        item = residues[res_id]["resname"]
+    for item in sequence:
         if model == '1beadAA':
             central_bead = item
             side_chains = []
@@ -247,7 +243,7 @@ def define_protein_AA_residues(topology_dict, model, pmb):
             pmb.define_residue(name = residue_name, 
                                 central_bead = central_bead,
                                 side_chains = side_chains)              
-            residue_list.append(residue_name)
+        residue_list.append(residue_name)
     return residue_list
 
 def define_peptide_AA_residues(sequence,model, pmb):

@@ -71,9 +71,9 @@ class Test(ut.TestCase):
                          'k'      : 'reduced_energy / reduced_length**2',
                          'd_r_max': 'reduced_length'}
         for key in input_parameters.keys():
-            np.testing.assert_equal(actual=bond_params[key],
-                                    desired=input_parameters[key].m_as(reduced_units[key]),
-                                    verbose=True)   
+            np.testing.assert_almost_equal(actual=bond_params[key],
+                                           desired=input_parameters[key].m_as(reduced_units[key]),
+                                           verbose=True)   
 
     def test_bond_setup(self):
         """

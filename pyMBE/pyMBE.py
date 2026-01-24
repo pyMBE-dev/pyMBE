@@ -54,43 +54,49 @@ import pyMBE.storage.io as io
 
 class pymbe_library():
     """
-    Core library for the Molecular Builder for ESPResSo (pyMBE).
-
-    Provides access to functions to define templates to build coarse-grained models of macromolecules.
+    Core library of the Molecular Builder for ESPResSo (pyMBE).
 
     Attributes:
-        N_A (pint.Quantity): Avogadro number.
-        kB (pint.Quantity): Boltzmann constant.
-        e (pint.Quantity): Elementary charge.
-        kT (pint.Quantity): Thermal energy at the set temperature.
-        Kw (pint.Quantity): Ionic product of water. Used in G-RxMC method setup.
-        db (Manager): Database manager instance for pyMBE objects.
-        rng (np.random.Generator): Random number generator initialized with the provided seed.
-        units (pint.UnitRegistry): Pint UnitRegistry for unit-aware calculations.
-        lattice_builder (optional): Placeholder for lattice builder object, initially None.
-        root (importlib.resources.Path): Root path to the pyMBE package resources.
+        N_A ('pint.Quantity'):
+            Avogadro number.
+        kB ('pint.Quantity'):
+            Boltzmann constant.
+        e ('pint.Quantity'):
+            Elementary charge.
+        kT ('pint.Quantity'):
+            Thermal energy corresponding to the set temperature.
+        Kw ('pint.Quantity'):
+            Ionic product of water, used in G-RxMC and Donnan-related calculations.
+        db ('Manager'):
+            Database manager holding all pyMBE templates, instances and reactions.
+        rng ('numpy.random.Generator'):
+            Random number generator initialized with the provided seed.
+        units ('pint.UnitRegistry'):
+            Pint unit registry used for unit-aware calculations.
+        lattice_builder:
+            Optional lattice builder object (initialized as ``None``).
+        root ('importlib.resources.abc.Traversable'):
+            Root path to the pyMBE package resources.
     """
 
     def __init__(self, seed, temperature=None, unit_length=None, unit_charge=None, Kw=None):
         """
-        Initialize the pyMBE library.
-
-        Sets up the reduced unit system using temperature, unit length, and unit charge,
-        initializes the pyMBE database, and sets default physical constants.
+        Initializes the pyMBE library.
 
         Args:
-            seed (int): Seed for the random number generator.
-            temperature (pint.Quantity, optional): Simulation temperature. Defaults to 298.15 K if None.
-            unit_length (pint.Quantity, optional): Reference length for reduced units. Defaults to 0.355 nm if None.
-            unit_charge (pint.Quantity, optional): Reference charge for reduced units. Defaults to 1 elementary charge if None.
-            Kw (pint.Quantity, optional): Ionic product of water in mol^2/l^2. Defaults to 1e-14 mol^2/l^2 if None.
-
-        Notes:
-            - Initializes `self.rng` for random number generation.
-            - Sets fundamental constants: Avogadro number (`N_A`), Boltzmann constant (`kB`), elementary charge (`e`).
-            - Initializes the reduced units via `set_reduced_units`.
-            - Prepares an empty database (`self.db`) for pyMBE objects.
-            - Initializes placeholders for `lattice_builder` and package resource path (`root`).
+            seed ('int'):
+                Seed for the random number generator.
+            temperature ('pint.Quantity', optional):
+                Simulation temperature. If ``None``, defaults to 298.15 K.
+            unit_length ('pint.Quantity', optional):
+                Reference length for reduced units. If ``None``, defaults to
+                0.355 nm.
+            unit_charge ('pint.Quantity', optional):
+                Reference charge for reduced units. If ``None``, defaults to
+                one elementary charge.
+            Kw ('pint.Quantity', optional):
+                Ionic product of water (typically in mol²/L²). If ``None``,
+                defaults to 1e-14 mol²/L².
         """
         # Seed and RNG
         self.seed=seed
@@ -115,8 +121,6 @@ class pymbe_library():
         Args:
             bond_type(`str`): label to identify the potential to model the bond.
             bond_parameters(`dict`): parameters of the potential of the bond.
-
-
         """
         valid_bond_types   = ["harmonic", "FENE"] 
         if bond_type not in valid_bond_types:
@@ -147,6 +151,21 @@ class pymbe_library():
             raise ValueError(f"The variable {variable} should have a dimensionality of {expected_dimensionality}, instead the variable has a dimensionality of {variable.dimensionality}")
         return correct_dimensionality   
             
+    def _check_pka_set(self, pka_set):
+        """
+        Checks that `pka_set` has the formatting expected by pyMBE.
+       
+        Args:
+            pka_set (`dict`): 
+                {"name" : {"pka_value": pka, "acidity": acidity}}
+        """
+        required_keys=['pka_value','acidity']
+        for required_key in required_keys:
+            for pka_name, pka_entry in pka_set.items():
+                if required_key not in pka_entry:
+                    raise ValueError(f'missing a required key "{required_key}" in entry "{pka_name}" of pka_set ("{pka_entry}")')
+        return
+
     def _create_espresso_bond_instance(self, bond_type, bond_parameters):
         """
         Creates an ESPResSo bond instance.
@@ -188,18 +207,24 @@ class pymbe_library():
         Creates a chain between two nodes of a hydrogel.
 
         Args:
-            hydrogel_chain(HydrogelChain): template of a hydrogel chain
-            nodes(dict): {node_index: {"name": node_particle_name, "pos": node_position, "id": node_particle_instance_id}}
-            espresso_system (espressomd.system.System): ESPResSo system object where the hydrogel chain will be created.
-            use_default_bond (bool, optional): If True, use a default bond template if no specific template exists. Defaults to False.
+            hydrogel_chain ('HydrogelChain'): 
+                template of a hydrogel chain
+            nodes ('dict'): 
+                {node_index: {"name": node_particle_name, "pos": node_position, "id": node_particle_instance_id}}
+
+            espresso_system ('espressomd.system.System'): 
+                ESPResSo system object where the hydrogel chain will be created.
+
+            use_default_bond ('bool', optional): 
+                If True, use a default bond template if no specific template exists. Defaults to False.
 
         Return:
-            (int): molecule_id of the created hydrogel chian.
+            ('int'): 
+                molecule_id of the created hydrogel chian.
 
         Note:
-            - For example, if the chain is defined between node_start = ``[0 0 0]`` and node_end = ``[1 1 1]``, the chain will be placed between these two nodes.
+            - If the chain is defined between node_start = ``[0 0 0]`` and node_end = ``[1 1 1]``, the chain will be placed between these two nodes.
             - The chain will be placed in the direction of the vector between `node_start` and `node_end`. 
-            - This function does not support default bonds.
         """
         if self.lattice_builder is None:
             raise ValueError("LatticeBuilder is not initialized. Use `initialize_lattice_builder` first.")
@@ -288,17 +313,37 @@ class pymbe_library():
         self.lattice_builder.nodes[key] = node_name
         return node_position.tolist(), p_id[0]
 
-    
+    def _get_label_id_map(self, pmb_type):
+        """
+        Returns the key used to access the particle ID map for a given pyMBE object type.
+
+        Args:
+            pmb_type (`str`):
+                pyMBE object type for which the particle ID map label is requested.
+
+        Returns:
+            `str`:
+                Label identifying the appropriate particle ID map. 
+        """
+        if pmb_type in self.db._assembly_like_types:
+            label="assembly_map"
+        elif pmb_type in self.db._molecule_like_types:
+            label="molecule_map"
+        else:
+            label=f"{pmb_type}_map"
+        return label
 
     def _get_residue_list_from_sequence(self, sequence):
         """
-        Convinience function to get a `residue_list` from a protein or peptide `sequence`.
+        Convenience function to get a `residue_list` from a protein or peptide `sequence`.
 
         Args:
-            sequence(`lst`):  Sequence of the peptide or protein.
+            sequence (`lst`): 
+                 Sequence of the peptide or protein.
 
         Returns:
-            residue_list(`list` of `str`): List of the `name`s of the `residue`s  in the sequence of the `molecule`.             
+            residue_list (`list` of `str`): 
+                List of the `name`s of the `residue`s  in the sequence of the `molecule`.             
         """
         residue_list = []
         for item in sequence:
@@ -311,16 +356,19 @@ class pymbe_library():
         Validate that a template name resolves unambiguously to exactly one
         allowed pmb_type in the pyMBE database and return it.
 
-        
         Args:
-            name(str): Name of the template to validate.
-            allowed_types(set[str]):  Set of allowed pmb_type values (e.g. {"molecule", "peptide"}).
+            name ('str'): 
+                Name of the template to validate.
+
+            allowed_types ('set[str]'):  
+                Set of allowed pmb_type values (e.g. {"molecule", "peptide"}).
 
         Returns:
-            str: Resolved pmb_type.
+            str: 
+                Resolved pmb_type.
 
         Notes:
-            This method does *not* return the template itself, only the validated pmb_type. 
+            - This method does *not* return the template itself, only the validated pmb_type. 
         """
         registered_pmb_types_with_name = self.db._find_template_types(name=name)
         filtered_types = allowed_types.intersection(registered_pmb_types_with_name)
@@ -335,41 +383,51 @@ class pymbe_library():
         Remove a list of particles from an ESPResSo simulation system.
 
         Args:
-        particle_ids : Iterable[int]
-            A list (or other iterable) of ESPResSo particle IDs to remove.
+            particle_ids  ('Iterable[int]'):
+                A list (or other iterable) of ESPResSo particle IDs to remove.
 
-        espresso_system : espressomd.system.System
-            The ESPResSo simulation system from which the particles
-            will be removed.
+            espresso_system ('espressomd.system.System'):
+                The ESPResSo simulation system from which the particles
+                will be removed.
 
-        Note:
-        - This method removes particles only from the ESPResSo simulation,
-        **not** from the pyMBE database. Database cleanup must be handled
-        separately by the caller.
-        - Attempting to remove a non-existent particle ID will raise
-        an ESPResSo error.
+        Notes:
+            - This method removes particles only from the ESPResSo simulation,
+            **not** from the pyMBE database. Database cleanup must be handled
+            separately by the caller.
+            - Attempting to remove a non-existent particle ID will raise
+            an ESPResSo error.
         """
         for pid in particle_ids:
             espresso_system.part.by_id(pid).remove()
 
-
-    def calculate_center_of_mass_of_molecule(self, molecule_id, pmb_type, espresso_system):
+    def calculate_center_of_mass(self, instance_id, pmb_type, espresso_system):
         """
-        Calculates the center of the molecule with a given molecule_id.
+        Calculates the center of mass of a pyMBE object instance in an ESPResSo system.
 
         Args:
-            molecule_id(`int`): Id of the molecule whose center of mass is to be calculated.
-            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
-        
+            instance_id ('int'):
+                pyMBE instance ID of the object whose center of mass is calculated.
+            pmb_type ('str'):
+                Type of the pyMBE object. Must correspond to a particle-aggregating
+                template type (e.g. `"molecule"`, `"residue"`, `"peptide"`, `"protein"`).
+            espresso_system ('espressomd.system.System'):
+                ESPResSo system containing the particle instances.
+
         Returns:
-            center_of_mass(`lst`): Coordinates of the center of mass.
+            center_of_mass ('numpy.ndarray'):
+                Array of shape `(3,)` containing the Cartesian coordinates of the
+                center of mass.
+
+        Notes:
+            - This method assumes equal mass for all particles.
+            - Periodic boundary conditions are *not* unfolded; positions are taken
+            directly from ESPResSo particle coordinates.
         """
         center_of_mass = np.zeros(3)
         axis_list = [0,1,2]
-        mol_inst = self.db.get_instance(pmb_type="molecule",
-                                        instance_id=molecule_id)
-        molecule_name = mol_inst.name
-        particle_id_list = self.get_particle_id_map(object_name=molecule_name)["all"]
+        inst = self.db.get_instance(pmb_type=pmb_type,
+                                    instance_id=instance_id)
+        particle_id_list = self.get_particle_id_map(object_name=inst.name)["all"]
         for pid in particle_id_list:
             for axis in axis_list:
                 center_of_mass [axis] += espresso_system.part.by_id(pid).pos[axis]
@@ -381,24 +439,24 @@ class pymbe_library():
         Calculates the charge in the template object according to the ideal  Henderson–Hasselbalch titration curve.
 
         Args:
-            template_name (str):
+            template_name ('str'):
                 Name of the template.
-            pH_list (list[float], optional):
+            pH_list ('list[float]', optional):
                 pH values at which the charge is evaluated.
                 Defaults to 50 values between 2 and 12.
-            pka_set (dict, optional):
+            pka_set ('dict', optional):
                 Mapping:
-                    {particle_name: {"pka_value": float, "acidity": "acidic"|"basic"}}
+                    {particle_name: {"pka_value": 'float', "acidity": "acidic"|"basic"}}
 
         Returns:
-            list[float]:
+            'list[float]':
                 Net molecular charge at each pH value.
         """
         if pH_list is None:
             pH_list = np.linspace(2, 12, 50)
         if pka_set is None:
             pka_set = self.get_pka_set()
-        self.check_pka_set(pka_set=pka_set)
+        self._check_pka_set(pka_set=pka_set)
         particle_counts = self.db.get_particle_templates_under(template_name=template_name,
                                                                return_counts=True)
         if not particle_counts:
@@ -432,29 +490,59 @@ class pymbe_library():
 
     def calculate_HH_Donnan(self, c_macro, c_salt, pH_list=None, pka_set=None):
         """
-        Calculates the charge on the different molecules according to the Henderson-Hasselbalch equation coupled to the Donnan partitioning.
+        Computes macromolecular charges using the Henderson–Hasselbalch equation
+        coupled to ideal Donnan partitioning.
 
         Args:
-            c_macro('dict'): {"name": concentration} - A dict containing the concentrations of all charged macromolecular species in the system. 
-            c_salt('float'): Salt concentration in the reservoir.
-            pH_list('lst'): List of pH-values in the reservoir. 
-            pka_set('dict'): {"name": {"pka_value": pka, "acidity": acidity}}.
+            c_macro (`dict`):
+                Mapping of macromolecular species names to their concentrations
+                in the system:
+                `{molecule_name: concentration}`.
+                Concentrations must carry units compatible with molar concentration.
+            c_salt (`float` or `pint.Quantity`):
+                Salt concentration in the reservoir.
+            pH_list (`list[float]`, optional):
+                List of pH values in the reservoir at which the calculation is
+                performed. If `None`, 50 equally spaced values between 2 and 12
+                are used.
+            pka_set (`dict`, optional):
+                Dictionary defining the acid–base properties of titratable particle
+                types:
+                `{particle_name: {"pka_value": float, "acidity": "acidic" | "basic"}}`.
+                If `None`, the pKa set is taken from the pyMBE database.
 
         Returns:
-            {"charges_dict": {"name": charges}, "pH_system_list": pH_system_list, "partition_coefficients": partition_coefficients_list}
-            pH_system_list ('lst'): List of pH_values in the system.
-            partition_coefficients_list ('lst'): List of partition coefficients of cations.
+            `dict`:
+                Dictionary containing:
+                - `"charges_dict"` (`dict`):
+                    Mapping `{molecule_name: list}` of Henderson–Hasselbalch–Donnan
+                    charges evaluated at each pH value.
+                - `"pH_system_list"` (`list[float]`):
+                    Effective pH values inside the system phase after Donnan
+                    partitioning.
+                - `"partition_coefficients"` (`list[float]`):
+                    Partition coefficients of monovalent cations at each pH value.
 
-        Note:
-            - If no `pH_list` is given, 50 equispaced pH-values ranging from 2 to 12 are calculated
-            - If no `pka_set` is given, the pKa values are taken from `pmb.df`
-            - If `c_macro` does not contain all charged molecules in the system, this function is likely to provide the wrong result.
+        Raises:
+            ValueError:
+                If the provided `pka_set` is invalid or inconsistent.
+
+        Notes:
+            - This method assumes **ideal Donnan equilibrium** and **monovalent salt**.
+            - The ionic strength of the reservoir includes both salt and
+            pH-dependent H⁺/OH⁻ contributions.
+            - All charged macromolecular species present in the system must be
+            included in `c_macro`; missing species will lead to incorrect results.
+            - The nonlinear Donnan equilibrium equation is solved using a scalar
+            root finder (`brentq`) in logarithmic form for numerical stability.
+            - This method is intended for **two-phase systems**; for single-phase
+            systems use `calculate_HH` instead.
         """
         if pH_list is None:
             pH_list=np.linspace(2,12,50)
         if pka_set is None:
             pka_set=self.get_pka_set() 
-        self.check_pka_set(pka_set=pka_set)
+        self._check_pka_set(pka_set=pka_set)
         partition_coefficients_list = []
         pH_system_list = []
         Z_HH_Donnan={}
@@ -528,12 +616,7 @@ class pymbe_library():
                 {"mean": mean_net_charge, "instances": {instance_id: net_charge}}
         """
         id_map = self.get_particle_id_map(object_name=object_name)
-        if pmb_type in self.db._assembly_like_types:
-            label="assembly_map"
-        elif pmb_type in self.db._molecule_like_types:
-            label="molecule_map"
-        else:
-            label=f"{pmb_type}_map"
+        label = self._get_label_id_map(pmb_type=pmb_type)
         instance_map = id_map[label]
         charges = {}
         for instance_id, particle_ids in instance_map.items():
@@ -554,43 +637,39 @@ class pymbe_library():
             mean_charge = (np.mean([q.magnitude for q in charges.values()])* self.units.Quantity(1, "reduced_charge"))
         return {"mean": mean_charge, "instances": charges}
 
-    def center_molecule_in_simulation_box(self, molecule_id, espresso_system, pmb_type="molecule"):
+    def center_object_in_simulation_box(self, instance_id, espresso_system, pmb_type):
         """
-        Centers the pmb object matching `molecule_id` in the center of the simulation box in `espresso_md`.
-        
+        Centers a pyMBE object instance in the simulation box of an ESPResSo system.
+        The object is translated such that its center of mass coincides with the
+        geometric center of the ESPResSo simulation box.
+
         Args:
-            molecule_id(`int`): Id of the molecule to be centered.
-            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
+            instance_id (`int`):
+                ID of the pyMBE object instance to be centered.
+
+            pmb_type (`str`):
+                Type of the pyMBE object.
+
+            espresso_system (`espressomd.system.System`):
+                ESPResSo system object in which the particles are defined.
+
+        Notes:
+            - Works for both cubic and non-cubic simulation boxes.
         """
         if pmb_type not in self.db._molecule_like_types:
             raise ValueError(f"Input pmb_type = {pmb_type} not supported, supported pyMBE types are: {self.db._molecule_like_types}.")
-        mol_inst = self.db.get_instance(instance_id=molecule_id,
-                                        pmb_type=pmb_type)
-        center_of_mass = self.calculate_center_of_mass_of_molecule(molecule_id=molecule_id,
-                                                                   espresso_system=espresso_system)
+        inst = self.db.get_instance(instance_id=instance_id,
+                                    pmb_type=pmb_type)
+        center_of_mass = self.calculate_center_of_mass(instance_id=instance_id,
+                                                       espresso_system=espresso_system,
+                                                       pmb_type=pmb_type)
         box_center = [espresso_system.box_l[0]/2.0,
                       espresso_system.box_l[1]/2.0,
                       espresso_system.box_l[2]/2.0]
-        particle_id_list = self.get_particle_id_map(object_name=mol_inst.name)["all"]
+        particle_id_list = self.get_particle_id_map(object_name=inst.name)["all"]
         for pid in particle_id_list:
             es_pos = espresso_system.part.by_id(pid).pos
             espresso_system.part.by_id(pid).pos = es_pos - center_of_mass + box_center
-
-    
-
-    def check_pka_set(self, pka_set):
-        """
-        Checks that `pka_set` has the formatting expected by the pyMBE library.
-       
-        Args:
-            pka_set(`dict`): {"name" : {"pka_value": pka, "acidity": acidity}}
-        """
-        required_keys=['pka_value','acidity']
-        for required_key in required_keys:
-            for pka_name, pka_entry in pka_set.items():
-                if required_key not in pka_entry:
-                    raise ValueError(f'missing a required key "{required_key}" in entry "{pka_name}" of pka_set ("{pka_entry}")')
-        return
 
     def create_added_salt(self, espresso_system, cation_name, anion_name, c_salt):    
         """
@@ -1008,9 +1087,6 @@ class pymbe_library():
 
         protein_tpl = self.db.get_template(pmb_type="protein", name=name)
         box_half = espresso_system.box_l[0] / 2.0
-
-        residues = hf.get_residues_from_topology_dict(topology_dict=topology_dict,
-                                                      model=protein_tpl.model)
         # Create protein
         mol_ids = []
         for _ in range(number_of_proteins):
@@ -1021,6 +1097,8 @@ class pymbe_library():
                                                                       max_dist=box_half,
                                                                       n_samples=1,
                                                                       center=[box_half]*3)[0]
+            residues = hf.get_residues_from_topology_dict(topology_dict=topology_dict,
+                                                         model=protein_tpl.model)
             # CREATE RESIDUES + PARTICLES
             for _, rdata in residues.items():
                 base_resname = rdata["resname"]  
@@ -1031,7 +1109,6 @@ class pymbe_library():
                 self.db._register_instance(ResidueInstance(name=residue_name,
                                                            residue_id=residue_id,
                                                            molecule_id=molecule_id))
-
                 # PARTICLE CREATION
                 for bead_id in rdata["beads"]:
                     bead_type = re.split(r'\d+', bead_id)[0]
@@ -1042,7 +1119,6 @@ class pymbe_library():
                                                        number_of_particles=1,
                                                        position=[absolute_pos],
                                                        fix=True)[0]
-
                     # update metadata
                     self.db._update_instance(instance_id=particle_id,
                                              pmb_type="particle",
@@ -1516,158 +1592,185 @@ class pymbe_library():
         particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                                attribute=instance_identifier,
                                                                value=instance_id)
-
         self._delete_particles_from_espresso(particle_ids=particle_ids,
                                              espresso_system=espresso_system)
-        
         self.db.delete_instance(pmb_type=pmb_type,
                                 instance_id=instance_id,
                                 cascade=True)
 
     def determine_reservoir_concentrations(self, pH_res, c_salt_res, activity_coefficient_monovalent_pair, max_number_sc_runs=200):
         """
-        Determines the concentrations of the various species in the reservoir for given values of the pH and salt concentration.
-        To do this, a system of nonlinear equations involving the pH, the ionic product of water, the activity coefficient of an
-        ion pair and the concentrations of the various species is solved numerically using a self-consistent approach.
-        More details can be found in chapter 5.3 of Landsgesell (doi.org/10.18419/opus-10831).
-        This is a modified version of the code by Landsgesell et al. (doi.org/10.18419/darus-2237).
+        Determines ionic concentrations in the reservoir at fixed pH and salt concentration.
+
+        This method computes the equilibrium concentrations of H⁺, OH⁻, Na⁺, and Cl⁻
+        ions in a reservoir by solving a coupled, nonlinear system of equations that
+        includes water autodissociation and non-ideal activity effects. The solution
+        is obtained via a self-consistent iterative procedure.
 
         Args:
-            pH_res('float'): pH-value in the reservoir.
-            c_salt_res('pint.Quantity'): Concentration of monovalent salt (e.g. NaCl) in the reservoir.
-            activity_coefficient_monovalent_pair('callable', optional): A function that calculates the activity coefficient of an ion pair as a function of the ionic strength.
+            pH_res ('float'):
+                Target pH value in the reservoir.
+
+            c_salt_res ('pint.Quantity'):
+                Concentration of monovalent salt (e.g., NaCl) in the reservoir.
+
+            activity_coefficient_monovalent_pair ('callable'):
+                Function returning the activity coefficient of a monovalent ion pair
+                as a function of ionic strength:
+                `gamma = activity_coefficient_monovalent_pair(I)`.
+
+            max_number_sc_runs ('int', optional):
+                Maximum number of self-consistent iterations allowed before
+                convergence is enforced. Defaults to 200.
 
         Returns:
-            cH_res('pint.Quantity'): Concentration of H+ ions.
-            cOH_res('pint.Quantity'): Concentration of OH- ions.
-            cNa_res('pint.Quantity'): Concentration of Na+ ions.
-            cCl_res('pint.Quantity'): Concentration of Cl- ions.
+            tuple:
+                (cH_res, cOH_res, cNa_res, cCl_res)
+                - cH_res ('pint.Quantity'): Concentration of H⁺ ions.
+                - cOH_res ('pint.Quantity'): Concentration of OH⁻ ions.
+                - cNa_res ('pint.Quantity'): Concentration of Na⁺ ions.
+                - cCl_res ('pint.Quantity'): Concentration of Cl⁻ ions.
+
+        Notes:
+            - The algorithm enforces electroneutrality in the reservoir.
+            - Water autodissociation is included via the equilibrium constant `Kw`.
+            - Non-ideal effects enter through activity coefficients depending on
+            ionic strength.
+            - The implementation follows the self-consistent scheme described in
+            Landsgesell (PhD thesis, Sec. 5.3, doi:10.18419/opus-10831), adapted
+            from the original code (doi:10.18419/darus-2237).
         """
-
-        self_consistent_run = 0
-        cH_res = 10**(-pH_res) * self.units.mol/self.units.l #initial guess for the concentration of H+
-
         def determine_reservoir_concentrations_selfconsistently(cH_res, c_salt_res):
-            #Calculate and initial guess for the concentrations of various species based on ideal gas estimate
-            cOH_res = self.Kw / cH_res 
-            cNa_res = None
-            cCl_res = None
-            if cOH_res>=cH_res:
-                #adjust the concentration of sodium if there is excess OH- in the reservoir:
-                cNa_res = c_salt_res + (cOH_res-cH_res)
+            """
+            Iteratively determines reservoir ion concentrations self-consistently.
+
+            Args:
+                cH_res ('pint.Quantity'):
+                    Current estimate of the H⁺ concentration.
+                c_salt_res ('pint.Quantity'):
+                    Concentration of monovalent salt in the reservoir.
+
+            Returns:
+                'tuple':
+                    (cH_res, cOH_res, cNa_res, cCl_res)
+            """
+            # Initial ideal estimate
+            cOH_res = self.Kw / cH_res
+            if cOH_res >= cH_res:
+                cNa_res = c_salt_res + (cOH_res - cH_res)
                 cCl_res = c_salt_res
             else:
-                # adjust the concentration of chloride if there is excess H+ in the reservoir
-                cCl_res = c_salt_res + (cH_res-cOH_res)
+                cCl_res = c_salt_res + (cH_res - cOH_res)
                 cNa_res = c_salt_res
-                
-            def calculate_concentrations_self_consistently(cH_res, cOH_res, cNa_res, cCl_res):
-                nonlocal max_number_sc_runs, self_consistent_run
-                if self_consistent_run<max_number_sc_runs:
-                    self_consistent_run+=1
-                    ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-                    cOH_res = self.Kw / (cH_res * activity_coefficient_monovalent_pair(ionic_strength_res))
-                    if cOH_res>=cH_res:
-                        #adjust the concentration of sodium if there is excess OH- in the reservoir:
-                        cNa_res = c_salt_res + (cOH_res-cH_res)
-                        cCl_res = c_salt_res
-                    else:
-                        # adjust the concentration of chloride if there is excess H+ in the reservoir
-                        cCl_res = c_salt_res + (cH_res-cOH_res)
-                        cNa_res = c_salt_res
-                    return calculate_concentrations_self_consistently(cH_res, cOH_res, cNa_res, cCl_res)
+            # Self-consistent iteration
+            for _ in range(max_number_sc_runs):
+                ionic_strength_res = 0.5 * (cNa_res + cCl_res + cOH_res + cH_res)
+                cOH_new = self.Kw / (cH_res * activity_coefficient_monovalent_pair(ionic_strength_res))
+                if cOH_new >= cH_res:
+                    cNa_new = c_salt_res + (cOH_new - cH_res)
+                    cCl_new = c_salt_res
                 else:
-                    return cH_res, cOH_res, cNa_res, cCl_res
-            return calculate_concentrations_self_consistently(cH_res, cOH_res, cNa_res, cCl_res)
-
-        cH_res, cOH_res, cNa_res, cCl_res = determine_reservoir_concentrations_selfconsistently(cH_res, c_salt_res)
-        ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-        determined_pH = -np.log10(cH_res.to('mol/L').magnitude * np.sqrt(activity_coefficient_monovalent_pair(ionic_strength_res)))
-
-        while abs(determined_pH-pH_res)>1e-6:
+                    cCl_new = c_salt_res + (cH_res - cOH_new)
+                    cNa_new = c_salt_res
+                # Update values
+                cOH_res = cOH_new
+                cNa_res = cNa_new
+                cCl_res = cCl_new
+            return cH_res, cOH_res, cNa_res, cCl_res
+        # Initial guess for H+ concentration from target pH
+        cH_res = 10 ** (-pH_res) * self.units.mol / self.units.l
+        # First self-consistent solve
+        cH_res, cOH_res, cNa_res, cCl_res = (determine_reservoir_concentrations_selfconsistently(cH_res, 
+                                                                                                 c_salt_res))
+        ionic_strength_res = 0.5 * (cNa_res + cCl_res + cOH_res + cH_res)
+        determined_pH = -np.log10(cH_res.to("mol/L").magnitude* np.sqrt(activity_coefficient_monovalent_pair(ionic_strength_res)))
+        # Outer loop to enforce target pH
+        while abs(determined_pH - pH_res) > 1e-6:
             if determined_pH > pH_res:
                 cH_res *= 1.005
             else:
                 cH_res /= 1.003
-            cH_res, cOH_res, cNa_res, cCl_res = determine_reservoir_concentrations_selfconsistently(cH_res, c_salt_res)
-            ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
-            determined_pH = -np.log10(cH_res.to('mol/L').magnitude * np.sqrt(activity_coefficient_monovalent_pair(ionic_strength_res)))
-            self_consistent_run=0
-
+            cH_res, cOH_res, cNa_res, cCl_res = (determine_reservoir_concentrations_selfconsistently(cH_res, 
+                                                                                                     c_salt_res))
+            ionic_strength_res = 0.5 * (cNa_res + cCl_res + cOH_res + cH_res)
+            determined_pH = -np.log10(cH_res.to("mol/L").magnitude * np.sqrt(activity_coefficient_monovalent_pair(ionic_strength_res)))
         return cH_res, cOH_res, cNa_res, cCl_res
 
-    def enable_motion_of_rigid_object(self, name, espresso_system):
-        '''
-        Enables the motion of the rigid object `name` in the `espresso_system`.
+    def enable_motion_of_rigid_object(self, instance_id, pmb_type, espresso_system):
+        """
+        Enables translational and rotational motion of a rigid pyMBE object instance
+        in an ESPResSo system.This method creates a rigid-body center particle at the center of mass of
+        the specified pyMBE object and attaches all constituent particles to it
+        using ESPResSo virtual sites. The resulting rigid object can translate and
+        rotate as a single body.
 
         Args:
-            name(`str`): Label of the object.
-            espresso_system(`espressomd.system.System`): Instance of a system object from the espressomd library.
+            instance_id (`int`):
+                Instance ID of the pyMBE object whose rigid-body motion is enabled.
 
-        Note:
-            - It requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"].
-        '''
+            pmb_type (`str`):
+                pyMBE object type of the instance (e.g. `"molecule"`, `"peptide"`,
+                `"protein"`, or any assembly-like type).
+
+            espresso_system (`espressomd.system.System`):
+                ESPResSo system in which the rigid object is defined.
+
+        Notes:
+            - This method requires ESPResSo to be compiled with the following
+            features enabled:
+                - `"VIRTUAL_SITES_RELATIVE"`
+                - `"MASS"`
+            - A new ESPResSo particle is created to represent the rigid-body center.
+            - The mass of the rigid-body center is set to the number of particles
+            belonging to the object.
+            - The rotational inertia tensor is approximated from the squared
+            distances of the particles to the center of mass.
+        """
         logging.info('enable_motion_of_rigid_object requires that espressomd has the following features activated: ["VIRTUAL_SITES_RELATIVE", "MASS"]')
-        self._check_supported_molecule(molecule_name=name,
-                                        valid_pmb_types= ['protein'])
-        molecule_ids_list = self.df.loc[self.df['name']==name].molecule_id.to_list()
-        for molecule_id in molecule_ids_list:    
-            particle_ids_list = self.df.loc[self.df['molecule_id']==molecule_id].particle_id.dropna().to_list()
-            center_of_mass = self.calculate_center_of_mass_of_molecule ( molecule_id=molecule_id,espresso_system=espresso_system)
-            rigid_object_center = espresso_system.part.add(pos=center_of_mass,
-                                                           rotation=[True,True,True], 
-                                                           type=self.propose_unused_type())
-            
-            rigid_object_center.mass = len(particle_ids_list)
-            momI = 0
-            for pid in particle_ids_list:
-                momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
-
-            rigid_object_center.rinertia = np.ones(3) * momI
-            
-            for particle_id in particle_ids_list:
-                pid = espresso_system.part.by_id(particle_id)
-                pid.vs_auto_relate_to(rigid_object_center.id)
-        return
-
-    def find_value_from_es_type(self, es_type, column_name):
-        """
-        Finds a value in `pmb.df` for a `column_name` and `es_type` pair.
-
-        Args:
-            es_type(`int`): value of the espresso type
-            column_name(`str`): name of the column in `pymbe.df`
-
-        Returns:
-            Value in `pymbe.df` matching  `column_name` and `es_type`
-        """
-        idx = pd.IndexSlice
-        for state in ['state_one', 'state_two']:            
-            index = self.df.loc[self.df[(state, 'es_type')] == es_type].index
-            if len(index) > 0:
-                if column_name == 'label':
-                    label = self.df.loc[idx[index[0]], idx[(state,column_name)]]
-                    return label
-                else: 
-                    column_name_value = self.df.loc[idx[index[0]], idx[(column_name,'')]]
-                    return column_name_value
-
-    def format_node(self, node_list):
-        return "[" + " ".join(map(str, node_list)) + "]"
-
+        inst = self.db.get_instance(pmb_type=pmb_type,
+                                    instance_id=instance_id)
+        label = self._get_label_id_map(pmb_type=pmb_type)
+        particle_ids_list = self.get_particle_id_map(object_name=inst.name)[label]
+        center_of_mass = self.calculate_center_of_mass (instance_id=instance_id,
+                                                        espresso_system=espresso_system,
+                                                        pmb_type=pmb_type)
+        rigid_object_center = espresso_system.part.add(pos=center_of_mass,
+                                                        rotation=[True,True,True], 
+                                                        type=self.propose_unused_type())
+        rigid_object_center.mass = len(particle_ids_list)
+        momI = 0
+        for pid in particle_ids_list:
+            momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
+        rigid_object_center.rinertia = np.ones(3) * momI        
+        for particle_id in particle_ids_list:
+            pid = espresso_system.part.by_id(particle_id)
+            pid.vs_auto_relate_to(rigid_object_center.id)
 
     def generate_coordinates_outside_sphere(self, center, radius, max_dist, n_samples):
         """
-        Generates coordinates outside a sphere centered at `center`.
+        Generates random coordinates outside a sphere and inside a larger bounding sphere.
 
         Args:
-            center(`lst`): Coordinates of the center of the sphere.
-            radius(`float`): Radius of the sphere.
-            max_dist(`float`): Maximum distance from the center of the spahre to generate coordinates.
-            n_samples(`int`): Number of sample points.
+            center (`array-like`):
+                Coordinates of the center of the spheres.
+
+            radius (`float`):
+                Radius of the inner exclusion sphere. Must be positive.
+
+            max_dist (`float`):
+                Radius of the outer sampling sphere. Must be larger than `radius`.
+
+            n_samples (`int`):
+                Number of coordinates to generate.
 
         Returns:
-            coord_list(`lst`): Coordinates of the sample points.
+            'list' of `numpy.ndarray`:
+                List of coordinates lying outside the inner sphere and inside the
+                outer sphere.
+
+        Notes:
+            - Points are uniformly sampled inside a sphere of radius `max_dist` centered at `center` 
+            and only those with a distance greater than or equal to `radius` from the center are retained.
         """
         if not radius > 0: 
             raise ValueError (f'The value of {radius} must be a positive value')
@@ -1686,17 +1789,30 @@ class pymbe_library():
     
     def generate_random_points_in_a_sphere(self, center, radius, n_samples, on_surface=False):
         """
-        Uniformly samples points from a hypersphere. If on_surface is set to True, the points are
-        uniformly sampled from the surface of the hypersphere.
-        
+        Generates uniformly distributed random points inside or on the surface of a sphere.
+
         Args:
-            center(`lst`): Array with the coordinates of the center of the spheres.
-            radius(`float`): Radius of the sphere.
-            n_samples(`int`): Number of sample points to generate inside the sphere.
-            on_surface (`bool`, optional): If set to True, points will be uniformly sampled on the surface of the hypersphere.
+            center (`array-like`):
+                Coordinates of the center of the sphere.
+
+            radius (`float`):
+                Radius of the sphere.
+
+            n_samples (`int`):
+                Number of sample points to generate.
+
+            on_surface (`bool`, optional):
+                If True, points are uniformly sampled on the surface of the sphere.
+                If False, points are uniformly sampled within the sphere volume.
+                Defaults to False.
 
         Returns:
-            samples(`list`): Coordinates of the sample points inside the hypersphere.
+            'numpy.ndarray':
+                Array of shape `(n_samples, d)` containing the generated coordinates,
+                where `d` is the dimensionality of `center`.
+        Notes:
+            - Points are sampled in a space whose dimensionality is inferred 
+            from the length of `center`.
         """
         # initial values
         center=np.array(center)
@@ -1717,14 +1833,18 @@ class pymbe_library():
 
     def generate_trial_perpendicular_vector(self,vector,magnitude):
         """
-        Generates an orthogonal vector to the input `vector`.
+        Generates a random vector perpendicular to a given vector.
 
         Args:
-            vector(`lst`): arbitrary vector.
-            magnitude(`float`): magnitude of the orthogonal vector.
-            
+            vector (`array-like`):
+                Reference vector to which the generated vector will be perpendicular.
+
+            magnitude (`float`):
+                Desired magnitude of the perpendicular vector.
+
         Returns:
-            (`lst`): Orthogonal vector with the same magnitude as the input vector.
+            'numpy.ndarray':
+                Vector orthogonal to `vector` with norm equal to `magnitude`.
         """ 
         np_vec = np.array(vector) 
         if np.all(np_vec == 0):
@@ -1744,19 +1864,26 @@ class pymbe_library():
             
     def get_bond_template(self, particle_name1, particle_name2, use_default_bond=False) :
         """
-        Searches for bond template linking particle templates with `particle_name1` and `particle_name2` names in the pyMBE database and returns it.
-        If `use_default_bond` is activated and a "default" bond is defined, returns the default bond template instead.
+        Retrieves a bond template connecting two particle templates.
 
         Args:
-            particle_name1(`str`): label of the type of the first particle type of the bonded particles.
-            particle_name2(`str`): label of the type of the second particle type of the bonded particles.
-            use_default_bond(`bool`, optional): If it is activated, the "default" bond is returned if no bond is found between `particle_name1` and `particle_name2`. Defaults to False. 
+            particle_name1 (`str`):
+                Name of the first particle template.
+
+            particle_name2 (`str`):
+                Name of the second particle template.
+
+            use_default_bond (`bool`, optional):
+                If True, returns the default bond template when no specific bond
+                template is found. Defaults to False.
 
         Returns:
-            bond(`espressomd.interactions.BondedInteractions`): bond object from the espressomd library.
-        
-        Note:
-            - If `use_default_bond`=True and no bond is defined between `particle_name1` and `particle_name2`, it returns the default bond defined in the pyMBE database.
+            'BondTemplate':
+                Bond template object retrieved from the pyMBE database.
+            
+        Notes:
+            - This method searches the pyMBE database for a bond template defined between particle templates with names `particle_name1` and `particle_name2`. 
+            - If no specific bond template is found and `use_default_bond` is enabled, a default bond template is returned instead.
         """
         # Try to find a specific bond template
         bond_key = BondTemplate.make_bond_key(pn1=particle_name1,
@@ -2105,7 +2232,7 @@ class pymbe_library():
             pka_data = json.load(f)
         pka_set = pka_data["data"]
         metadata = pka_data.get("metadata", {})
-        self.check_pka_set(pka_set)
+        self._check_pka_set(pka_set)
         for particle_name, entry in pka_set.items():
             acidity = entry["acidity"]
             pka = entry["pka_value"]
@@ -2140,76 +2267,104 @@ class pymbe_library():
             return 0
         return max(all_types) + 1
        
-    def read_protein_vtf(self,filename,unit_length=None):
+    def read_protein_vtf(self, filename, unit_length=None):
         """
-        Loads a coarse-grained protein model in a VTF file `filename`.
+        Loads a coarse-grained protein model from a VTF file.
 
         Args:
-            filename(str): Path to the VTF file with the coarse-grained model.
-            unit_length(obj): unit of length of the the coordinates in `filename` using the pyMBE UnitRegistry. Defaults to None.
+            filename ('str'): 
+                Path to the VTF file.
+            unit_length ('Pint.Quantity'): 
+                Unit of length for coordinates (pyMBE UnitRegistry). Defaults to Angstrom.
 
         Returns:
-            topology_dict(dict): {'initial_pos': coords_list, 'chain_id': id, 'sigma': sigma_value}
-            sequence(str): Amino acid sequence, following the one letter code convection.
-
-        Note:
-            - If no `unit_length` is provided, it is assumed that the coordinates are in Angstrom.
+            topology_dict ('dict'): 
+                Particle topology.
+                
+            sequence ('str'): 
+                One-letter amino-acid sequence (including n/c ends).
         """
-
-        logging.info(f'Loading protein coarse grain model file: {filename}')
-        coord_list = []
-        particles_dict = {}
+        logging.info(f"Loading protein coarse-grain model file: {filename}")
         if unit_length is None:
-            unit_length = 1 * self.units.angstrom 
-        with open (filename,'r') as protein_model:
-            for line in protein_model :
-                line_split = line.split()
-                if line_split:
-                    line_header = line_split[0]
-                    if line_header == 'atom':
-                        atom_id  = line_split[1]
-                        atom_name = line_split[3]
-                        atom_resname = line_split[5]
-                        chain_id = line_split[9]
-                        radius = float(line_split [11])*unit_length 
-                        particles_dict [int(atom_id)] = [atom_name , atom_resname, chain_id, radius]
-                    elif line_header.isnumeric(): 
-                        atom_coord = line_split[1:] 
-                        atom_coord = [(float(i)*unit_length).to('reduced_length').magnitude for i in atom_coord]
-                        coord_list.append (atom_coord)
-        numbered_label = []
-        i = 0
-        sequence = ""   
-        for atom_id in particles_dict.keys():
-            if atom_id == 1:
-                atom_name = particles_dict[atom_id][0]
-                numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
-                numbered_label.append(numbered_name)
-            elif atom_id != 1: 
-                if particles_dict[atom_id-1][1] != particles_dict[atom_id][1]:
-                    i += 1                    
-                    count = 1
-                    atom_name = particles_dict[atom_id][0]
-                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
-                    numbered_label.append(numbered_name)
-                elif particles_dict[atom_id-1][1] == particles_dict[atom_id][1]:
-                    if count == 2 or particles_dict[atom_id][1] == 'GLY':
-                        i +=1  
-                        count = 0
-                    atom_name = particles_dict[atom_id][0]
-                    numbered_name = [f'{atom_name}{i}',particles_dict[atom_id][2],particles_dict[atom_id][3]]
-                    numbered_label.append(numbered_name)
-                    count +=1
-            if atom_name not in ["CA", "Ca"]:
-                sequence += atom_name
+            unit_length = 1 * self.units.angstrom
+        atoms = {}        # atom_id -> atom info
+        coords = []       # ordered coordinates
+        residues = {}     # resid -> resname (first occurrence)
+        has_n_term = False
+        has_c_term = False
+        aa_3to1 = {"ALA": "A", "ARG": "R", "ASN": "N", "ASP": "D",
+                   "CYS": "C", "GLU": "E", "GLN": "Q", "GLY": "G",
+                   "HIS": "H", "ILE": "I", "LEU": "L", "LYS": "K",
+                   "MET": "M", "PHE": "F", "PRO": "P", "SER": "S",
+                   "THR": "T", "TRP": "W", "TYR": "Y", "VAL": "V",
+                   "n": "n", "c": "c"}
+        # --- parse VTF ---
+        with open(filename, "r") as f:
+            for line in f:
+                fields = line.split()
+                if not fields:
+                    continue
+                if fields[0] == "atom":
+                    atom_id = int(fields[1])
+                    atom_name = fields[3]
+                    resname = fields[5]
+                    resid = int(fields[7])
+                    chain_id = fields[9]
+                    radius = float(fields[11]) * unit_length
+                    atoms[atom_id] = {"name": atom_name,
+                                     "resname": resname,
+                                     "resid": resid,
+                                     "chain_id": chain_id,
+                                     "radius": radius}
+                    if resname == "n":
+                        has_n_term = True
+                    elif resname == "c":
+                        has_c_term = True
+                    # register residue 
+                    if resid not in residues:
+                        residues[resid] = resname
+                elif fields[0].isnumeric():
+                    xyz = [(float(x) * unit_length).to("reduced_length").magnitude
+                        for x in fields[1:4]]
+                    coords.append(xyz)
+        sequence = ""
+        # N-terminus
+        if has_n_term:
+            sequence += "n"
+        # protein residues only
+        protein_resids = sorted(resid for resid, resname in residues.items()  if resname not in ("n", "c", "Ca"))
+        for resid in protein_resids:
+            resname = residues[resid]
+            try:
+                sequence += aa_3to1[resname]
+            except KeyError:
+                raise ValueError(f"Unknown residue name '{resname}' in VTF file")
+        # C-terminus
+        if has_c_term:
+            sequence += "c"
+        last_resid = max(protein_resids)
+        # --- build topology ---
         topology_dict = {}
-        for i in range (0, len(numbered_label)):   
-            topology_dict [numbered_label[i][0]] = {'initial_pos': coord_list[i] ,
-                                                    'chain_id':numbered_label[i][1],
-                                                    'radius':numbered_label[i][2] }
-
+        for atom_id in sorted(atoms.keys()):
+            atom = atoms[atom_id]
+            resname = atom["resname"]
+            resid = atom["resid"]
+            # apply labeling rules
+            if resname == "n":
+                label_resid = 0
+            elif resname == "c":
+                label_resid = last_resid + 1
+            elif resname == "Ca":
+                label_resid = last_resid + 2
+            else:
+                label_resid = resid  # preserve original resid 
+            label = f"{atom['name']}{label_resid}"
+            if label in topology_dict:
+                raise ValueError(f"Duplicate particle label '{label}'. Check VTF residue definitions.")
+            topology_dict[label] = {"initial_pos": coords[atom_id - 1], "chain_id": atom["chain_id"], "radius": atom["radius"],}
         return topology_dict, sequence
 
+    
     def save_database(self, folder, format='csv'):
         """
         Saves the current pyMBE database into a file `filename`.
@@ -2296,7 +2451,7 @@ class pymbe_library():
             exclusion_range = max(self.get_radius_map().values())*2.0
         if pka_set is None:
             pka_set=self.get_pka_set()    
-        self.check_pka_set(pka_set=pka_set)
+        self._check_pka_set(pka_set=pka_set)
         if use_exclusion_radius_per_type:
             exclusion_radius_per_type = self.get_radius_map()
         else:
@@ -2417,7 +2572,7 @@ class pymbe_library():
             exclusion_range = max(self.get_radius_map().values())*2.0
         if pka_set is None:
             pka_set=self.get_pka_set()    
-        self.check_pka_set(pka_set=pka_set)
+        self._check_pka_set(pka_set=pka_set)
         if use_exclusion_radius_per_type:
             exclusion_radius_per_type = self.get_radius_map()
         else:
@@ -2621,7 +2776,7 @@ class pymbe_library():
             exclusion_range = max(self.get_radius_map().values())*2.0
         if pka_set is None:
             pka_set=self.get_pka_set()    
-        self.check_pka_set(pka_set=pka_set)
+        self._check_pka_set(pka_set=pka_set)
         if use_exclusion_radius_per_type:
             exclusion_radius_per_type = self.get_radius_map()
         else:
