@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -20,6 +20,7 @@
 import pyMBE
 import numpy as np
 import espressomd
+import unittest as ut
 
 def reaction_method_test_template(parameters):
 
@@ -71,13 +72,7 @@ def reaction_method_test_template(parameters):
     
     if parameters["method"] == "cpH":
         # Add the reactions using pyMBE
-        if "pka_set" in  parameters:
-            cpH, _ = pmb.setup_cpH(counter_ion="H", 
-                    constant_pH=parameters["pH"], 
-                    use_exclusion_radius_per_type=parameters["use_exclusion_radius_per_type"], 
-                    pka_set=parameters["pka_set"])
-        else:
-            cpH, _ = pmb.setup_cpH(counter_ion="H", 
+        cpH = pmb.setup_cpH(counter_ion="H", 
                     constant_pH=parameters["pH"], 
                     use_exclusion_radius_per_type=parameters["use_exclusion_radius_per_type"])
 
@@ -145,11 +140,7 @@ def reaction_method_test_template(parameters):
             np.testing.assert_raises(ValueError, pmb.setup_grxmc_reactions, **input_parameters)
             return
 
-        if "pka_set" in  parameters:
-            input_parameters["pka_set"] = parameters["pka_set"]
-            grxmc, *_ = pmb.setup_grxmc_reactions(**input_parameters)
-        else:
-            grxmc, *_ = pmb.setup_grxmc_reactions(**input_parameters)
+        grxmc, _ = pmb.setup_grxmc_reactions(**input_parameters)
 
         # Check the number of reactions
         np.testing.assert_equal(len(grxmc.reactions), 28)
@@ -213,11 +204,7 @@ def reaction_method_test_template(parameters):
             np.testing.assert_raises(ValueError, pmb.setup_grxmc_unified, **input_parameters)
             return
 
-        if "pka_set" in  parameters:
-            input_parameters["pka_set"] = parameters["pka_set"]
-            grxmc, *_ = pmb.setup_grxmc_unified(**input_parameters)
-        else:
-            grxmc, *_ = pmb.setup_grxmc_unified(**input_parameters)
+        grxmc, *_ = pmb.setup_grxmc_unified(**input_parameters)
 
         # Check the number of reactions
         np.testing.assert_equal(len(grxmc.reactions), 10)
@@ -251,112 +238,109 @@ def reaction_method_test_template(parameters):
 # Set up the espresso system
 espresso_system=espressomd.System(box_l = [10.0]*3)
 
-# cpH test
-print("*** Unit test: check that reactions are correctly set up in the cpH method. ***")
-for use_exclusion_radius_per_type in [False, True]:
-    parameters = {
-            "method": "cpH",
-            "pK_acid": 4.0,
-            "pK_base": 8.0,
-            "pH": 7.0,
-            "z_Na": 1,
-            "z_Cl": -1,
-            "z_H": 1,
-            "z_OH": -1,
-            "use_exclusion_radius_per_type": use_exclusion_radius_per_type
-            }
-    reaction_method_test_template(parameters)
+class Test(ut.TestCase):
 
-    parameters["pka_set"] = {
-            "A": {"pka_value": 4.0, "acidity": "acidic"},
-            "B": {"pka_value": 8.0, "acidity": "basic"},
-            "C": {"pka_value": 7.0, "acidity": "acidi"}}
-    reaction_method_test_template(parameters)
-print("*** Unit test passed ***")
+    def test_cpH_setup(self):
+        """
+        Unit tests for the constant pH method
+        """
+        # check that reactions are correctly set up in the cpH method. ***")
+        for use_exclusion_radius_per_type in [False, True]:
+            parameters = {
+                    "method": "cpH",
+                    "pK_acid": 4.0,
+                    "pK_base": 8.0,
+                    "pH": 7.0,
+                    "z_Na": 1,
+                    "z_Cl": -1,
+                    "z_H": 1,
+                    "z_OH": -1,
+                    "use_exclusion_radius_per_type": use_exclusion_radius_per_type
+                    }
+            reaction_method_test_template(parameters)
 
-# gcmc test
-print("*** Unit test: check that reactions are correctly set up in the GCMC method. ***")
-for use_exclusion_radius_per_type in [False, True]:
-    parameters = {
-            "method": "gcmc",
-            "c_salt_res": 1,
-            "z_Na": 1,
-            "z_Cl": -1,
-            "z_H": 1,
-            "z_OH": -1,
-            "use_exclusion_radius_per_type": use_exclusion_radius_per_type
-            }
-    reaction_method_test_template(parameters)
+    def test_gcmc_setup(self):
+        """
+        Unit tests for the Grand Canonical Monte Carlo method
+        """
+        # Check that reactions are correctly set up in the GCMC method. ***")
+        for use_exclusion_radius_per_type in [False, True]:
+            parameters = {
+                    "method": "gcmc",
+                    "c_salt_res": 1,
+                    "z_Na": 1,
+                    "z_Cl": -1,
+                    "z_H": 1,
+                    "z_OH": -1,
+                    "use_exclusion_radius_per_type": use_exclusion_radius_per_type
+                    }
+            reaction_method_test_template(parameters)
 
-    parameters["z_Cl"] = 1
-    reaction_method_test_template(parameters)
+            parameters["z_Cl"] = 1
+            reaction_method_test_template(parameters)
 
-    parameters["z_Na"] = -1
-    reaction_method_test_template(parameters)
-print("*** Unit test passed ***")
+            parameters["z_Na"] = -1
+            reaction_method_test_template(parameters)
 
-# grxmc test
-print("*** Unit test: check that reactions are correctly set up in the G-RxMC method. ***")
-for use_exclusion_radius_per_type in [False, True]:
-    parameters = {
-            "method": "grxmc",
-            "pK_acid": 4.0,
-            "pK_base": 9.0,
-            "c_salt_res": 1,
-            "pH_res": 5.0,
-            "z_Na": 1,
-            "z_Cl": -1,
-            "z_H": 1,
-            "z_OH": -1,
-            "use_exclusion_radius_per_type": use_exclusion_radius_per_type
-            }
-    reaction_method_test_template(parameters)
+    def test_grxmc_setup(self):
+        """
+        Unit tests for the Grand Reaction Monte Carlo method setup
+        """
 
-    parameters["pka_set"] = {
-            "A": {"pka_value": 4.0, "acidity": "acidic"},
-            "B": {"pka_value": 9.0, "acidity": "basic"},
-            "C": {"pka_value": 7.0, "acidity": "acidi"}}
-    reaction_method_test_template(parameters)
 
-    parameters["z_Cl"] = 1    
-    reaction_method_test_template(parameters)
+        # check that reactions are correctly set up in the G-RxMC method. ***")
+        for use_exclusion_radius_per_type in [False, True]:
+            parameters = {
+                    "method": "grxmc",
+                    "pK_acid": 4.0,
+                    "pK_base": 9.0,
+                    "c_salt_res": 1,
+                    "pH_res": 5.0,
+                    "z_Na": 1,
+                    "z_Cl": -1,
+                    "z_H": 1,
+                    "z_OH": -1,
+                    "use_exclusion_radius_per_type": use_exclusion_radius_per_type
+                    }
+            reaction_method_test_template(parameters)
 
-    parameters["z_OH"] = 1    
-    reaction_method_test_template(parameters)
+            parameters["z_Cl"] = 1    
+            reaction_method_test_template(parameters)
 
-    parameters["z_Na"] = -1    
-    reaction_method_test_template(parameters)
+            parameters["z_OH"] = 1    
+            reaction_method_test_template(parameters)
 
-    parameters["z_H"] = -1    
-    reaction_method_test_template(parameters)
-print("*** Unit test passed ***")
+            parameters["z_Na"] = -1    
+            reaction_method_test_template(parameters)
 
-# grxmc unified test
-print("*** Unit test: check that reactions are correctly set up in the unified G-RxMC method. ***")
-for use_exclusion_radius_per_type in [False, True]:
-    parameters = {
-            "method": "grxmc_unified",
-            "pK_acid": 4.0,
-            "pK_base": 9.0,
-            "c_salt_res": 1,
-            "pH_res": 5.0,
-            "z_Na": 1,
-            "z_Cl": -1,
-            "z_H": 1,
-            "z_OH": -1,
-            "use_exclusion_radius_per_type": use_exclusion_radius_per_type
-            }
-    reaction_method_test_template(parameters)
+            parameters["z_H"] = -1    
+            reaction_method_test_template(parameters)
 
-    parameters["pka_set"] = {
-            "A": {"pka_value": 4.0, "acidity": "acidic"},
-            "B": {"pka_value": 9.0, "acidity": "basic"},
-            "C": {"pka_value": 7.0, "acidity": "acidi"}}
-    reaction_method_test_template(parameters)
+    def test_grxmc_unified_setup(self):
+        """
+        Unit tests for the Grand Reaction Monte Carlo method, using the unified formulation
+        """
+        # check that reactions are correctly set up in the unified G-RxMC method. 
+        for use_exclusion_radius_per_type in [False, True]:
+            parameters = {
+                    "method": "grxmc_unified",
+                    "pK_acid": 4.0,
+                    "pK_base": 9.0,
+                    "c_salt_res": 1,
+                    "pH_res": 5.0,
+                    "z_Na": 1,
+                    "z_Cl": -1,
+                    "z_H": 1,
+                    "z_OH": -1,
+                    "use_exclusion_radius_per_type": use_exclusion_radius_per_type
+                    }
+            reaction_method_test_template(parameters)
 
-    parameters["z_OH"] = 1    
-    reaction_method_test_template(parameters)
+            parameters["z_OH"] = 1    
+            reaction_method_test_template(parameters)
 
-    parameters["z_H"] = -1    
-    reaction_method_test_template(parameters)
-print("*** Unit test passed ***")
+            parameters["z_H"] = -1    
+            reaction_method_test_template(parameters)
+
+if __name__ == "__main__":
+    ut.main()
