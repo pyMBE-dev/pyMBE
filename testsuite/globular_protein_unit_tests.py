@@ -59,6 +59,16 @@ class Test(ut.TestCase):
         residue_list = hf.define_protein_AA_residues(sequence=sequence,
                                                     model=protein_model,
                                                     pmb=pmb)
+        # Sanity test for unvalid lj_setups
+        input_params = {"topology_dict": topology_dict,
+                        "pmb": pmb,
+                        "pka_set": {},
+                        "lj_setup_mode": "random"}
+        self.assertRaises(ValueError,
+                          hf.define_protein_AA_particles,
+                          **input_params,)
+
+
         # Define a residue for the metal ion
         pmb.define_residue(name="AA-Ca",
                            central_bead="Ca",
@@ -162,7 +172,6 @@ class Test(ut.TestCase):
                                                       espresso_system=espresso_system)
         for p in espresso_system.part:
             if p.mass > 1: 
-                print("hola")
                 rigid_object_id = p.id 
                 rigid_object_mass = espresso_system.part.by_id(rigid_object_id).mass
                 rigid_object_rotation = espresso_system.part.by_id(rigid_object_id).rotation
@@ -177,6 +186,70 @@ class Test(ut.TestCase):
                     momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
                 rinertia = np.ones(3) * momI
                 np.testing.assert_array_almost_equal(rinertia, rigid_object_intertia)
+
+    def test_define_peptide_1beadAA(self):
+        """
+        Test that define_peptide_AA_residues correctly defines
+        residue templates for a short peptide using the 1beadAA model.
+        """
+        pmb2 = pyMBE.pymbe_library(seed=123)
+        # Define particles needed by the residues
+        for bead in ["A", "G", "L"]:
+            pmb2.define_particle(name=bead,
+                                 sigma=0.355 * pmb2.units.nm,
+                                 epsilon=1 * pmb2.units("reduced_energy"))
+        sequence = ["A", "G", "L", "A"]  # include repetition on purpose
+        model = "1beadAA"
+        hf.define_peptide_AA_residues(sequence=sequence, 
+                                      model=model, 
+                                      pmb=pmb2)
+        # Expected residue template names
+        expected_residues = {"AA-A", "AA-G", "AA-L"}
+        # Retrieve all residue templates from the DB
+        stored_residues = {tpl.name for tpl in pmb2.db.get_templates(pmb_type="residue").values()}
+        self.assertSetEqual(stored_residues,
+                            expected_residues,
+                            "Residue templates stored in DB do not match expected 1beadAA residues")
+        # Check residue definitions
+        for res_name in expected_residues:
+            residue = pmb2.db.get_template(pmb_type="residue",
+                                           name=res_name)
+            aa = res_name.split("-")[1]
+            self.assertEqual(residue.central_bead,
+                             aa,
+                             f"Central bead for {res_name} should be '{aa}'")
+            self.assertEqual(residue.side_chains,
+                             [],
+                             f"Residue {res_name} should have no side chains in 1beadAA model")
+
+    def test_define_peptide_residues_2beadAA(self):
+        """
+        Test residue definition for the 2beadAA model:
+        - standard residues use CA + side-chain
+        - G, c, n are single-bead residues
+        - residues are defined only once
+        """
+        pmb2 = pyMBE.pymbe_library(seed=123)
+        sequence = ["A", "G", "L", "c", "n", "A"]
+        hf.define_peptide_AA_residues(sequence, 
+                                      model="2beadAA", 
+                                      pmb=pmb2)
+        # Expected residue templates
+        expected = {"AA-A":  {"central_bead": "CA", "side_chains": ["A"]},
+                    "AA-L":  {"central_bead": "CA", "side_chains": ["L"]},
+                    "AA-G":  {"central_bead": "G",  "side_chains": []},
+                    "AA-c":  {"central_bead": "c",  "side_chains": []},
+                    "AA-n":  {"central_bead": "n",  "side_chains": []},}
+        for resname, props in expected.items():
+            tpl = pmb2.db.get_template(pmb_type="residue", name=resname)
+            self.assertEqual(tpl.central_bead, props["central_bead"])
+            self.assertEqual(tpl.side_chains, props["side_chains"])
+        # Ensure residues were defined only once
+        residue_templates = pmb2.db.get_templates(pmb_type="residue").values()
+        residue_names = [tpl.name for tpl in residue_templates]
+        self.assertEqual(len(residue_names), len(set(residue_names)))
+        self.assertEqual(set(residue_names), set(expected.keys()))
+
     def test_protein_parser(self):
         """
         Unit tests for protein_sequence_parser
@@ -294,6 +367,7 @@ class Test(ut.TestCase):
                                     desired=output, 
                                     verbose=True)    
             test_pmb.db.delete_templates(pmb_type="residue")
+        
 
     def test_define_peptide_sanity(self):
         """
@@ -312,6 +386,79 @@ class Test(ut.TestCase):
         np.testing.assert_raises(ValueError, 
                                  pmb.define_peptide, 
                                  **input_parameters)
+
+class TestGetResiduesFromTopologyDict(ut.TestCase):
+
+    def test_1beadAA_basic(self):
+        """
+        Single-bead-per-residue model:
+        residue name is taken directly from the bead prefix.
+        """
+        topology = {"A1": {},
+                    "G2": {},
+                    "L3": {}}
+        residues = hf.get_residues_from_topology_dict(topology, model="1beadAA")
+        self.assertEqual(len(residues), 3)
+        self.assertEqual(residues["1"]["resname"], "A")
+        self.assertEqual(residues["2"]["resname"], "G")
+        self.assertEqual(residues["3"]["resname"], "L")
+        self.assertEqual(residues["1"]["beads"], ["A1"])
+        self.assertEqual(residues["2"]["beads"], ["G2"])
+        self.assertEqual(residues["3"]["beads"], ["L3"])
+
+    def test_2beadAA_basic(self):
+        """
+        Two-bead-per-residue model:
+        CA beads are ignored when determining residue name.
+        """
+        topology = {"CA1": {},
+                    "L1": {},
+                    "CA2": {},
+                    "V2": {}}
+        residues = hf.get_residues_from_topology_dict(topology, model="2beadAA")
+        self.assertEqual(len(residues), 2)
+        self.assertEqual(residues["1"]["resname"], "L")
+        self.assertEqual(residues["2"]["resname"], "V")
+        self.assertCountEqual(residues["1"]["beads"], ["CA1", "L1"])
+        self.assertCountEqual(residues["2"]["beads"], ["CA2", "V2"])
+
+    def test_2beadAA_excludes_CA(self):
+        """
+        CA beads must not overwrite the residue name.
+        """
+        topology = {"L1": {},
+                    "CA1": {}}
+        residues = hf.get_residues_from_topology_dict(topology, model="2beadAA")
+        self.assertEqual(residues["1"]["resname"], "L")
+
+    def test_2beadAA_only_CA_is_glycine(self):
+        """
+        Residues containing only CA beads are assigned glycine ('G').
+        """
+        topology = {"CA1": {},
+                    "CA2": {}}
+        residues = hf.get_residues_from_topology_dict(topology, model="2beadAA")
+        self.assertEqual(residues["1"]["resname"], "G")
+        self.assertEqual(residues["2"]["resname"], "G")
+        self.assertEqual(residues["1"]["beads"], ["CA1"])
+        self.assertEqual(residues["2"]["beads"], ["CA2"])
+
+    def test_invalid_model_raises(self):
+        """
+        Unknown protein model must raise ValueError.
+        """
+        topology = {"A1": {}}
+        with self.assertRaises(ValueError):
+            hf.get_residues_from_topology_dict(topology, model="3beadAA")
+
+    def test_invalid_bead_id_raises(self):
+        """
+        Bead identifiers without a numeric residue index must raise ValueError.
+        """
+        topology = {"CA": {},   # no index
+                    "L1": {}}
+        with self.assertRaises(ValueError):
+            hf.get_residues_from_topology_dict(topology, model="1beadAA")
 
 if __name__ == "__main__":
     ut.main()

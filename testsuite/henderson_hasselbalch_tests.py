@@ -178,6 +178,16 @@ class Test(ut.TestCase):
             np.testing.assert_allclose(Z_HH_1, HH_Donnan_dict["charges_dict"]["peptide_1"])
             np.testing.assert_allclose(Z_HH_2, HH_Donnan_dict["charges_dict"]["peptide_2"])
 
-
+        with self.subTest(msg="Trigger sanity test in calculate_HH"):
+            params = {"template_name": "peptide_1",
+                      "pH_list": [2],
+                      "pka_set":{"D":{"pka_value":3,
+                                          "acidity":"random"},
+                                     "H":{"pka_value":7,
+                                          "acidity":"random"}}}
+            self.assertRaises(ValueError,
+                              pmb.calculate_HH,
+                              **params)
+            
 if __name__ == "__main__":
     ut.main()

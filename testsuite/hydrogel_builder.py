@@ -145,8 +145,7 @@ class Test(ut.TestCase):
         Unit test to check that hydrogel instance store information properly
         """
         self.assertEqual(hydrogel_inst.name, hydrogel_name)
-        self.assertEqual(hydrogel_inst.assembly_id, hydrogel_id)
-
+        self.assertEqual(hydrogel_inst.assembly_id, hydrogel_id)  
 
     def test_node_positions(self):
         """

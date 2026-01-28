@@ -1905,6 +1905,7 @@ class pymbe_library():
                                                         rotation=[True,True,True], 
                                                         type=self.propose_unused_type())
         rigid_object_center.mass = len(particle_ids_list)
+        momI = 0
         for pid in particle_ids_list:
             momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
         rigid_object_center.rinertia = np.ones(3) * momI        
