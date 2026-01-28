@@ -157,11 +157,12 @@ class Test(ut.TestCase):
                                         pmb_type="protein")
 
         momI = 0
+        center_of_mass = pmb.calculate_center_of_mass(instance_id=molecule_id, 
+                                                      pmb_type="protein", 
+                                                      espresso_system=espresso_system)
         for p in espresso_system.part:
-            center_of_mass = pmb.calculate_center_of_mass(instance_id=molecule_id, 
-                                                        pmb_type="protein", 
-                                                        espresso_system=espresso_system)
             if p.mass > 1: 
+                print("hola")
                 rigid_object_id = p.id 
                 rigid_object_mass = espresso_system.part.by_id(rigid_object_id).mass
                 rigid_object_rotation = espresso_system.part.by_id(rigid_object_id).rotation

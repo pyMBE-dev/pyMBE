@@ -1897,7 +1897,7 @@ class pymbe_library():
         inst = self.db.get_instance(pmb_type=pmb_type,
                                     instance_id=instance_id)
         label = self._get_label_id_map(pmb_type=pmb_type)
-        particle_ids_list = self.get_particle_id_map(object_name=inst.name)[label]
+        particle_ids_list = self.get_particle_id_map(object_name=inst.name)[label][instance_id]
         center_of_mass = self.calculate_center_of_mass (instance_id=instance_id,
                                                         espresso_system=espresso_system,
                                                         pmb_type=pmb_type)
@@ -1905,7 +1905,6 @@ class pymbe_library():
                                                         rotation=[True,True,True], 
                                                         type=self.propose_unused_type())
         rigid_object_center.mass = len(particle_ids_list)
-        momI = 0
         for pid in particle_ids_list:
             momI += np.power(np.linalg.norm(center_of_mass - espresso_system.part.by_id(pid).pos), 2)
         rigid_object_center.rinertia = np.ones(3) * momI        
