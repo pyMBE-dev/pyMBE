@@ -20,25 +20,27 @@
 from typing import Dict, Literal
 from ..base_type import PMBBaseModel
 from ..pint_quantity import PintQuantity
-from pydantic import Field, model_validator
-
+from pydantic import Field
 
 class BondTemplate(PMBBaseModel):
     """
-    Template defining a bond in a pyMBE simulation.
+    Template defining a bond in the pyMBE database.
 
     Attributes:
-        pmb_type (Literal["bond"]): Fixed type identifier for this template. Always "bond".
-        name (str): Unique name of the bond template, e.g., "HARMONIC_default".
-        bond_type (str): Type of bond potential. Examples: "HARMONIC", "FENE".
-        parameters (Dict[str, PintQuantity]): Dictionary of bond parameters.
-            Common keys:
-                - "k": Force constant (energy / distance^2)
-                - "r0": Equilibrium bond length
-                - "d_r_max": Maximum bond extension (for FENE)
+        pmb_type ('Literal["bond"]'): 
+            Fixed type identifier for this template. Always "bond".
+
+        name ('str'): 
+            Unique name of the bond template, e.g., "HARMONIC_default".
+
+        bond_type ('str'): 
+            Type of bond potential. Examples: "HARMONIC", "FENE".
+
+        parameters ('Dict[str, PintQuantity]'): 
+            Dictionary of bond parameters.
             
     Notes:
-        Values are stored as PintQuantity objects for unit-aware calculations.
+        - Values of the parameters are stored as PintQuantity objects for unit-aware calculations.
     """
     pmb_type: Literal["bond"] = "bond"
     name: str = Field(default="default")
@@ -52,21 +54,22 @@ class BondTemplate(PMBBaseModel):
         """Return a canonical name for a bond between two particle names.
 
         Args:
-            pn1 (str): Name of the first particle.
-            pn2 (str): Name of the second particle.
+            pn1 ('str'): 
+                Name of the first particle.
+
+            pn2 ('str'): 
+                Name of the second particle.
 
         Returns:
-            str: Canonical bond name, e.g. "A-B".
+            ('str'): 
+                Canonical bond name, e.g. "A-B".
         """
         return "-".join(sorted([pn1, pn2]))
 
     def _make_name(self):
         """Create canonical name using particle names."""
         if not self.particle_name1 or not self.particle_name2:
-            raise RuntimeError(
-                "Cannot generate bond name: particle_name1 or particle_name2 missing."
-            )
-
+            raise RuntimeError("Cannot generate bond name: particle_name1 or particle_name2 missing.")
         self.name = self.make_bond_key(self.particle_name1, self.particle_name2)
 
     def get_parameters(self, ureg):
@@ -74,24 +77,12 @@ class BondTemplate(PMBBaseModel):
         Retrieve the bond parameters as Pint `Quantity` objects.
 
         Args:
-            ureg (pint.UnitRegistry) : Pint unit registry used to reconstruct physical quantities from storage.
+            ureg ('pint.UnitRegistry'): 
+                Pint unit registry used to reconstruct physical quantities from storage.
 
         Returns:
-            Dict[str, pint.Quantity]:
-                A dictionary mapping parameter names to their corresponding
-                unit-aware Pint quantities.
-
-        Example:
-            >>> bt = BondTemplate(
-            ...     bond_type="harmonic",
-            ...     particle_name1="A",
-            ...     particle_name2="B",
-            ...     parameters={"k": PintQuantity("100 kJ/mol/nm^2"),
-            ...                 "r0": PintQuantity("0.3 nm")}
-            ... )
-            >>> bt.get_parameters()
-            {'k': <Quantity(100, 'kilojoule / mole / nanometer ** 2')>,
-             'r0': <Quantity(0.3, 'nanometer')>}
+            'Dict[str, pint.Quantity]':
+                A dictionary mapping parameter names to their corresponding unit-aware Pint quantities.
         """
         pint_parameters={}
         for parameter in self.parameters.keys():

@@ -25,35 +25,22 @@ class MoleculeInstance(PMBBaseModel):
     """
     Persistent instance representation of a molecule.
 
-    A ``MoleculeInstance`` links a concrete molecule in the system to a
-    molecule template (through its ``name``) and assigns it a unique
-    integer identifier. Molecule instances typically serve as containers
-    for ordered lists of residue instances, which are managed in the
-    database layer outside of this class.
-
-    This class is intentionally minimal and fully serializable. It stores
-    no engine-specific data or structural objects.
-
     Attributes:
-        pmb_type (str):
-            Fixed string identifying this object as a molecule instance.
-            Always ``"molecule"``.
-        name (str):
-            Name of the molecule **template** from which this instance
-            was created. This must correspond to an existing
-            ``MoleculeTemplate`` in the database.
-        molecule_id (int):
-            Unique non-negative integer identifying this molecule
-            instance within the database.
+        pmb_type ('str'):
+            Fixed string identifying this object as a molecule instance.  Always ``"molecule"``.
+        
+        name ('str'):
+            Name of the molecule **template** from which this instance was created. This must correspond to an existing ``MoleculeTemplate`` in the database.
+
+        molecule_id ('int'):
+            Unique non-negative integer identifying this molecule instance within the database.
+
         assembly_id (int | None):
-            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs.
-            ``None`` indicates that the residue is not assigned to any assembly.
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs. ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
-        - Validation of whether ``name`` corresponds to a registered
-          molecule template is performed at the database level.
-        - Structural or connectivity information (e.g., residue ordering)
-          is maintained outside this class in the instance registry.
+        - Validation of whether ``name`` corresponds to a registered  molecule template is performed at the database level.
+        - Structural or connectivity information (e.g., residue ordering) is maintained outside this class in the instance registry.
     """
 
     pmb_type: str = "molecule"

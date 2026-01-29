@@ -18,8 +18,8 @@
 import numpy as np 
 import espressomd
 import unittest as ut
-
-import re
+import tempfile
+import os
 import json
 import pathlib
 import pyMBE
@@ -386,6 +386,38 @@ class Test(ut.TestCase):
         np.testing.assert_raises(ValueError, 
                                  pmb.define_peptide, 
                                  **input_parameters)
+    
+    def test_read_protein_vtf_unknown_residue(self):
+        pmb = pyMBE.pymbe_library(23)
+        vtf_content = """\
+atom 1 name CA resname XXX resid 1 chain A radius 1.0
+1 0.0 0.0 0.0
+"""
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            f.write(vtf_content)
+            filename = f.name
+        try:
+            with self.assertRaisesRegex(ValueError,"Unknown residue name 'XXX' in VTF file"):
+                pmb.read_protein_vtf(filename)
+        finally:
+            os.remove(filename)
+
+    def test_read_protein_vtf_duplicate_particle_label(self):
+        pmb = pyMBE.pymbe_library(23)
+        vtf_content = """\
+atom 1 name CA resname ALA resid 1 chain A radius 1.0
+atom 2 name CA resname ALA resid 1 chain A radius 1.0
+1 0.0 0.0 0.0
+2 1.0 0.0 0.0
+"""
+        with tempfile.NamedTemporaryFile("w", delete=False) as f:
+            f.write(vtf_content)
+            filename = f.name
+        try:
+            with self.assertRaisesRegex(ValueError,"Duplicate particle label 'CA1'"):
+                pmb.read_protein_vtf(filename)
+        finally:
+            os.remove(filename)
 
 class TestGetResiduesFromTopologyDict(ut.TestCase):
 

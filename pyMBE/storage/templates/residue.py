@@ -22,7 +22,7 @@ from pydantic import Field
 
 class ResidueTemplate(PMBBaseModel):
     """
-    Template defining a residue in a pyMBE simulation.
+    Template defining a residue in the pyMBE database.
 
     Attributes:
         pmb_type (str): Fixed type identifier. Always "residue".

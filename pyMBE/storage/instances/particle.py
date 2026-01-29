@@ -25,43 +25,31 @@ class ParticleInstance(PMBBaseModel):
     """
     Concrete instance of a particle placed in the simulation.
 
-    ``ParticleInstance`` represents a single particle created from a
-    ``ParticleTemplate`` and placed within the system. 
-    Each instance has a unique integer identifier, an initial chemical
-    state (e.g., ``"A-"`` or ``"HA"``), and optional associations to a
-    residue and/or molecule instance.
-
     Attributes:
-        pmb_type (str):
-            Fixed string identifying this object as a particle instance.
-            Always ``"particle"``.
-        name (str):
+        pmb_type ('str'):
+            Fixed string identifying this object as a particle instance. Always ``"particle"``.
+
+        name ('str'):
             Name of the particle template from which this instance is derived.
-        particle_id (int):
-            Unique non-negative integer identifying the particle within
-            the database. Assigned sequentially by the database manager.
-        initial_state (str):
-            Name of the particle state at creation time. Must correspond
-            to one of the allowed states defined in the originating
-            ``ParticleTemplate``. State transitions are handled at the
-            simulation level, not here.
-        residue_id (int | None):
-            Optional identifier of the ``ResidueInstance`` this particle
-            belongs to. Particles that are not part of a residue should
-            leave this field as ``None``.
-        molecule_id (int | None):
-            Optional identifier of the ``MoleculeInstance`` this particle
-            belongs to. Particles not belonging to any molecule should
-            keep this as ``None``.
-        assembly_id (int | None):
-            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs.
-            ``None`` indicates that the residue is not assigned to any assembly.
+
+        particle_id ('int'):
+            Unique non-negative integer identifying the particle within the database. Assigned sequentially by the database manager.
+
+        initial_state ('str'):
+            Name of the particle state at creation time. 
+
+        residue_id ('int' | 'None'):
+            Optional identifier of the ``ResidueInstance`` this particle belongs to. Particles that are not part of a residue should  leave this field as ``None``.
+
+        molecule_id ('int' | 'None'):
+            Optional identifier of the ``MoleculeInstance`` this particle  belongs to. Particles not belonging to any molecule should keep this as ``None``.
+
+        assembly_id ('int' | 'None'):
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this particle instance belongs. ``None`` indicates that the particle is not assigned to any assembly.
 
     Notes:
-        - ``initial_state`` is stored as a plain string to ensure clean
-          serialization and avoid engine-specific objects.
-        - Connectivity, bonding, and spatial ordering are external to
-          this class and handled by the database or simulation backend.
+        - ``initial_state`` is stored as a plain string to ensure clean serialization and avoid engine-specific objects.
+        - Connectivity, bonding, and spatial ordering are external to this class and handled by the database or simulation backend.
     """
     pmb_type: str = "particle"
     name: str 

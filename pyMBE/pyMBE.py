@@ -263,7 +263,9 @@ class pymbe_library():
         if node_start != node_end or residue_list == residue_list[::-1]:
             ValueError(f"Aborted creation of hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
         if reverse:
-            residue_list = residue_list[::-1]
+            reverse_residue_order=True
+        else:
+            reverse_residue_order=False
         start_node_id = nodes[node_start_label]["id"]
         end_node_id = nodes[node_end_label]["id"]
         # Finding a backbone vector between node_start and node_end
@@ -292,7 +294,8 @@ class pymbe_library():
                                       espresso_system=espresso_system,
                                       list_of_first_residue_positions=[first_bead_pos.tolist()],#Start at the first node
                                       backbone_vector=np.array(backbone_vector)/l0,
-                                      use_default_bond=use_default_bond)[0]
+                                      use_default_bond=use_default_bond,
+                                      reverse_residue_order=reverse_residue_order)[0]
         # Bond chain to the hydrogel nodes
         chain_pids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                              attribute="molecule_id",
@@ -721,8 +724,6 @@ class pymbe_library():
         Notes:
             - Works for both cubic and non-cubic simulation boxes.
         """
-        if pmb_type not in self.db._molecule_like_types:
-            raise ValueError(f"Input pmb_type = {pmb_type} not supported, supported pyMBE types are: {self.db._molecule_like_types}.")
         inst = self.db.get_instance(instance_id=instance_id,
                                     pmb_type=pmb_type)
         center_of_mass = self.calculate_center_of_mass(instance_id=instance_id,
@@ -955,9 +956,9 @@ class pymbe_library():
                                                     assembly_id=assembly_id))
         return assembly_id
 
-    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False):
+    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False, reverse_residue_order = False):
         """
-        Creates 'number_of_molecules' molecule of type 'name' into 'espresso_system'.
+        Creates instances of a given molecule template name into ESPResSo.
 
         Args:
             name ('str'): 
@@ -977,6 +978,9 @@ class pymbe_library():
 
             use_default_bond('bool', optional): 
                 Controls if a bond of type 'default' is used to bond particles with undefined bonds in the pyMBE database.
+
+            reverse_residue_order('bool', optional): 
+                Creates residues in reverse sequential order than the one defined in the molecule template. Defaults to False.
 
         Returns:
             ('list' of 'int'): 
@@ -1009,7 +1013,10 @@ class pymbe_library():
         first_residue = True
         molecule_tpl = self.db.get_template(pmb_type=pmb_type,
                                             name=name)
-        residue_list = molecule_tpl.residue_list
+        if reverse_residue_order:
+            residue_list = molecule_tpl.residue_list[::-1]
+        else:
+            residue_list = molecule_tpl.residue_list
         pos_index = 0 
         molecule_ids = []
         for _ in range(number_of_molecules):        
@@ -1414,9 +1421,8 @@ class pymbe_library():
             tpl._make_name()
             if tpl.name in bond_names:
                 raise RuntimeError(f"Bond {tpl.name} has already been defined, please check the list of particle pairs")
-            else:
-                self.db._register_template(tpl)
-                bond_names.append(tpl.name)
+            bond_names.append(tpl.name)
+            self.db._register_template(tpl)
 
     
     def define_default_bond(self, bond_type, bond_parameters):
@@ -1462,24 +1468,18 @@ class pymbe_library():
             chain_map ('list of dict'): 
                 [{"node_start": , "node_end": , "residue_list": , ... ]
         """
-        
         # Sanity tests
-        node_indices = {tuple(entry['lattice_index']) for entry in node_map}
-                
+        node_indices = {tuple(entry['lattice_index']) for entry in node_map}                
         chain_map_connectivity = set()
         for entry in chain_map:
             start = self.lattice_builder.node_labels[entry['node_start']]
             end = self.lattice_builder.node_labels[entry['node_end']]
             chain_map_connectivity.add((start,end))
-
         if self.lattice_builder.lattice.connectivity != chain_map_connectivity:
             raise ValueError("Incomplete hydrogel: A diamond lattice must contain correct 16 lattice index pairs")
-
-        
         diamond_indices = {tuple(row) for row in self.lattice_builder.lattice.indices}
         if node_indices != diamond_indices:
             raise ValueError(f"Incomplete hydrogel: A diamond lattice must contain exactly 8 lattice indices, {diamond_indices} ")
-        
         # Register information in the pyMBE database
         nodes=[]
         for entry in node_map:
@@ -2089,8 +2089,6 @@ class pymbe_library():
         particle_templates = self.db.get_templates("particle")
         for tpl in particle_templates.values():
             for state in self.db.get_particle_states_templates(particle_name=tpl.name).values():
-                if state.es_type is None:
-                    continue
                 charge_number_map[state.es_type] = state.z
         return charge_number_map
 
@@ -2174,34 +2172,6 @@ class pymbe_library():
         """
         return self.db.get_particle_id_map(object_name=object_name)
 
-    def get_particle_pka(self, particle_name):
-        """
-        Retrieve the pKa value associated with a particle from the pyMBE database.
-
-        Args:
-            particle_name ('str'): 
-                Name of the particle template.
-
-        Returns:
-            ('float' or 'None'):
-                - The pKa value if the particle participates in a single acid/base reaction
-                - None if the particle is inert (no acid/base reaction)
-        """
-        acid_base_reactions = []
-        for reaction in self.db._reactions.values():
-            if reaction.reaction_type != "acid/base":
-                continue
-            for participant in reaction.participants:
-                if participant.particle_name == particle_name:
-                    acid_base_reactions.append(reaction)
-                    break
-        if len(acid_base_reactions) == 0:
-            return None
-        if len(acid_base_reactions) > 1:
-            raise ValueError(f"Multiple acid/base reactions found for particle '{particle_name}'. "
-                "Ambiguous pKa.")
-        return acid_base_reactions[0].pK
-
     def get_pka_set(self):
         """
         Retrieve the pKa set for all titratable particles in the pyMBE database.
@@ -2215,10 +2185,10 @@ class pymbe_library():
             - If a particle participates in multiple acid/base reactions, an error is raised.
         """
         pka_set = {}
+        supported_reactions = ["monoprotic_acid",
+                               "monoprotic_base"]
         for reaction in self.db._reactions.values():
-            if "monoprotic" not in reaction.reaction_type:
-                continue
-            if reaction.pK is None:
+            if reaction.reaction_type not in supported_reactions:
                 continue
             # Identify involved particle(s)
             particle_names = {participant.particle_name for participant in reaction.participants}
@@ -2230,8 +2200,6 @@ class pymbe_library():
                 acidity = "acidic"
             elif reaction.reaction_type == "monoprotic_base":
                 acidity = "basic"
-            else:
-                raise ValueError(f"Cannot infer acidity for particle '{particle_name}' from reaction type: {reaction.reaction_type}")
             pka_set[particle_name]["acidity"] = acidity
         return pka_set
     

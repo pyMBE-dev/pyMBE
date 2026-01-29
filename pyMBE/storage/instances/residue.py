@@ -25,43 +25,32 @@ class ResidueInstance(PMBBaseModel):
     """
     Instance of a residue placed within a molecule during a simulation.
 
-    ``ResidueInstance`` represents a concrete occurrence of a residue
-    derived from a residue template. Each instance is uniquely indexed
-    by ``residue_id`` and may optionally belong to a parent molecule,
-    such as a peptide, protein, or generic molecule.
-
     Attributes:
-        pmb_type (str):
-            Fixed string identifying this object as a residue instance.
-            Always ``"residue"``.
-        name (str):
+        pmb_type ('str'):
+            Fixed string identifying this object as a residue instance. Always ``"residue"``.
+
+        name ('str'):
             Name of the residue template from which this instance is derived.
-        residue_id (int):
-            Unique non-negative integer identifying this residue instance
-            within the database.
-        molecule_id (int | None):
-            Identifier of the parent molecule to which this residue belongs.
-            ``None`` indicates that the residue is not assigned to any molecule.
-        assembly_id (int | None):
-            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs.
-            ``None`` indicates that the residue is not assigned to any assembly.
+
+        residue_id ('int'):
+            Unique non-negative integer identifying this residue instance within the database.
+
+        molecule_id ('int' | 'None'):
+            Identifier of the parent molecule to which this residue belongs. ``None`` indicates that the residue is not assigned to any molecule.
+
+        assembly_id ('int' | 'None'):
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs. ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
-        - ``ResidueInstance`` does not itself store particle-level
-          information; instead, particles reference the residue via
-          ``residue_id``.
-        - Residues may be standalone (e.g., in coarse systems) or part of
-          polymers, proteins, peptides, or hydrogels.
-        - The sequence ordering and topology of residues are encoded at the
-          molecule instance/template level, not here.
+        - ``ResidueInstance`` does not itself store particle-level information; instead, particles reference the residue via ``residue_id``.
+        - Residues may be standalone (e.g., in coarse systems) or part of  polymers, proteins, peptides, or hydrogels.
+        - The sequence ordering and topology of residues are encoded at the  molecule instance/template level, not here.
     """
-    
     pmb_type: str = "residue"
     name: str            # residue template name
     residue_id: int
     molecule_id: int | None = None
     assembly_id: int | None = None
-    
     
     @field_validator("residue_id")
     def validate_residue_id(cls, rid):

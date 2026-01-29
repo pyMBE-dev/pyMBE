@@ -25,36 +25,23 @@ class PeptideInstance(PMBBaseModel):
     """
     Instance of a peptide molecule placed in the simulation.
 
-    ``PeptideInstance`` represents a concrete occurrence of a peptide,
-    created from a peptide-related template (e.g., a sequence or residue
-    list defined elsewhere in the database). Each instance corresponds to
-    one full peptide chain and is identified by a unique ``molecule_id``.
-
     Attributes:
-        pmb_type (str):
-            Fixed string identifying this object as a peptide instance.
-            Always ``"peptide"``.
-        name (str):
-            Name of the peptide template from which this instance was
-            created. This typically corresponds to a user-defined
-            peptide type or sequence label.
-        molecule_id (int):
-            Unique non-negative integer identifying this peptide within
-            the database. Assigned sequentially by the database manager
-            when the instance is created.
-        assembly_id (int | None):
-            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs.
-            ``None`` indicates that the residue is not assigned to any assembly.
+        pmb_type ('str'):
+            Fixed string identifying this object as a peptide instance. Always ``"peptide"``.
+        
+        name ('str'):
+            Name of the peptide template from which this instance was created. 
+
+        molecule_id ('int'):
+            Unique non-negative integer identifying this peptide within the database. 
+
+        assembly_id ('int' | 'None'):
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs. ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
-        - This class only tracks the identity of the peptide instance.
-          Residues and particles belonging to the peptide reference this
-          instance through their ``molecule_id`` fields.
-        - Connectivity (ordering of residues), spatial arrangement,
-          and bonding interactions are managed separately by the
-          database or simulation engine.
+        - This class only tracks the identity of the peptide instance. Residues and particles belonging to the peptide reference this instance through their ``molecule_id`` fields.
+        - Connectivity (ordering of residues), spatial arrangement, and bonding interactions are managed separately by the database or simulation engine.
     """
-    
     pmb_type: str = "peptide"
     name: str            # molecule template name
     molecule_id: int 

@@ -22,12 +22,17 @@ from pydantic import Field
 
 class MoleculeTemplate(PMBBaseModel):
     """
-    Template defining a molecule in pyMBE.
+    Template defining a molecule in the pyMBE database.
 
     Attributes:
-        pmb_type (str): Fixed type identifier for this template. Always "molecule".
-        name (str): Unique name of the molecule template.
-        residue_list (List[str]): Ordered list of residue names that make up the molecule.
+        pmb_type ('str'): 
+            Fixed type identifier for this template. Always "molecule".
+
+        name ('str'): 
+            Unique name of the molecule template.
+
+        residue_list ('List[str]'): 
+            Ordered list of residue names that make up the molecule.
     """
     pmb_type: str = Field(default="molecule", frozen=True)
     name: str

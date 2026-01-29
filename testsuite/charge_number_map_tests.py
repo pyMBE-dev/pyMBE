@@ -69,6 +69,8 @@ class Test(ut.TestCase):
                          1)
         self.assertEqual(charge_map[type_map["B"]],
                          0)
+        
+
 
 if __name__ == '__main__':
     ut.main()

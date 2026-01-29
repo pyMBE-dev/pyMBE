@@ -26,8 +26,11 @@ class HydrogelNode(BaseModel):
     Represents a node in a hydrogel network.
 
     Attributes:
-        particle_name (str): Name of the particle at this node.
-        lattice_index (List[int]): 3D lattice position of the node. Must be a list of length 3.
+        particle_name ('str'): 
+            Name of the particle at this node.
+
+        lattice_index ('List[int]'): 
+            3D lattice position of the node. Must be a list of length 3.
     """
     particle_name: str
     lattice_index: List[int]  # must be length 3
@@ -37,9 +40,14 @@ class HydrogelChain(BaseModel):
     Represents a polymer chain between two hydrogel nodes.
 
     Attributes:
-        molecule_name (str): Name of the molecule representing the polymer chain.
-        node_start (str): Name of the starting node.
-        node_end (str): Name of the ending node.
+        molecule_name ('str'): 
+            Name of the molecule representing the polymer chain.
+
+        node_start ('str'): 
+            Name of the starting node.
+
+        node_end ('str'): 
+            Name of the ending node.
     """
     molecule_name: str
     node_start: str
@@ -47,20 +55,22 @@ class HydrogelChain(BaseModel):
 
 class HydrogelTemplate(PMBBaseModel):
     """
-    Template defining a hydrogel network in pyMBE.
-
-    A hydrogel template consists of nodes (particles at specific lattice positions)
-    and polymer chains connecting those nodes.
+    Template defining a hydrogel network in the pyMBE database.
 
     Attributes:
-        pmb_type (str): Fixed type identifier for this template. Always "hydrogel".
-        name (str): Unique name of the hydrogel template.
-        node_map (List[HydrogelNode]): List of nodes defining the hydrogel lattice.
-        chain_map (List[HydrogelChain]): List of polymer chains connecting nodes.
+        pmb_type ('str'): 
+            Fixed type identifier for this template. Always "hydrogel".
+
+        name ('str'): 
+            Unique name of the hydrogel template.
+
+        node_map ('List[HydrogelNode]'): 
+            List of nodes defining the hydrogel lattice.
+
+        chain_map ('List[HydrogelChain]'): 
+            List of polymer chains connecting nodes.
     """
     pmb_type: str = Field(default="hydrogel", frozen=True)
     name: str
-
     node_map: List[HydrogelNode] = Field(default_factory=list)
     chain_map: List[HydrogelChain] = Field(default_factory=list)
-

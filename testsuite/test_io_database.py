@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024-2026 pyMBE-dev team
+# Copyright (C) 2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -19,12 +19,16 @@
 import tempfile
 import espressomd
 import pandas as pd
-import numpy as np
 import unittest as ut
+import json
+import os
 import pyMBE
 from pyMBE.lib.lattice import DiamondLattice
 import pyMBE.lib.handy_functions as hf
-
+from pyMBE.storage.io import _decode
+from pyMBE.storage.io import _encode
+from pyMBE.storage.pint_quantity import PintQuantity
+from pyMBE.storage.instances.bond import BondInstance
 
 espresso_system=espressomd.System (box_l = [100]*3)
 
@@ -417,7 +421,165 @@ class Test(ut.TestCase):
             pmb.delete_instances_in_system(espresso_system=espresso_system,
                                         instance_id=protid,
                                         pmb_type="protein")
+            
+    def test_database_io_exceptions(self):
+        """
+        Unit test to check exceptions in the io of the pyMBE database
+        """
+        pmb = pyMBE.pymbe_library(51)
+        inputs = {"folder": "test",
+                  "format": "random"}
+        self.assertRaises(ValueError,
+                          pmb.load_database,
+                          **inputs)
+        self.assertRaises(ValueError,
+                          pmb.save_database,
+                          **inputs)
+
+    def test_decode_edge_cases(self):
+        """
+        Tests the edge cases in the IO decoder of the database
+        """
+        self.assertIsNone(_decode(None))
+        self.assertIsNone(_decode(float("nan")))
+        self.assertIsNone(_decode(""))
+        self.assertIsNone(_decode("nan"))
+
+        # malformed JSON → fallback to raw string
+        self.assertEqual(_decode("{not:json}"), "{not:json}")
+
+        # already-native types
+        self.assertEqual(_decode({"a": 1}), {"a": 1})
+        self.assertEqual(_decode([1, 2]), [1, 2])
+        self.assertEqual(_decode(3), 3)
+
+        value = 3.14159
+        result = _decode(value)
+
+        self.assertIsInstance(result, float)
+        self.assertEqual(result, value)
+
+        value = (1, 2, 3)   # tuple is not dict, list, int, bool, float, or str
+        result = _decode(value)
+        self.assertIsNone(result)
+
+    def test_encode_edge_cases(self):
+        """
+        Tests the edge cases in the IO encoder of the database
+        """
         
+
+        self.assertEqual(_encode(None), "")
+
+        pq = PintQuantity(magnitude=3.0, units="nm", dimension="length")
+        encoded = _encode(pq)
+        self.assertIsInstance(encoded, str)
+        self.assertIn("magnitude", encoded)
+
+        class Dummy:
+            def __str__(self):
+                return "dummy"
+
+        self.assertEqual(_encode(Dummy()), json.dumps("dummy"))
+
+    def test_load_empty_database_folder(self):
+        """
+        Tests that an empty folder does not populate the pyMBE database
+        """
+        new_pmb = pyMBE.pymbe_library(2)
+        with tempfile.TemporaryDirectory() as tmp:
+            new_pmb.load_database(tmp)
+        # database should remain empty
+        self.assertEqual(len(new_pmb.db._templates), 0)
+        self.assertEqual(len(new_pmb.db._instances), 0)
+        self.assertEqual(len(new_pmb.db._reactions), 0)
+
+    def test_partial_database_files(self):
+        """
+        Test that the database does not break if a file is missing
+        """
+        pmb = pyMBE.pymbe_library(1)
+        pmb.define_particle(name="X", 
+                            sigma=1*pmb.units.reduced_length,
+                            epsilon=1*pmb.units.reduced_energy)
+        with tempfile.TemporaryDirectory() as tmp:
+            pmb.save_database(tmp)
+            # manually delete one CSV
+            os.remove(os.path.join(tmp, "templates_particle.csv"))
+            new_pmb = pyMBE.pymbe_library(2)
+            new_pmb.load_database(tmp)
+        # particle templates missing, but no crash
+        self.assertTrue(new_pmb.get_templates_df("particle").empty)
+
+    def test_metadata_roundtrip(self):
+        """
+        Test that covers:
+            - happy path of metadata reading
+            - return value of load_database
+        """
+        pmb = pyMBE.pymbe_library(1)
+        with tempfile.TemporaryDirectory() as tmp:
+            pmb.save_database(tmp)
+            meta = {"creator": "test", "version": 1}
+            with open(os.path.join(tmp, "metadata.json"), "w") as f:
+                json.dump(meta, f)
+            new_pmb = pyMBE.pymbe_library(2)
+            loaded_meta = new_pmb.load_database(tmp)
+        self.assertEqual(loaded_meta, meta)
+
+    def test_invalid_metadata_file(self):
+        """
+        Covers handling of broken metadata files
+        """
+        pmb = pyMBE.pymbe_library(1)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            pmb.save_database(tmp)
+            with open(os.path.join(tmp, "metadata.json"), "w") as f:
+                f.write("not json")
+
+            new_pmb = pyMBE.pymbe_library(2)
+            meta = new_pmb.load_database(tmp)
+
+        self.assertEqual(meta, {})
+
+    def test_default_bond_particle_names(self):
+        """
+        Test io for default bonds
+        """
+        pmb = pyMBE.pymbe_library(1)
+        pmb.define_default_bond(bond_type="FENE", bond_parameters={'r_0'    : 0.5 * pmb.units.nm,
+                             'k'      : 500 * pmb.units('reduced_energy / reduced_length**2'),
+                             'd_r_max': 0.5 * pmb.units.nm})
+
+        with tempfile.TemporaryDirectory() as tmp:
+            pmb.save_database(tmp)
+            new_pmb = pyMBE.pymbe_library(2)
+            new_pmb.load_database(tmp)
+
+        df = new_pmb.get_templates_df("bond")
+        self.assertTrue(df["particle_name1"].isna().any())
+
+    def test_non_sequential_instance_ids(self):
+        """
+        Tests that  IDs are not implicitly re-indexed.
+        """
+        pmb = pyMBE.pymbe_library(1)
+        pmb.db._instances["bond"] = {10: BondInstance(name="b", bond_id=10, particle_id1=1, particle_id2=2),
+                                     42: BondInstance(name="b", bond_id=42, particle_id1=3, particle_id2=4)}
+        with tempfile.TemporaryDirectory() as tmp:
+            pmb.save_database(tmp)
+            new_pmb = pyMBE.pymbe_library(2)
+            new_pmb.load_database(tmp)
+        self.assertSetEqual(set(new_pmb.db._instances["bond"].keys()), {10, 42},)
+
+    def test_load_database_missing_folder(self):
+        """
+        Tests that that the io raises an error if the folder does not exist
+        """
+        pmb = pyMBE.pymbe_library(1)
+        with self.assertRaises(FileNotFoundError):
+            pmb.load_database("does_not_exist")
 
 if __name__ == '__main__':
     ut.main()

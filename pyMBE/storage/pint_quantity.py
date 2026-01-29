@@ -18,31 +18,30 @@
 #
  
 from dataclasses import dataclass
-from typing import Any
-from pint import UnitRegistry, Quantity
-
+import pint
 # dimension -> representative unit used to check dimensionality
-_DIMENSION_REPRESENTATIVE = {
-    "length": "nm",
-    "energy": "meV",
-    "energy/length**2": "meV/nm**2",
-    "dimensionless": "dimensionless",
-    # extend as needed
-}
-
+_DIMENSION_REPRESENTATIVE = {"length": "nm",
+                            "energy": "meV",
+                            "energy/length**2": "meV/nm**2",
+                            "dimensionless": "dimensionless",} # extend as needed
 
 @dataclass
 class PintQuantity:
     """
     Internal representation of a Pint quantity for pyMBE storage.
 
-    Stores the magnitude and units of a quantity in a base/SI-like format
-    along with its logical physical dimension.
-
     Attributes:
-        magnitude (float): Numeric value of the quantity in the stored units.
-        units (str): String representation of the units (e.g., "nm", "meV", "meV/nm**2").
-        dimension (str): Logical dimension of the quantity, e.g., "length", "energy", etc.
+        magnitude ('float'): 
+            Numeric value of the quantity in the stored units.
+
+        units ('str'): 
+            String representation of the units (e.g., "nm", "meV", "meV/nm**2").
+
+        dimension ('str'): 
+            Logical dimension of the quantity, e.g., "length", "energy", etc.
+    
+    Notes:
+        - Stores the magnitude and units of a quantity in a base/SI-like format along with its logical physical dimension.
     """
 
     magnitude: float
@@ -55,18 +54,20 @@ class PintQuantity:
         Create a PintQuantity from a Pint Quantity, validating its dimension.
 
         Args:
-            q (Quantity): Pint Quantity to store.
-            expected_dimension (str): Expected logical dimension ("length", "energy", etc.).
-            ureg (UnitRegistry): Pint UnitRegistry used for unit conversion.
+            q ('pint.Quantity'): 
+                Pint Quantity to store.
+
+            expected_dimension ('str'): 
+                Expected logical dimension ("length", "energy", etc.).
+
+            ureg ('pint.UnitRegistry'): 
+                Pint UnitRegistry used for unit conversion.
 
         Returns:
-            PintQuantity: Internal representation in SI-like units.
-
-        Raises:
-            TypeError: If `q` is not a pint.Quantity.
-            ValueError: If the quantity does not match the expected dimension.
+            'PintQuantity': 
+                Internal pyMBE representation in SI units.
         """
-        if not isinstance(q, Quantity):
+        if not isinstance(q, pint.Quantity):
             raise TypeError("from_quantity expects a pint.Quantity")
 
         # Build a representative unit for the dimension using the provided registry
@@ -104,10 +105,12 @@ class PintQuantity:
         Convert the stored PintQuantity back into a Pint Quantity.
 
         Args:
-            ureg (UnitRegistry): Pint UnitRegistry used to construct the Quantity.
+            ureg ('pint.UnitRegistry'): 
+                Pint UnitRegistry used to construct the Quantity.
 
         Returns:
-            Quantity: Pint Quantity with the stored magnitude and units.
+            'pint.Quantity': 
+                Pint Quantity with the stored magnitude and units.
         """
         return self.magnitude * ureg(self.units)
 
@@ -116,7 +119,8 @@ class PintQuantity:
         Serialize the PintQuantity to a dictionary.
 
         Returns:
-            dict: Dictionary with keys "magnitude", "units", and "dimension".
+            'dict': 
+                Dictionary with keys "magnitude", "units", and "dimension".
         """
         return {"magnitude": self.magnitude, "units": self.units, "dimension": self.dimension}
 
@@ -126,10 +130,12 @@ class PintQuantity:
         Deserialize a PintQuantity from a dictionary.
 
         Args:
-            d (dict): Dictionary containing "magnitude", "units", and "dimension".
+            d ('dict'): 
+                Dictionary containing "magnitude", "units", and "dimension".
 
         Returns:
-            PintQuantity: Reconstructed PintQuantity object.
+            'pint.PintQuantity': 
+                Reconstructed PintQuantity object.
         """
         return cls(magnitude=d["magnitude"], units=d["units"], dimension=d["dimension"])
 

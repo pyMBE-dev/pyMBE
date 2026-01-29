@@ -17,9 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import Dict, Literal, Optional 
-from pydantic import Field, field_validator
-
+from typing import Literal, Optional 
+from pydantic import Field
 from ..base_type import PMBBaseModel
 from ..pint_quantity import PintQuantity
 
@@ -28,10 +27,17 @@ class ParticleStateTemplate(PMBBaseModel):
     Represents a single state of a particle in pyMBE.
 
     Attributes:
-        pmb_type (Literal["particle_state"]): Fixed type identifier. Always "particle_state".
-        name (str): Name of the particle state, e.g., "HA", "A-", "H+".
-        z (int): Charge of the particle in this state.
-        es_type (float): Identifier for the state used in Espresso simulations.
+        pmb_type ('Literal["particle_state"]'): 
+            Fixed type identifier. Always "particle_state".
+
+        name ('str'): 
+            Name of the particle state, e.g., "HA", "A-", "H+".
+
+        z ('int'): 
+            Charge of the particle in this state.
+
+        es_type ('float'): 
+            Identifier for the state used in Espresso simulations.
     """
     pmb_type: Literal["particle_state"] = "particle_state"
     particle_name: str
@@ -41,20 +47,30 @@ class ParticleStateTemplate(PMBBaseModel):
 
 class ParticleTemplate(PMBBaseModel):
     """
-    Template describing a particle type, including interaction parameters and allowed states.
+    Template describing a particle in the pyMBE database.
 
     Attributes:
-        pmb_type (str): Fixed type identifier. Always "particle".
-        sigma (PintQuantity): Particle diameter or size parameter.
-        epsilon (PintQuantity): Depth of the LJ potential well (interaction strength).
-        cutoff (PintQuantity): Cutoff distance for the LJ potential.
-        offset (PintQuantity): Offset distance for the LJ potential.
-        states (Dict[str, ParticleState]): Dictionary of allowed particle states.
-            Keys are state names, values are ParticleState instances.
-        initial_state (Optional[str]): Name of the default particle state.
-            If not provided explicitly, the first added state becomes the initial state.
-    """
+        pmb_type ('str'): 
+            Fixed type identifier. Always "particle".
 
+        sigma ('PintQuantity'): 
+            Particle diameter or size parameter.
+
+        epsilon ('PintQuantity'): 
+            Depth of the LJ potential well (interaction strength).
+
+        cutoff ('PintQuantity'): 
+            Cutoff distance for the LJ potential.
+
+        offset ('PintQuantity'): 
+            Offset distance for the LJ potential.
+
+        states ('Dict[str, ParticleState]'): 
+            Dictionary of allowed particle states. Keys are state names, values are ParticleState instances.
+
+        initial_state ('Optional[str]'): 
+            Name of the default particle state. If not provided explicitly, the first added state becomes the initial state.
+    """
     pmb_type: str = Field(default="particle", frozen=True)
     name : str
     sigma: PintQuantity
@@ -68,17 +84,12 @@ class ParticleTemplate(PMBBaseModel):
         Retrieve the Lennard-Jones interaction parameters for the particle template.
 
         Args:
-            ureg (pint.UnitRegistry) : Pint unit registry used to reconstruct physical quantities from storage.
+            ureg ('pint.UnitRegistry'): 
+                Pint unit registry used to reconstruct physical quantities from storage.
         
         Returns:
-            Dict[str, pint.Quantity]:
+            'Dict[str, pint.Quantity]':
                 A dictionary containing the following LJ parameters: sigma, epsilon, cutoff, offset.
-
-        Example:
-            >>> tpl = ParticleTemplate(...)
-            >>> params = tpl.get_lj_parameters()
-            >>> params["sigma"]
-            <Quantity(1.0, 'nanometer')>
         """
         return {"sigma": self.sigma.to_quantity(ureg), 
                 "epsilon": self.epsilon.to_quantity(ureg),

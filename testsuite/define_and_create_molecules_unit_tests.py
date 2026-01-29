@@ -444,6 +444,24 @@ class Test(ut.TestCase):
         # There should be only 8 particles (from the remaining M2 molecule)
         self.assertEqual(first=len(pmb.get_instances_df(pmb_type="particle")), 
                         second=8)
+        
+    def test_set_particle_initial_state(self):
+        """
+        Unit tests for set_particle_initial_state
+        """
+        pmb = pyMBE.pymbe_library(23)
+        pmb.define_particle(name="A",
+                            sigma=1*pmb.units.nm,
+                            epsilon=1*pmb.units.reduced_energy,
+                            z=1)
+        state_1 = pmb.db.get_template(pmb_type="particle", name="A").initial_state
+        pmb.set_particle_initial_state(particle_name="A",
+                                       state_name="random")
+        state_2 = pmb.db.get_template(pmb_type="particle", name="A").initial_state
+        self.assertIsNot(state_1,
+                         state_2)
+        self.assertEqual(state_2,
+                         "random")
 
     def test_get_radius_map(self):
         """
@@ -468,7 +486,13 @@ class Test(ut.TestCase):
         self.assertEqual(first=isinstance(pmb.get_radius_map()[0],float),
                          second=True)
         self.assertEqual(first=pmb.get_radius_map(dimensionless=False)[0].dimensionality,
-                         second=pmb.units.nm.dimensionality)    
+                         second=pmb.units.nm.dimensionality)  
+
+        # Test the sanity test
+        pmb2 = pyMBE.pymbe_library(24)
+        empty_map = pmb2.get_radius_map()
+        self.assertEqual(empty_map,
+                         {})  
 
 if __name__ == "__main__":
     ut.main()

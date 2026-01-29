@@ -25,25 +25,27 @@ import espressomd
 # Create an instance of pyMBE library
 espresso_system=espressomd.System (box_l = [10]*3)
 
-pmb = pyMBE.pymbe_library(seed=42)
-pmb.define_particle(name='A', 
+
+
+class Test(ut.TestCase):
+    def define_templates(self, pmb):
+        pmb.define_particle(name='A', 
             z=0, 
             sigma=0.4*pmb.units.nm, 
             epsilon=1*pmb.units('reduced_energy'))
 
-pmb.define_particle(name='B', 
-                    z=0, 
-                    sigma=0.4*pmb.units.nm, 
-                    epsilon=1*pmb.units('reduced_energy'))
+        pmb.define_particle(name='B', 
+                            z=0, 
+                            sigma=0.4*pmb.units.nm, 
+                            epsilon=1*pmb.units('reduced_energy'))
 
-harmonic_params = {'r_0'    : 0.4 * pmb.units.nm,
-                    'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
+        self.harmonic_params = {'r_0'    : 0.4 * pmb.units.nm,
+                            'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
 
-FENE_params = {'r_0'    : 0.4 * pmb.units.nm,
-             'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
-             'd_r_max': 0.8 * pmb.units.nm}
+        self.FENE_params = {'r_0'    : 0.4 * pmb.units.nm,
+                    'k'      : 400 * pmb.units('reduced_energy / reduced_length**2'),
+                    'd_r_max': 0.8 * pmb.units.nm}
 
-class Test(ut.TestCase):
 
     def get_bond_object(self, particle_id_pair):
         """
@@ -79,10 +81,12 @@ class Test(ut.TestCase):
         """
         Unit test to check the setup of bonds in pyMBE
         """
+        pmb = pyMBE.pymbe_library(seed=42)
+        self.define_templates(pmb)
         #Define bond
         # check particle bond
         pmb.define_bond(bond_type = "harmonic",
-                        bond_parameters = harmonic_params,
+                        bond_parameters = self.harmonic_params,
                         particle_pairs = [['A', 'A']])
         # Create two particles
         pids = pmb.create_particle(name="A",
@@ -97,7 +101,7 @@ class Test(ut.TestCase):
         bond_object = self.get_bond_object(particle_id_pair=pids)
         
         self.check_bond_setup(bond_object=bond_object,
-                              input_parameters=harmonic_params,
+                              input_parameters=self.harmonic_params,
                               bond_type="harmonic")
         # Clean-up database
         for inst_id in pids:
@@ -120,7 +124,7 @@ class Test(ut.TestCase):
         
         # Test that the bond is properly setup when there is a default bond
         pmb.define_default_bond(bond_type = "harmonic",
-                                bond_parameters = harmonic_params)
+                                bond_parameters = self.harmonic_params)
 
         pmb.create_bond(particle_id1=pid_B[0],
                         particle_id2=pid_A[0],
@@ -141,7 +145,7 @@ class Test(ut.TestCase):
         
         # Test setup of FENE bonds
         pmb.define_bond(bond_type = "FENE",
-                        bond_parameters = FENE_params,
+                        bond_parameters = self.FENE_params,
                         particle_pairs = [['A', 'A']])
         # Create two particles
         pids = pmb.create_particle(name="A",
@@ -156,7 +160,7 @@ class Test(ut.TestCase):
         bond_object = self.get_bond_object(particle_id_pair=pids)
         
         self.check_bond_setup(bond_object=bond_object,
-                              input_parameters=FENE_params,
+                              input_parameters=self.FENE_params,
                               bond_type="FENE")
         # Clean-up database
         for inst_id in pids:
@@ -180,7 +184,7 @@ class Test(ut.TestCase):
         
         # Test that the FENE bond is properly setup when there is a default bond
         pmb.define_default_bond(bond_type = "harmonic",
-                                bond_parameters = harmonic_params)
+                                bond_parameters = self.harmonic_params)
 
         pmb.create_bond(particle_id1=pid_B[0],
                         particle_id2=pid_A[0],
@@ -202,7 +206,7 @@ class Test(ut.TestCase):
         
         # Test setup of the default bond
         pmb.define_default_bond(bond_type = "harmonic",
-                                bond_parameters = harmonic_params)
+                                bond_parameters = self.harmonic_params)
 
         pids = pmb.create_particle(name="A",
                                    espresso_system=espresso_system,
@@ -216,7 +220,7 @@ class Test(ut.TestCase):
         bond_object = self.get_bond_object(particle_id_pair=pids)
         
         self.check_bond_setup(bond_object=bond_object,
-                              input_parameters=harmonic_params,
+                              input_parameters=self.harmonic_params,
                               bond_type="harmonic")
         # Clean-up database
         for inst_id in pids:
@@ -257,11 +261,13 @@ class Test(ut.TestCase):
         pmb.db.delete_templates(pmb_type="bond")
 
     def test_bond_raised_exceptions(self):
+        pmb = pyMBE.pymbe_library(seed=42)
+        self.define_templates(pmb)
         for callback in [pmb.define_bond, pmb.define_default_bond]:
             with self.subTest(msg=f'using method {callback.__qualname__}()'):
-                self.check_bond_exceptions(callback)
+                self.check_bond_exceptions(callback,pmb)
 
-    def check_bond_exceptions(self, callback):
+    def check_bond_exceptions(self, callback, pmb):
         # check exceptions for unknown bond types
         bond_type = 'Quartic'
         bond = {'r_0'    : 0.4 * pmb.units.nm,
@@ -315,6 +321,26 @@ class Test(ut.TestCase):
 
         np.testing.assert_raises(ValueError, callback, **input_parameters)
 
-
+        # test that redefining a bond produces a RunTimeError
+        if callback == pmb.define_bond:
+            test = {"bond_type":"FENE",
+                    "bond_parameters":self.FENE_params,
+                    "particle_pairs":[["Y","Y"],["Y","Y"]]}
+            
+            np.testing.assert_raises(RuntimeError,
+                                    pmb.define_bond,
+                                    **test)
+            
+    def test_sanity_get_bond_template(self):
+        """
+        tests the sanity test for "get_bond_template"
+        """
+        pmb = pyMBE.pymbe_library(51)
+        inputs = {"particle_name1": "A",
+                  "particle_name2": "A"}
+        np.testing.assert_raises(ValueError,
+                                pmb.get_bond_template,
+                                **inputs)
+            
 if __name__ == '__main__':
     ut.main()

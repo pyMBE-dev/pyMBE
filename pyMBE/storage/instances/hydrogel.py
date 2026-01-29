@@ -20,39 +20,33 @@
 from typing import List
 from pydantic import Field
 from ..base_type import PMBBaseModel
+from pydantic import field_validator
+
 
 class HydrogelInstance(PMBBaseModel):
     """
     Persistent instance representation of a hydrogel object.
 
-    A ``HydrogelInstance`` stores the high-level composition of a
-    hydrogel in terms of the constituent polymer chain molecules.  
-    Each hydrogel is assigned a unique integer ID and has a human-readable
-    name, along with a list of molecule identifiers referencing previously
-    registered molecule instances.
-
-    This class is intentionally lightweight and fully serializable.  
-    It does **not** store simulation-engine internal objects
-    (such as lattice builders, Espresso handles, network topologies, etc.).
-    These are expected to be constructed externally at run time.
-
     Attributes:
-        pmb_type (str):
-            Fixed string identifier for this instance type. Always
-            ``"hydrogel"``.
-        assembly_id (int):
+        pmb_type ('str'):
+            Fixed string identifier for this instance type. Always ``"hydrogel"``.
+
+        assembly_id ('int'):
             Unique non-negative integer identifying this hydrogel instance.
-        name (str):
+
+        name ('str'):
             Human-readable name for the hydrogel (e.g., ``"HG_001"``).
 
     Notes:
         - This class represents the *instance* level (what specific
           hydrogel exists in the system), not a template describing generic
           hydrogel types.
-        - The integrity of ``molecule_ids`` (e.g., references to existing
-          molecule instances) should be validated in the database layer
-          during creation or update and not inside this class.
     """
     pmb_type: str = Field(default="hydrogel", frozen=True)
     assembly_id: int
     name: str
+    @field_validator("assembly_id")
+    def validate_bond_id(cls, aid):
+        if aid < 0:
+            raise ValueError("assembly_id must be a non-negative integer.")
+        return aid

@@ -22,14 +22,23 @@ from pydantic import Field
 
 class PeptideTemplate(PMBBaseModel):
     """
-    Template defining a peptide in a pyMBE simulation.
+    Template defining a peptide in the pyMBE database.
 
     Attributes:
-        pmb_type (str): Fixed type identifier. Always "peptide".
-        name (str): Unique name of the peptide template.
-        model (str): Name or type of the model used for this peptide.
-        residue_list (List[str]): Ordered list of residue names that make up the peptide.
-        sequence (List[str]): Ordered sequence of residues representing the peptide's structure.
+        pmb_type ('str'): 
+            Fixed type identifier. Always "peptide".
+
+        name ('str'): 
+            Unique name of the peptide template.
+
+        model ('str'): 
+            Name or type of the model used for this peptide.
+
+        residue_list ('List[str]'): 
+            Ordered list of residue names that make up the peptide.
+
+        sequence ('List[str]'): 
+            Ordered sequence of residues representing the peptide's structure.
     """
     pmb_type: str = Field(default="peptide", frozen=True)
     name: str

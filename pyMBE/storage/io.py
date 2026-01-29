@@ -348,29 +348,6 @@ def _load_database_csv(db, folder):
         metadata = {}
     return metadata
 
-def _load_reaction_set(path):
-    """
-    Loads a set of reactions from a JSON file.
-
-    Args:
-        path (str): Path to the JSON file containing reaction data.
-
-    Returns:
-        dict[str, Reaction]: Dictionary mapping reaction names to Reaction objects.
-    """
-    with open(path, "r") as f:
-        data = json.load(f)
-    reactions = {}
-    for name, rdata in data["data"].items():
-        participants = [ReactionParticipant(**p) for p in rdata["participants"]]
-        reaction = Reaction(name=name,
-                            participants=participants,
-                            constant=rdata["constant"],
-                            reaction_type=rdata.get("reaction_type", "acid_base"),
-                            metadata=rdata.get("metadata"))
-        reactions[name] = reaction
-    return reactions
-
 def _save_database_csv(db, folder):
     """
     Saves the database content into CSV files in a folder.

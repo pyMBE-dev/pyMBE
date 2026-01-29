@@ -25,33 +25,23 @@ class ProteinInstance(PMBBaseModel):
     """
     Instance of a protein molecule placed in the simulation.
 
-    ``ProteinInstance`` represents a concrete protein object created
-    from a protein template defined in the database. Each instance
-    corresponds to one full protein chain and is uniquely identified
-    by its ``molecule_id``.
-
     Attributes:
-        pmb_type (str):
-            Fixed string identifying this object as a protein instance.
-            Always ``"protein"``.
-        name (str):
-            Name of the protein template from which this instance was
-            created. This usually corresponds to a user-defined or
-            imported protein type or sequence identifier.
-        molecule_id (int):
-            Unique non-negative integer identifying this protein within
-            the database. Assigned by the database manager upon creation.
-        assembly_id (int | None):
-            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs.
-            ``None`` indicates that the residue is not assigned to any assembly.
+        pmb_type ('str'):
+            Fixed string identifying this object as a protein instance. Always ``"protein"``.
+        
+        name ('str'):
+            Name of the protein template from which this instance was created. 
+
+        molecule_id ('int'):
+            Unique non-negative integer identifying this protein within the database. 
+
+        assembly_id ('int' | 'None'):
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs. ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
-        - A ``ProteinInstance`` only records the identity of the protein
-          and its template association.
-        - Residues and particles that belong to the protein reference
-          this instance through their ``molecule_id`` values.
-        - The structural connectivity (residue sequence, domains) is
-          handled at the template level or by the builder modules.
+        - A ``ProteinInstance`` only records the identity of the protein and its template association.
+        - Residues and particles that belong to the protein reference this instance through their ``molecule_id`` values.
+        - The structural connectivity (residue sequence, domains) is  handled at the template level or by the builder modules.
     """
     pmb_type: str = "protein"
     name: str            # molecule template name

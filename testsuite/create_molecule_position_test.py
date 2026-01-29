@@ -153,6 +153,7 @@ class Test(ut.TestCase):
         self.assertRaises(ValueError, 
                           pmb.center_object_in_simulation_box, 
                            **input_parameters)
+        
 
 
 if __name__ == "__main__":

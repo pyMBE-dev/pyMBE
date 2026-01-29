@@ -22,6 +22,9 @@ import numpy as np
 import espressomd
 import unittest as ut
 
+
+
+
 def reaction_method_test_template(parameters):
 
     # Create an instance of the pyMBE library
@@ -341,6 +344,57 @@ class Test(ut.TestCase):
 
             parameters["z_H"] = -1    
             reaction_method_test_template(parameters)
+
+    def test_mixed_setup(self):
+        """
+        Unit test to check that setting up a reaction different than acid/base 
+        does not break the setup of the cpH method
+        """
+        
+        pmb = pyMBE.pymbe_library(23)
+        # Define the acidic particle
+        pmb.define_particle(
+            name = "A",
+            acidity = "acidic",
+            pka = 4,
+            sigma = 1*pmb.units('reduced_length'),
+            epsilon = 1*pmb.units('reduced_energy'))
+
+        # Define the ions
+        pmb.define_particle(
+                name="Na", 
+                z=1,
+                sigma = 1*pmb.units('reduced_length'),
+                epsilon = 1*pmb.units('reduced_energy'))
+        
+        pmb.define_particle(
+                name="Cl", 
+                z=-1,
+                sigma = 1*pmb.units('reduced_length'),
+                epsilon = 1*pmb.units('reduced_energy'))
+        
+        input_parameters = {"c_salt_res":1 * pmb.units.mol/ pmb.units.L, 
+                            "salt_cation_name": "Na", 
+                            "salt_anion_name": "Cl", 
+                            "activity_coefficient": lambda x: 1.0}
+
+        # Add the reactions using pyMBE
+        pmb.setup_gcmc(**input_parameters)
+        pmb.setup_cpH(counter_ion="Na", 
+                            constant_pH=7)
+        cpH_setup = {"pK": 4,
+                     "reaction_type": "monoprotic_acid"}
+        gcmc_setup = {"pK": 3.1391280768992047,
+                     "reaction_type": "ion_insertion"}
+        for reaction in pmb.db.get_reactions():
+            if reaction.simulation_method == "cpH":
+                test_setup = cpH_setup.copy()
+            elif reaction.simulation_method == "GCMC":
+                test_setup = gcmc_setup.copy()
+            for key in test_setup.keys():
+                self.assertAlmostEqual(test_setup[key],
+                                 getattr(reaction,key))
+
 
 if __name__ == "__main__":
     ut.main()
