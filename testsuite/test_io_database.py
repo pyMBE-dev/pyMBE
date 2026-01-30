@@ -25,14 +25,201 @@ import os
 import pyMBE
 from pyMBE.lib.lattice import DiamondLattice
 import pyMBE.lib.handy_functions as hf
-from pyMBE.storage.io import _decode
-from pyMBE.storage.io import _encode
+from pyMBE.storage.io import _decode, _encode, _load_database_csv, _save_database_csv
 from pyMBE.storage.pint_quantity import PintQuantity
 from pyMBE.storage.instances.bond import BondInstance
+from pyMBE.storage.templates.bond import BondTemplate
+from pathlib import Path
+import csv
+
 
 espresso_system=espressomd.System (box_l = [100]*3)
 
+class DummyDB:
+    def __init__(self):
+        self._templates = {}
+        self._instances = {}
+        self._reactions = {}
+
 class Test(ut.TestCase):
+
+    def test_instance_fallback_model_dump_failure(self):
+        class BadInstance:
+            name = "bad_inst"
+            def model_dump(self):
+                raise RuntimeError("boom")
+        db = DummyDB()
+        db._templates = {}
+        db._instances["weird"] = {"x": BadInstance()}
+        db._reactions = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            _save_database_csv(db, tmp)
+
+            text = Path(tmp, "instances_weird.csv").read_text()
+            self.assertIn("bad_inst", text)
+
+    def test_template_fallback_model_dump_failure(self):
+        class BadTemplate:
+            name = "bad"
+            def model_dump(self):
+                raise RuntimeError("boom")
+        db = DummyDB()
+        db._templates["weird"] = {"bad": BadTemplate()}
+        db._instances = {}
+        db._reactions = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            _save_database_csv(db, tmp)
+            text = Path(tmp, "templates_weird.csv").read_text()
+            self.assertIn("bad", text)
+
+    def test_bond_scalar_parameter_serialization(self):
+        """
+        Tests the bond serilization
+        """
+        db = DummyDB()
+        bond = BondTemplate(name="b1",
+                            bond_type="harmonic",
+                            particle_name1=None,
+                            particle_name2=None,
+                            parameters={"k": PintQuantity(magnitude=24,
+                                                        units="kilojoule / units.nm**2",
+                                                        dimension="energy/length**2")})
+        db._templates["bond"] = {"b1": bond}
+        db._instances = {}
+        db._reactions = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            _save_database_csv(db, tmp)
+            text = Path(tmp, "templates_bond.csv").read_text()
+            self.assertIn('""k"":{""magnitude"":24,""units"":""kilojoule / units.nm**2"",""dimension"":""energy/length**2""}', text)
+
+    def test_invalid_metadata_json(self):
+        """
+        Tests that invalid metadata files in the database are ignored
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "metadata.json").write_text('"this is a string"')
+            db = DummyDB()
+            metadata = _load_database_csv(db, folder)
+            self.assertEqual(metadata, {})
+
+    def test_lj_shift_as_pint_quantity(self):
+        """
+        Tests a LJ shift as a pint quantity 
+        """
+        sigma = {"magnitude": 1.0,
+                "units": "nm",
+                "dimension": "[length]"}
+        cutoff = {"magnitude": 1.0,
+                "units": "nm",
+                "dimension": "[length]"}
+        offset = {"magnitude": 1.0,
+                "units": "nm",
+                "dimension": "[length]"}
+        epsilon = {"magnitude": 1.0,
+                "units": "J",
+                "dimension": "[energy]"}
+        shift = {"magnitude": 1.0,
+                "units": "nm",
+                "dimension": "[length]"}
+
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            with open(folder / "templates_lj.csv", "w", newline="") as f:
+                writer = csv.writer(f)
+                writer.writerow(
+                    ["name", "state1", "state2", "sigma", "epsilon", "cutoff", "offset", "shift"]
+                )
+                writer.writerow([
+                    "lj1", "A", "B",
+                    json.dumps(sigma),
+                    json.dumps(epsilon),
+                    json.dumps(cutoff),
+                    json.dumps(offset),
+                    json.dumps(shift),
+                ])
+
+
+            db = DummyDB()
+            _load_database_csv(db, folder)
+
+            lj = db._templates["lj"]["A-B"]
+            self.assertIsInstance(lj.shift, PintQuantity)
+
+    def test_bond_template_scalar_parameter(self):
+        """
+        Tests Bond template with non-PintQuantity parameter
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "templates_bond.csv").write_text(
+                "name,bond_type,parameters\n"
+                'b1,harmonic,"{""k"":{""magnitude"":24,""units"":""kilojoule / nm**2"",""dimension"":""energy/length**2""}}"\n'
+            )
+
+            db = DummyDB()
+            _load_database_csv(db, folder)
+
+            bond = db._templates["bond"]["b1"]
+            self.assertEqual(bond.parameters["k"].magnitude, 24)
+
+
+    def test_lists_string_coerced_to_list(self):
+        """
+        Tests that string lists returned by the encoder are parsed back to list properly
+        """
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+
+            (folder / "templates_residue.csv").write_text(
+                "name,central_bead,side_chains\n"
+                "RES1,BB,XYZ\n"
+            )
+
+            db = DummyDB()
+            _load_database_csv(db, folder)
+
+            tpl = db._templates["residue"]["RES1"]
+            self.assertEqual(tpl.side_chains, ["X", "Y", "Z"])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+            (folder / "templates_molecule.csv").write_text("name,residue_list\n"
+                                                            "MOL1,ABC\n")
+
+            db = DummyDB()
+            _load_database_csv(db, folder)
+
+            tpl = db._templates["molecule"]["MOL1"]
+            self.assertEqual(tpl.residue_list, ["A", "B", "C"])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+
+            (folder / "templates_peptide.csv").write_text(
+                "name,model,residue_list,sequence\n"
+                "PEP1,CG,XYZ,XYZ\n"
+            )
+
+            db = DummyDB()
+            _load_database_csv(db, folder)
+
+            tpl = db._templates["peptide"]["PEP1"]
+            self.assertEqual(tpl.residue_list, ["X", "Y", "Z"])
+
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp)
+
+            (folder / "templates_protein.csv").write_text(
+                "name,model,residue_list,sequence\n"
+                "PROT1,CG,DEF,DEF\n"
+            )
+
+            db = DummyDB()
+            _load_database_csv(db, folder)
+
+            tpl = db._templates["protein"]["PROT1"]
+            self.assertEqual(tpl.residue_list, ["D", "E", "F"])
 
     def test_io_particles_and_particle_states_templates(self):
         """
@@ -580,6 +767,8 @@ class Test(ut.TestCase):
         pmb = pyMBE.pymbe_library(1)
         with self.assertRaises(FileNotFoundError):
             pmb.load_database("does_not_exist")
+
+    
 
 if __name__ == '__main__':
     ut.main()

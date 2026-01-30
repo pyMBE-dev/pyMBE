@@ -27,6 +27,7 @@ from pyMBE.storage.instances.bond import BondInstance
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 from pyMBE.storage.templates.bond import BondTemplate
 from pyMBE.storage.pint_quantity import PintQuantity
+from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 import pint
 
 class Test(ut.TestCase):
@@ -133,6 +134,61 @@ class Test(ut.TestCase):
                           PintQuantity.from_quantity,
                           **inputs)
         
-    
+    def test_exceptions_reaction_template(self):
+        """
+        Tests sanity of the Reaction template
+        """
+        # Reactions with less than 2 participants trigger a value error
+        inputs = {"participants":[ReactionParticipant(particle_name="A",
+                                                   state_name="A",
+                                                   coefficient=1)],
+                 "pK":1,
+                 "reaction_type":"test"}
+        
+        self.assertRaises(ValueError,
+                          Reaction,
+                          **inputs)
+        # Reactions with a participant with a 0 stechiometric coeff. trigger a value error
+        inputs = {"participants":[ReactionParticipant(particle_name="A",
+                                                   state_name="A",
+                                                   coefficient=0),
+                                  ReactionParticipant(particle_name="B",
+                                                   state_name="B",
+                                                   coefficient=1)],
+                 "pK":1,
+                 "reaction_type":"test"}
+        
+        self.assertRaises(ValueError,
+                          Reaction,
+                          **inputs)
+        # Reactions with a participant with a 0 stechiometric coeff. triggers a ValueError
+        inputs = {"participants":[ReactionParticipant(particle_name="A",
+                                                   state_name="A",
+                                                   coefficient=0),
+                                  ReactionParticipant(particle_name="B",
+                                                   state_name="B",
+                                                   coefficient=1)],
+                 "pK":1,
+                 "reaction_type":"test"}
+        
+        self.assertRaises(ValueError,
+                          Reaction,
+                          **inputs)
+        # Adding a new participant with a 0 stechiometric coeff. triggers a ValueError
+        react_tpl =Reaction(participants=[ReactionParticipant(particle_name="A",
+                                                   state_name="A",
+                                                   coefficient=-1),
+                                            ReactionParticipant(particle_name="B",
+                                                            state_name="B",
+                                                            coefficient=1)],
+                            pK=1,
+                            reaction_type="test")
+        inputs={"particle_name": "C",
+                "state_name":"C",
+                "coefficient":0}
+        self.assertRaises(ValueError,
+                          react_tpl.add_participant,
+                          **inputs)
+
 if __name__ == '__main__':
     ut.main()

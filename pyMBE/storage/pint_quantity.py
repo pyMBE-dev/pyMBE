@@ -81,16 +81,12 @@ class PintQuantity:
             if not q.check(rep_unit):
                 raise ValueError(f"Quantity {q} does not have expected dimension '{expected_dimension}'")
         except Exception as e:
-            # If check fails because registries differ, try converting via string (best-effort)
+            # If check fails because registries differ
             raise
 
         # Use the dimension representative unit
         rep_unit_str = _DIMENSION_REPRESENTATIVE[expected_dimension]
         rep_unit = ureg(rep_unit_str)
-
-        # Validate dimensionality
-        if not q.check(rep_unit):
-            raise ValueError(f"Quantity {q} does not match expected dimension '{expected_dimension}'")
 
         # Convert to the representative SI unit
         q_base = q.to(rep_unit)

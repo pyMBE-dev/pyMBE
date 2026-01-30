@@ -65,7 +65,7 @@ class LJInteractionTemplate(BaseModel):
     epsilon: PintQuantity
     cutoff: PintQuantity
     offset: PintQuantity
-    shift: str | float
+    shift: str | PintQuantity
 
     @classmethod
     def _make_name(cls, state1: str, state2: str) -> str:

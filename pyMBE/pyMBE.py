@@ -3173,6 +3173,10 @@ class pymbe_library():
         from itertools import combinations_with_replacement
         particle_templates = self.db.get_templates("particle")
         shift = "auto" if shift_potential else 0
+        if shift == "auto":
+            shift_tpl = shift
+        else:
+            shift_tpl =  PintQuantity(magnitude=shift*self.units.reduced_length,units=self.units,dimension="length") 
         # Get all particle states registered in pyMBE
         state_entries = []
         for tpl in particle_templates.values():
@@ -3194,6 +3198,7 @@ class pymbe_library():
                 cutoff=lj_parameters["cutoff"].to("reduced_length").magnitude,
                 offset=lj_parameters["offset"].to("reduced_length").magnitude,
                 shift=shift)
+                
             lj_template = LJInteractionTemplate(state1=state1.name,
                                                 state2=state2.name,
                                                 sigma=PintQuantity.from_quantity(q=lj_parameters["sigma"],
@@ -3208,5 +3213,6 @@ class pymbe_library():
                                                 offset=PintQuantity.from_quantity(q=lj_parameters["offset"],
                                                                                   expected_dimension="length",
                                                                                   ureg=self.units),
-                                                shift=shift)
+                                                shift=shift_tpl)
             self.db._register_template(lj_template)
+
