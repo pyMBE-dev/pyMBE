@@ -36,6 +36,7 @@ from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 from pyMBE.storage.templates.lj import LJInteractionTemplate
+from pyMBE.storage.pint_quantity import PintQuantity
 
 TemplateType = Any  # union of template classes (ParticleTemplate, ResidueTemplate, ...)
 InstanceType = Any  # union of instance classes (ParticleInstance, ResidueInstance, ...)
@@ -92,22 +93,30 @@ class Manager:
 
     def _collect_particle_templates(self, name, pmb_type):
         """
-        Recursively collects particle template names reachable from a given
-        template in the hierarchy.
+        Recursively collect particle template names reachable from a given
+        template in the hierarchy, accounting for their multiplicity.
 
         Args:
             name ('str'):
-                Name of the current template being processed.
+                Name of the template being processed.
 
             pmb_type ('str'):
-                Type of the current template.
+                Type of the template. 
 
         Returns:
-            ('set[str]'):
-                Set of particle template names reachable from the current template.
+            ('collections.defaultdict[str, int]'):
+                A mapping from particle template names to their occurrence counts
+                in the hierarchy reachable from the given template.
 
         Notes:
-            - Particle state templates are resolved to their parent particle template.
+            - If ``pmb_type == "particle"``, the particle itself is counted once.
+            - If ``pmb_type == "particle_state"``, the state is resolved to its
+            parent particle template, which is counted once.
+            - Residue templates contribute their central bead and all side-chain
+            particles.
+            - Molecule-like templates contribute the particles from all residues
+            in their ``residue_list``.
+            - Unsupported ``pmb_type`` values raise ``NotImplementedError``.
         """
         counts = defaultdict(int)
         if pmb_type == "particle":
@@ -154,25 +163,11 @@ class Manager:
         """
         if "bond" not in self._instances:
             return
-        bonds_to_delete = [
-            b_id for b_id, b in list(self._instances["bond"].items())
-            if b.particle_id1 == pid or b.particle_id2 == pid
-        ]
+        bonds_to_delete = [b_id for b_id, b in list(self._instances["bond"].items()) if b.particle_id1 == pid or b.particle_id2 == pid]
         for b_id in bonds_to_delete:
             del self._instances["bond"][b_id]
         if "bond" in self._instances and not self._instances["bond"]:
             del self._instances["bond"]
-
-            if "bond" not in self._instances:
-                return
-            bonds_to_delete = [
-                b_id for b_id, b in list(self._instances["bond"].items())
-                if b.particle_id1 == pid or b.particle_id2 == pid
-            ]
-            for b_id in bonds_to_delete:
-                del self._instances["bond"][b_id]
-            if "bond" in self._instances and not self._instances["bond"]:
-                del self._instances["bond"]
 
     def _find_instance_ids_by_attribute(self, pmb_type, attribute, value):
         """
@@ -214,7 +209,7 @@ class Manager:
                 The template name associated with the instances of interest.
 
         Returns:
-            'list[int]':
+            ('list[int]'):
                 A list of instance IDs whose underlying template name matches
                 ``name``. The list is empty if no such instances exist.
 
@@ -225,12 +220,10 @@ class Manager:
         """
         if pmb_type not in self._instances:
             return []
-
         result = []
         for iid, inst in self._instances[pmb_type].items():
             if hasattr(inst, "name") and inst.name == name:
                 result.append(iid)
-
         return result
 
     def _find_template_types(self, name):
@@ -281,31 +274,24 @@ class Manager:
             return pd.DataFrame(rows)
         for inst in self._instances[pmb_type].values():
             if pmb_type == "particle":
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "particle_id": inst.particle_id,
-                    "initial_state": inst.initial_state,
-                    "residue_id": int(inst.residue_id) if inst.residue_id is not None else pd.NA,
-                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
-                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else pd.NA 
-                })
+                rows.append({"pmb_type": pmb_type,
+                            "name": inst.name,
+                            "particle_id": inst.particle_id,
+                            "initial_state": inst.initial_state,
+                            "residue_id": int(inst.residue_id) if inst.residue_id is not None else pd.NA,
+                            "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
+                            "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else pd.NA })
             elif pmb_type == "residue":
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "residue_id": inst.residue_id,
-                    "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
-                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else pd.NA
-                })
+                rows.append({"pmb_type": pmb_type,
+                            "name": inst.name,
+                            "residue_id": inst.residue_id,
+                            "molecule_id": int(inst.molecule_id) if inst.molecule_id is not None else pd.NA,
+                            "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else pd.NA})
             elif pmb_type in ["molecule","peptide","protein"]:
-                rows.append({
-                    "pmb_type": pmb_type,
-                    "name": inst.name,
-                    "molecule_id": inst.molecule_id,
-                    "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else pd.NA
-                })
-
+                rows.append({"pmb_type": pmb_type,
+                            "name": inst.name,
+                            "molecule_id": inst.molecule_id,
+                            "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else pd.NA})
             else:
                 # Generic representation for other types
                 rows.append(inst.model_dump())
@@ -327,10 +313,7 @@ class Manager:
         """  
         rows = []
         for r in self._reactions.values():
-            stoich = {
-                f"{p.state_name}": p.coefficient
-                for p in r.participants
-            }
+            stoich = {f"{p.state_name}": p.coefficient  for p in r.participants}
             rows.append({"reaction": r.name,
                         "stoichiometry": stoich,
                         "pK": r.pK,
@@ -372,7 +355,7 @@ class Manager:
                              "initial_state": tpl.initial_state})  
             elif pmb_type == "lj":
                 shift = tpl.shift
-                if isinstance(shift, dict) and {"magnitude", "units", "dimension"}.issubset(shift.keys()):
+                if isinstance(shift, PintQuantity):
                     shift = tpl.shift.to_quantity(self._units)
                 rows.append({"pmb_type": tpl.pmb_type,
                              "name": tpl.name,
@@ -383,7 +366,6 @@ class Manager:
                              "cutoff": tpl.cutoff.to_quantity(self._units),
                              "offset": tpl.offset.to_quantity(self._units),
                              "shift": shift})
-
             elif pmb_type == "bond":
                 parameters = {}
                 for key in tpl.parameters.keys():
@@ -417,7 +399,6 @@ class Manager:
         """
         if pmb_type not in self._instances:
             raise ValueError(f"Instance type '{pmb_type}' not found in the database.")
-
         return instance_id in self._instances[pmb_type]
 
     def _has_template(self, pmb_type, name):
@@ -479,7 +460,6 @@ class Manager:
         # validate template exists
         if instance.name not in self._templates.get(pmb_type, {}):
             raise ValueError(f"Template '{instance.name}' not found for type '{pmb_type}'")
-
         self._instances[pmb_type][iid] = instance
 
     def _register_reaction(self, reaction):
@@ -505,27 +485,6 @@ class Manager:
 
         """
         pmb_type = getattr(template, "pmb_type", None)
-        if pmb_type is None:
-            # infer from class
-            if isinstance(template, ParticleTemplate):
-                pmb_type = "particle"
-            elif isinstance(template, ResidueTemplate):
-                pmb_type = "residue"
-            elif isinstance(template, MoleculeTemplate):
-                pmb_type = "molecule"
-            elif isinstance(template, PeptideTemplate):
-                pmb_type = "peptide"
-            elif isinstance(template, ProteinTemplate):
-                pmb_type = "protein"
-            elif isinstance(template, HydrogelTemplate):
-                pmb_type = "hydrogel"
-            elif isinstance(template, BondTemplate):
-                pmb_type = "bond"
-            elif isinstance(template, LJInteractionTemplate):
-                pmb_type = "lj"
-            else:
-                raise TypeError("Unknown template type; set attribute pmb_type or use supported templates")
-
         self._templates.setdefault(pmb_type, {})
         if template.name in self._templates[pmb_type]:
             raise ValueError(f"Template '{template.name}' exists in '{pmb_type}'")
@@ -660,33 +619,6 @@ class Manager:
                                       value=value,)
                 updated.append(("particle", pid))
         return updated
-
-
-    def _update_reaction_participant(self, reaction_name, particle_name, state_name, coefficient):
-        """
-        Append a new participant to an existing reaction in the database.
-    
-        Args:
-            reaction_name ('str'):
-                Name of the reaction to be updated.
-
-            particle_name ('str'):
-                Name of the particle template participating in the reaction.
-
-            state_name ('str'):
-                Specific state of the particle (e.g., protonation or charge state).
-
-            coefficient ('int'):
-                Stoichiometric coefficient for the new participant.
-        """
-        if reaction_name not in self._reactions:
-            raise ValueError(f"Reaction '{reaction_name}' not found in the pyMBE database.")
-
-        rxn = self._reactions[reaction_name].add_participant(particle_name=particle_name,
-                                                             state_name=state_name,
-                                                             coefficient=coefficient)
-        self._register_reaction(rxn)
-        self._reactions.pop(reaction_name)
     
     def _propose_instance_id(self, pmb_type):
         """

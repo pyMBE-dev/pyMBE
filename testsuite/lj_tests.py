@@ -155,7 +155,10 @@ class Test(ut.TestCase):
         for parameter_key in ["sigma","offset","cutoff"]:
             ref_lj_parameters[parameter_key]=(A_input_parameters[parameter_key]+B_input_parameters[parameter_key])/2
         ref_lj_parameters["epsilon"]=np.sqrt(A_input_parameters["epsilon"]*B_input_parameters["epsilon"])
-
+        lj_templates = pmb.db.get_templates(pmb_type="lj")
+        lj_df = pmb.db._get_templates_df(pmb_type="lj")
+        self.assertEqual(lj_df[lj_df.name == "A-A"]["shift"].values[0].m_as("nanometer"),
+                         0)
         for label in labels:
             lj_template = lj_templates[label]
             for parameter_key in ["sigma","offset","cutoff"]:

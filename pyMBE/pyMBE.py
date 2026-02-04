@@ -3176,7 +3176,9 @@ class pymbe_library():
         if shift == "auto":
             shift_tpl = shift
         else:
-            shift_tpl =  PintQuantity(magnitude=shift*self.units.reduced_length,units=self.units,dimension="length") 
+            shift_tpl = PintQuantity.from_quantity(q=shift*self.units.reduced_length,
+                                                   expected_dimension="length",
+                                                   ureg=self.units)
         # Get all particle states registered in pyMBE
         state_entries = []
         for tpl in particle_templates.values():

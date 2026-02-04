@@ -18,6 +18,7 @@
 
 import unittest as ut
 import pyMBE
+import espressomd
 from pyMBE.storage.instances.particle import ParticleInstance
 from pyMBE.storage.instances.residue import ResidueInstance
 from pyMBE.storage.instances.molecule import MoleculeInstance
@@ -29,8 +30,150 @@ from pyMBE.storage.templates.bond import BondTemplate
 from pyMBE.storage.pint_quantity import PintQuantity
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 import pint
+espresso_system=espressomd.System(box_l = [10]*3)
 
 class Test(ut.TestCase):
+
+    def test_find_instance_ids(self):
+        """
+        Sanity test for `_find_instance_ids_by_attribute`
+        and `_find_instance_ids_by_name`
+        """
+        pmb = pyMBE.pymbe_library(23)
+        pmb.define_particle(name="A",
+                            sigma=1*pmb.units.nm,
+                            epsilon=1*pmb.units.reduced_energy,
+                            pka=9,
+                            acidity="acidic")
+        pmb.define_particle(name="B",
+                            sigma=1*pmb.units.nm,
+                            epsilon=1*pmb.units.reduced_energy)
+        pmb.define_residue(name="R1",
+                           central_bead="A",
+                           side_chains=["B"])
+        bond_type = 'harmonic'
+        bond = {'r_0'    : 0.4*pmb.units.nm,
+                'k'      : 400 * pmb.units('reduced_energy / reduced_length**2')}
+
+        pmb.define_default_bond(bond_type = bond_type,
+                                bond_parameters = bond)
+        pmb.define_molecule(name="M1",
+                            residue_list=["R1"]*2)
+        pmb.create_molecule(name="M1",
+                            espresso_system=espresso_system,
+                            number_of_molecules=1,
+                            use_default_bond=True)
+        instance_ids_r1 = pmb.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                              attribute="residue_id",
+                                                              value=0)
+        instance_ids_r2 = pmb.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                              attribute="residue_id",
+                                                              value=1)
+        self.assertEqual(instance_ids_r1,
+                         [0,1])
+        self.assertEqual(instance_ids_r2,
+                         [2,3])
+        instance_ids_m1 = pmb.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                              attribute="molecule_id",
+                                                              value=0)
+        self.assertEqual(instance_ids_m1,
+                         [0,1,2,3])
+        instance_ids_by_name_A = pmb.db._find_instance_ids_by_name(pmb_type="particle",
+                                                                   name="A")
+        instance_ids_by_name_B = pmb.db._find_instance_ids_by_name(pmb_type="particle",
+                                                                   name="B")
+        self.assertEqual(instance_ids_by_name_A,
+                         [0,2])
+        self.assertEqual(instance_ids_by_name_B,
+                         [1,3])
+        # Sanity test, no ids are returned if the instance does not exist   
+        instance_ids_test = pmb.db._find_instance_ids_by_name(pmb_type="peptide",
+                                                                   name="B")
+        self.assertEqual(instance_ids_test,
+                         [])
+          
+        # Check that the pyMBE database finds a specific instance
+        self.assertEqual(pmb.db._has_instance(pmb_type="particle",
+                                              instance_id=3),
+                         True)
+        self.assertEqual(pmb.db._has_instance(pmb_type="particle",
+                                              instance_id=4),
+                         False)
+        # Sanity test, unexisting pyMBE type
+        inputs = {"pmb_type": "unknown",
+                  "instance_id": 0}
+        self.assertRaises(ValueError,
+                          pmb.db._has_instance,
+                          **inputs)
+        
+    def test_count_templates(self):
+        """
+        Sanity test for `_collect_particle_templates`
+        """
+        pmb = pyMBE.pymbe_library(23)
+        pmb.define_particle(name="A",
+                            sigma=1*pmb.units.nm,
+                            epsilon=1*pmb.units.reduced_energy,
+                            pka=9,
+                            acidity="acidic")
+        pmb.define_particle(name="B",
+                            sigma=1*pmb.units.nm,
+                            epsilon=1*pmb.units.reduced_energy)
+        pmb.define_residue(name="R1",
+                           central_bead="A",
+                           side_chains=["B"])
+        pmb.define_molecule(name="M1",
+                            residue_list=["R1"]*2)
+        A_states = pmb.db._collect_particle_templates(name="A",
+                                                      pmb_type="particle_state")
+        self.assertEqual(A_states,
+                         {"A":1})
+        AH_states = pmb.db._collect_particle_templates(name="AH",
+                                                      pmb_type="particle_state")
+        self.assertEqual(AH_states,
+                         {"A":1})
+        A_particles = pmb.db._collect_particle_templates(name="A",
+                                                      pmb_type="particle")
+        B_particles = pmb.db._collect_particle_templates(name="B",
+                                                      pmb_type="particle")
+        self.assertEqual(A_particles,
+                         {"A":1})
+        self.assertEqual(B_particles,
+                         {"B":1})
+        R1_counts = pmb.db._collect_particle_templates(name="R1",
+                                                      pmb_type="residue")
+        self.assertEqual(R1_counts,
+                         {"A":1,
+                          "B":1})
+        M1_counts = pmb.db._collect_particle_templates(name="M1",
+                                                      pmb_type="molecule")
+        self.assertEqual(M1_counts,
+                         {"A":2,
+                          "B":2})
+        inputs={"name": "test",
+                "pmb_type": "unknown"}
+        self.assertRaises(NotImplementedError,
+                          pmb.db._collect_particle_templates,
+                          **inputs)
+        # Sanity test for unknown types in _has_template
+        inputs = {"pmb_type": "unknown",
+                  "name": "A"}
+        self.assertRaises(ValueError,
+                          pmb.db._has_template,
+                          **inputs)
+        # Sanity tests for get_particle_templates_under
+        templates_R1 = pmb.db.get_particle_templates_under(template_name="R1")
+        self.assertEqual(templates_R1,
+                         {"A","B"})
+        # Sanity tests, raise ValueError when pmb_type cannot be safely infered
+        pmb.define_residue(name="A",
+                           central_bead="A",
+                           side_chains=["B"])
+        inputs = {"template_name": "A"}
+        self.assertRaises(ValueError,
+                          pmb.db.get_particle_templates_under,
+                          **inputs)
+
     def test_sanity_db(self):
         """
         Sanity tests for the pyMBE database
