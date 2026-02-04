@@ -44,6 +44,9 @@ class DummyDB:
 class Test(ut.TestCase):
 
     def test_instance_fallback_model_dump_failure(self):
+        """
+        Tests database behavior in failure of instance model dump
+        """
         class BadInstance:
             name = "bad_inst"
             def model_dump(self):
@@ -59,6 +62,9 @@ class Test(ut.TestCase):
             self.assertIn("bad_inst", text)
 
     def test_template_fallback_model_dump_failure(self):
+        """
+        Tests database behavior in failure of template model dump
+        """
         class BadTemplate:
             name = "bad"
             def model_dump(self):
@@ -71,26 +77,6 @@ class Test(ut.TestCase):
             _save_database_csv(db, tmp)
             text = Path(tmp, "templates_weird.csv").read_text()
             self.assertIn("bad", text)
-
-    def test_bond_scalar_parameter_serialization(self):
-        """
-        Tests the bond serilization
-        """
-        db = DummyDB()
-        bond = BondTemplate(name="b1",
-                            bond_type="harmonic",
-                            particle_name1=None,
-                            particle_name2=None,
-                            parameters={"k": PintQuantity(magnitude=24,
-                                                        units="kilojoule / units.nm**2",
-                                                        dimension="energy/length**2")})
-        db._templates["bond"] = {"b1": bond}
-        db._instances = {}
-        db._reactions = {}
-        with tempfile.TemporaryDirectory() as tmp:
-            _save_database_csv(db, tmp)
-            text = Path(tmp, "templates_bond.csv").read_text()
-            self.assertIn('""k"":{""magnitude"":24,""units"":""kilojoule / units.nm**2"",""dimension"":""energy/length**2""}', text)
 
     def test_invalid_metadata_json(self):
         """

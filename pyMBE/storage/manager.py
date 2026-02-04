@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2025 pyMBE-dev team
+# Copyright (C) 2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -44,26 +44,31 @@ class Manager:
     """
     The canonical database manager for pyMBE.
 
-    This class stores all templates, instances, and reactions in structured,
-    explicit dictionaries.
+    Attributes:
+    
+        _units ('pint.UnitRegistry'): 
+            Pint unit registry used to reconstruct physical quantities from storage.
 
-    All I/O operations (CSV/JSON save/load) operate through DFManager.
+        _templates ('dict[str, dict[str, TemplateType]]'):
+            Templates indexed by type and name.
+        
+        _instances ('dict[str, dict[int, InstanceType]]'):
+            Instances indexed by type and id.
 
-    Attributes
-    ----------
-    ureg : UnitRegistry
-        Pint unit registry used to reconstruct physical quantities from storage.
+        _reactions ('dict[str, Reaction]'):
+            Chemical reactions keyed by reaction name.
 
-    templates : dict[str, dict[str, TemplateType]]
-        Templates indexed by type and name.
-        Example: templates["particle"]["A"] → ParticleTemplate
+        _molecule_like_types ('list'):
+            List of pyMBE object types that belong to the 'molecule' category in the pyMBE hierarchy.
 
-    instances : dict[str, dict[int, InstanceType]]
-        Instances indexed by type and id.
-        Example: instances["particle"][5] → ParticleInstance
+        _assembly_like_types ('list'):
+            List of pyMBE object types that belong to the 'assembly' category in the pyMBE hierarchy.
 
-    reactions : dict[str, Reaction]
-        Chemical reactions keyed by reaction name.
+        _pmb_types ('list'):
+            List of all supported pyMBE object types.
+
+        espresso_bond_instances ('dict[int,espressomd.interactions.BondedInteraction]'):
+            List of active instances of bonded interactions from ESPResSo.
     """
 
     def __init__(self,units):
@@ -71,13 +76,13 @@ class Manager:
         Initialize an empty structured database.
 
         Args:
-            ureg (UnitRegistry): Pint unit registry used to rebuild quantities.
+            units ('pint.UnitRegistry'): 
+                Pint unit registry used to reconstruct physical quantities from storage.
         """
         self._units = units
         self._templates: Dict[str, Dict[str, TemplateType]] = {}
         self._instances: Dict[str, Dict[int, InstanceType]] = {}
         self._reactions: Dict[str, Reaction] = {}
-        
         self._molecule_like_types = ["molecule",
                                      "peptide",
                                      "protein"]
@@ -91,18 +96,18 @@ class Manager:
         template in the hierarchy.
 
         Args:
-            name (str):
+            name ('str'):
                 Name of the current template being processed.
-            pmb_type (str):
+
+            pmb_type ('str'):
                 Type of the current template.
 
         Returns:
-            set[str]:
+            ('set[str]'):
                 Set of particle template names reachable from the current template.
 
         Notes:
-            - Particle state templates are resolved to their parent particle
-            template.
+            - Particle state templates are resolved to their parent particle template.
         """
         counts = defaultdict(int)
         if pmb_type == "particle":
@@ -138,7 +143,8 @@ class Manager:
         Delete all bond instances involving a given particle instance.
 
         Args:
-            pid (int): The particle ID whose associated bonds should be deleted.
+            pid ('int'): 
+                The particle ID whose associated bonds should be deleted.
 
         Notes:
             - If no `"bond"` instances are present in the database, the method
@@ -174,12 +180,18 @@ class Manager:
         matches the requested value.
 
         Args:
-            pmb_type (str): The pyMBE type to search within.
-            attribute (str): The attribute name to match on (e.g. "residue_id", "molecule_id").
-            value: The attribute value to match.
+            pmb_type ('str'): 
+                The pyMBE type to search within.
+                
+            attribute ('str'): 
+                The attribute name to match on (e.g. "residue_id", "molecule_id").
+
+            value ('Any'): 
+                The attribute value to match.
 
         Returns:
-            List[int]: IDs of matching instances.
+            ('List[int]'): 
+                IDs of matching instances.
         """
         if pmb_type not in self._instances:
             return []
@@ -194,25 +206,17 @@ class Manager:
         Return the IDs of all instances of a given pyMBE type that use a
         specific template name.
 
-        This method inspects the instance registry stored under
-        ``self._instances[pmb_type]`` and collects all instance identifiers
-        whose ``instance.name`` matches the provided template name.
-
         Args:
-            pmb_type (str):
+            pmb_type ('str'):
                 The instance category to search within.
 
-            name (str):
+            name ('str'):
                 The template name associated with the instances of interest.
 
         Returns:
-            list[int]:
+            'list[int]':
                 A list of instance IDs whose underlying template name matches
                 ``name``. The list is empty if no such instances exist.
-
-        Examples:
-            >>> db._find_instance_ids_by_name("particle", "A")
-            [0, 3, 7][]
 
         Notes:
             - Only exact name matches are considered.
@@ -235,21 +239,14 @@ class Manager:
         with a given name.
 
         Args:
-            name (str):
+            name ('str'):
                 The template name to search for.
 
         Returns:
-            list[str]:
+            ('list[str]'):
                 A list of PMB types (e.g., ``["particle", "residue"]``) in
                 which a template named ``name`` exists. The list is empty if
                 no such template is found.
-
-        Examples:
-            >>> db._find_template_types("A")
-            ["particle"]
-
-            >>> db._find_template_types("nonexistent")
-            []
         """
         found = []
         for pmb_type, group in self._templates.items():
@@ -263,12 +260,12 @@ class Manager:
         Returns a DataFrame containing all instance objects of a given pyMBE type.
 
         Args:
-            pmb_type (str):
+            pmb_type ('str'):
                 The instance type to query. Must be a key in
                 `self._instances`, such as `"particle"` or `"residue"`.
 
         Returns:
-            pandas.DataFrame:
+            ('pandas.DataFrame'):
                 A DataFrame where each row corresponds to one registered
                 instance of the specified PMB type. If no instances exist,
                 an empty DataFrame is returned.
@@ -319,7 +316,7 @@ class Manager:
         Returns a DataFrame summarizing all registered chemical reactions.
 
         Returns:
-            pandas.DataFrame:
+            ('pandas.DataFrame'):
                 A DataFrame where each row corresponds to one reaction.
 
         Notes:
@@ -347,12 +344,12 @@ class Manager:
         Returns a DataFrame containing all template definitions of a PMB type.
 
         Args:
-            pmb_type (str):
+            pmb_type ('str'):
                 The template type to query, e.g. `"particle"`, `"residue"`,
                 `"molecule"`.
 
         Returns:
-            pandas.DataFrame:
+            ('pandas.DataFrame'):
                 A DataFrame representing all templates of the given type.
                 Particle templates expand to multiple rows, one per state.
                 Empty DataFrame if no templates for that type exist.
@@ -407,23 +404,16 @@ class Manager:
         Check whether an instance with a given ID exists under a specific pyMBE type.
 
         Args:
-            pmb_type (str):
+            pmb_type ('str'):
                 The instance category to search in. 
 
-            instance_id (int):
+            instance_id ('int'):
                 The unique identifier of the instance.
 
         Returns:
-            bool:
+            ('bool'):
                 ``True`` if the instance exists in the given category,
                 ``False`` otherwise.
-
-        Examples:
-            >>> db._has_instance("particle", 3)
-            True
-
-            >>> db._has_instance("nonexistent_type", 5)
-            ValueError
         """
         if pmb_type not in self._instances:
             raise ValueError(f"Instance type '{pmb_type}' not found in the database.")
@@ -435,14 +425,15 @@ class Manager:
         Check whether a template with a given name exists within a specific pyMBE type.
 
         Args:
-            pmb_type (str):
+            pmb_type ('str'):
                 The template category to search in (e.g. ``"particle"``,
                 ``"bond"``, ``"molecule"``, ``"lj"``, etc.).
-            name (str):
+
+            name ('str'):
                 The template name to check for.
 
         Returns:
-            bool:
+            ('bool'):
                 ``True`` if a template named ``name`` exists under ``pmb_type``;
                 ``False`` otherwise.
         """
@@ -496,7 +487,8 @@ class Manager:
         Register a chemical or physical reaction.
 
         Args:
-            reaction (Reaction): Reaction object.
+            reaction ('Reaction'): 
+                Reaction template from the pyMBE database.
         """
         if reaction.name in self._reactions:
             raise ValueError(f"Reaction '{reaction.name}' already exists.")
@@ -508,7 +500,8 @@ class Manager:
         Register a template.
 
         Args:
-            template: Any template object conforming to the pyMBE template models.
+            template ('TemplateType'): 
+                Any template object conforming to the pyMBE template models.
 
         """
         pmb_type = getattr(template, "pmb_type", None)
@@ -546,13 +539,16 @@ class Manager:
         ensuring database consistency. 
 
         Args:
-            instance_id (Hashable):
+            instance_id ('int'):
                 Unique identifier of the instance to update. 
-            pmb_type (str):
+
+            pmb_type ('str'):
                 Instance category, such as ``"particle"`` or ``"residue"``.
-            attribute (str):
+
+            attribute ('str'):
                 Name of the field to update. 
-            value (Any):
+                
+            value ('Any'):
                 New value to assign to the specified attribute.
 
         Notes:
@@ -588,26 +584,29 @@ class Manager:
         Recursively updates an attribute (e.g., molecule_id, assembly_id)
         on an instance and all of its hierarchical descendants.
 
-        Supported relationships:
+        Args:
+            root_type ('str'):
+                One of {"assembly", "molecule", "residue", "particle"}.
+
+            root_id ('int'):
+                Instance ID of the root object to update.
+
+            attribute ('str'):
+                The attribute to update (e.g., "molecule_id", "assembly_id").
+
+            value ('Any'):
+                The new value to assign.
+
+        Returns:
+            ('list[int]'):
+                A flat list of all instance IDs updated (including root).
+
+        Notes:
+            - Supported relationships:
             assembly → molecules → residues → particles
             molecule → residues → particles
             residue  → particles
             particle → (nothing)
-
-        Args:
-            root_type (str):
-                One of {"assembly", "molecule", "residue", "particle"}.
-            root_id (int):
-                Instance ID of the root object to update.
-            attribute (str):
-                The attribute to update (e.g., "molecule_id", "assembly_id").
-            value:
-                The new value to assign.
-
-        Returns:
-            list[int]:
-                A flat list of all instance IDs updated (including root).
-
         """
         updated = []
         # Map each type to its own identity attribute
@@ -668,18 +667,17 @@ class Manager:
         Append a new participant to an existing reaction in the database.
     
         Args:
-            reaction_name (str):
+            reaction_name ('str'):
                 Name of the reaction to be updated.
-            particle_name (str):
-                Name of the particle template participating in the reaction.
-            state_name (str):
-                Specific state of the particle (e.g., protonation or charge state).
-            coefficient (int):
-                Stoichiometric coefficient for the new participant:
-                - ``coefficient < 0`` → reactant  
-                - ``coefficient > 0`` → product  
-                Zero is not allowed.
 
+            particle_name ('str'):
+                Name of the particle template participating in the reaction.
+
+            state_name ('str'):
+                Specific state of the particle (e.g., protonation or charge state).
+
+            coefficient ('int'):
+                Stoichiometric coefficient for the new participant.
         """
         if reaction_name not in self._reactions:
             raise ValueError(f"Reaction '{reaction_name}' not found in the pyMBE database.")
@@ -694,12 +692,9 @@ class Manager:
         """
         Propose the next available id for a new TypeInstance.
 
-        If no instances of the given pmb_type exist, the proposed
-        identifier is ``0``. Otherwise, the next available integer after the
-        current maximum is returned.
-
         Returns:
-            int: A non-negative integer that is not already used in the pyMBE database.
+            ('int'): 
+                A non-negative integer that is not already used in the pyMBE database.
 
         Notes:
             - The method does not fill gaps; it always returns ``max + 1``.
@@ -721,24 +716,25 @@ class Manager:
         """
         Delete an instance from the pyMBE database.
 
-        Supports cascade deletion through the hierarchy:
+        Args:
+            pmb_type ('str'):
+                Category of the instance (particle, residue, molecule, peptide,
+                protein, hydrogel, bond).
+
+            instance_id ('int'):
+                Unique identifier of the instance.
+
+            cascade ('bool'):
+                If True, automatically delete dependent objects.
+
+        Notes:
+            - Supports cascade deletion through the hierarchy:
             assembly → molecules → residues → particles → bonds
             molecule → residues → particles → bonds
             residue  → particles → bonds
             particle → bonds
             bond     → nothing
-
-        Args:
-            pmb_type (str):
-                Category of the instance (particle, residue, molecule, peptide,
-                protein, hydrogel, bond).
-            instance_id (int):
-                Unique identifier of the instance.
-            cascade (bool):
-                If True, automatically delete dependent objects.
-
         """
-
         # ---- Basic checks ----
         if pmb_type not in self._instances:
             raise ValueError(f"Instance type '{pmb_type}' not found.")
@@ -834,10 +830,11 @@ class Manager:
         Remove all instances registered for a given pyMBE type.
 
         Args:
-            pmb_type (str):
+            pmb_type ('str'):
                 Instance category (e.g. ``"particle"``, ``"residue"``,
                 ``"molecule"``, ``"protein"``, ``"hydrogel"``).
-            cascade (bool):
+
+            cascade ('bool'):
                 If True, dependent objects are removed according to the
                 pyMBE hierarchy rules. If False, deletion is forbidden when
                 dependencies exist.
@@ -862,7 +859,8 @@ class Manager:
         Delete a reaction template from the pyMBE database.
 
         Args:
-            reaction_name (str): label identifying the reaction template in the database.
+            reaction_name ('str'): 
+                label identifying the reaction template in the database.
         """
         if reaction_name not in self._reactions:
             raise ValueError(f"Reaction '{reaction_name}' not found in the pyMBE database.")
@@ -881,28 +879,28 @@ class Manager:
         Delete a template from the pyMBE database.
 
         Args:
-            pmb_type (str): The template category.
-            name (str): The name of the template to delete.
+            pmb_type ('str'): 
+                The template category.
+
+            name ('str'): 
+                The name of the template to delete.
         """
         # Check template exists
         if pmb_type not in self._templates:
             raise ValueError(f"Template type '{pmb_type}' not found.")
         if name not in self._templates[pmb_type]:
             raise ValueError(f"Template '{name}' not found in type '{pmb_type}'.")
-
         # Check if any instance depends on this template
         if pmb_type in self._instances:
             for inst in self._instances[pmb_type].values():
                 if getattr(inst, "name", None) == name:
                     raise ValueError(f"Cannot delete template '{name}' from '{pmb_type}': Instance with ID {getattr(inst, pmb_type + '_id')} depends on it.")
-
         # Delete
         del self._templates[pmb_type][name]
         # if it is a bond template delete also stored espresso bond instances
         if pmb_type == "bond":
             if name in self.espresso_bond_instances.keys():
                 del self.espresso_bond_instances[name]
-
         # Delete empty groups
         if not self._templates[pmb_type]:
             del self._templates[pmb_type]
@@ -912,7 +910,7 @@ class Manager:
         Remove all templates registered in the pyMBE database for a given pyMBE type.
 
         Args:
-            pmb_type (str):
+            pmb_type ('str'):
                 Template category (e.g. ``"particle"``, ``"residue"``,
                 ``"molecule"``, ``"hydrogel"``).
 
@@ -931,18 +929,16 @@ class Manager:
         """
         Retrieve a stored instance by type and instance_id.
 
-        Looks up an instance within the internal instance registry
-        (`self._instances`) using its pyMBE type (e.g., "particle", "residue",
-        "bond", ...) and its unique id. If the instance does not exist,
-        a `ValueError` is raised.
-
         Args:
-            pmb_type (str): The instance pyMBE category.
-            name (str): The unique name of the template to retrieve.
+            pmb_type ('str'): 
+                The instance pyMBE category.
+
+            name ('str'): 
+                The unique name of the template to retrieve.
 
         Returns:
-            InstanceType: The stored InstanceTemplate instance corresponding to the
-            provided type and name.
+            ('InstanceType'): 
+                The stored InstanceTemplate instance corresponding to the provided type and name.
 
         """
         if instance_id not in self._instances[pmb_type]:
@@ -955,11 +951,11 @@ class Manager:
         Return all instances registered for a given pyMBE type.
 
         Args:
-            pmb_type (str):
+            pmb_type ('str'):
                 The pyMBE type (e.g. 'particle', 'residue', 'molecule', 'hydrogel').
 
         Returns:
-            dict:
+            ('dict'):
                 Mapping {instance_id: instance_object}.
                 Returns an empty dict if no instances exist for the given type.
         """
@@ -970,10 +966,12 @@ class Manager:
         Retrieve a reaction stored in the pyMBE database by  name.
 
         Args:
-            name ('str'): The unique id of the reaction to retrieve.
+            name ('str'): 
+                The unique id of the reaction to retrieve.
 
         Returns:
-            'Reaction': The stored reaction instance corresponding to the provided name.
+            'Reaction': 
+                The stored reaction instance corresponding to the provided name.
 
         """
         if name not in self._reactions[name]:
@@ -986,7 +984,8 @@ class Manager:
         Retrieve all reactions stored in the pyMBE database.
 
         Returns:
-            'list of Reaction': List with all stored reaction instances.
+            ('list of Reaction'): 
+                List with all stored reaction templates in the pyMBE database.
         """
         return list(self._reactions.values())
 
@@ -996,18 +995,21 @@ class Manager:
         template by traversing the template hierarchy downward.
 
         Args:
-            template_name (str):
+            template_name ('str'):
                 Name of the starting template.
-            pmb_type (str, optional):
+
+            pmb_type ('str', optional):
                 Type of the starting template. If not provided, the type is
                 inferred from the database. In this case, the template name
                 must be unique across all template types.
-            return_counts (bool, optional):
+
+            return_counts ('bool', optional):
                 If False (default), returns a set of unique particle template
                 names. If True, returns a dictionary mapping particle template
                 names to the number of times they appear in the hierarchy.
+
         Returns:
-            set[str] or dict[str, int]:
+            ('set[str]' or 'dict[str, int]'):
                 - If `return_counts=False`: unique particle template names
                 - If `return_counts=True`: particle template multiplicities
 
@@ -1032,19 +1034,16 @@ class Manager:
         """
         Retrieve a stored template by type and name.
 
-        Looks up a template within the internal template registry
-        (`self._templates`) using its pyMBE type (e.g., "particle", "residue",
-        "bond", ...) and its unique name. If the template does not exist,
-        a `ValueError` is raised.
-
         Args:
-            pmb_type (str): The template pyMBE category.
-            name (str): The unique id of the template to retrieve.
+            pmb_type ('str'): 
+                The template pyMBE category.
+
+            name ('str'): 
+                The unique id of the template to retrieve.
 
         Returns:
-            TemplateType: The stored template instance corresponding to the
-            provided type and name.
-
+            ('TemplateType'): 
+                The stored template instance corresponding to the provided type and name.
         """
         if pmb_type not in self._templates:
             raise ValueError(f"There are no {pmb_type} templates defined in the database")
@@ -1059,11 +1058,11 @@ class Manager:
         Return all templates registered for a given pyMBE type.
 
         Args:
-            pmb_type (str):
+            pmb_type ('str'):
                 The pyMBE type (e.g. 'particle', 'residue', 'molecule', 'hydrogel').
 
         Returns:
-            dict:
+            ('dict'):
                 Mapping {template_name: template_instance}.
                 Returns an empty dict if no templates exist for the given type.
         """
@@ -1075,7 +1074,7 @@ class Manager:
         defined for each state. 
 
         Returns:
-            dict[str, int]:
+            ('dict[str, int]'):
                 A dictionary mapping each particle state to its corresponding ESPResSo type.
 
         """
@@ -1093,13 +1092,15 @@ class Manager:
         peptides, and assemblies.
 
         Args:
-            object_name (str): Name of the object.
+            object_name ('str'): 
+                Name of the pyMBE object.
 
         Returns:
-            dict: {"all": [particle_ids],
-                   "residue_map": {residue_id: [particle_ids]},
-                   "molecule_map": {molecule_id: [particle_ids]},
-                   "assembly_map": {assembly_id: [particle_ids]},}
+            ('dict'): 
+                {"all": [particle_ids],
+                 "residue_map": {residue_id: [particle_ids]},
+                 "molecule_map": {molecule_id: [particle_ids]},
+                 "assembly_map": {assembly_id: [particle_ids]},}
         """
         # --- Determine object type by searching in the DB ------------------------
         object_type = None
