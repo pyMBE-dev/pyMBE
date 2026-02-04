@@ -212,8 +212,6 @@ def _load_database_csv(db, folder):
                     # if v is a dict, assume PintQuantity dict
                     if isinstance(v, dict) and {"magnitude", "units", "dimension"}.issubset(v.keys()):
                         parameters[k] = PintQuantity.from_dict(v)
-                    else:
-                        parameters[k] = v
                 tpl = BondTemplate(name=row["name"],
                                    bond_type=row.get("bond_type", ""),
                                    particle_name1=None if particle_name1 == "" else particle_name1,
@@ -398,9 +396,6 @@ def _save_database_csv(db, folder):
                 for k, v in tpl.parameters.items():
                     if isinstance(v, PintQuantity):
                         params_serial[k] = v.to_dict()
-                    else:
-                        # assume scalar serializable
-                        params_serial[k] = v
                 rows.append({"name": tpl.name,
                             "particle_name1": tpl.particle_name1,
                             "particle_name2": tpl.particle_name2,
