@@ -822,8 +822,7 @@ class pymbe_library():
                                           particle_name2=particle_inst_2.name,
                                           use_default_bond=use_default_bond)
         bond_inst = self._get_espresso_bond_instance(bond_template=bond_tpl,
-                                                    espresso_system=espresso_system,
-                                                    use_default_bond=use_default_bond)
+                                                    espresso_system=espresso_system)
         espresso_system.part.by_id(particle_id1).add_bond((bond_inst, particle_id2))
         bond_id = self.db._propose_instance_id(pmb_type="bond")
         pmb_bond_instance = BondInstance(bond_id=bond_id,
