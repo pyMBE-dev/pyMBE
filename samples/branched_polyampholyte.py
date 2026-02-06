@@ -163,6 +163,17 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                           c_salt=c_salt)
 
 #List of ionisable groups
+# collect ionisable particles*
+acidbase_templates = []
+for state_name, state_tpl in pmb.db._templates["particle"].items():
+    if state_tpl.acidity in ["basic","acidic"]:
+        acidbase_templates+=pmb.db.get_particle_templates_under(template_name=state_tpl,pmb_type="particle_state")
+        
+print(acidbase_templates)
+total_ionisable_groups = len(list_ionisable_groups)
+
+
+
 basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
 acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
 list_ionisable_groups = basic_groups + acidic_groups
