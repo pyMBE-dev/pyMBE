@@ -81,7 +81,7 @@ class pymbe_library():
         units ('pint.UnitRegistry'):
             Pint unit registry used for unit-aware calculations.
 
-        lattice_builder:
+        lattice_builder ('pyMBE.lib.lattice.LatticeBuilder'):
             Optional lattice builder object (initialized as ''None'').
             
         root ('importlib.resources.abc.Traversable'):
@@ -1767,8 +1767,7 @@ class pymbe_library():
         self._delete_particles_from_espresso(particle_ids=particle_ids,
                                              espresso_system=espresso_system)
         self.db.delete_instance(pmb_type=pmb_type,
-                                instance_id=instance_id,
-                                cascade=True)
+                                instance_id=instance_id)
 
     def determine_reservoir_concentrations(self, pH_res, c_salt_res, activity_coefficient_monovalent_pair, max_number_sc_runs=200):
         """

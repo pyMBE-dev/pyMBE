@@ -19,6 +19,7 @@
 import unittest as ut
 import pyMBE
 import espressomd
+from pyMBE.storage.templates.hydrogel import HydrogelTemplate
 from pyMBE.storage.instances.particle import ParticleInstance
 from pyMBE.storage.instances.residue import ResidueInstance
 from pyMBE.storage.instances.molecule import MoleculeInstance
@@ -34,6 +35,151 @@ espresso_system=espressomd.System(box_l = [10]*3)
 
 class Test(ut.TestCase):
 
+
+    def test_sanity_database_methods(self):
+        """
+        Sanity tests for exceptions in:
+             _register_instance
+             _update_instance
+             get_instances
+             delete_instance
+             delete_instances
+             delete_templates
+             _register_reaction
+             get_reaction
+             delete_reaction
+        """
+        pmb = pyMBE.pymbe_library(23)
+        # Unit tests for _register_instance
+        class DummyInstance():
+            pass
+
+        inputs = {"instance": DummyInstance()}
+        self.assertRaises(TypeError,
+                          pmb.db._register_instance,
+                          **inputs)
+        pmb.define_particle(name="A",
+                            sigma=1*pmb.units.nm,
+                            epsilon=1*pmb.units.reduced_energy,
+                            pka=9,
+                            acidity="acidic")
+        part_inst = ParticleInstance(name="A",
+                                    particle_id=0,
+                                    initial_state="A")
+        pmb.db._register_instance(part_inst)
+        inputs = {"instance": part_inst}
+        self.assertRaises(ValueError,
+                          pmb.db._register_instance,
+                          **inputs)
+        templateless_part_inst = ParticleInstance(name="B",
+                                    particle_id=1,
+                                    initial_state="B")
+        inputs = {"instance": templateless_part_inst}
+        self.assertRaises(ValueError,
+                          pmb.db._register_instance,
+                          **inputs)
+        # Unit test for get_instances
+        self.assertEqual(pmb.db._instances["particle"],
+                         pmb.db.get_instances(pmb_type="particle"))
+
+        # Unit tests for _update_instance
+        inputs = {"instance_id": 2,
+                  "pmb_type": "particle",
+                  "attribute": "particle_id",
+                  "value": 0}
+        self.assertRaises(ValueError,
+                          pmb.db._update_instance,
+                          **inputs)
+        
+        pmb.db._register_template(HydrogelTemplate(name="test",
+                                                    node_map=[],
+                                                    chain_map=[]))
+        
+        pmb.db._register_instance(HydrogelInstance(name="test",
+                                                  assembly_id=0))
+        inputs = {"instance_id": 0,
+                  "pmb_type": "hydrogel",
+                  "attribute": "assembly_id",
+                  "value": 1}
+        self.assertRaises(ValueError,
+                          pmb.db._update_instance,
+                          **inputs)
+        
+        # Unit test for _register_reaction
+        inputs = {"participants":[ReactionParticipant(particle_name="A",
+                                                   state_name="A",
+                                                   coefficient=-1),
+                                  ReactionParticipant(particle_name="B",
+                                                   state_name="B",
+                                                   coefficient=1)],
+                 "pK":1,
+                 "reaction_type":"test"}
+        reaction = Reaction(**inputs)
+        inputs = {"reaction": reaction}
+        pmb.db._register_reaction(reaction)
+        self.assertRaises(ValueError,
+                          pmb.db._register_reaction,
+                          **inputs)
+        # Unit tests for get_reaction:
+        ## Test that one gets back the right reaction
+        self.assertEqual(reaction,
+                         pmb.db.get_reaction(name=reaction.name))
+        ## Sanity test, giving an unknown reaction name triggers a ValueError
+        inputs = {"name" : "test"}
+        self.assertRaises(ValueError,
+                          pmb.db.get_reaction,
+                          **inputs)
+        # Sanity test for delete_reaction
+        inputs = {"reaction_name": "test"}
+        self.assertRaises(ValueError,
+                          pmb.db.delete_reaction,
+                          **inputs)
+        
+        # Sanity Unit test for delete_instance
+        inputs = {"pmb_type": "molecule",
+                  "instance_id": 0}
+        self.assertRaises(ValueError,
+                          pmb.db.delete_instance,
+                          **inputs)
+        inputs = {"pmb_type": "particle",
+                  "instance_id": 3}
+        self.assertRaises(ValueError,
+                          pmb.db.delete_instance,
+                          **inputs)
+        # Sanity tests for delete_template
+        ## Triggers a ValueError because no molecule template has been defined
+        inputs = {"pmb_type": "molecule",
+                  "name": "test"}
+        self.assertRaises(ValueError,
+                          pmb.db.delete_template,
+                          **inputs)
+        ## Triggers a ValueError because no particle of this name has been defined
+        inputs = {"pmb_type": "particle",
+                  "name": "test"}
+        self.assertRaises(ValueError,
+                          pmb.db.delete_template,
+                          **inputs)
+        ## Triggers a ValueError because particle instances of this template have been created
+        inputs = {"pmb_type": "particle",
+                  "name": "A"}
+        self.assertRaises(ValueError,
+                          pmb.db.delete_template,
+                          **inputs)
+        # Unit tests for delete_instances
+        ## Trying to delete instances from an empty category does nothing
+        previous_instances = pmb.db._instances.copy()
+        pmb.db.delete_instances(pmb_type="molecule")
+        self.assertEqual(previous_instances,
+                         pmb.db._instances)
+        
+        ## Calling the function deletes all instances of a given pmb_type
+        part_inst = ParticleInstance(name="A",
+                                    particle_id=1,
+                                    initial_state="A")
+        pmb.db._register_instance(part_inst)
+        pmb.db.delete_instances(pmb_type="particle")
+        assert "particle" not in pmb.db._instances.keys()
+        
     def test_find_instance_ids(self):
         """
         Sanity test for `_find_instance_ids_by_attribute`
