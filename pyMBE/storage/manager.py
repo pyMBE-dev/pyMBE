@@ -807,8 +807,8 @@ class Manager:
             pmb_type ('str'): 
                 The instance pyMBE category.
 
-            name ('str'): 
-                The unique name of the template to retrieve.
+            instance_id ('int'): 
+                The unique id identifying the given instance
 
         Returns:
             ('InstanceType'): 

@@ -6,6 +6,7 @@ biopandas==0.5.1.dev0
 scipy>=1.8.0
 matplotlib>=3.5.1
 pydantic>=2.12.5
+typing-extensions>=4.10
 # soft dependencies to run the samples
 tqdm>=4.57.0
 # soft dependencies to run the testsuite
