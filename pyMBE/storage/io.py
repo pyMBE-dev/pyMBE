@@ -404,8 +404,8 @@ def _save_database_csv(db, folder):
             # HYDROGEL TEMPLATE
             elif pmb_type == "hydrogel" and isinstance(tpl, HydrogelTemplate):
                 rows.append({"name": tpl.name,
-                            "node_map": _encode([node.model_dump() for node in tpl.node_map]),
-                            "chain_map": _encode([chain.model_dump() for chain in tpl.chain_map])})
+                            "node_map": _encode([node.dict() for node in tpl.node_map]),
+                            "chain_map": _encode([chain.dict() for chain in tpl.chain_map])})
             # LJ TEMPLATE
             elif pmb_type == "lj" and isinstance(tpl, LJInteractionTemplate):
                 rows.append({"name":   tpl.name,
@@ -417,9 +417,9 @@ def _save_database_csv(db, folder):
                             "offset": _encode(tpl.offset),
                             "shift": _encode(tpl.shift)})
             else:
-                # Generic fallback: try model_dump()
+                # Generic fallback: try dict()
                 try:
-                    rows.append(tpl.model_dump())
+                    rows.append(tpl.dict())
                 except Exception:
                     rows.append({"name": getattr(tpl, "name", None)})
 
@@ -470,9 +470,9 @@ def _save_database_csv(db, folder):
                             "name": inst.name,
                             "assembly_id": int(inst.assembly_id)})
             else:
-                # fallback to model_dump
+                # fallback to dict
                 try:
-                    rows.append(inst.model_dump())
+                    rows.append(inst.dict())
                 except Exception:
                     rows.append({"name": getattr(inst, "name", None)})
 
@@ -483,7 +483,7 @@ def _save_database_csv(db, folder):
     rows = []
     for rx in db._reactions.values():
         rows.append({"name": rx.name,
-                    "participants": _encode([p.model_dump() for p in rx.participants]),
+                    "participants": _encode([p.dict() for p in rx.participants]),
                     "pK": rx.pK if hasattr(rx, "pK") else None,
                     "reaction_type": rx.reaction_type,
                     "metadata": _encode(rx.metadata) if getattr(rx, "metadata", None) is not None else ""})

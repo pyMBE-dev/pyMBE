@@ -18,8 +18,7 @@
 #
 
 from typing import List, Dict, Optional
-from pydantic import BaseModel, Field, field_validator, model_validator
-
+from pydantic import BaseModel, validator, root_validator
 
 class ReactionParticipant(BaseModel):
     """
@@ -82,18 +81,74 @@ class Reaction(BaseModel):
     simulation_method: Optional[str] = None
     name: Optional[str] = None 
 
-    @model_validator(mode="after")
-    def generate_name(self):
-        """Automatically generate reaction name from participants."""
+    @validator("participants")
+    def at_least_two_participants(cls, v):
+        """
+        Ensures that the reaction contains at least two participants.
+
+        Args:
+            v ('List[ReactionParticipant]'):
+                List of reaction participants.
+
+        Returns:
+            ('List[ReactionParticipant]'):
+                The validated list of participants.
+
+        Raises:
+            ValueError:
+                If fewer than two participants are provided.
+        """
+        if len(v) < 2:
+            raise ValueError("A reaction must have at least 2 participants.")
+        return v
+
+    @validator("participants")
+    def no_zero_coeff(cls, v):
+        """
+        Ensures that no participant has a zero stoichiometric coefficient.
+
+        Args:
+            v ('List[ReactionParticipant]'):
+                List of reaction participants.
+
+        Returns:
+            ('List[ReactionParticipant]'):
+                The validated list of participants.
+
+        Raises:
+            ValueError:
+                If any participant has a coefficient equal to zero.
+        """
+        for p in v:
+            if p.coefficient == 0:
+                raise ValueError(
+                    f"Participant {p.state_name} has coefficient 0."
+                )
+        return v
+
+    @root_validator
+    def generate_name(cls, values):
+        """
+        Automatically generates a reaction name from the participants.
+
+        The name is constructed by separating reactants and products
+        based on the sign of their stoichiometric coefficients and
+        joining them with a reversible reaction symbol.
+
+        Returns:
+            ('dict'):
+                Updated model values including the generated reaction name.
+        """
+        participants = values.get("participants", [])
+
         reactants = []
         products = []
 
-        for p in self.participants:
-            species = f"{p.state_name}"
+        for p in participants:
             if p.coefficient < 0:
-                reactants.append(species)
+                reactants.append(p.state_name)
             else:
-                products.append(species)
+                products.append(p.state_name)
 
         reactants = sorted(reactants)
         products = sorted(products)
@@ -101,50 +156,73 @@ class Reaction(BaseModel):
         left = " + ".join(reactants)
         right = " + ".join(products)
 
-        # reversible reaction symbol
-        self.name = f"{left} <-> {right}"
-        return self
+        values["name"] = f"{left} <-> {right}"
+        return values
 
-    @field_validator("participants")
-    def at_least_two_participants(cls, v):
-        if len(v) < 2:
-            raise ValueError("A reaction must have at least 2 participants.")
-        return v
-
-    @field_validator("participants")
-    def no_zero_coeff(cls, v):
-        for p in v:
-            if p.coefficient == 0:
-                raise ValueError(f"Participant {p.state_name} has coefficient 0.")
-        return v
+    # ------------------------------------------------------------------
+    # Public API
+    # ------------------------------------------------------------------
 
     def add_participant(self, particle_name, state_name, coefficient):
         """
-        Add a new reaction participant to the reaction.
+        Adds a new participant to the reaction.
 
         Args:
             particle_name ('str'):
-                Name of the particle participating in the reaction.
-            state_name ('str'):
-                Specific state of the particle.
-            coefficient ('int'):
-                Stoichiometric coefficient for the participant.
+                Name of the particle template.
 
+            state_name ('str'):
+                Name of the particle state.
+
+            coefficient ('int'):
+                Stoichiometric coefficient of the participant.
+                Must be non-zero.
+
+        Raises:
+            ValueError:
+                If the coefficient is zero.
         """
         if coefficient == 0:
             raise ValueError("Stoichiometric coefficient cannot be zero.")
-        new_participant = ReactionParticipant(particle_name=particle_name,
-                                            state_name=state_name,
-                                            coefficient=coefficient)
+
+        new_participant = ReactionParticipant(
+            particle_name=particle_name,
+            state_name=state_name,
+            coefficient=coefficient,
+        )
         self.participants.append(new_participant)
-        self.generate_name()
-        
-    
+
+        # Explicitly regenerate name after mutation
+        self.name = self._generate_name_from_participants()
+
+    def _generate_name_from_participants(self):
+        """
+        Generates a reaction name from the current list of participants.
+
+        Returns:
+            ('str'):
+                Reaction name in the format ``A + B <-> C + D``.
+        """
+        reactants = []
+        products = []
+
+        for p in self.participants:
+            if p.coefficient < 0:
+                reactants.append(p.state_name)
+            else:
+                products.append(p.state_name)
+
+        reactants.sort()
+        products.sort()
+
+        return f"{' + '.join(reactants)} <-> {' + '.join(products)}"
+
     def add_simulation_method(self, simulation_method):
         """
-        Adds which simulation is used to simulate the reaction
+        Sets the simulation method used to model the reaction.
 
         Args:
-            simulation_method ('str'): label of the simulation method
+            simulation_method ('str'):
+                Label identifying the simulation method.
         """
         self.simulation_method = simulation_method

@@ -17,7 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from pydantic import field_validator
+from typing import Optional
+from pydantic import validator
 from ..base_type import PMBBaseModel
 
 
@@ -55,11 +56,11 @@ class ParticleInstance(PMBBaseModel):
     name: str 
     particle_id: int
     initial_state: str
-    residue_id: int | None = None
-    molecule_id: int | None = None
-    assembly_id: int | None = None
+    residue_id: Optional[int] = None
+    molecule_id: Optional[int] = None
+    assembly_id: Optional[int] = None
 
-    @field_validator("particle_id")
+    @validator("particle_id")
     def validate_particle_id(cls, pid):
         if pid < 0:
             raise ValueError("particle_id must be a non-negative integer.")

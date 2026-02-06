@@ -196,35 +196,7 @@ class Manager:
                 results.append(inst_id)
         return results
 
-    def _find_instance_ids_by_name(self, pmb_type, name):
-        """
-        Return the IDs of all instances of a given pyMBE type that use a
-        specific template name.
-
-        Args:
-            pmb_type ('str'):
-                The instance category to search within.
-
-            name ('str'):
-                The template name associated with the instances of interest.
-
-        Returns:
-            ('list[int]'):
-                A list of instance IDs whose underlying template name matches
-                ``name``. The list is empty if no such instances exist.
-
-        Notes:
-            - Only exact name matches are considered.
-            - This method does not validate whether the corresponding template
-            actually exists; it only inspects registered *instances*.
-        """
-        if pmb_type not in self._instances:
-            return []
-        result = []
-        for iid, inst in self._instances[pmb_type].items():
-            if hasattr(inst, "name") and inst.name == name:
-                result.append(iid)
-        return result
+    
 
     def _find_template_types(self, name):
         """
@@ -294,7 +266,7 @@ class Manager:
                             "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else pd.NA})
             else:
                 # Generic representation for other types
-                rows.append(inst.model_dump())
+                rows.append(inst.dict())
         return pd.DataFrame(rows)
 
     def _get_reactions_df(self):
@@ -378,7 +350,7 @@ class Manager:
                              "parameters": parameters})
             else:
                 # Generic representation for other types
-                rows.append(tpl.model_dump())
+                rows.append(tpl.dict())
         return pd.DataFrame(rows)
 
     def _has_instance(self, pmb_type, instance_id):
@@ -517,7 +489,7 @@ class Manager:
                 * ``molecule``: ``assembly_id``
                 * All other types: no attribute updates allowed.
             - The method replaces the instance with a new Pydantic model
-            using ``model_copy(update=...)`` to maintain immutability and
+            using ``copy(update=...)`` to maintain immutability and
             avoid partial mutations of internal state.
         """
         if instance_id not in self._instances[pmb_type]:
@@ -532,7 +504,7 @@ class Manager:
             allowed = [None]  # No attributes allowed for other types        
         if attribute not in allowed:
             raise ValueError(f"Attribute '{attribute}' not allowed for {pmb_type}. Allowed attributes: {allowed}")
-        self._instances[pmb_type][instance_id] = self._instances[pmb_type][instance_id].model_copy(update={attribute: value})
+        self._instances[pmb_type][instance_id] = self._instances[pmb_type][instance_id].copy(update={attribute: value})
 
     def _propagate_id(self, root_type, root_id, attribute, value):
         """
@@ -798,6 +770,36 @@ class Manager:
             for template in templates:
                 self.delete_template(pmb_type=pmb_type,
                                      name=template)
+
+    def find_instance_ids_by_name(self, pmb_type, name):
+        """
+        Return the IDs of all instances of a given pyMBE type that use a
+        specific template name.
+
+        Args:
+            pmb_type ('str'):
+                The instance category to search within.
+
+            name ('str'):
+                The template name associated with the instances of interest.
+
+        Returns:
+            ('list[int]'):
+                A list of instance IDs whose underlying template name matches
+                ``name``. The list is empty if no such instances exist.
+
+        Notes:
+            - Only exact name matches are considered.
+            - This method does not validate whether the corresponding template
+            actually exists; it only inspects registered *instances*.
+        """
+        if pmb_type not in self._instances:
+            return []
+        result = []
+        for iid, inst in self._instances[pmb_type].items():
+            if hasattr(inst, "name") and inst.name == name:
+                result.append(iid)
+        return result
 
     def get_instance(self, pmb_type, instance_id):
         """

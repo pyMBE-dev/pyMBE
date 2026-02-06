@@ -48,8 +48,7 @@ class Test(ut.TestCase):
         """
         class BadInstance:
             name = "bad_inst"
-            def model_dump(self):
-                raise RuntimeError("boom")
+
         db = DummyDB()
         db._templates = {}
         db._instances["weird"] = {"x": BadInstance()}
@@ -66,8 +65,7 @@ class Test(ut.TestCase):
         """
         class BadTemplate:
             name = "bad"
-            def model_dump(self):
-                raise RuntimeError("boom")
+
         db = DummyDB()
         db._templates["weird"] = {"bad": BadTemplate()}
         db._instances = {}

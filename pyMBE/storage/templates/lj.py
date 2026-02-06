@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, root_validator
 from ..pint_quantity import PintQuantity
 
 
@@ -69,12 +69,44 @@ class LJInteractionTemplate(BaseModel):
 
     @classmethod
     def _make_name(cls, state1: str, state2: str) -> str:
-        """Create a canonical name from two states."""
+        """
+        Creates a canonical interaction name from two particle states.
+
+        Args:
+            state1 ('str'):
+                Name of the first particle state.
+
+            state2 ('str'):
+                Name of the second particle state.
+
+        Returns:
+            ('str'):
+                Canonical interaction name in the form ``"A-B"``,
+                where ``A`` and ``B`` are sorted alphabetically.
+        """
         s1, s2 = sorted([state1, state2])
         return f"{s1}-{s2}"
 
-    @model_validator(mode="after")
-    def _auto_generate_name(self):
-        """Enforce standardized automatic name."""
-        object.__setattr__(self, "name", self._make_name(self.state1, self.state2))
-        return self
+    # ------------------------------------------------------------------
+    # Validators
+    # ------------------------------------------------------------------
+
+    @root_validator
+    def _auto_generate_name(cls, values):
+        """
+        Automatically generates and enforces a standardized interaction name.
+
+        The name is derived from ``state1`` and ``state2`` and overrides
+        any manually provided value.
+
+        Returns:
+            ('dict'):
+                Updated model values with the generated ``name`` field.
+        """
+        state1 = values.get("state1")
+        state2 = values.get("state2")
+
+        if state1 is not None and state2 is not None:
+            values["name"] = cls._make_name(state1, state2)
+
+        return values

@@ -17,11 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import List
-from pydantic import Field
 from ..base_type import PMBBaseModel
-from pydantic import field_validator
-
+from pydantic import validator
 
 class HydrogelInstance(PMBBaseModel):
     """
@@ -42,10 +39,10 @@ class HydrogelInstance(PMBBaseModel):
           hydrogel exists in the system), not a template describing generic
           hydrogel types.
     """
-    pmb_type: str = Field(default="hydrogel", frozen=True)
+    pmb_type: str = "hydrogel"
     assembly_id: int
     name: str
-    @field_validator("assembly_id")
+    @validator("assembly_id")
     def validate_bond_id(cls, aid):
         if aid < 0:
             raise ValueError("assembly_id must be a non-negative integer.")

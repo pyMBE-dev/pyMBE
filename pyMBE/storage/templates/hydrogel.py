@@ -18,7 +18,7 @@
 #
 
 from typing import List
-from pydantic import Field, BaseModel
+from pydantic import Field, BaseModel, validator
 from ..base_type import PMBBaseModel
 
 class HydrogelNode(BaseModel):
@@ -34,6 +34,14 @@ class HydrogelNode(BaseModel):
     """
     particle_name: str
     lattice_index: List[int]  # must be length 3
+    @validator("lattice_index", pre=True)
+    def coerce_lattice_index(cls, v):
+        # Accept tuple, list, numpy array, etc.
+        try:
+            v = list(v)
+        except TypeError:
+            raise ValueError("lattice_index must be an iterable of 3 integers") 
+        return v
 
 class HydrogelChain(BaseModel):
     """
@@ -52,7 +60,7 @@ class HydrogelChain(BaseModel):
     molecule_name: str
     node_start: str
     node_end: str   
-
+    
 class HydrogelTemplate(PMBBaseModel):
     """
     Template defining a hydrogel network in the pyMBE database.

@@ -164,29 +164,21 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
 
 #List of ionisable groups
 # collect ionisable particles*
-acidbase_templates = []
-for state_name, state_tpl in pmb.db._templates["particle"].items():
-    if state_tpl.acidity in ["basic","acidic"]:
-        acidbase_templates+=pmb.db.get_particle_templates_under(template_name=state_tpl,pmb_type="particle_state")
-        
-print(acidbase_templates)
-total_ionisable_groups = len(list_ionisable_groups)
-
-
-
-basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
-acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
-list_ionisable_groups = basic_groups + acidic_groups
-total_ionisable_groups = len(list_ionisable_groups)
+acidbase_particles = ["A","B"]
+acid_base_ids = []
+for name in acidbase_particles:
+    acid_base_ids+=pmb.db.find_instance_ids_by_name(pmb_type="particle",
+                                                    name=name)        
+total_ionisable_groups = len(acid_base_ids)
 
 if verbose:
     print(f"The box length of your system is {L.to('reduced_length')}, {L.to('nm')}")
     print(f"The polyampholyte concentration in your system is {calculated_polyampholyte_concentration.to('mol/L')} with {N_polyampholyte_chains} molecules")
-    print(f"The ionisable groups in your polyampholyte are {list_ionisable_groups}")
 
-cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
+cpH = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
 if verbose:
-    print(f"The acid-base reaction has been successfully set up for {labels}")
+    print("The acid-base reaction has been successfully set up for:")
+    print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid/basic groups 
 type_map = pmb.get_type_map()

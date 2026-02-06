@@ -28,6 +28,7 @@ from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.instances.bond import BondInstance
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 from pyMBE.storage.templates.bond import BondTemplate
+from pyMBE.storage.templates.hydrogel import HydrogelNode
 from pyMBE.storage.pint_quantity import PintQuantity
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 import pint
@@ -35,6 +36,15 @@ espresso_system=espressomd.System(box_l = [10]*3)
 
 class Test(ut.TestCase):
 
+    def test_sanity_hydrogel_node_template(self):
+        """
+        Sanity test for HydrogelNode template validator
+        """
+        inputs={"particle_name": "A",
+                "lattice_index": 1}
+        self.assertRaises(ValueError,
+                          HydrogelNode,
+                          **inputs)
 
     def test_sanity_database_methods(self):
         """
@@ -224,16 +234,16 @@ class Test(ut.TestCase):
                                                               value=0)
         self.assertEqual(instance_ids_m1,
                          [0,1,2,3])
-        instance_ids_by_name_A = pmb.db._find_instance_ids_by_name(pmb_type="particle",
+        instance_ids_by_name_A = pmb.db.find_instance_ids_by_name(pmb_type="particle",
                                                                    name="A")
-        instance_ids_by_name_B = pmb.db._find_instance_ids_by_name(pmb_type="particle",
+        instance_ids_by_name_B = pmb.db.find_instance_ids_by_name(pmb_type="particle",
                                                                    name="B")
         self.assertEqual(instance_ids_by_name_A,
                          [0,2])
         self.assertEqual(instance_ids_by_name_B,
                          [1,3])
         # Sanity test, no ids are returned if the instance does not exist   
-        instance_ids_test = pmb.db._find_instance_ids_by_name(pmb_type="peptide",
+        instance_ids_test = pmb.db.find_instance_ids_by_name(pmb_type="peptide",
                                                                    name="B")
         self.assertEqual(instance_ids_test,
                          [])
