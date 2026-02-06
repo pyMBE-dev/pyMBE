@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -94,9 +94,9 @@ calculated_peptide_concentration = N_peptide_chains/(volume*pmb.N_A)
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021.json"
+path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021"
 path_to_pka=pmb.root / "parameters" / "pka_sets" / "Hass2015.json"
-pmb.load_interaction_parameters (filename=path_to_interactions) 
+pmb.load_database(folder=path_to_interactions) 
 pmb.load_pka_set (path_to_pka)
 
 generic_bond_length=0.4 * pmb.units.nm
@@ -129,8 +129,6 @@ pmb.define_particle(name=anion_name,
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
-# Add all bonds to espresso system
-pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
 pmb.create_molecule(name=peptide_name, 
@@ -209,8 +207,8 @@ setup_langevin_dynamics(espresso_system=espresso_system,
 # for this example, we use a hard-coded skin value; In general it should be optimized by tuning
 espresso_system.cell_system.skin=0.4
 
-#Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df(filename='df.csv')
+#Save the pyMBE database
+pmb.save_database(folder=args.output/'database')
 
 # Initialize the time series with arbitrary values at time = 0
 time_series={} # for convenience, here we save the whole time series in a python dictionary
@@ -221,16 +219,15 @@ time_series["charge"] = [0.0]
 # Main loop for performing simulations at different pH-values
 N_frame=0
 for sample in tqdm.trange(N_samples):
-
     # LD sampling of the configuration space
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
     # cpH sampling of the reaction space
     do_reaction(cpH, steps=total_ionisable_groups) # rule of thumb: one reaction step per titratable group (on average)
-    
     # Get peptide net charge
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
-                                            molecule_name=peptide_name,
-                                            dimensionless=True)
+                                        object_name=peptide_name,
+                                        pmb_type="peptide",
+                                        dimensionless=True)
     time_series["time"].append(espresso_system.time)
     time_series["charge"].append(charge_dict["mean"])
     if sample % N_samples_print == 0:
@@ -240,12 +237,10 @@ for sample in tqdm.trange(N_samples):
             vtf.writevcf(espresso_system, coordinates)
    
 # Store time series
-
 data_path=args.output
 data_path.mkdir(parents=True, exist_ok=True)
 time_series=pd.DataFrame(time_series)
 filename=built_output_name(input_dict={"sequence":sequence,"pH":pH_value})
-
 time_series.to_csv(data_path / f"{filename}_time_series.csv", index=False)
 
 

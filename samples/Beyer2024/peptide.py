@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -77,9 +77,9 @@ if sequence not in valid_sequences:
     raise ValueError(f"ERROR: the only valid peptide sequence for this test script are {valid_sequences}")
 
 if sequence in Lunkad_test_sequences:
-    path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021.json"
+    path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021"
     path_to_pka=pmb.root / "parameters" / "pka_sets" / "CRC1991.json"
-    pmb.load_interaction_parameters(filename=path_to_interactions)
+    pmb.load_database(folder=path_to_interactions)
     pmb.load_pka_set(filename=path_to_pka)
     model = '2beadAA'  # Model with 2 beads per each aminoacid
     N_peptide_chains = 4
@@ -91,7 +91,7 @@ if sequence in Lunkad_test_sequences:
 
 elif sequence in Blanco_test_sequence:
     pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
-    pmb.load_interaction_parameters (pmb.root / "parameters" / "peptides" / "Blanco2021.json")
+    pmb.load_database (pmb.root / "parameters" / "peptides" / "Blanco2021")
     pmb.load_pka_set (pmb.root / "parameters" / "pka_sets" / "Nozaki1967.json")
     model = '1beadAA'
     N_peptide_chains = 1
@@ -148,8 +148,7 @@ L = volume ** (1./3.) # Side of the simulation box
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
-# Add all bonds to espresso system
-pmb.add_bonds_to_espresso(espresso_system=espresso_system)
+
 
 # Create your molecules into the espresso system
 pmb.create_molecule(name=sequence,
@@ -219,8 +218,9 @@ for sample in tqdm.trange(Nsamples,disable=not verbose):
     do_reaction(cpH, steps=len(sequence))
     # Sample observables
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system,
-                                            molecule_name=sequence,
-                                            dimensionless=True)
+                                        object_name=sequence,
+                                        pmb_type="peptide",
+                                        dimensionless=True)
 
     Rg = espresso_system.analysis.calc_rg(chain_start=0,
                                         number_of_chains=N_peptide_chains,

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -85,7 +85,7 @@ if args.mode == "plot":
     pH_range_HH = np.linspace(2, 12, num=100)
 elif args.mode == "store_HH":
     pH_range_HH = [3.5,4.5,8.5,9.5]
-Z_HH = pmb.calculate_HH(molecule_name="polyampholyte",
+Z_HH = pmb.calculate_HH(template_name="polyampholyte",
                         pH_list=pH_range_HH) 
 
 if args.mode == "plot":

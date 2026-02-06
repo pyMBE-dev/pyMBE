@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -174,9 +174,6 @@ espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
 if verbose:
     print("Created espresso object")
-
-# Add all bonds to espresso system
-pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 if verbose:
     print("Added bonds")
 
@@ -289,11 +286,15 @@ for i in tqdm.trange(N_production_loops, disable=not verbose):
     time_series["time"].append(espresso_system.time)
 
     # Measure degree of ionization
-    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, molecule_name=polyacid_name, dimensionless=True)
+    charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
+                                         object_name=polyacid_name,
+                                         pmb_type="molecule", 
+                                         dimensionless=True)
     time_series["alpha"].append(np.abs(charge_dict["mean"])/Chain_length)
 
 data_path = args.output
-data_path.mkdir(parents=True, exist_ok=True)
+data_path.mkdir(parents=True, 
+                exist_ok=True)
 
 time_series=pd.DataFrame(time_series)
 filename=analysis.built_output_name(input_dict=inputs)

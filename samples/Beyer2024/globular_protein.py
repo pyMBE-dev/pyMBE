@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -57,28 +57,23 @@ parser.add_argument('--move_protein',
                     action="store_true",
                     default=False,  
                     help='Activates the motion of the protein')
-
 parser.add_argument('--ideal', 
                     action="store_true",
                     default=False,  
                     help='Sets up an ideal system without steric and electrostatic interactions ')
-
 parser.add_argument('--mode',
                     type=str,
                     default= "short-run",
                     choices=["short-run","long-run", "test"],
                     help='sets for how long the simulation runs')
-
 parser.add_argument('--output',
                     type=Path,
                     required= False,
                     default=Path(__file__).parent / "time_series" / "globular_protein",
                     help='output directory')
-
 parser.add_argument('--no_verbose', 
                     action='store_false', 
                     help="Switch to deactivate verbose",default=True)
-
 args = parser.parse_args ()
 mode=args.mode
 verbose=args.no_verbose
@@ -143,10 +138,10 @@ espresso_system = espressomd.System(box_l=[Box_L.to('reduced_length').magnitude]
 espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
 #Reads the VTF file of the protein model
-topology_dict = pmb.read_protein_vtf_in_df (filename=args.path_to_cg)
+topology_dict, sequence = pmb.read_protein_vtf (filename=args.path_to_cg)
 #Defines the protein in the pmb.df
 pmb.define_protein (name=protein_name, 
-                    topology_dict=topology_dict, 
+                    sequence=sequence, 
                     model = '2beadAA',
                     lj_setup_mode = "wca")
 
@@ -178,12 +173,14 @@ pmb.create_protein(name=protein_name,
 
 #Here we activate the motion of the protein 
 if args.move_protein:
-    pmb.enable_motion_of_rigid_object(espresso_system=espresso_system,
-                                        name=protein_name)
+    pmb.enable_motion_of_rigid_object(instance_id=0,
+                                      pmb_type="protein",
+                                      espresso_system=espresso_system)
 
 # Here we put the protein on the center of the simulation box
 protein_id = pmb.df.loc[pmb.df['name']==protein_name].molecule_id.values[0]
-pmb.center_molecule_in_simulation_box (molecule_id=protein_id,
+pmb.center_object_in_simulation_box(instance_id=protein_id,
+                                    pmb_type="protein",
                                     espresso_system=espresso_system)
 
 if not args.ideal:
@@ -197,11 +194,10 @@ if not args.ideal:
         dist = np.linalg.norm(dist)
         if dist > protein_radius:
             protein_radius = dist
-
-
     # Create counter-ions 
     protein_net_charge = pmb.calculate_net_charge(espresso_system=espresso_system,
-                                                molecule_name=protein_name,
+                                                object_name=protein_name,
+                                                pmb_type="protein",
                                                 dimensionless=True)["mean"]
 
     ## Get coordinates outside the volume occupied by the protein
@@ -292,8 +288,7 @@ net_charge_list = []
 Z_sim=[]
 particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
-#Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df (filename='df.csv')
+pmb.save_database (folder=data_path/"database")
 
 #Here we start the main loop over the Nsamples 
 
@@ -304,8 +299,9 @@ for label in labels_obs:
     time_series[label]=[]
 
 charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
-                                            molecule_name=protein_name,
-                                            dimensionless=True)
+                                      object_name=protein_name,
+                                      pmb_type="protein",  
+                                      dimensionless=True)
     
 net_charge_residues = charge_dict ['residues']
 net_charge_amino_save = {}
@@ -323,8 +319,9 @@ for step in tqdm.trange(N_samples, disable=not verbose):
     espresso_system.integrator.run (steps = integ_steps)
     do_reaction(cpH, steps=total_ionisable_groups)
     charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
-                                            molecule_name=protein_name,
-                                            dimensionless=True)
+                                          object_name=protein_name,
+                                          pmb_type="protein",
+                                          dimensionless=True)
     charge_residues = charge_dict['residues']
     charge_residues_per_type={}
 
@@ -351,8 +348,6 @@ for step in tqdm.trange(N_samples, disable=not verbose):
     for label in AA_label_list:
         charge_amino = np.mean(charge_residues_per_type[label])
         time_series[label].append(charge_amino)
-
-
 
 data_path.mkdir(parents=True, exist_ok=True)
     

@@ -344,34 +344,32 @@ class pymbe_library():
         self.lattice_builder.nodes[key] = node_name
         return node_position.tolist(), p_id[0]
 
-    def _get_espresso_bond_instance(self, bond_template, espresso_system, use_default_bond=False):
-            """
-            Retrieve or create a bond instance in an ESPResSo system for a given pair of particle names.
+    def _get_espresso_bond_instance(self, bond_template, espresso_system):
+        """
+        Retrieve or create a bond instance in an ESPResSo system for a given pair of particle names.
 
-            Args:
-                bond_template ('BondTemplate'): 
-                    BondTemplate object from the pyMBE database.
-                espresso_system ('espressomd.system.System'): 
-                    An ESPResSo system object where the bond will be added or retrieved.
-                use_default_bond (bool, optional): If True, use a default bond template when no 
-                    specific template exists for the particle pair. Defaults to False.
+        Args:
+            bond_template ('BondTemplate'): 
+                BondTemplate object from the pyMBE database.
+            espresso_system ('espressomd.system.System'): 
+                An ESPResSo system object where the bond will be added or retrieved.
 
-            Returns:
-                ('espressomd.interactions.BondedInteraction'): 
-                    The ESPResSo bond instance object.
+        Returns:
+            ('espressomd.interactions.BondedInteraction'): 
+                The ESPResSo bond instance object.
 
-            Notes:
-                When a new bond instance is created, it is not added to the ESPResSo system.
-            """
-            if bond_template.name in self.db.espresso_bond_instances.keys():
-                bond_inst = self.db.espresso_bond_instances[bond_template.name]
-            else:   
-                # Create an instance of the bond 
-                bond_inst = self._create_espresso_bond_instance(bond_type=bond_template.bond_type,
-                                                                bond_parameters=bond_template.get_parameters(self.units))
-                self.db.espresso_bond_instances[bond_template.name]= bond_inst
-                espresso_system.bonded_inter.add(bond_inst)
-            return bond_inst
+        Notes:
+            When a new bond instance is created, it is not added to the ESPResSo system.
+        """
+        if bond_template.name in self.db.espresso_bond_instances.keys():
+            bond_inst = self.db.espresso_bond_instances[bond_template.name]
+        else:   
+            # Create an instance of the bond 
+            bond_inst = self._create_espresso_bond_instance(bond_type=bond_template.bond_type,
+                                                            bond_parameters=bond_template.get_parameters(self.units))
+            self.db.espresso_bond_instances[bond_template.name]= bond_inst
+            espresso_system.bonded_inter.add(bond_inst)
+        return bond_inst
 
     def _get_label_id_map(self, pmb_type):
         """
@@ -2372,7 +2370,7 @@ class pymbe_library():
         # Flatten all es_type values across all particles and states
         all_types = []
         for es_type in type_map.values():
-                all_types.append(es_type)
+            all_types.append(es_type)
         # If no es_types exist, start at 0
         if not all_types:
             return 0

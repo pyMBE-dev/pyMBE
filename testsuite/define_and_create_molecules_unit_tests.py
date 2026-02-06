@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024-2025 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -19,7 +19,6 @@
 # Import pyMBE and other libraries
 import pyMBE
 import numpy as np
-import pandas as pd
 import espressomd
 import unittest as ut
 
@@ -218,7 +217,6 @@ class Test(ut.TestCase):
             bonded_in_espresso = False
             for pid in bonded_pair:
                 for bond in espresso_system.part.by_id(pid).bonds[:]:
-                    bond_object = bond[0]
                     partner_id  = bond[1]
                     if partner_id in bonded_pair:
                         bonded_in_espresso=True

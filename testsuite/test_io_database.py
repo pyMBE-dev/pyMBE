@@ -28,7 +28,6 @@ import pyMBE.lib.handy_functions as hf
 from pyMBE.storage.io import _decode, _encode, _load_database_csv, _save_database_csv
 from pyMBE.storage.pint_quantity import PintQuantity
 from pyMBE.storage.instances.bond import BondInstance
-from pyMBE.storage.templates.bond import BondTemplate
 from pathlib import Path
 import csv
 
@@ -558,7 +557,7 @@ class Test(ut.TestCase):
         pmb.db.delete_templates(pmb_type="residue")
         pmb.db.delete_reactions()
         # Test instances of a protein (tests protein, residue and particle instances)
-        path_to_protein_structure = pmb.root / "parameters" / "globular_proteins" / f"1beb.vtf",    
+        path_to_protein_structure = pmb.root / "parameters" / "globular_proteins" / "1beb.vtf"    
         topology_dict, sequence = pmb.read_protein_vtf (filename=path_to_protein_structure[0])
         pmb.load_pka_set(filename=path_to_pka)
         # Define AA particles and residues

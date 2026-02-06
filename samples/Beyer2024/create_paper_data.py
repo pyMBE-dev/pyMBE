@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -158,8 +158,8 @@ if plot:
         pka_path=pmb.root / "parameters" / "pka_sets" / "Nozaki1967.json"
         pmb.load_pka_set (filename=pka_path)
         if fig_label == "7c":
-            par_path=pmb.root / "parameters" / "peptides" / "Blanco2021.json"
-            pmb.load_interaction_parameters(par_path)
+            par_path=pmb.root / "parameters" / "peptides" / "Blanco2021"
+            pmb.load_database(par_path)
 
     # Load ref data    
     ref_data=analysis.read_csv_file(path=Path(__file__).parent / "data" / fig_data[fig_label])
@@ -172,7 +172,7 @@ if plot:
                             model="1beadAA")
         pH_range_HH = np.linspace(2, 12, num=1000)
 
-        Z_HH = pmb.calculate_HH(molecule_name=sequence,
+        Z_HH = pmb.calculate_HH(template_name=sequence,
                                 pH_list=pH_range_HH)
 
         # Plot HH
@@ -189,15 +189,15 @@ if plot:
             protein_pdb = '1beb'
     
         path_to_cg=pmb.root / "parameters" / "globular_proteins" / f"{protein_pdb}.vtf"
-        topology_dict = pmb.read_protein_vtf_in_df (filename=path_to_cg)
-    
-        pmb.define_protein (name=protein_pdb, 
-                            topology_dict=topology_dict, 
-                            model = '2beadAA')
+        topology_dict, sequence = pmb.read_protein_vtf(filename=path_to_cg)
+
+        pmb.define_protein(name=protein_pdb, 
+                           sequence=sequence, 
+                           model = '2beadAA')
 
         pH_range_HH = np.linspace(2, 7, num=1000)
         
-        Z_HH = pmb.calculate_HH(molecule_name=protein_pdb,
+        Z_HH = pmb.calculate_HH(template_name=protein_pdb,
                                 pH_list=pH_range_HH)
 
         # Plot HH
@@ -214,7 +214,7 @@ if plot:
         pmb.define_molecule(name='polyacid', residue_list=['rA'])
 
         pH_range = np.linspace(1.0, 13.0, num=1000)
-        Z_HH = pmb.calculate_HH(molecule_name='polyacid', pH_list=pH_range)
+        Z_HH = pmb.calculate_HH(template_name='polyacid', pH_list=pH_range)
         alpha_HH = np.abs(np.asarray(Z_HH))
 
         HH_Donnan_charge_dict = pmb.calculate_HH_Donnan(

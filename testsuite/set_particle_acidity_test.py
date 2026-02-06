@@ -17,7 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Import pyMBE and other libraries
-import numpy as np
 import pandas as pd
 import pyMBE
 import unittest as ut

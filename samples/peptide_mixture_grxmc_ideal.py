@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -169,9 +169,6 @@ calculated_peptide_concentration = N_peptide1_chains/(volume*pmb.N_A)
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 
-# Add all bonds to espresso system
-pmb.add_bonds_to_espresso(espresso_system=espresso_system)
-
 # Create your molecules into the espresso system
 pmb.create_molecule(name=peptide1, 
                     number_of_molecules=N_peptide1_chains,
@@ -265,8 +262,8 @@ espresso_system.integrator.set_vv()
 espresso_system.thermostat.set_langevin(kT=pmb.kT.to('reduced_energy').magnitude, gamma=0.1, seed=LANGEVIN_SEED)
 espresso_system.cell_system.skin=0.4
 
-#Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df (filename='df.csv')
+#Save the pyMBE database
+pmb.save_database(folder=args.output / 'database')
 time_series={}
 for label in ["time","charge_peptide1","charge_peptide2","num_plus","xi_plus"]:
     time_series[label]=[] 
@@ -279,11 +276,13 @@ for step in range(N_samples):
     time_series["time"].append(espresso_system.time)
     # Get net charge of peptide1 and peptide2
     charge_dict_peptide1=pmb.calculate_net_charge(espresso_system=espresso_system, 
-                                            molecule_name=peptide1,
-                                            dimensionless=True)
+                                                object_name=peptide1,
+                                                pmb_type="peptide",
+                                                dimensionless=True)
     charge_dict_peptide2=pmb.calculate_net_charge(espresso_system=espresso_system, 
-                                            molecule_name=peptide2,
-                                            dimensionless=True)
+                                                object_name=peptide2,
+                                                pmb_type="peptide",
+                                                dimensionless=True)
     time_series["charge_peptide1"].append(charge_dict_peptide1["mean"])
     time_series["charge_peptide2"].append(charge_dict_peptide2["mean"])
     if args.mode == 'standard':

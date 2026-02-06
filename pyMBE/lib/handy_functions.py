@@ -23,17 +23,35 @@ import scipy
 
 def calculate_initial_bond_length(bond_parameters, bond_type, lj_parameters):
     """
-    Calculates the initial bond length that is used when setting up molecules,
-    based on the minimum of the sum of bonded and short-range (LJ) interactions.
-    
+    Calculate an initial bond length for molecule setup.
+
     Args:
-        bond_object(`espressomd.interactions.BondedInteractions`): instance of a bond object from espressomd library
-        bond_type(`str`): label identifying the used bonded potential
-        epsilon(`pint.Quantity`): LJ epsilon of the interaction between the particles
-        sigma(`pint.Quantity`): LJ sigma of the interaction between the particles
-        cutoff(`pint.Quantity`): cutoff-radius of the LJ interaction 
-        offset(`pint.Quantity`): offset of the LJ interaction
-    """    
+        bond_parameters ('dict'):
+            Parameters defining the bonded interaction (e.g. equilibrium
+            distance, force constant), as required by the selected
+            ``bond_type``.
+
+        bond_type ('str'):
+            Label identifying the bonded potential used to connect the
+            particles (e.g. ``"harmonic"``).
+
+        lj_parameters ('dict'):
+            Parameters of the Lennard-Jones interaction between the bonded
+            particles. Expected entries include ``epsilon``, ``sigma``,
+            ``cutoff``, and optionally ``offset``, typically given as
+            ``pint.Quantity`` objects.
+
+    Returns:
+        ('pint.Quantity'):
+            Initial bond length resulting from the minimum of the bonded
+            and Lennard-Jones interactions.
+
+    Notes:
+        - This function is intended for geometry initialization and does not
+          affect the interaction parameters used during the simulation.
+        - The exact interpretation of ``bond_parameters`` depends on
+          ``bond_type``.
+    """  
     def truncated_lj_potential(x, epsilon, sigma, cutoff,offset):
         if x>cutoff:
             return 0.0
@@ -59,10 +77,12 @@ def check_aminoacid_key(key):
     Checks if `key` corresponds to a valid aminoacid letter code.
 
     Args:
-        key(`str`): key to be checked.
+        key (`str`): 
+            key to be checked.
 
     Returns:
-        `bool`: True if `key` is a valid aminoacid letter code, False otherwise.
+        (`bool`): 
+            True if `key` is a valid aminoacid letter code, False otherwise.
     """
     valid_AA_keys=['V', #'VAL'
                     'I', #'ILE'
@@ -97,10 +117,12 @@ def check_if_metal_ion(key):
     Checks if `key` corresponds to a label of a supported metal ion.
 
     Args:
-        key(`str`): key to be checked
+        key(`str`): 
+            key to be checked
 
     Returns:
-        (`bool`): True if `key`  is a supported metal ion, False otherwise.
+        (`bool`): 
+            True if `key`  is a supported metal ion, False otherwise.
     """
     if key in get_metal_ions_charge_number_map().keys():
         return True
@@ -112,42 +134,18 @@ def define_protein_AA_particles(topology_dict, pmb, pka_set,  lj_setup_mode="wca
     Defines particle templates in pyMBE for all unique residue/atom types appearing
     in a protein topology dictionary.
 
-    The Lennard-Jones parameters (σ, ε, offset) are generated according to the
-    selected setup mode (currently only the WCA scheme is supported).  
-    
-    Metal ions are automatically assigned their correct valence charge.
-
     Args:
-        topology_dict (dict):
+        topology_dict ('dict'):
             Dictionary defining the structure of a protein.
-            Keys must be residue/particle identifiers such as `"ALA1"`, `"LYS2"`,
-            `"ZN3"`, etc., where the alphabetical prefix encodes the residue/
-            particle type.
 
-            Each entry must contain:
-                - `"radius"` (float): Effective radius of the bead, used to
-                  compute the Lennard-Jones offset.
-
-            Example:
-                {
-                    "ALA1": {"radius": 0.5, ...},
-                    "GLY2": {"radius": 0.4, ...},
-                    "ZN3":  {"radius": 0.2, ...},
-                }
-
-        pmb (pyMBE.pymbe_library):
+        pmb ('pyMBE.pymbe_library'):
             Instance of the pyMBE library.
 
-        Dictionary of the form:
-                {"particle_name": {"pka_value": float,
-                                   "acidity": "acidic" | "basic"}}
+        pka_set ('dict'):
+                Set of pka_values for the protein aminoacids and their corresponding acidities
 
-        lj_setup_mode (str, optional):
+        lj_setup_mode ('str', optional):
             Determines how Lennard-Jones parameters are assigned. Defaults to `"wca"`.           
-
-    Raises:
-        ValueError:
-            If `lj_setup_mode` is not supported.
 
     Notes:
         - Particle names are extracted by stripping trailing digits
@@ -159,7 +157,7 @@ def define_protein_AA_particles(topology_dict, pmb, pka_set,  lj_setup_mode="wca
     """
     valid_lj_setups = ["wca"]
     if lj_setup_mode not in valid_lj_setups:
-            raise ValueError('Invalid key for the lj setup, supported setup modes are {valid_lj_setups}')
+        raise ValueError('Invalid key for the lj setup, supported setup modes are {valid_lj_setups}')
     if lj_setup_mode == "wca":
         sigma = 1*pmb.units.Quantity("reduced_length")
         epsilon = 1*pmb.units.Quantity("reduced_energy")
@@ -191,30 +189,19 @@ def define_protein_AA_residues(sequence, model, pmb):
     Define residue templates in the pyMBE database for a protein topology dict.
 
     Args:
-        topology_dict (dict):
-                Dictionary defining the internal structure of the protein.
-                Expected format:
-                    {
-                        "ResidueName1": {
-                            "initial_pos": np.ndarray,
-                            "chain_id": int,
-                            "radius": float
-                        },
-                        "ResidueName2": { ... },
-                        ...
-                    }
-                The `"initial_pos"` entry is required and represents the residue’s
-                reference coordinates before shifting to the protein's center-of-mass.
-
-        model (str):
+        sequence ('str'):
+                Protein sequence, following the one letter amino acid convention.
+               
+        model ('str'):
             Coarse-grained representation to use. Supported options:
                 - `"1beadAA"`
                 - `"2beadAA"`
 
-        pmb (pyMBE.pymbe_library):
+        pmb ('pyMBE.pymbe_library'):
             Instance of the pyMBE library.
     Return:
-        (list of str): List of the defined residue names
+        ('list of str'): 
+            List of the defined residue names
 
     Notes:
         - Supported models:
@@ -251,16 +238,16 @@ def define_peptide_AA_residues(sequence,model, pmb):
     Define residue templates in the pyMBE database for a given model.
 
     Args:
-        sequence (list of str):
+        sequence ('list of str'):
             Ordered amino-acid sequence of the peptide or protein. Each element must
             be a residue identifier compatible with the selected model.
 
-        model (str):
+        model ('str'):
             Coarse-grained representation to use. Supported options:
                 - `"1beadAA"`
                 - `"2beadAA"`
 
-        pmb (pyMBE.pymbe_library):
+        pmb ('pyMBE.pymbe_library'):
             Instance of the pyMBE library.
 
     Notes:
@@ -302,10 +289,10 @@ def do_reaction(algorithm, steps):
     ESPResSo versions.
 
     Args:
-        algorithm:
+        algorithm ('espressomd.reaction_methods'):
             ESPResSo reaction algorithm object (e.g. constant pH,
             reaction ensemble, or similar).
-        steps (int):
+        steps ('int'):
             Number of reaction steps to perform.
 
     Notes:
@@ -325,18 +312,14 @@ def get_number_of_particles(espresso_system, ptype):
     """
     Returns the number of particles of a given ESPResSo particle type.
 
-    This function provides a compatibility wrapper around
-    `espresso_system.number_of_particles`, which has a different calling
-    signature depending on the ESPResSo version.
-
     Args:
-        espresso_system (espressomd.system.System):
+        espresso_system ('espressomd.system.System'):
             ESPResSo system object from which the particle count is queried.
-        ptype (int):
+        ptype ('int'):
             ESPResSo particle type identifier.
 
     Returns:
-        int:
+        ('int'):
             Number of particles in `espresso_system` with particle type `ptype`.
 
     Notes:
@@ -361,18 +344,19 @@ def get_residues_from_topology_dict(topology_dict, model):
     Groups beads from a topology dictionary into residues and assigns residue names.
 
     Args:
-        topology_dict (dict):
+        topology_dict ('dict'):
             Dictionary describing the molecular topology, where keys are bead
             identifiers (e.g. "CA12", "SC12") that encode both residue type and
             residue index.
-        model (str):
+
+        model ('str'):
             Protein model identifier. Supported values are:
             - `"1beadAA"`: single-bead-per-amino-acid model.
             - `"2beadAA"`: two-bead-per-amino-acid model, where CA beads are excluded
               from residue name assignment.
 
     Returns:
-        dict:
+        ('dict'):
             Dictionary mapping residue indices (as strings) to residue data:
             {
                 resid: {
@@ -424,100 +408,102 @@ def get_metal_ions_charge_number_map():
     Gets a map with the charge numbers of all the metal ions supported.
 
     Returns:
-        metal_charge_number_map(dict): Has the structure {"metal_name": metal_charge_number}
+        ('dict'): 
+            Has the structure {"metal_name": metal_charge_number}
 
     """
     metal_charge_number_map = {"Ca": 2}
     return metal_charge_number_map
 
 def protein_sequence_parser(sequence):
-        '''
-        Parses `sequence` to the one letter code for amino acids.
-        
-        Args:
-            sequence(`str` or `lst`): Sequence of the amino acid. 
+    """
+    Parses `sequence` to the one letter code for amino acids.
+    
+    Args:
+        sequence(`str` or `lst`): 
+            Sequence of the amino acid. 
 
-        Returns:
-            clean_sequence(`lst`): `sequence` using the one letter code.
-        
-        Note:
-            - Accepted formats for `sequence` are:
-                - `lst` with one letter or three letter code of each aminoacid in each element
-                - `str` with the sequence using the one letter code
-                - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphen "-"
-        
-        '''
-        # Aminoacid key
-        keys={"ALA": "A",
-                "ARG": "R",
-                "ASN": "N",
-                "ASP": "D",
-                "CYS": "C",
-                "GLU": "E",
-                "GLN": "Q",
-                "GLY": "G",
-                "HIS": "H",
-                "ILE": "I",
-                "LEU": "L",
-                "LYS": "K",
-                "MET": "M",
-                "PHE": "F",
-                "PRO": "P",
-                "SER": "S",
-                "THR": "T",
-                "TRP": "W",
-                "TYR": "Y",
-                "VAL": "V",
-                "PSER": "J",
-                "PTHR": "U",
-                "PTyr": "Z",
-                "NH2": "n",
-                "COOH": "c"}
-        clean_sequence=[]
-        if isinstance(sequence, str):
-            if sequence.find("-") != -1:
-                splited_sequence=sequence.split("-")
-                for residue in splited_sequence:
-                    if len(residue) == 1:
-                        if residue in keys.values():
-                            residue_ok=residue
-                        else:
-                            if residue.upper() in keys.values():
-                                residue_ok=residue.upper()
-                            else:
-                                raise ValueError("Unknown one letter code for a residue given: ", residue, " please review the input sequence")
-                        clean_sequence.append(residue_ok)
-                    else:
-                        if residue in keys.keys():
-                            clean_sequence.append(keys[residue])
-                        else:
-                            if residue.upper() in keys.keys():
-                                clean_sequence.append(keys[residue.upper()])
-                            else:
-                                raise ValueError("Unknown  code for a residue: ", residue, " please review the input sequence")
-            else:
-                for residue in sequence:
+    Returns:
+        (`lst`): `
+            sequence` using the one letter code.
+    
+    Notes:
+        - Accepted formats for `sequence` are:
+            - `lst` with one letter or three letter code of each aminoacid in each element
+            - `str` with the sequence using the one letter code
+            - `str` with the squence using the three letter code, each aminoacid must be separated by a hyphen "-"
+    """
+    # Aminoacid key
+    keys={"ALA": "A",
+            "ARG": "R",
+            "ASN": "N",
+            "ASP": "D",
+            "CYS": "C",
+            "GLU": "E",
+            "GLN": "Q",
+            "GLY": "G",
+            "HIS": "H",
+            "ILE": "I",
+            "LEU": "L",
+            "LYS": "K",
+            "MET": "M",
+            "PHE": "F",
+            "PRO": "P",
+            "SER": "S",
+            "THR": "T",
+            "TRP": "W",
+            "TYR": "Y",
+            "VAL": "V",
+            "PSER": "J",
+            "PTHR": "U",
+            "PTyr": "Z",
+            "NH2": "n",
+            "COOH": "c"}
+    clean_sequence=[]
+    if isinstance(sequence, str):
+        if sequence.find("-") != -1:
+            splited_sequence=sequence.split("-")
+            for residue in splited_sequence:
+                if len(residue) == 1:
                     if residue in keys.values():
                         residue_ok=residue
                     else:
                         if residue.upper() in keys.values():
                             residue_ok=residue.upper()
                         else:
-                            raise ValueError("Unknown one letter code for a residue: ", residue, " please review the input sequence")
+                            raise ValueError("Unknown one letter code for a residue given: ", residue, " please review the input sequence")
                     clean_sequence.append(residue_ok)
-        if isinstance(sequence, list):
+                else:
+                    if residue in keys.keys():
+                        clean_sequence.append(keys[residue])
+                    else:
+                        if residue.upper() in keys.keys():
+                            clean_sequence.append(keys[residue.upper()])
+                        else:
+                            raise ValueError("Unknown  code for a residue: ", residue, " please review the input sequence")
+        else:
             for residue in sequence:
                 if residue in keys.values():
                     residue_ok=residue
                 else:
                     if residue.upper() in keys.values():
                         residue_ok=residue.upper()
-                    elif (residue.upper() in keys.keys()):
-                        residue_ok= keys[residue.upper()]
                     else:
-                        raise ValueError("Unknown code for a residue: ", residue, " please review the input sequence")
+                        raise ValueError("Unknown one letter code for a residue: ", residue, " please review the input sequence")
                 clean_sequence.append(residue_ok)
-        return clean_sequence
+    if isinstance(sequence, list):
+        for residue in sequence:
+            if residue in keys.values():
+                residue_ok=residue
+            else:
+                if residue.upper() in keys.values():
+                    residue_ok=residue.upper()
+                elif (residue.upper() in keys.keys()):
+                    residue_ok= keys[residue.upper()]
+                else:
+                    raise ValueError("Unknown code for a residue: ", residue, " please review the input sequence")
+            clean_sequence.append(residue_ok)
+    return clean_sequence
 
 
 def relax_espresso_system(espresso_system, seed, gamma=1e-3, Nsteps_steepest_descent=5000, max_displacement=0.01, Nsteps_iter_relax=500):
@@ -532,19 +518,31 @@ def relax_espresso_system(espresso_system, seed, gamma=1e-3, Nsteps_steepest_des
     If you experience crashes or unexpected behavior, please consider using your own relaxation procedure.
 
     Args:
-        espresso_system (`espressomd.system.System`): system object of espressomd library.
-        seed (`int`): Seed for the random number generator for the thermostat.
-        gamma (`float`, optional): Starting damping constant for Langevin dynamics. Defaults to  1e-3 reduced time**-1.
-        Nsteps_steepest_descent (`int`, optional): Total number of steps for steepest descent minimization. Defaults to 5000.
-        max_displacement (`float`, optional): Maximum particle displacement allowed during minimization. Defaults to 0.01 reduced length.
-        Nsteps_iter_relax (`int`, optional): Number of steps per iteration for Langevin dynamics relaxation. Defaults to 500.
+        espresso_system (`espressomd.system.System`): 
+            system object of espressomd library.
+
+        seed (`int`): 
+            Seed for the random number generator for the thermostat.
+
+        gamma (`float`, optional): 
+            Starting damping constant for Langevin dynamics. Defaults to  1e-3 reduced time**-1.
+
+        Nsteps_steepest_descent (`int`, optional): 
+            Total number of steps for steepest descent minimization. Defaults to 5000.
+
+        max_displacement (`float`, optional): 
+            Maximum particle displacement allowed during minimization. Defaults to 0.01 reduced length.
+
+        Nsteps_iter_relax (`int`, optional): 
+            Number of steps per iteration for Langevin dynamics relaxation. Defaults to 500.
 
     Return:
-        (`float`): minimum distance between particles in the system after the relaxation
+        (`float`): 
+            minimum distance between particles in the system after the relaxation
 
-    Note:
-        The thermostat is turned off by the end of the procedure. 
-        Make sure the system is initialized properly before calling this function.
+    Notes:
+        - The thermostat is turned off by the end of the procedure. 
+        - Make sure the system is initialized properly before calling this function.
     """
     # Sanity checks
     if gamma <= 0:
@@ -562,12 +560,10 @@ def relax_espresso_system(espresso_system, seed, gamma=1e-3, Nsteps_steepest_des
     espresso_system.integrator.run(Nsteps_steepest_descent)
     logging.debug("*** Finished steepest descent minimization ***")
     logging.debug("*** Starting Langevin Dynamics relaxation ***")
-    
     espresso_system.integrator.set_vv()
     espresso_system.thermostat.set_langevin(kT=1., gamma=gamma, seed=seed)
     espresso_system.integrator.run(Nsteps_iter_relax)
     espresso_system.thermostat.turn_off()
-
     logging.debug("*** Finished Langevin Dynamics relaxation ***")
     logging.info(f"*** Minimum particle distance after relaxation: {espresso_system.analysis.min_dist()} ***")
     logging.debug("*** Relaxation finished ***")
@@ -578,17 +574,38 @@ def setup_langevin_dynamics(espresso_system, kT, seed,time_step=1e-2, gamma=1, t
     Sets up Langevin Dynamics for an ESPResSo simulation system.
 
     Args:
-        espresso_system (`espressomd.system.System`): system object of espressomd library.
-        kT (`pint.Quantity`): Target temperature in reduced energy units.
-        seed (`int`): Seed for the random number generator for the thermostat.
-        time_step (`float`, optional): Integration time step. Defaults to 1e-2.
-        gamma (`float`, optional): Damping coefficient for the Langevin thermostat. Defaults to 1.
-        tune_skin (`bool`, optional): Whether to optimize the skin parameter. Defaults to True.
-        min_skin (`float`, optional): Minimum skin value for optimization. Defaults to 1.
-        max_skin (`float`, optional): Maximum skin value for optimization. Defaults to None, which is handled by setting its value to box length / 2.
-        tolerance (`float`, optional): Tolerance for skin optimization. Defaults to 1e-3.
-        int_steps (`int`, optional): Number of integration steps for tuning. Defaults to 200.
-        adjust_max_skin (`bool`, optional): Whether to adjust the maximum skin value during tuning. Defaults to True.
+        espresso_system (`espressomd.system.System`): 
+            system object of espressomd library.
+
+        kT (`pint.Quantity`): 
+            Target temperature in reduced energy units.
+
+        seed (`int`): 
+            Seed for the random number generator for the thermostat.
+
+        time_step (`float`, optional): 
+            Integration time step. Defaults to 1e-2.
+
+        gamma (`float`, optional): 
+            Damping coefficient for the Langevin thermostat. Defaults to 1.
+
+        tune_skin (`bool`, optional): 
+            Whether to optimize the skin parameter. Defaults to True.
+
+        min_skin (`float`, optional): 
+            Minimum skin value for optimization. Defaults to 1.
+
+        max_skin (`float`, optional): 
+            Maximum skin value for optimization. Defaults to None, which is handled by setting its value to box length / 2.
+
+        tolerance (`float`, optional): 
+            Tolerance for skin optimization. Defaults to 1e-3.
+
+        int_steps (`int`, optional): 
+            Number of integration steps for tuning. Defaults to 200.
+
+        adjust_max_skin (`bool`, optional): 
+            Whether to adjust the maximum skin value during tuning. Defaults to True.
     """        
     if not isinstance(seed, int):
         raise TypeError("seed must be an integer.")
@@ -620,21 +637,40 @@ def setup_electrostatic_interactions(units, espresso_system, kT, c_salt=None, so
     Sets up electrostatic interactions in an ESPResSo system.
 
     Args:
-        units(`pint.UnitRegistry`): Unit registry for handling physical units.
-        espresso_system(`espressomd.system.System`): system object of espressomd library.
-        kT(`pint.Quantity`): Thermal energy.
-        c_salt(`pint.Quantity`): Added salt concentration. If provided, the program outputs the debye screening length. It is a mandatory parameter for the Debye-Hückel method.
-        solvent_permittivity (`float`): Solvent relative permittivity. Defaults to 78.5, correspoding to its value in water at 298.15 K.
-        method(`str`): Method for computing electrostatic interactions. Defaults to "p3m". 
-        tune_p3m(`bool`): If True, tunes P3M parameters for efficiency. Defaults to True. 
-        accuracy(`float`): Desired accuracy for electrostatics. Defaults to 1e-3.
-        params(`dict`): Additional parameters for the electrostatic method. For P3M, it can include 'mesh', 'alpha', 'cao' and `r_cut`. For Debye-Hückel, it can include 'r_cut'.
-        verbose(`bool`): If True, enables verbose output for P3M tuning. Defaults to False.
+        units (`pint.UnitRegistry`): 
+            Unit registry for handling physical units.
 
-    Note:
-        `c_salt` is a mandatory argument for setting up the Debye-Hückel electrostatic potential.
-        The calculated Bjerrum length is ouput to the log. If `c_salt` is provided, the calculated Debye screening length is also output to the log.
-        Currently, the only supported electrostatic methods are P3M ("p3m") and Debye-Hückel ("dh").
+        espresso_system (`espressomd.system.System`): 
+            system object of espressomd library.
+
+        kT (`pint.Quantity`): 
+            Thermal energy.
+
+        c_salt (`pint.Quantity`): 
+            Added salt concentration. If provided, the program outputs the debye screening length. It is a mandatory parameter for the Debye-Hückel method.
+
+        solvent_permittivity (`float`): 
+            Solvent relative permittivity. Defaults to 78.5, correspoding to its value in water at 298.15 K.
+
+        method (`str`): 
+            Method for computing electrostatic interactions. Defaults to "p3m". 
+
+        tune_p3m (`bool`): 
+            If True, tunes P3M parameters for efficiency. Defaults to True. 
+
+        accuracy (`float`): 
+            Desired accuracy for electrostatics. Defaults to 1e-3.
+
+        params (`dict`): 
+            Additional parameters for the electrostatic method. For P3M, it can include 'mesh', 'alpha', 'cao' and `r_cut`. For Debye-Hückel, it can include 'r_cut'.
+
+        verbose (`bool`): 
+            If True, enables verbose output for P3M tuning. Defaults to False.
+
+    Notes:
+        - `c_salt` is a mandatory argument for setting up the Debye-Hückel electrostatic potential.
+        - The calculated Bjerrum length is ouput to the log. If `c_salt` is provided, the calculated Debye screening length is also output to the log.
+        - Currently, the only supported electrostatic methods are P3M ("p3m") and Debye-Hückel ("dh").
     """
     import espressomd.electrostatics
     import espressomd.version

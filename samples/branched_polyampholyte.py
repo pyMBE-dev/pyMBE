@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -81,43 +81,37 @@ volume = N_polyampholyte_chains/(pmb.N_A*polyampholyte_concentration)
 
 # Define different particles
 # Inert particle 
-pmb.define_particle(
-    name = "I",
-    z = 0,
-    sigma = 1*pmb.units('reduced_length'),
-    epsilon = 1*pmb.units('reduced_energy'))
+pmb.define_particle(name = "I",
+                    z = 0,
+                    sigma = 1*pmb.units('reduced_length'),
+                    epsilon = 1*pmb.units('reduced_energy'))
     
 # Acidic particle
-pmb.define_particle(
-    name = "A",
-    acidity = "acidic",
-    pka = 4,
-    sigma = 1*pmb.units('reduced_length'),
-    epsilon = 1*pmb.units('reduced_energy'))
+pmb.define_particle(name = "A",
+                    acidity = "acidic",
+                    pka = 4,
+                    sigma = 1*pmb.units('reduced_length'),
+                    epsilon = 1*pmb.units('reduced_energy'))
     
 # Basic particle
-pmb.define_particle(
-    name = "B",
-    acidity = "basic",
-    pka = 9,
-    sigma = 1*pmb.units('reduced_length'),
-    epsilon = 1*pmb.units('reduced_energy'))
+pmb.define_particle(name = "B",
+                    acidity = "basic",
+                    pka = 9,
+                    sigma = 1*pmb.units('reduced_length'),
+                    epsilon = 1*pmb.units('reduced_energy'))
 
 # Define different residues
-pmb.define_residue(
-    name = "Res_1",
-    central_bead = "I",
-    side_chains = ["A","B"])
+pmb.define_residue(name = "Res_1",
+                    central_bead = "I",
+                    side_chains = ["A","B"])
     
-pmb.define_residue(
-    name = "Res_2",
-    central_bead = "I",
-    side_chains = ["Res_1"])
+pmb.define_residue(name = "Res_2",
+                    central_bead = "I",
+                    side_chains = ["Res_1"])
 
 # Define the molecule
-pmb.define_molecule(
-    name = "polyampholyte",
-    residue_list = 2*["Res_1"] + ["Res_2"] + 2*["Res_1"] + 2*["Res_2"])
+pmb.define_molecule(name = "polyampholyte",
+                    residue_list = 2*["Res_1"] + ["Res_2"] + 2*["Res_1"] + 2*["Res_2"])
 
 # Define bonds
 bond_type = 'harmonic'
@@ -125,9 +119,7 @@ generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
 harmonic_bond = {'r_0'    : generic_bond_length,
-                 'k'      : generic_harmonic_constant,
-                 }
-
+                 'k'      : generic_harmonic_constant}
 
 pmb.define_default_bond(bond_type = bond_type, bond_parameters = harmonic_bond)
 
@@ -154,8 +146,6 @@ calculated_polyampholyte_concentration = N_polyampholyte_chains/(volume*pmb.N_A)
 espresso_system=espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
 espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
-# Add all bonds to espresso system
-pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
 pmb.create_molecule(name="polyampholyte", 
@@ -227,8 +217,8 @@ setup_langevin_dynamics(espresso_system=espresso_system,
                         tune_skin=False)
 
 espresso_system.cell_system.skin=0.4
-#Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df (filename='df.csv')
+#Save the pyMBE database
+pmb.save_database (folder=args.output / 'database')
 
 # Main loop for performing simulations at different pH-values
 time_series={}
@@ -242,9 +232,9 @@ for step in tqdm.trange(N_samples):
     do_reaction(cpH, steps=total_ionisable_groups)   
     # Get polyampholyte net charge
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
-                                        molecule_name="polyampholyte",
+                                        object_name="polyampholyte",
+                                        pmb_type="molecule",
                                         dimensionless=True)
-    
     time_series["time"].append(espresso_system.time)
     time_series["charge"].append(charge_dict["mean"])
     if step % N_samples_print == 0:
@@ -252,7 +242,6 @@ for step in tqdm.trange(N_samples):
         with open(frames_path / f"trajectory{N_frame}.vtf", mode='w+t') as coordinates:
             vtf.writevsf(espresso_system, coordinates)
             vtf.writevcf(espresso_system, coordinates)
-
 # Store time series
 data_path=args.output
 data_path.mkdir(parents=True, exist_ok=True)
