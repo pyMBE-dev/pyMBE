@@ -78,8 +78,14 @@ langevin_seed = 42
 # Define salt
 cation_name = 'Na'
 anion_name = 'Cl'
-pmb.define_particle(name=cation_name, z=1, sigma=0.355*pmb.units.nm, epsilon=1*pmb.units('reduced_energy'))
-pmb.define_particle(name=anion_name, z=-1, sigma=0.355*pmb.units.nm,  epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=cation_name, 
+                    z=1, 
+                    sigma=0.355*pmb.units.nm, 
+                    epsilon=1*pmb.units('reduced_energy'))
+pmb.define_particle(name=anion_name, 
+                    z=-1, 
+                    sigma=0.355*pmb.units.nm, 
+                    epsilon=1*pmb.units('reduced_energy'))
 
 # System parameters
 c_salt_res = args.c_salt_res * pmb.units.mol/ pmb.units.L
@@ -124,12 +130,12 @@ if verbose:
 type_map = pmb.get_type_map()
 types = list (type_map.values())
 espresso_system.setup_type_map(type_list = types)
-print(type_map)
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
 RE.set_non_interacting_type(type=non_interacting_type)
-print(f'The non interacting type is set to {non_interacting_type}')
+if verbose:
+    print(f'The non interacting type is set to {non_interacting_type}')
 
 espresso_system.time_step = dt
 # for this example, we use a hard-coded skin value; In general it should be optimized by tuning
@@ -202,9 +208,7 @@ data_path.mkdir(parents=True, exist_ok=True)
 
 time_series=pd.DataFrame(time_series)
 filename=analysis.built_output_name(input_dict=inputs)
-
 time_series.to_csv(data_path / f"{filename}_time_series.csv", index=False)
-particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
-#Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df(filename=data_path / "df.csv")
+#Save the pyMBE database in a CSV file
+pmb.save_database(folder=data_path / "database")

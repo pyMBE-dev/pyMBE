@@ -997,6 +997,7 @@ class Manager:
 
         if object_type is None:
             raise ValueError(f"No object named '{object_name}' found in database.")
+        
         # Maps to return
         id_list = []
         residue_map = {}

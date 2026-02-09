@@ -93,16 +93,14 @@ for index in range(len(indices)):
                           "lattice_index": indices[index]})
 
 # Setting up chain topology
-connectivity = diamond_lattice.connectivity
-node_labels = lattice_builder.node_labels
-reverse_node_labels = {v: k for k, v in node_labels.items()}
-connectivity_with_labels = {(reverse_node_labels[i], reverse_node_labels[j]) for i, j in connectivity}
 chain_topology = []
-
-for node_s, node_e in connectivity_with_labels:
-    chain_topology.append({'node_start':node_s,
-                           'node_end': node_e,
+for node_conectivity in diamond_lattice.connectivity:
+    node_start = str(diamond_lattice.indices[node_conectivity[0]])
+    node_end = str(diamond_lattice.indices[node_conectivity[1]])
+    chain_topology.append({'node_start':node_start,
+                           'node_end': node_end,
                            'molecule_name':molecule_name})
+
 #######################################################
 hydrogel_name="my_hydrogel"
 pmb.define_hydrogel(hydrogel_name,node_topology, chain_topology)

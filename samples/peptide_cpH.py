@@ -102,6 +102,7 @@ for particle_name in pka_set.keys():
     pmb.define_monoprototic_particle_states(particle_name=particle_name,
                                             acidity=pka_set[particle_name]["acidity"])
 
+
 generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 

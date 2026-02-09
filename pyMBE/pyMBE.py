@@ -269,10 +269,11 @@ class pymbe_library():
         start_node_id = nodes[node_start_label]["id"]
         end_node_id = nodes[node_end_label]["id"]
         # Finding a backbone vector between node_start and node_end
-        vec_between_nodes = np.array(nodes[node_start_label]["pos"]) - np.array(nodes[node_end_label]["pos"])
+        vec_between_nodes = np.array(nodes[node_end_label]["pos"]) - np.array(nodes[node_start_label]["pos"])
         vec_between_nodes = vec_between_nodes - self.lattice_builder.box_l * np.round(vec_between_nodes/self.lattice_builder.box_l)
-        backbone_vector = np.array((vec_between_nodes/(self.lattice_builder.mpc + 1)))
-        backbone_vector = backbone_vector / np.linalg.norm(backbone_vector)
+        backbone_vector = vec_between_nodes / np.linalg.norm(vec_between_nodes)
+        if reverse_residue_order:
+            vec_between_nodes *= -1.0
         # Calculate the start position of the chain
         chain_residues = self.db.get_template(pmb_type="molecule",
                                               name=molecule_name).residue_list
@@ -292,7 +293,7 @@ class pymbe_library():
         mol_id = self.create_molecule(name=molecule_name,  # Use the name defined earlier
                                       number_of_molecules=1,  # Creating one chain
                                       espresso_system=espresso_system,
-                                      list_of_first_residue_positions=[first_bead_pos.tolist()],#Start at the first node
+                                      list_of_first_residue_positions=[first_bead_pos.tolist()], #Start at the first node
                                       backbone_vector=np.array(backbone_vector)/l0,
                                       use_default_bond=use_default_bond,
                                       reverse_residue_order=reverse_residue_order)[0]

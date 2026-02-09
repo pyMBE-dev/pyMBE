@@ -121,10 +121,11 @@ pmb.define_molecule(name=polyacid_name,
 bond_type = 'FENE'
 fene_spring_constant = 30 * pmb.units('reduced_energy / reduced_length**2')
 fene_r_max = 1.5 * pmb.units('reduced_length')
+fene_r0 = 0 * pmb.units('reduced_length')
 
-fene_bond = {'k'      : fene_spring_constant,
-             'd_r_max': fene_r_max, 
-            }
+fene_bond = {'r_0': fene_r0,
+             'k'      : fene_spring_constant,
+             'd_r_max': fene_r_max}
 
 pmb.define_bond(bond_type = bond_type, 
                 bond_parameters = fene_bond, 
@@ -172,10 +173,6 @@ if verbose:
 espresso_system = espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
 espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
-if verbose:
-    print("Created espresso object")
-if verbose:
-    print("Added bonds")
 
 # Create molecules and ions in the espresso system
 pmb.create_molecule(name=polyacid_name, 
@@ -202,16 +199,16 @@ excess_chemical_potential_interpolated = interpolate.interp1d(ionic_strength.m_a
 activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potential_interpolated(x.to('1/(reduced_length**3 * N_A)').magnitude))
 if verbose:
     print("Setting up reactions...")
-grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, 
-                                                              c_salt_res=c_salt_res, 
-                                                              proton_name=proton_name, 
-                                                              hydroxide_name=hydroxide_name, 
-                                                              salt_cation_name=sodium_name, 
-                                                              salt_anion_name=chloride_name, 
-                                                              activity_coefficient=activity_coefficient_monovalent_pair, 
-                                                              pka_set=pka_set)
+grxmc, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_res, 
+                                                    c_salt_res=c_salt_res, 
+                                                    proton_name=proton_name, 
+                                                    hydroxide_name=hydroxide_name, 
+                                                    salt_cation_name=sodium_name, 
+                                                    salt_anion_name=chloride_name, 
+                                                    activity_coefficient=activity_coefficient_monovalent_pair)
 if verbose:
-    print('The acid-base reaction has been sucessfully set up for ', labels)
+    print("The acid-base reaction has been successfully set up for:")
+    print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid groups
 type_map = pmb.get_type_map()
@@ -264,10 +261,8 @@ for i in tqdm.trange(N_warmup_loops, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
     do_reaction(grxmc, steps=100)
 
-
 # Main loop
 print("Started production run.")
-
 labels_obs=["time", "alpha"]
 time_series={}
 
@@ -281,10 +276,8 @@ else:
 for i in tqdm.trange(N_production_loops, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
     do_reaction(grxmc, steps=100)
-
     # Measure time
     time_series["time"].append(espresso_system.time)
-
     # Measure degree of ionization
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
                                          object_name=polyacid_name,

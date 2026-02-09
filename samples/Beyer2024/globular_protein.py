@@ -28,10 +28,7 @@ import pyMBE
 pmb = pyMBE.pymbe_library(seed=42)
 
 #Import functions from handy_functions script 
-from pyMBE.lib.handy_functions import setup_electrostatic_interactions
-from pyMBE.lib.handy_functions import relax_espresso_system
-from pyMBE.lib.handy_functions import setup_langevin_dynamics
-from pyMBE.lib.handy_functions import do_reaction
+from pyMBE.lib.handy_functions import setup_electrostatic_interactions, relax_espresso_system, setup_langevin_dynamics, do_reaction, define_protein_AA_particles, define_protein_AA_residues
 from pyMBE.lib import analysis
 # Here you can adjust the width of the panda columns displayed when running the code 
 pd.options.display.max_colwidth = 10
@@ -79,7 +76,7 @@ mode=args.mode
 verbose=args.no_verbose
 protein_name = args.pdb
 pH_value = args.pH 
-
+model = '2beadAA'
 inputs={"pH": args.pH,
         "pdb": args.pdb}
 
@@ -139,13 +136,30 @@ espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
 #Reads the VTF file of the protein model
 topology_dict, sequence = pmb.read_protein_vtf (filename=args.path_to_cg)
-#Defines the protein in the pmb.df
-pmb.define_protein (name=protein_name, 
-                    sequence=sequence, 
-                    model = '2beadAA',
-                    lj_setup_mode = "wca")
+# Here we upload the pka set from the reference_parameters folder
+path_to_pka=pmb.root / "parameters" / "pka_sets" / "Nozaki1967.json"
+pmb.load_pka_set(filename=path_to_pka)
+pka_set = pmb.get_pka_set()
 
-# Here we define the solution particles in the pmb.df 
+#Defines the protein in the pyMBE database
+define_protein_AA_particles(topology_dict=topology_dict,
+                            pmb=pmb,
+                            pka_set=pka_set)
+residue_list = define_protein_AA_residues(sequence=sequence,
+                                        model=model,
+                                        pmb=pmb)
+
+# Define a residue for the metal ion
+if args.pdb == "1f6s":
+    pmb.define_residue(name="AA-Ca",
+                        central_bead="Ca",
+                        side_chains=[])
+        
+pmb.define_protein(name=protein_name, 
+                   sequence=sequence, 
+                   model = model)
+
+# Here we define the solution particles in the pyMBE database
 cation_name = 'Na'
 anion_name = 'Cl'
 
@@ -161,24 +175,18 @@ pmb.define_particle(name = anion_name,
                     epsilon=epsilon,
                     offset=ion_size-sigma)
 
-# Here we upload the pka set from the reference_parameters folder
-path_to_pka=pmb.root / "parameters" / "pka_sets" / "Nozaki1967.json"
-pmb.load_pka_set(filename=path_to_pka)
-
 #We create the protein in espresso 
-pmb.create_protein(name=protein_name,
-                    number_of_proteins=1,
-                    espresso_system=espresso_system,
-                    topology_dict=topology_dict)
-
+protein_id = pmb.create_protein(name=protein_name,
+                                number_of_proteins=1,
+                                espresso_system=espresso_system,
+                                topology_dict=topology_dict)[0]
 #Here we activate the motion of the protein 
 if args.move_protein:
-    pmb.enable_motion_of_rigid_object(instance_id=0,
+    pmb.enable_motion_of_rigid_object(instance_id=protein_id,
                                       pmb_type="protein",
                                       espresso_system=espresso_system)
 
 # Here we put the protein on the center of the simulation box
-protein_id = pmb.df.loc[pmb.df['name']==protein_name].molecule_id.values[0]
 pmb.center_object_in_simulation_box(instance_id=protein_id,
                                     pmb_type="protein",
                                     espresso_system=espresso_system)
@@ -199,7 +207,6 @@ if not args.ideal:
                                                 object_name=protein_name,
                                                 pmb_type="protein",
                                                 dimensionless=True)["mean"]
-
     ## Get coordinates outside the volume occupied by the protein
     counter_ion_coords=pmb.generate_coordinates_outside_sphere(center=protein_center,
                                                                 radius=protein_radius,
@@ -235,10 +242,15 @@ if not args.ideal:
                         position=added_salt_ions_coords[N_ions:])
 
 #Here we calculated the ionisable groups
-basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
-acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
-list_ionisable_groups = basic_groups + acidic_groups
-total_ionisable_groups = len (list_ionisable_groups)
+acid_base_ids = []
+list_ionisable_groups = []
+for name in pka_set.keys():
+    part_ids = pmb.db.find_instance_ids_by_name(pmb_type="particle",
+                                                name=name)
+    if part_ids:
+        acid_base_ids+=part_ids
+        list_ionisable_groups+=[name]  
+total_ionisable_groups = len(acid_base_ids)
 
 if verbose:
     print(f"The box length of the system is {Box_L.to('reduced_length')} {Box_L.to('nm')}")
@@ -246,10 +258,11 @@ if verbose:
     print(f"The total amount of ionisable groups is {total_ionisable_groups}")
 
 #Setup of the reactions in espresso 
-cpH, labels = pmb.setup_cpH(counter_ion=cation_name, 
-                            constant_pH= pH_value)
+cpH = pmb.setup_cpH(counter_ion=cation_name, 
+                    constant_pH= pH_value)
 if verbose:
-    print(f"The acid-base reaction has been sucessfully setup for {labels}")
+    print("The acid-base reaction has been successfully set up for:")
+    print(pmb.get_reactions_df())
 
 type_map = pmb.get_type_map()
 types = list (type_map.values())
@@ -286,7 +299,6 @@ time_step = []
 net_charge_list = []
 
 Z_sim=[]
-particle_id_list = pmb.df.loc[~pmb.df['molecule_id'].isna()].particle_id.dropna().to_list()
 
 pmb.save_database (folder=data_path/"database")
 
@@ -298,56 +310,35 @@ time_series={}
 for label in labels_obs:
     time_series[label]=[]
 
-charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
-                                      object_name=protein_name,
-                                      pmb_type="protein",  
-                                      dimensionless=True)
-    
-net_charge_residues = charge_dict ['residues']
-net_charge_amino_save = {}
-AA_label_list=[]    
-for amino in net_charge_residues.keys():
-    amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & ((pmb.df['acidity'] == "acidic") | (pmb.df['acidity'] == "basic"))]
-    if not amino_part_row.empty:
-        label = f'charge_{amino_part_row["name"].values[0]}'
-        if label not in AA_label_list:
-            AA_label_list.append(label)
-            net_charge_amino_save[label] = []
-            time_series[label] = []
+AA_label_list = []
+for amino in list_ionisable_groups:
+    label = f'AA-{amino}'
+    time_series[f"charge_{label}"] = []
+    AA_label_list.append(label)
 
 for step in tqdm.trange(N_samples, disable=not verbose):
     espresso_system.integrator.run (steps = integ_steps)
     do_reaction(cpH, steps=total_ionisable_groups)
-    charge_dict=pmb.calculate_net_charge (espresso_system=espresso_system, 
-                                          object_name=protein_name,
-                                          pmb_type="protein",
-                                          dimensionless=True)
-    charge_residues = charge_dict['residues']
-    charge_residues_per_type={}
-
+    protein_net_charge = pmb.calculate_net_charge(espresso_system=espresso_system,
+                                                object_name=protein_name,
+                                                pmb_type="protein",
+                                                dimensionless=True)["mean"]
+    # Store observables
+    time_series["time"].append(espresso_system.time)
+    time_series["charge"].append(protein_net_charge)
+    charge_residues_per_type = {}
     for label in AA_label_list:
         charge_residues_per_type[label]=[]
-
-    for amino in charge_residues.keys():
-        amino_part_row=pmb.df[(pmb.df['residue_id']== amino) & ((pmb.df['acidity'] == "acidic") | (pmb.df['acidity'] == "basic"))]
-        if not amino_part_row.empty:
-            label = f'charge_{amino_part_row["name"].values[0]}'
-            if label in AA_label_list:
-                charge_residues_per_type[label].append(charge_residues[amino])
-
+        charge_res=pmb.calculate_net_charge (espresso_system=espresso_system, 
+                                            object_name=label,
+                                            pmb_type="residue",
+                                            dimensionless=True)["mean"]
+        time_series[f"charge_{label}"].append(charge_res)
     if step % stride_traj == 0 :
         n_frame +=1
         with open(frames_path / f"trajectory{n_frame}.vtf", mode='w+t') as coordinates:
             vtf.writevsf(espresso_system, coordinates)
             vtf.writevcf(espresso_system, coordinates)
-
-    # Store observables
-    time_series["time"].append(espresso_system.time)
-    time_series["charge"].append(charge_dict["mean"])
-    
-    for label in AA_label_list:
-        charge_amino = np.mean(charge_residues_per_type[label])
-        time_series[label].append(charge_amino)
 
 data_path.mkdir(parents=True, exist_ok=True)
     

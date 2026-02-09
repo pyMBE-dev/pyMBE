@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024-2025 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -15,6 +15,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import numpy as np 
 import espressomd
 import unittest as ut
