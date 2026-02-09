@@ -116,22 +116,30 @@ class Manager:
             particles.
             - Molecule-like templates contribute the particles from all residues
             in their ``residue_list``.
-            - Unsupported ``pmb_type`` values raise ``NotImplementedError``.
         """
         counts = defaultdict(int)
         if pmb_type == "particle":
             counts[name] += 1
             return counts
         if pmb_type == "particle_state":
-            particle_name = self.get_template(name=name, pmb_type=pmb_type).particle_name
+            particle_name = self.get_template(name=name,pmb_type=pmb_type).particle_name
             counts[particle_name] += 1
             return counts
         if pmb_type == "residue":
-            tpl = self.get_template(name=name, 
-                                    pmb_type=pmb_type)
-            for pname in [tpl.central_bead] + tpl.side_chains:
-                sub = self._collect_particle_templates(name=pname, 
-                                                       pmb_type="particle")
+            tpl = self.get_template(name=name, pmb_type="residue")
+            # central bead is always a particle
+            sub = self._collect_particle_templates(name=tpl.central_bead,
+                                                   pmb_type="particle")
+            for k, v in sub.items():
+                counts[k] += v
+            # side chains can be particles OR residues
+            for sc_name in tpl.side_chains:
+                if sc_name in self._templates.get("particle", {}):
+                    sc_type = "particle"
+                elif sc_name in self._templates.get("residue", {}):
+                    sc_type = "residue"
+                sub = self._collect_particle_templates(name=sc_name,
+                                                       pmb_type=sc_type)
                 for k, v in sub.items():
                     counts[k] += v
             return counts
@@ -139,13 +147,12 @@ class Manager:
             tpl = self.get_template(name=name, 
                                     pmb_type=pmb_type)
             for res_name in tpl.residue_list:
-                sub = self._collect_particle_templates(name=res_name, 
+                sub = self._collect_particle_templates(name=res_name,
                                                        pmb_type="residue")
                 for k, v in sub.items():
                     counts[k] += v
             return counts
         raise NotImplementedError(f"Method not implemented for pmb_type='{pmb_type}'")
-
 
     def _delete_bonds_of_particle(self, pid):
         """

@@ -102,45 +102,93 @@ class LatticeBuilder:
             if key not in self.chains:
                 self.chains[key] = mpc * ["default_monomer"]
 
-    def draw_lattice(self, ax):
+    def draw_lattice(self, ax, pmb):
         """
-        Draw the lattice in an `Axes3D <https://matplotlib.org/stable/api/toolkits/mplot3d/axes3d.html>`_ canvas.
+        Draw the hydrogel created in a 3D Matplotlib canvas.
+
         Args:
-            ax: Axes.
+            ax (`mpl_toolkits.mplot3d.axes3d.Axes3D`):
+                A Matplotlib 3D axes instance
+
+            pmb (`pyMBE.pymbe_library`):
+                Instance of the pyMBE library.
+
+        Notes:
+            - Periodic images of lattice nodes are drawn within a 4×4×4 box.
+            - Chain geometry is constructed by linear interpolation between
+            start and end nodes, accounting for periodic boundary conditions.
         """
-        kwargs_node_labels = {"zdir": (1., 1., 1.), "horizontalalignment": "left", "verticalalignment": "bottom", **self.kwargs_node_labels}
-        kwargs_bonds = {"linestyle": "-", "marker": None, "color": "gray", **self.kwargs_bonds}
+        import itertools
+        import numpy as np
+
+        kwargs_node_labels = {"zdir": (1., 1., 1.),
+                              "horizontalalignment": "left",
+                              "verticalalignment": "bottom",
+                              **self.kwargs_node_labels}
+        kwargs_bonds = {"linestyle": "-",
+                        "marker": None,
+                        "color": "gray",
+                        **self.kwargs_bonds}
         kwargs_monomers = {**self.kwargs_monomers}
         scatter_data = {}
-        # gather monomers at lattice nodes
+        # ------------------------------------------------------------------
+        # Draw lattice nodes (including periodic images)
+        # ------------------------------------------------------------------
         for node_label, node_type in self.nodes.items():
             node_id = self.node_labels[node_label]
             for image_box in itertools.product((0, 4), repeat=3):
                 image_indices = self.lattice.indices[node_id] + np.array(image_box)
                 if np.max(image_indices) <= 4:
                     image_label = str([int(x) for x in image_indices]).replace(",", "")
-                    ax.text(*image_indices + np.array([-0.15, 0., 0.]), image_label, **kwargs_node_labels)
-                    if node_type not in scatter_data:
-                        scatter_data[node_type] = []
-                    scatter_data[node_type].append(image_indices)
-        # gather monomers from the chains
-        for (start_node, end_node), sequence in self.chains.items():
-            node_connection_vec = (self.lattice.indices[end_node, :] - self.lattice.indices[start_node, :]) / 4.
+                    ax.text(*(image_indices + np.array([-0.15, 0., 0.])),
+                            image_label,
+                            **kwargs_node_labels)
+                    scatter_data.setdefault(node_type, []).append(image_indices)
+        # ------------------------------------------------------------------
+        # Draw chains
+        # ------------------------------------------------------------------
+        for chain in self.chains:
+            start_node = chain["node_start"]
+            end_node = chain["node_end"]
+            start_id = self.node_labels[start_node]
+            end_id = self.node_labels[end_node]
+            start_pos = self.lattice.indices[start_id]
+            end_pos = self.lattice.indices[end_id]
+            # Periodic-aware connection vector
+            node_connection_vec = (end_pos - start_pos) / 4.0
             node_connection_vec -= np.rint(node_connection_vec)
-            node_connection_vec *= 4.
-            bond_vector = node_connection_vec / (len(sequence) + 1)
-            for j in range(len(sequence) + 1):
-                pos = self.lattice.indices[start_node, :]
-                vec = np.vstack((pos + (j + 0) * bond_vector,
-                                 pos + (j + 1) * bond_vector))
-                ax.plot(vec[:, 0], vec[:, 1], zs=vec[:, 2], zorder=1, **kwargs_bonds)
-            # draw bonds
-            for j, node_type in enumerate(sequence):
-                pos = self.lattice.indices[start_node, :] + (j + 1) * bond_vector
-                if node_type not in scatter_data:
-                    scatter_data[node_type] = []
-                scatter_data[node_type].append(pos)
-        # draw monomers
+            node_connection_vec *= 4.0            
+            mol_tpl = pmb.db.get_template(name=chain["molecule_name"],
+                                          pmb_type="molecule")
+            residue_list = mol_tpl.residue_list
+            n_res = len(residue_list)
+            bond_vector = node_connection_vec / (n_res + 1)
+            prev_pos = start_pos
+            for i, res_name in enumerate(residue_list):
+                pos = start_pos + (i + 1) * bond_vector
+                # Draw bond
+                vec = np.vstack((prev_pos, pos))
+                ax.plot(vec[:, 0],
+                        vec[:, 1],
+                        zs=vec[:, 2],
+                        zorder=1,
+                        **kwargs_bonds)
+                # Resolve particles from residue
+                counts = pmb.db._collect_particle_templates(name=res_name,
+                                                            pmb_type="residue")
+                for particle_name in counts:
+                    scatter_data.setdefault(particle_name, []).append(pos)
+                prev_pos = pos
+            # Final bond to end node
+            vec = np.vstack((prev_pos, end_pos))
+            ax.plot(vec[:, 0],
+                    vec[:, 1],
+                    zs=vec[:, 2],
+                    zorder=1,
+                    **kwargs_bonds)
+        # ------------------------------------------------------------------
+        # Draw monomers (nodes + chain particles)
+        # ------------------------------------------------------------------
         resolution = (16, 8)
         self.sphere = self._make_sphere(radius=0.1, resolution=resolution)
         node_types = scatter_data.keys()
@@ -148,19 +196,16 @@ class LatticeBuilder:
             node_types = sorted(node_types, key=lambda x: self.get_monomer_color(x))
         for node_type in node_types:
             if self.colormap:
-                color = self.colormap[node_type]
-                kwargs_monomers["c"] = color
-                
-            node_positions = scatter_data[node_type]
-            pos = np.array(node_positions)
-            # plotting nodes and monomers
-            ax_data = ax.scatter(pos[:,0], pos[:,1], pos[:,2], edgecolor="none",
-                                 zorder=2, label=node_type, s=12**2, **kwargs_monomers)
-            color = ax_data.get_facecolors()[0]
-            facecolors = np.tile(color, resolution).reshape((*resolution, len(color)))
-            for x, y, z in node_positions:
-                ax.plot_surface(x + self.sphere[0], y + self.sphere[1], z + self.sphere[2], zorder=3,
-                                shade=False, facecolors=facecolors)
+                kwargs_monomers["c"] = self.colormap[node_type]
+            node_positions = np.array(scatter_data[node_type])
+            ax.scatter(node_positions[:, 0],
+                       node_positions[:, 1],
+                       node_positions[:, 2],
+                       edgecolor="none",
+                       zorder=2,
+                       label=node_type,
+                       s=12**2,
+                       **kwargs_monomers)
 
     def draw_simulation_box(self, ax):
         """

@@ -278,6 +278,9 @@ class Test(ut.TestCase):
         pmb.define_residue(name="R1",
                            central_bead="A",
                            side_chains=["B"])
+        pmb.define_residue(name="R2",
+                           central_bead="A",
+                           side_chains=["R1"])
         pmb.define_molecule(name="M1",
                             residue_list=["R1"]*2)
         A_states = pmb.db._collect_particle_templates(name="A",
@@ -300,6 +303,11 @@ class Test(ut.TestCase):
                                                       pmb_type="residue")
         self.assertEqual(R1_counts,
                          {"A":1,
+                          "B":1})
+        R2_counts = pmb.db._collect_particle_templates(name="R2",
+                                                      pmb_type="residue")
+        self.assertEqual(R2_counts,
+                         {"A":2,
                           "B":1})
         M1_counts = pmb.db._collect_particle_templates(name="M1",
                                                       pmb_type="molecule")

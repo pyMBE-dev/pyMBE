@@ -64,6 +64,12 @@ pmb.define_particle(
     sigma = 1*pmb.units('reduced_length'),
     epsilon = 1*pmb.units('reduced_energy'))
 
+# Inert particle
+pmb.define_particle(name = "I",
+                    z = 0,
+                    sigma = 1*pmb.units('reduced_length'),
+                    epsilon = 1*pmb.units('reduced_energy'))
+
 # Define different residues
 pmb.define_residue(
     name = "Res_1",

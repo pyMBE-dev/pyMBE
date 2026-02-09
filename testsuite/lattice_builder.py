@@ -103,6 +103,9 @@ def define_templates(pmb):
 class Test(ut.TestCase):
     colormap = {"default_linker":"green",
                 "default_monomer":"blue",
+                BeadType1: "pink",
+                BeadType2: "purple",
+                BeadType3: "black",
                 Res3: "red",
                 NodeType2: "orange",
                 NodeType1: "cyan",
@@ -150,42 +153,7 @@ class Test(ut.TestCase):
         # untouched nodes remain default
         np.testing.assert_equal(lattice.get_node("[2 2 0]"), "default_linker")
         np.testing.assert_equal(lattice.get_node("[3 1 3]"), "default_linker")
-
-        # --- Colormap ---
-        lattice.set_colormap(self.colormap)
-        for index, (label, color) in enumerate(self.colormap.items()):
-            np.testing.assert_equal(lattice.get_monomer_color(label), color)
-            np.testing.assert_equal(lattice.get_monomer_color_index(label), index)
-
-        # --- Invalid colormap access ---
-        with self.assertRaisesRegex(
-            RuntimeError, "monomer 'unknown' has no associated color"
-        ):
-            lattice.get_monomer_color("unknown")
-
-        with self.assertRaises(AssertionError):
-            lattice.set_colormap("red")
-
-        # --- Invalid node access ---
-        with self.assertRaisesRegex(
-            AssertionError, r"node '\[0 5 13\]' doesn't exist in a diamond lattice"
-        ):
-            lattice.get_node("[0 5 13]")
-
-        # --- Plot smoke tests ---
-        fig = plt.figure(figsize=(12, 12))
-        ax = fig.add_subplot(projection="3d", computed_zorder=False)
-        lattice.draw_lattice(ax)
-        lattice.draw_simulation_box(ax)
-        plt.close(fig)
-
-        fig = plt.figure(figsize=(12, 12))
-        ax = fig.add_subplot(projection="3d", computed_zorder=False)
-        lattice.draw_lattice(ax)
-        lattice.draw_simulation_box(ax)
-        ax.legend()
-        plt.close(fig)
-
+       
         # Clean espresso system
         espresso_system.part.clear()
 
@@ -283,6 +251,55 @@ class Test(ut.TestCase):
         created_residues    = [pmb2.db.get_instance("residue",  rid).name  for rid in created_residues_id]
         # Reverse branch MUST reverse the residue list
         np.testing.assert_equal(actual=created_residues, desired=sequence[::-1], verbose=True)
+
+    def test_plot(self):
+        pmb = pyMBE.pymbe_library(seed=42)
+        diamond = pyMBE.lib.lattice.DiamondLattice(mpc, bond_l)
+        lattice = pmb.initialize_lattice_builder(diamond)
+        define_templates(pmb)
+        pmb.define_molecule(name="test",
+                            residue_list=[Res1])
+        # Setting up chain topology
+        connectivity = diamond.connectivity
+        node_labels = lattice.node_labels
+        reverse_node_labels = {v: k for k, v in node_labels.items()}
+        connectivity_with_labels = {(reverse_node_labels[i], reverse_node_labels[j]) for i, j in connectivity}
+        chain_topology = []
+
+        for node_s, node_e in connectivity_with_labels:
+            chain_topology.append({'node_start':node_s,
+                                'node_end': node_e,
+                                'molecule_name':"test"})
+        # --- Colormap ---
+        lattice.set_colormap(self.colormap)
+        for index, (label, color) in enumerate(self.colormap.items()):
+            np.testing.assert_equal(lattice.get_monomer_color(label), color)
+            np.testing.assert_equal(lattice.get_monomer_color_index(label), index)
+
+        # --- Invalid colormap access ---
+        with self.assertRaisesRegex(
+            RuntimeError, "monomer 'unknown' has no associated color"
+        ):
+            lattice.get_monomer_color("unknown")
+
+        with self.assertRaises(AssertionError):
+            lattice.set_colormap("red")
+
+        # --- Invalid node access ---
+        with self.assertRaisesRegex(
+            AssertionError, r"node '\[0 5 13\]' doesn't exist in a diamond lattice"
+        ):
+            lattice.get_node("[0 5 13]")
+
+        # --- Plot smoke tests ---
+        fig = plt.figure(figsize=(12, 12))
+        ax = fig.add_subplot(projection="3d", computed_zorder=False)
+        lattice.chains= chain_topology
+        lattice.draw_lattice(ax,
+                             pmb=pmb)
+        lattice.draw_simulation_box(ax)
+        plt.close(fig)
+
    
 
 if __name__ == "__main__":
