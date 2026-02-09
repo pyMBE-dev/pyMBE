@@ -260,7 +260,6 @@ def define_peptide_AA_residues(sequence,model, pmb):
 
         - Residue names are constructed as `"AA-<residue>"`, e.g., `"AA-A"`, `"AA-L"`.
     """
-    defined_residues = []
     for residue_name in sequence:
         if model == '1beadAA':
             central_bead = residue_name
@@ -273,11 +272,15 @@ def define_peptide_AA_residues(sequence,model, pmb):
                 central_bead = 'CA'              
                 side_chains = [residue_name]
         residue_name='AA-'+residue_name
-        if residue_name not in defined_residues:   
+        if "residue" in pmb.db._templates:
+            if residue_name not in pmb.db._templates["residue"]:   
+                pmb.define_residue(name = residue_name, 
+                                    central_bead = central_bead,
+                                    side_chains = side_chains)
+        else:
             pmb.define_residue(name = residue_name, 
-                                central_bead = central_bead,
-                                side_chains = side_chains)              
-            defined_residues.append(residue_name)
+                                    central_bead = central_bead,
+                                    side_chains = side_chains)
 
 def do_reaction(algorithm, steps):
     """

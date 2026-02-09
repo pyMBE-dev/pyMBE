@@ -162,11 +162,10 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                           anion_name=anion_name,
                                           c_salt=c_salt)
 
-#List of ionisable groups
-# collect ionisable particles*
-acidbase_particles = ["A","B"]
+# count acid/base particles
+pka_set = pmb.get_pka_set()
 acid_base_ids = []
-for name in acidbase_particles:
+for name in pka_set.keys():
     acid_base_ids+=pmb.db.find_instance_ids_by_name(pmb_type="particle",
                                                     name=name)        
 total_ionisable_groups = len(acid_base_ids)

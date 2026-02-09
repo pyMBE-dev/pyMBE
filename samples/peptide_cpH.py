@@ -29,10 +29,7 @@ import argparse
 pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convenience
-from pyMBE.lib.handy_functions import setup_electrostatic_interactions
-from pyMBE.lib.handy_functions import relax_espresso_system
-from pyMBE.lib.handy_functions import setup_langevin_dynamics
-from pyMBE.lib.handy_functions import do_reaction
+from pyMBE.lib.handy_functions import setup_electrostatic_interactions, relax_espresso_system, setup_langevin_dynamics, do_reaction, define_peptide_AA_residues
 from pyMBE.lib.analysis import built_output_name
 
 parser = argparse.ArgumentParser(description='Sample script to run the pre-made peptide models with pyMBE')
@@ -97,7 +94,13 @@ calculated_peptide_concentration = N_peptide_chains/(volume*pmb.N_A)
 path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021"
 path_to_pka=pmb.root / "parameters" / "pka_sets" / "Hass2015.json"
 pmb.load_database(folder=path_to_interactions) 
-pmb.load_pka_set (path_to_pka)
+pmb.load_pka_set(path_to_pka)
+
+# Define acid/base particle states
+pka_set = pmb.get_pka_set()
+for particle_name in pka_set.keys():
+    pmb.define_monoprototic_particle_states(particle_name=particle_name,
+                                            acidity=pka_set[particle_name]["acidity"])
 
 generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
@@ -110,8 +113,11 @@ pmb.define_default_bond(bond_type = 'harmonic',
                         bond_parameters = HARMONIC_parameters)
 
 
-# Defines the peptide in the pyMBE data frame
+# Defines the peptide in the pyMBE database
 peptide_name = 'generic_peptide'
+define_peptide_AA_residues(sequence=sequence,
+                           model="2beadAA",
+                           pmb=pmb)
 pmb.define_peptide (name=peptide_name, 
                     sequence=sequence, 
                     model=model)
@@ -124,6 +130,8 @@ pmb.define_particle(name=anion_name,
                     z=-1, 
                     sigma=0.35*pmb.units.nm,  
                     epsilon=1*pmb.units('reduced_energy'))
+
+
 
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
@@ -152,20 +160,28 @@ with open(frames_path / "trajectory0.vtf", mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
     vtf.writevcf(espresso_system, coordinates)
 
-#List of ionisable groups
-basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
-acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
-list_ionisable_groups = basic_groups + acidic_groups
-total_ionisable_groups = len(list_ionisable_groups)
+# count acid/base particles
+pka_set = pmb.get_pka_set()
+acid_base_ids = []
+list_ionisable_groups = []
+for name in pka_set.keys():
+    part_ids = pmb.db.find_instance_ids_by_name(pmb_type="particle",
+                                                name=name)
+    if part_ids:
+        acid_base_ids+=part_ids
+        list_ionisable_groups+=[name]  
+total_ionisable_groups = len(acid_base_ids)
 
 if verbose:
     print(f"The box length of your system is {L.to('reduced_length')} {L.to('nm')}")
     print(f"The peptide concentration in your system is {calculated_peptide_concentration.to('mol/L')} with {N_peptide_chains} peptides")
     print(f"The ionisable groups in your peptide are {list_ionisable_groups}")
 
-cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
+cpH = pmb.setup_cpH(counter_ion=cation_name, 
+                    constant_pH=pH_value)
 if verbose:
-    print(f"The acid-base reaction has been successfully setup for {labels}")
+    print("The acid-base reaction has been successfully set up for:")
+    print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 type_map =pmb.get_type_map()
