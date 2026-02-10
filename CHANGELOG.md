@@ -7,10 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- Methods that interact directly with the pyMBE dataframe are now private and stored in a dedicated module in `storage/df_management`. These methods also have been refactored to be stateless methods, i.e. making it impossible for them to change behavior during the pyMBE object lifetime or for the user to change the pyMBE dataframe unless explicitely calling them. This includes the methods: `add_bond_in_df`, `add_value_to_df`, `assign_molecule_id`, `check_if_df_cell_has_a_value`, `check_if_name_is_defined_in_df`, `check_if_multiple_pmb_types_for_name`, `clean_df_row`, `clean_ids_in_df_row`, `copy_df_entry`, `create_variable_with_units`, `convert_columns_to_original_format`, `convert_str_to_bond_object`, `delete_entries_in_df`, `find_bond_key`, `setup_df`. (#145)
-- `define_particle_entry_in_df` is now a private method in pyMBE, as it is a convenience method for internal use. (#145)
-- The custom `NumpyEncoder` is now a private class in the private module `storage/df_management` because it is  only internally used in pyMBE for serialization/deserialization. (#145)
+## Added
+- Introduced a canonical pyMBE database backend replacing the previous monolithic Pandas DataFrame storage approach. This lays the foundation for more robust, extensible, and normalized data handling across pyMBE. (#147)
+- Added support to define reaction templates  in the pyMBE database. (#147)
+- Utility functions to cast information about templates and instances in the pyMBE database into pandas dataframe `pmb.get_templates_df`, `pmb.get_instances_df` and `pmb.get_reactions_df`. (#147)
+- Utility functions to load and save the new database via the pyMBE API, `pmb.save_database` and `pmb.load_database`. (#147)
+- Added functions to define particle states:  `pmb.define_particle_states`  and `pmb.define_monoprototic_particle_states`. (#147)
+- Added utility functions in `lib/handy_functions` to define residue and particle templates for aminoacids en peptides and residues: `define_protein_AA_particles`, `define_protein_AA_residues` and `define_peptide_AA_residues`. (#147)
+
+## Changed
+- Refactored core modules to use the new database schema based on templates and instances  for particles, residues, molecules, hydrogels, proteins and peptides. (#147)
+- Particle states now are independent templates and are now disentangled from particle templates. (#147)
+- Pka values are now stored as part of chemical reactions and no longer an attribute of particle templates. (#147)
+- Amino acid residue templates are no longer defined internally in `define_peptide` and `define_protein`. Those definitions are now exposed to the user. (#147)
+- Molecule templates now need to be defined to be used as templates for hydrogel chains in hydrogels. (#147)
+
+## Fixed
+- Utility methods `get_particle_id_map`, `calculate_HH`, `calculate_net_charge`,  `center_object_in_simulation_box` now support all template types in pyMBE, including hydrogels. Some of these methods have been renamed to expose directly in the API this change in behavior.
+
+### Removed
+- Methods that interact directly with the pyMBE dataframe. These methods have been replaced by private methods that instead interact with the new canonical pyMBE database in (`pyMBE/storage/manager`). This includes the methods: `add_bond_in_df`, `add_value_to_df`, `assign_molecule_id`, `check_if_df_cell_has_a_value`, `check_if_name_is_defined_in_df`, `check_if_multiple_pmb_types_for_name`, `clean_df_row`, `clean_ids_in_df_row`, `copy_df_entry`, `create_variable_with_units`, `convert_columns_to_original_format`, `convert_str_to_bond_object`, `delete_entries_in_df`, `find_bond_key`, `setup_df`, `define_particle_entry_in_df`, custom `NumpyEncoder`. (#145, #147)
+- Method `add_bonds_to_espresso` has been removed from the API. pyMBE now adds bonds internally to ESPResSo when molecule instances are created into ESPResSo. (#147)
+- Tutorial `lattice_builder.ipynb` has been removed because its content is redundant with sample script `build_hydrogel.py`. (#147)
+
 
 ## [1.0.0] - 2025-10-08
 
