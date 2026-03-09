@@ -59,6 +59,7 @@ plot=args.plot
 
 ## Peptide plots (Fig. 7)
 labels_fig7=["7a", "7b", "7c"]
+labels_fig8=["8a", "8b"]
 
 if fig_label in labels_fig7:
     time_series_folder_path=samples_path / "Beyer2024" / "time_series" / "peptides"
@@ -87,8 +88,6 @@ if fig_label in labels_fig7:
         subprocess.check_output(run_command)
 
 ## Protein plots (Fig. 8)
-labels_fig8=["8a", "8b"]
-
 if fig_label in labels_fig8:
     script_path=samples_path / "Beyer2024" / "globular_protein.py"
     pH_range = np.linspace(2, 7, num=11)

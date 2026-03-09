@@ -612,7 +612,7 @@ class Manager:
             if not used_ids:
                 return 0
         else:
-            if pmb_type not in self._instances or len(self._instances[pmb_type]) == 0:
+            if pmb_type not in self._instances:
                 return 0
             used_ids = list(self._instances[pmb_type].keys())
         return max(used_ids) + 1

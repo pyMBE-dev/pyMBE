@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import validator
 from ..base_type import PMBBaseModel
 
@@ -27,7 +27,7 @@ class ParticleInstance(PMBBaseModel):
     Concrete instance of a particle placed in the simulation.
 
     Attributes:
-        pmb_type ('str'):
+        pmb_type ('Literal["particle"]'):
             Fixed string identifying this object as a particle instance. Always ``"particle"``.
 
         name ('str'):
@@ -39,20 +39,20 @@ class ParticleInstance(PMBBaseModel):
         initial_state ('str'):
             Name of the particle state at creation time. 
 
-        residue_id ('int' | 'None'):
+        residue_id ('Optional[int]'):
             Optional identifier of the ``ResidueInstance`` this particle belongs to. Particles that are not part of a residue should  leave this field as ``None``.
 
-        molecule_id ('int' | 'None'):
+        molecule_id ('Optional[int]'):
             Optional identifier of the ``MoleculeInstance`` this particle  belongs to. Particles not belonging to any molecule should keep this as ``None``.
 
-        assembly_id ('int' | 'None'):
+        assembly_id ('Optional[int]'):
             Identifier of the super-parent assembly (e.g. hydrogel) to which this particle instance belongs. ``None`` indicates that the particle is not assigned to any assembly.
 
     Notes:
         - ``initial_state`` is stored as a plain string to ensure clean serialization and avoid engine-specific objects.
         - Connectivity, bonding, and spatial ordering are external to this class and handled by the database or simulation backend.
     """
-    pmb_type: str = "particle"
+    pmb_type: Literal["particle"] = "particle"
     name: str 
     particle_id: int
     initial_state: str

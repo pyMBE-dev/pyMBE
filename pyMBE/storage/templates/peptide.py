@@ -17,15 +17,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from typing import List, Literal
 from pyMBE.storage.base_type import PMBBaseModel
-from pydantic import Field
 
 class PeptideTemplate(PMBBaseModel):
     """
     Template defining a peptide in the pyMBE database.
 
     Attributes:
-        pmb_type ('str'): 
+        pmb_type ('Literal["peptide"]'):
             Fixed type identifier. Always "peptide".
 
         name ('str'): 
@@ -40,8 +40,8 @@ class PeptideTemplate(PMBBaseModel):
         sequence ('List[str]'): 
             Ordered sequence of residues representing the peptide's structure.
     """
-    pmb_type: str = Field(default="peptide", frozen=True)
+    pmb_type: Literal["peptide"] = "peptide"
     name: str
     model: str
-    residue_list: list[str] 
+    residue_list: List[str]
     sequence: str 

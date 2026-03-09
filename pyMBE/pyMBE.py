@@ -2205,8 +2205,9 @@ class pymbe_library():
         Gets the effective radius of each particle defined in the pyMBE database. 
 
         Args:
-            dimensionless ('bool'): 
-                controls if the returned radii have a dimension. Defaults to False.
+            dimensionless ('bool'):
+                If ``True``, return magnitudes expressed in ``reduced_length``.
+                If ``False``, return Pint quantities with units.
         
         Returns:
             ('dict'): 
@@ -2221,7 +2222,8 @@ class pymbe_library():
         for _, tpl in self.db._templates["particle"].items():
             radius = (tpl.sigma.to_quantity(self.units) + tpl.offset.to_quantity(self.units))/2.0
             if dimensionless:
-                radius = radius.magnitude
+                magnitude_reduced_length = radius.m_as("reduced_length")
+                radius = magnitude_reduced_length
             for state in self.db.get_particle_states_templates(particle_name=tpl.name).values():
                 result[state.es_type] = radius
         return result
@@ -3214,4 +3216,3 @@ class pymbe_library():
                                                                                   ureg=self.units),
                                                 shift=shift_tpl)
             self.db._register_template(lj_template)
-

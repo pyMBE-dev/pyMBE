@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from typing import Literal
 from ..base_type import PMBBaseModel
 from pydantic import validator
 
@@ -25,7 +26,7 @@ class HydrogelInstance(PMBBaseModel):
     Persistent instance representation of a hydrogel object.
 
     Attributes:
-        pmb_type ('str'):
+        pmb_type ('Literal["hydrogel"]'):
             Fixed string identifier for this instance type. Always ``"hydrogel"``.
 
         assembly_id ('int'):
@@ -39,7 +40,7 @@ class HydrogelInstance(PMBBaseModel):
           hydrogel exists in the system), not a template describing generic
           hydrogel types.
     """
-    pmb_type: str = "hydrogel"
+    pmb_type: Literal["hydrogel"] = "hydrogel"
     assembly_id: int
     name: str
     @validator("assembly_id")

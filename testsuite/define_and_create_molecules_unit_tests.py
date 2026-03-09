@@ -472,14 +472,15 @@ class Test(ut.TestCase):
         
         second_radii=[]
         for particle in particle_parameters.values():
-            second_radii.append((particle['sigma'].magnitude+particle['offset'].magnitude)/2)
+            second_radii.append((particle['sigma'].m_as("reduced_length")+particle['offset'].m_as("reduced_length"))/2)
 
         first_radii=[pmb.get_radius_map()[0],
                     pmb.get_radius_map()[1],
                     pmb.get_radius_map()[2],]
 
-        self.assertEqual(first=first_radii,
-                         second=second_radii)
+        for index in range(len(first_radii)):
+            self.assertAlmostEqual(first=first_radii[index],
+                                   second=second_radii[index])
 
         self.assertEqual(first=isinstance(pmb.get_radius_map()[0],float),
                          second=True)
