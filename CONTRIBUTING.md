@@ -11,7 +11,7 @@ New developers are welcome to contribute to extend the functionalities of the py
 To contribute to the pyMBE module, first one needs to be added as a member of this GitHub repository.
 
 If you want to contribute to the development of the pyMBE module,
-please contact Dr. Pablo M. Blanco (<pablb@ntnu.no>).
+please contact Dr. Pablo M. Blanco ([@pm-blanco](https://github.com/pm-blanco)).
 
 ## Authorship and contributorship policy
 For more information on our authorship and contributorship policy,

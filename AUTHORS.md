@@ -5,12 +5,12 @@ The following people have contributed to pyMBE (Github username, Name, current a
 ## Admins
 - jngrad, Jean-Noël Grad (University of Stuttgart, Germany)
 - kosovan, Peter Košovan (Charles University, Czech Republic)
-- pm-blanco, Pablo M. Blanco (Norwegian University of Science and Technology, Norway)
+- pm-blanco, Pablo M. Blanco (University of Lleida, Spain)
 
 ## Tier-0 Contributors
 - davidbbeyer, David Beyer (University of Stuttgart, Germany)
 - paobtorres, Paola B. Torres (Universidad Tecnológica Nacional, Argentina)
-- pinedaps, Sebastian P. Pineda (Charles University, Czech Republic)
+- pinedaps, Sebastian P. Pineda (University of Lund, Sweden)
 - 1234somesh, Somesh Kurahatti (University of Stuttgart, Germany)
 
 ## Tier-1 Contributors
