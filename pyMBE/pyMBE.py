@@ -174,16 +174,21 @@ class pymbe_library():
     def _check_pka_set(self, pka_set):
         """
         Checks that 'pka_set' has the formatting expected by pyMBE.
-       
+
         Args:
-            pka_set ('dict'): 
-                {"name" : {"pka_value": pka, "acidity": acidity}}
+            pka_set ('dict'):
+                Monoprotic: {"name" : {"pka_value": pka, "acidity": acidity}}
+                Polyprotic: {"name" : {"pka_values": [pka1, pka2, ...], "acidity": acidity}}
         """
-        required_keys=['pka_value','acidity']
-        for required_key in required_keys:
-            for pka_name, pka_entry in pka_set.items():
-                if required_key not in pka_entry:
-                    raise ValueError(f'missing a required key "{required_key}" in entry "{pka_name}" of pka_set ("{pka_entry}")')
+        for pka_name, pka_entry in pka_set.items():
+            if "acidity" not in pka_entry:
+                raise ValueError(f'missing required key "acidity" in entry "{pka_name}" of pka_set ("{pka_entry}")')
+            has_mono = "pka_value" in pka_entry
+            has_poly = "pka_values" in pka_entry
+            if not has_mono and not has_poly:
+                raise ValueError(f'missing "pka_value" or "pka_values" in entry "{pka_name}" of pka_set ("{pka_entry}")')
+            if has_mono and has_poly:
+                raise ValueError(f'entry "{pka_name}" has both "pka_value" and "pka_values", use only one')
         return
 
     def _create_espresso_bond_instance(self, bond_type, bond_parameters):
@@ -1544,6 +1549,52 @@ class pymbe_library():
                             metadata=metadata)
         self.db._register_reaction(reaction)
 
+    def define_polyprotic_acidbase_reactions(self, particle_name, state_names, pka_list, acidity, metadata=None):
+        """
+        Defines stepwise acid-base reactions for a polyprotic particle.
+
+        Creates N reactions from N+1 ordered states, one per adjacent pair.
+
+        Args:
+            particle_name ('str'):
+                Unique label that identifies the particle template.
+
+            state_names ('list[str]'):
+                Ordered list of state names from most protonated to least,
+                as returned by define_polyprotic_particle_states.
+
+            pka_list ('list[float]'):
+                pKa values for each deprotonation step. Must have len(state_names) - 1 entries.
+
+            acidity ('str'):
+                Identifies whether the particle is 'acidic' or 'basic'.
+
+            metadata ('dict', optional):
+                Additional information to be stored in each reaction. Defaults to None.
+        """
+        if len(pka_list) != len(state_names) - 1:
+            raise ValueError(f"Expected {len(state_names) - 1} pKa values for {len(state_names)} states, got {len(pka_list)}.")
+        supported_acidities = ["acidic", "basic"]
+        if acidity not in supported_acidities:
+            raise ValueError(f"Unsupported acidity '{acidity}' for particle '{particle_name}'. Supported acidities are {supported_acidities}.")
+        if acidity == "basic":
+            reaction_type = "polyprotic_base"
+        else:
+            reaction_type = "polyprotic_acid"
+        for i, pka in enumerate(pka_list):
+            reactant_state = state_names[i]
+            product_state = state_names[i + 1]
+            reaction = Reaction(participants=[ReactionParticipant(particle_name=particle_name,
+                                                                  state_name=reactant_state,
+                                                                  coefficient=-1),
+                                              ReactionParticipant(particle_name=particle_name,
+                                                                  state_name=product_state,
+                                                                  coefficient=1)],
+                                reaction_type=reaction_type,
+                                pK=pka,
+                                metadata=metadata)
+            self.db._register_reaction(reaction)
+
     def define_monoprototic_particle_states(self, particle_name, acidity):
         """
         Defines particle states for a monoprotonic particle template including the charges in each of its possible states. 
@@ -1568,6 +1619,51 @@ class pymbe_library():
                       {"name": f"{particle_name}",  "z": 0}]
         self.define_particle_states(particle_name=particle_name, 
                                     states=states)
+
+    def define_polyprotic_particle_states(self, particle_name, n, acidity):
+        """
+        Defines particle states for a polyprotic particle template.
+
+        Generates N+1 states with auto-naming convention:
+            - Acidic with n=3, particle "A": H3A (z=0), H2A (z=-1), HA (z=-2), A (z=-3)
+            - Basic with n=2, particle "B":  H2B (z=+2), HB (z=+1), B (z=0)
+
+        Args:
+            particle_name ('str'):
+                Unique label that identifies the particle template.
+
+            n ('int'):
+                Number of protons that can dissociate (e.g. 2 for diprotic, 3 for triprotic).
+                Must be >= 2. For n=1, use define_monoprototic_particle_states instead.
+
+            acidity ('str'):
+                Identifies whether the particle is 'acidic' or 'basic'.
+
+        Returns:
+            ('list[str]'):
+                Ordered list of generated state names, from most protonated to least.
+        """
+        if n < 2:
+            raise ValueError(f"n={n} is not polyprotic. Use define_monoprototic_particle_states for n=1.")
+        acidity_valid_keys = ['acidic', 'basic']
+        if acidity not in acidity_valid_keys:
+            raise ValueError(f"Acidity '{acidity}' for particle '{particle_name}' is not supported. Valid keys are: {acidity_valid_keys}")
+        states = []
+        for k in range(n, -1, -1):
+            # Build name: H3A, H2A, HA, A
+            if k == 0:
+                name = particle_name
+            elif k == 1:
+                name = f"H{particle_name}"
+            else:
+                name = f"H{k}{particle_name}"
+            if acidity == "acidic":
+                z = -(n - k)
+            else:
+                z = k
+            states.append({"name": name, "z": z})
+        self.define_particle_states(particle_name=particle_name, states=states)
+        return [s["name"] for s in states]
 
     def define_particle(self, name,  sigma, epsilon, z=0, acidity=pd.NA, pka=pd.NA, cutoff=pd.NA, offset=pd.NA):
         """
@@ -1613,7 +1709,7 @@ class pymbe_library():
         # Define particle states
         if acidity is pd.NA:
             states = [{"name": f"{name}",  "z": z}]
-            self.define_particle_states(particle_name=name, 
+            self.define_particle_states(particle_name=name,
                                         states=states)
             initial_state = name
         else:
@@ -1631,7 +1727,69 @@ class pymbe_library():
                                offset=PintQuantity.from_quantity(q=offset, expected_dimension="length", ureg=self.units),
                                initial_state=initial_state)
         self.db._register_template(tpl)
-    
+
+    def define_polyprotic_particle(self, name, sigma, epsilon, n, acidity, pka_list, cutoff=pd.NA, offset=pd.NA):
+        """
+        Defines a polyprotic particle template in the pyMBE database.
+
+        Creates N+1 states with auto-naming and N stepwise acid-base reactions.
+
+        Args:
+            name('str'):
+                 Unique label that identifies this particle type.
+
+            sigma('pint.Quantity'):
+                Sigma parameter used to set up Lennard-Jones interactions for this particle type.
+
+            epsilon('pint.Quantity'):
+                Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe.
+
+            n('int'):
+                Number of dissociable protons (e.g. 2 for diprotic, 3 for triprotic).
+                Must be >= 2.
+
+            acidity('str'):
+                Identifies whether the particle is 'acidic' or 'basic'.
+
+            pka_list('list[float]'):
+                pKa values for each deprotonation step, ordered from first to last.
+                Must have exactly n entries.
+
+            cutoff('pint.Quantity', optional):
+                Cutoff parameter used to set up Lennard-Jones interactions for this particle type. Defaults to pd.NA.
+
+            offset('pint.Quantity', optional):
+                Offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to pd.NA.
+
+        Notes:
+            - Auto-naming convention: H3A, H2A, HA, A for triprotic acid 'A'.
+            - 'sigma', 'cutoff' and 'offset' must have a dimensitonality of '[length]' and should be defined using pmb.units.
+            - 'epsilon' must have a dimensitonality of '[energy]' and should be defined using pmb.units.
+            - 'cutoff' defaults to '2**(1./6.) reduced_length'.
+            - 'offset' defaults to 0.
+        """
+        if len(pka_list) != n:
+            raise ValueError(f"Expected {n} pKa values for {n}-protic particle, got {len(pka_list)}.")
+        if pd.isna(cutoff):
+            cutoff=self.units.Quantity(2**(1./6.), "reduced_length")
+        if pd.isna(offset):
+            offset=self.units.Quantity(0, "reduced_length")
+        state_names = self.define_polyprotic_particle_states(particle_name=name,
+                                                             n=n,
+                                                             acidity=acidity)
+        initial_state = state_names[0]
+        self.define_polyprotic_acidbase_reactions(particle_name=name,
+                                                  state_names=state_names,
+                                                  pka_list=pka_list,
+                                                  acidity=acidity)
+        tpl = ParticleTemplate(name=name,
+                               sigma=PintQuantity.from_quantity(q=sigma, expected_dimension="length", ureg=self.units),
+                               epsilon=PintQuantity.from_quantity(q=epsilon, expected_dimension="energy", ureg=self.units),
+                               cutoff=PintQuantity.from_quantity(q=cutoff, expected_dimension="length", ureg=self.units),
+                               offset=PintQuantity.from_quantity(q=offset, expected_dimension="length", ureg=self.units),
+                               initial_state=initial_state)
+        self.db._register_template(tpl)
+
     def define_particle_states(self, particle_name, states):
         """
         Define the chemical states of an existing particle template.
@@ -2174,30 +2332,33 @@ class pymbe_library():
         Retrieve the pKa set for all titratable particles in the pyMBE database.
 
         Returns:
-            ('dict'): 
+            ('dict'):
                 Dictionary of the form:
-                {"particle_name": {"pka_value": float,
-                                   "acidity": "acidic" | "basic"}}
-        Notes:
-            - If a particle participates in multiple acid/base reactions, an error is raised.
+                For monoprotic particles:
+                    {"particle_name": {"pka_value": float,
+                                       "acidity": "acidic" | "basic"}}
+                For polyprotic particles:
+                    {"particle_name": {"pka_values": [float, ...],
+                                       "acidity": "acidic" | "basic"}}
         """
         pka_set = {}
-        supported_reactions = ["monoprotic_acid",
-                               "monoprotic_base"]
+        supported_reactions = ["monoprotic_acid", "monoprotic_base",
+                               "polyprotic_acid", "polyprotic_base"]
         for reaction in self.db._reactions.values():
             if reaction.reaction_type not in supported_reactions:
                 continue
-            # Identify involved particle(s)
             particle_names = {participant.particle_name for participant in reaction.participants}
             particle_name = particle_names.pop()
-            if particle_name in pka_set:
-                raise ValueError(f"Multiple acid/base reactions found for particle '{particle_name}'.")
-            pka_set[particle_name] = {"pka_value": reaction.pK}
-            if reaction.reaction_type == "monoprotic_acid":
-                acidity = "acidic"
-            elif reaction.reaction_type == "monoprotic_base":
-                acidity = "basic"
-            pka_set[particle_name]["acidity"] = acidity
+            if reaction.reaction_type in ["monoprotic_acid", "monoprotic_base"]:
+                if particle_name in pka_set:
+                    raise ValueError(f"Multiple acid/base reactions found for particle '{particle_name}'.")
+                acidity = "acidic" if reaction.reaction_type == "monoprotic_acid" else "basic"
+                pka_set[particle_name] = {"pka_value": reaction.pK, "acidity": acidity}
+            else:
+                acidity = "acidic" if reaction.reaction_type == "polyprotic_acid" else "basic"
+                if particle_name not in pka_set:
+                    pka_set[particle_name] = {"pka_values": [], "acidity": acidity}
+                pka_set[particle_name]["pka_values"].append(reaction.pK)
         return pka_set
     
     def get_radius_map(self, dimensionless=True):
@@ -2333,18 +2494,19 @@ class pymbe_library():
         to existing particle templates.
 
         Args:
-            filename ('str'): 
+            filename ('str'):
                 Path to a JSON file containing the pKa set. Expected format:
-                {"metadata": {...},
-                  "data": {"A": {"acidity": "acidic", "pka_value": 4.5},
-                           "B": {"acidity": "basic",  "pka_value": 9.8}}}
+                Monoprotic:
+                    {"metadata": {...},
+                      "data": {"A": {"acidity": "acidic", "pka_value": 4.5},
+                               "B": {"acidity": "basic",  "pka_value": 9.8}}}
+                Polyprotic:
+                    {"metadata": {...},
+                      "data": {"PO4": {"acidity": "acidic", "pka_values": [2.15, 7.20, 12.35]}}}
 
         Returns:
-            ('dict'): 
+            ('dict'):
                 Dictionary with bibliographic metadata about the original work were the pKa set was determined.
-
-        Notes:
-            - This method is designed for monoprotic acids and bases only.
         """
         with open(filename, "r") as f:
             pka_data = json.load(f)
@@ -2353,11 +2515,29 @@ class pymbe_library():
         self._check_pka_set(pka_set)
         for particle_name, entry in pka_set.items():
             acidity = entry["acidity"]
-            pka = entry["pka_value"]
-            self.define_monoprototic_acidbase_reaction(particle_name=particle_name,
-                                                       pka=pka,
-                                                       acidity=acidity,
-                                                       metadata=metadata)
+            if "pka_values" in entry:
+                pka_list = entry["pka_values"]
+                n = len(pka_list)
+                # Build state names using the same H{k}{name} convention
+                state_names = []
+                for k in range(n, -1, -1):
+                    if k == 0:
+                        state_names.append(particle_name)
+                    elif k == 1:
+                        state_names.append(f"H{particle_name}")
+                    else:
+                        state_names.append(f"H{k}{particle_name}")
+                self.define_polyprotic_acidbase_reactions(particle_name=particle_name,
+                                                         state_names=state_names,
+                                                         pka_list=pka_list,
+                                                         acidity=acidity,
+                                                         metadata=metadata)
+            else:
+                pka = entry["pka_value"]
+                self.define_monoprototic_acidbase_reaction(particle_name=particle_name,
+                                                           pka=pka,
+                                                           acidity=acidity,
+                                                           metadata=metadata)
         return metadata
             
     def propose_unused_type(self):
@@ -2590,8 +2770,10 @@ class pymbe_library():
                                              pmb_type="particle")
         conterion_state = self.db.get_template(name=conterion_tpl.initial_state,
                                                pmb_type="particle_state")
+        acidbase_reaction_types = ["monoprotic_acid", "monoprotic_base",
+                                    "polyprotic_acid", "polyprotic_base"]
         for reaction in self.db.get_reactions():
-            if reaction.reaction_type not in ["monoprotic_acid", "monoprotic_base"]:
+            if reaction.reaction_type not in acidbase_reaction_types:
                 continue
             default_charges = {}
             reactant_types  = []
@@ -2904,8 +3086,10 @@ class pymbe_library():
                            reaction_type="particle replacement",
                            simulation_method="GRxMC")
         self.db._register_reaction(rx_tpl)
+        acidbase_reaction_types = ["monoprotic_acid", "monoprotic_base",
+                                    "polyprotic_acid", "polyprotic_base"]
         for reaction in self.db.get_reactions():
-            if reaction.reaction_type not in ["monoprotic_acid", "monoprotic_base"]:
+            if reaction.reaction_type not in acidbase_reaction_types:
                 continue
             default_charges = {}
             reactant_types  = []
@@ -3093,8 +3277,10 @@ class pymbe_library():
                            reaction_type="ion_insertion",
                            simulation_method="GCMC")
         self.db._register_reaction(rx_tpl)
+        acidbase_reaction_types = ["monoprotic_acid", "monoprotic_base",
+                                    "polyprotic_acid", "polyprotic_base"]
         for reaction in self.db.get_reactions():
-            if reaction.reaction_type not in ["monoprotic_acid", "monoprotic_base"]:
+            if reaction.reaction_type not in acidbase_reaction_types:
                 continue
             default_charges = {}
             reactant_types  = []
