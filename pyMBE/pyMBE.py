@@ -513,7 +513,9 @@ class pymbe_library():
                 Defaults to 50 values between 2 and 12.
 
             pka_set ('dict', optional):
-                Mapping: {particle_name: {"pka_value": 'float', "acidity": "acidic"|"basic"}}
+                Mapping per particle. Monoprotic entries use
+                {"pka_value": float, "acidity": ...}, polyprotic entries use
+                {"pka_values": [float, ...], "acidity": ...}.
 
         Returns:
             'list[float]':
@@ -530,7 +532,7 @@ class pymbe_library():
             return [None] * len(pH_list)
         charge_number_map = self.get_charge_number_map()
         def formal_charge(particle_name):
-            tpl = self.db.get_template(name=particle_name, 
+            tpl = self.db.get_template(name=particle_name,
                                        pmb_type="particle")
             state = self.db.get_template(name=tpl.initial_state,
                                          pmb_type="particle_state")
@@ -540,20 +542,24 @@ class pymbe_library():
             Z = 0.0
             for particle, multiplicity in particle_counts.items():
                 if particle in pka_set:
-                    pka = pka_set[particle]["pka_value"]
-                    acidity = pka_set[particle]["acidity"]
+                    entry = pka_set[particle]
+                    acidity = entry["acidity"]
                     if acidity == "acidic":
                         psi = -1
                     elif acidity == "basic":
                         psi = +1
                     else:
                         raise ValueError(f"Unknown acidity '{acidity}' for particle '{particle}'")
-                    charge = psi / (1.0 + 10.0 ** (psi * (pH - pka)))
+                    if "pka_values" in entry:
+                        pka_list = entry["pka_values"]
+                    else:
+                        pka_list = [entry["pka_value"]]
+                    charge = sum(psi / (1.0 + 10.0 ** (psi * (pH - pka))) for pka in pka_list)
                     Z += multiplicity * charge
                 else:
                     Z += multiplicity * formal_charge(particle)
             Z_HH.append(Z)
-        return Z_HH   
+        return Z_HH
 
     def calculate_HH_Donnan(self, c_macro, c_salt, pH_list=None, pka_set=None):
         """
