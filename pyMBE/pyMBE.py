@@ -552,9 +552,15 @@ class pymbe_library():
                         raise ValueError(f"Unknown acidity '{acidity}' for particle '{particle}'")
                     if "pka_values" in entry:
                         pka_list = entry["pka_values"]
+                        n = len(pka_list)
+                        cumsum_pK = np.cumsum(pka_list)
+                        terms = [10.0 ** (-cumsum_pK[i] + (i + 1) * pH) for i in range(n)]
+                        denominator = 1.0 + sum(terms)
+                        numerator = sum((i + 1) * terms[i] for i in range(n))
+                        charge = psi * numerator / denominator
                     else:
-                        pka_list = [entry["pka_value"]]
-                    charge = sum(psi / (1.0 + 10.0 ** (psi * (pH - pka))) for pka in pka_list)
+                        pka = entry["pka_value"]
+                        charge = psi / (1.0 + 10.0 ** (psi * (pH - pka)))
                     Z += multiplicity * charge
                 else:
                     Z += multiplicity * formal_charge(particle)
