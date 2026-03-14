@@ -300,5 +300,45 @@ class TestPolyprotic(ut.TestCase):
         self.assertEqual(names, ["H4Y", "H3Y", "H2Y", "HY", "Y"])
 
 
+    def test_calculate_HH_triprotic_acid(self):
+        """
+        Test Henderson-Hasselbalch charge for a triprotic acid at extreme pH values.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        pmb.define_polyprotic_particle(name="PO4",
+                                       sigma=0.35*pmb.units.nm,
+                                       epsilon=1*pmb.units("reduced_energy"),
+                                       n=3,
+                                       acidity="acidic",
+                                       pka_list=[2.15, 7.20, 12.35])
+        pmb.define_molecule(name="mol", residue_list=[])
+        pmb.define_residue(name="res", central_bead="PO4", side_chains=[])
+        pmb.define_molecule(name="test_mol", residue_list=["res"])
+        Z = pmb.calculate_HH(template_name="test_mol", pH_list=[0, 14])
+        # At pH 0: fully protonated, charge ≈ 0
+        self.assertAlmostEqual(Z[0], 0.0, places=1)
+        # At pH 14: fully deprotonated, charge ≈ -3
+        self.assertAlmostEqual(Z[1], -3.0, places=1)
+
+    def test_calculate_HH_diprotic_base(self):
+        """
+        Test Henderson-Hasselbalch charge for a diprotic base at extreme pH values.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        pmb.define_polyprotic_particle(name="B",
+                                       sigma=0.35*pmb.units.nm,
+                                       epsilon=1*pmb.units("reduced_energy"),
+                                       n=2,
+                                       acidity="basic",
+                                       pka_list=[6.0, 10.0])
+        pmb.define_residue(name="res", central_bead="B", side_chains=[])
+        pmb.define_molecule(name="test_mol", residue_list=["res"])
+        Z = pmb.calculate_HH(template_name="test_mol", pH_list=[0, 14])
+        # At pH 0: fully protonated, charge ≈ +2
+        self.assertAlmostEqual(Z[0], 2.0, places=2)
+        # At pH 14: fully deprotonated, charge ≈ 0
+        self.assertAlmostEqual(Z[1], 0.0, places=2)
+
+
 if __name__ == "__main__":
     ut.main()

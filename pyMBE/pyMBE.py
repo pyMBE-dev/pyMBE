@@ -557,7 +557,10 @@ class pymbe_library():
                         terms = [10.0 ** (-cumsum_pK[i] + (i + 1) * pH) for i in range(n)]
                         denominator = 1.0 + sum(terms)
                         numerator = sum((i + 1) * terms[i] for i in range(n))
-                        charge = psi * numerator / denominator
+                        if acidity == "acidic":
+                            charge = -numerator / denominator
+                        else:
+                            charge = n - numerator / denominator
                     else:
                         pka = entry["pka_value"]
                         charge = psi / (1.0 + 10.0 ** (psi * (pH - pka)))
