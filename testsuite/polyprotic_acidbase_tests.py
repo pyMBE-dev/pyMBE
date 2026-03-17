@@ -21,10 +21,36 @@ import os
 import tempfile
 import pyMBE
 import unittest as ut
-from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 
 
 class TestPolyprotic(ut.TestCase):
+
+    @staticmethod
+    def _expected_polyprotic_charge(pka_list, pH, acidity):
+        cumulative_pka = 0.0
+        terms = []
+        for index, pka in enumerate(pka_list, start=1):
+            cumulative_pka += pka
+            terms.append(10.0 ** (-cumulative_pka + index * pH))
+        numerator = sum(index * term for index, term in enumerate(terms, start=1))
+        denominator = 1.0 + sum(terms)
+        if acidity == "acidic":
+            return -numerator / denominator
+        return len(pka_list) - numerator / denominator
+
+    def _assert_charge_profile_matches_reference(self, pmb, molecule_name, pka_list, acidity, pH_values):
+        expected = [
+            self._expected_polyprotic_charge(pka_list=pka_list, pH=pH, acidity=acidity)
+            for pH in pH_values
+        ]
+        observed = pmb.calculate_HH(template_name=molecule_name, pH_list=pH_values)
+        for pH, observed_charge, expected_charge in zip(pH_values, observed, expected):
+            self.assertAlmostEqual(
+                observed_charge,
+                expected_charge,
+                places=10,
+                msg=f"Charge mismatch for {acidity} particle at pH={pH}",
+            )
 
     def test_triprotic_acid_states(self):
         """
@@ -102,6 +128,21 @@ class TestPolyprotic(ut.TestCase):
             self.assertEqual(reactants[0].state_name, reactant)
             self.assertEqual(products[0].state_name, product)
 
+    def test_triprotic_acid_reaction_names(self):
+        """
+        Test that reaction names follow the expected adjacent-state convention.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        pmb.define_polyprotic_particle(name="A",
+                                       sigma=0.35*pmb.units.nm,
+                                       epsilon=1*pmb.units("reduced_energy"),
+                                       n=3,
+                                       acidity="acidic",
+                                       pka_list=[2.0, 7.0, 12.0])
+        reactions = sorted(pmb.db.get_reactions(), key=lambda r: r.pK)
+        expected_names = ["H3A <-> H2A", "H2A <-> HA", "HA <-> A"]
+        self.assertEqual([reaction.name for reaction in reactions], expected_names)
+
     def test_diprotic_base_states(self):
         """
         Test that a diprotic base creates 3 states with correct charges.
@@ -170,6 +211,21 @@ class TestPolyprotic(ut.TestCase):
         self.assertIn("pka_values", pka_set["PO4"])
         self.assertEqual(pka_set["PO4"]["acidity"], "acidic")
         self.assertEqual(pka_set["PO4"]["pka_values"], [2.15, 7.20, 12.35])
+
+    def test_get_pka_set_polyprotic_preserves_pka_order(self):
+        """
+        Test that get_pka_set preserves the user-provided pKa ordering.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        pka_values = [7.20, 2.15, 12.35]
+        pmb.define_polyprotic_particle(name="PO4",
+                                       sigma=0.35*pmb.units.nm,
+                                       epsilon=1*pmb.units("reduced_energy"),
+                                       n=3,
+                                       acidity="acidic",
+                                       pka_list=pka_values)
+        pka_set = pmb.get_pka_set()
+        self.assertEqual(pka_set["PO4"]["pka_values"], pka_values)
 
     def test_get_pka_set_mixed(self):
         """
@@ -302,18 +358,26 @@ class TestPolyprotic(ut.TestCase):
 
     def test_calculate_HH_triprotic_acid(self):
         """
-        Test Henderson-Hasselbalch charge for a triprotic acid at extreme pH values.
+        Test triprotic-acid Henderson-Hasselbalch charge across multiple pH values.
         """
         pmb = pyMBE.pymbe_library(seed=42)
+        pka_values = [2.15, 7.20, 12.35]
         pmb.define_polyprotic_particle(name="PO4",
                                        sigma=0.35*pmb.units.nm,
                                        epsilon=1*pmb.units("reduced_energy"),
                                        n=3,
                                        acidity="acidic",
-                                       pka_list=[2.15, 7.20, 12.35])
-        pmb.define_molecule(name="mol", residue_list=[])
+                                       pka_list=pka_values)
         pmb.define_residue(name="res", central_bead="PO4", side_chains=[])
         pmb.define_molecule(name="test_mol", residue_list=["res"])
+        pH_values = [0.0, 2.15, 5.0, 7.20, 10.0, 12.35, 14.0]
+        self._assert_charge_profile_matches_reference(
+            pmb=pmb,
+            molecule_name="test_mol",
+            pka_list=pka_values,
+            acidity="acidic",
+            pH_values=pH_values,
+        )
         Z = pmb.calculate_HH(template_name="test_mol", pH_list=[0, 14])
         # At pH 0: fully protonated, charge ≈ 0
         self.assertAlmostEqual(Z[0], 0.0, places=1)
@@ -322,17 +386,26 @@ class TestPolyprotic(ut.TestCase):
 
     def test_calculate_HH_diprotic_base(self):
         """
-        Test Henderson-Hasselbalch charge for a diprotic base at extreme pH values.
+        Test diprotic-base Henderson-Hasselbalch charge across multiple pH values.
         """
         pmb = pyMBE.pymbe_library(seed=42)
+        pka_values = [6.0, 10.0]
         pmb.define_polyprotic_particle(name="B",
                                        sigma=0.35*pmb.units.nm,
                                        epsilon=1*pmb.units("reduced_energy"),
                                        n=2,
                                        acidity="basic",
-                                       pka_list=[6.0, 10.0])
+                                       pka_list=pka_values)
         pmb.define_residue(name="res", central_bead="B", side_chains=[])
         pmb.define_molecule(name="test_mol", residue_list=["res"])
+        pH_values = [0.0, 3.0, 6.0, 8.0, 10.0, 12.0, 14.0]
+        self._assert_charge_profile_matches_reference(
+            pmb=pmb,
+            molecule_name="test_mol",
+            pka_list=pka_values,
+            acidity="basic",
+            pH_values=pH_values,
+        )
         Z = pmb.calculate_HH(template_name="test_mol", pH_list=[0, 14])
         # At pH 0: fully protonated, charge ≈ +2
         self.assertAlmostEqual(Z[0], 2.0, places=2)
