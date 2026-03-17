@@ -6,3 +6,4 @@ __pycache__
 traj*.vtf
 *_system.png
 testsuite/Testing/
+poly*.md

@@ -174,7 +174,7 @@ class pymbe_library():
     def _check_pka_set(self, pka_set):
         """
         Checks that 'pka_set' has the formatting expected by pyMBE.
-
+       
         Args:
             pka_set ('dict'):
                 Monoprotic: {"name" : {"pka_value": pka, "acidity": acidity}}
@@ -190,6 +190,32 @@ class pymbe_library():
             if has_mono and has_poly:
                 raise ValueError(f'entry "{pka_name}" has both "pka_value" and "pka_values", use only one')
         return
+
+    @staticmethod
+    def _polyprotic_state_names(particle_name, n):
+        """
+        Generates the ordered list of state names for a polyprotic particle.
+
+        Args:
+            particle_name ('str'):
+                Unique label that identifies the particle template.
+
+            n ('int'):
+                Number of dissociable protons.
+
+        Returns:
+            ('list[str]'):
+                State names from most protonated to least, e.g. ['H3A', 'H2A', 'HA', 'A'] for n=3.
+        """
+        names = []
+        for k in range(n, -1, -1):
+            if k == 0:
+                names.append(particle_name)
+            elif k == 1:
+                names.append(f"H{particle_name}")
+            else:
+                names.append(f"H{k}{particle_name}")
+        return names
 
     def _create_espresso_bond_instance(self, bond_type, bond_parameters):
         """
@@ -532,7 +558,7 @@ class pymbe_library():
             return [None] * len(pH_list)
         charge_number_map = self.get_charge_number_map()
         def formal_charge(particle_name):
-            tpl = self.db.get_template(name=particle_name,
+            tpl = self.db.get_template(name=particle_name, 
                                        pmb_type="particle")
             state = self.db.get_template(name=tpl.initial_state,
                                          pmb_type="particle_state")
@@ -568,7 +594,7 @@ class pymbe_library():
                 else:
                     Z += multiplicity * formal_charge(particle)
             Z_HH.append(Z)
-        return Z_HH
+        return Z_HH   
 
     def calculate_HH_Donnan(self, c_macro, c_salt, pH_list=None, pka_set=None):
         """
@@ -591,8 +617,9 @@ class pymbe_library():
 
             pka_set ('dict', optional):
                 Dictionary defining the acid–base properties of titratable particle
-                types:
-                '{particle_name: {"pka_value": float, "acidity": "acidic" | "basic"}}'.
+                types. Monoprotic entries use
+                {"pka_value": float, "acidity": ...}, polyprotic entries use
+                {"pka_values": [float, ...], "acidity": ...}.
                 If 'None', the pKa set is taken from the pyMBE database.
 
         Returns:
@@ -1663,22 +1690,17 @@ class pymbe_library():
         acidity_valid_keys = ['acidic', 'basic']
         if acidity not in acidity_valid_keys:
             raise ValueError(f"Acidity '{acidity}' for particle '{particle_name}' is not supported. Valid keys are: {acidity_valid_keys}")
+        state_names = self._polyprotic_state_names(particle_name, n)
         states = []
-        for k in range(n, -1, -1):
-            # Build name: H3A, H2A, HA, A
-            if k == 0:
-                name = particle_name
-            elif k == 1:
-                name = f"H{particle_name}"
-            else:
-                name = f"H{k}{particle_name}"
+        for i, sname in enumerate(state_names):
+            k = n - i
             if acidity == "acidic":
                 z = -(n - k)
             else:
                 z = k
-            states.append({"name": name, "z": z})
+            states.append({"name": sname, "z": z})
         self.define_particle_states(particle_name=particle_name, states=states)
-        return [s["name"] for s in states]
+        return state_names
 
     def define_particle(self, name,  sigma, epsilon, z=0, acidity=pd.NA, pka=pd.NA, cutoff=pd.NA, offset=pd.NA):
         """
@@ -1692,7 +1714,7 @@ class pymbe_library():
                 Sigma parameter used to set up Lennard-Jones interactions for this particle type. 
 
             epsilon('pint.Quantity'): 
-                Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe.
+                Epsilon parameter used to set up Lennard-Jones interactions for this particle type.
 
             z('int', optional): 
                 Permanent charge number of this particle type. Defaults to 0.
@@ -1710,8 +1732,8 @@ class pymbe_library():
                 Offset parameter used to set up Lennard-Jones interactions for this particle type. Defaults to pd.NA.
             
         Notes:
-            - 'sigma', 'cutoff' and 'offset' must have a dimensitonality of '[length]' and should be defined using pmb.units.
-            - 'epsilon' must have a dimensitonality of '[energy]' and should be defined using pmb.units.
+            - 'sigma', 'cutoff' and 'offset' must have a dimensionality of '[length]' and should be defined using pmb.units.
+            - 'epsilon' must have a dimensionality of '[energy]' and should be defined using pmb.units.
             - 'cutoff' defaults to '2**(1./6.) reduced_length'. 
             - 'offset' defaults to 0.
             - For more information on 'sigma', 'epsilon', 'cutoff' and 'offset' check 'pmb.setup_lj_interactions()'.
@@ -1724,7 +1746,7 @@ class pymbe_library():
         # Define particle states
         if acidity is pd.NA:
             states = [{"name": f"{name}",  "z": z}]
-            self.define_particle_states(particle_name=name,
+            self.define_particle_states(particle_name=name, 
                                         states=states)
             initial_state = name
         else:
@@ -1742,7 +1764,7 @@ class pymbe_library():
                                offset=PintQuantity.from_quantity(q=offset, expected_dimension="length", ureg=self.units),
                                initial_state=initial_state)
         self.db._register_template(tpl)
-
+    
     def define_polyprotic_particle(self, name, sigma, epsilon, n, acidity, pka_list, cutoff=pd.NA, offset=pd.NA):
         """
         Defines a polyprotic particle template in the pyMBE database.
@@ -1757,7 +1779,7 @@ class pymbe_library():
                 Sigma parameter used to set up Lennard-Jones interactions for this particle type.
 
             epsilon('pint.Quantity'):
-                Epsilon parameter used to setup Lennard-Jones interactions for this particle tipe.
+                Epsilon parameter used to set up Lennard-Jones interactions for this particle type.
 
             n('int'):
                 Number of dissociable protons (e.g. 2 for diprotic, 3 for triprotic).
@@ -1778,8 +1800,8 @@ class pymbe_library():
 
         Notes:
             - Auto-naming convention: H3A, H2A, HA, A for triprotic acid 'A'.
-            - 'sigma', 'cutoff' and 'offset' must have a dimensitonality of '[length]' and should be defined using pmb.units.
-            - 'epsilon' must have a dimensitonality of '[energy]' and should be defined using pmb.units.
+            - 'sigma', 'cutoff' and 'offset' must have a dimensionality of '[length]' and should be defined using pmb.units.
+            - 'epsilon' must have a dimensionality of '[energy]' and should be defined using pmb.units.
             - 'cutoff' defaults to '2**(1./6.) reduced_length'.
             - 'offset' defaults to 0.
         """
@@ -2347,7 +2369,7 @@ class pymbe_library():
         Retrieve the pKa set for all titratable particles in the pyMBE database.
 
         Returns:
-            ('dict'):
+            ('dict'): 
                 Dictionary of the form:
                 For monoprotic particles:
                     {"particle_name": {"pka_value": float,
@@ -2509,7 +2531,7 @@ class pymbe_library():
         to existing particle templates.
 
         Args:
-            filename ('str'):
+            filename ('str'): 
                 Path to a JSON file containing the pKa set. Expected format:
                 Monoprotic:
                     {"metadata": {...},
@@ -2520,7 +2542,7 @@ class pymbe_library():
                       "data": {"PO4": {"acidity": "acidic", "pka_values": [2.15, 7.20, 12.35]}}}
 
         Returns:
-            ('dict'):
+            ('dict'): 
                 Dictionary with bibliographic metadata about the original work were the pKa set was determined.
         """
         with open(filename, "r") as f:
@@ -2533,15 +2555,7 @@ class pymbe_library():
             if "pka_values" in entry:
                 pka_list = entry["pka_values"]
                 n = len(pka_list)
-                # Build state names using the same H{k}{name} convention
-                state_names = []
-                for k in range(n, -1, -1):
-                    if k == 0:
-                        state_names.append(particle_name)
-                    elif k == 1:
-                        state_names.append(f"H{particle_name}")
-                    else:
-                        state_names.append(f"H{k}{particle_name}")
+                state_names = self._polyprotic_state_names(particle_name, n)
                 self.define_polyprotic_acidbase_reactions(particle_name=particle_name,
                                                          state_names=state_names,
                                                          pka_list=pka_list,
