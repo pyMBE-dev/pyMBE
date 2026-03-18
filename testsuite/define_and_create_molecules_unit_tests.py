@@ -143,9 +143,10 @@ class Test(ut.TestCase):
         # If no particles have been created, only two particles should be in the system (from the previous test)
         self.assertEqual(first=len(espresso_system.part.all()), 
                                 second=starting_number_of_particles)
-        pmb.create_particle(name="S23",
-                            espresso_system=espresso_system,
-                            number_of_particles=1)
+        with self.assertRaises(ValueError):
+            pmb.create_particle(name="S23",
+                                espresso_system=espresso_system,
+                                number_of_particles=1)
             
         # If no particles have been created, only two particles should be in the system (from the previous test)
         self.assertEqual(first=len(espresso_system.part.all()), 
@@ -275,9 +276,10 @@ class Test(ut.TestCase):
                                             frozenset([4,5]),
                                             frozenset([4,6])]))
         starting_number_of_particles=len(espresso_system.part.all())
-        pmb.create_residue(name="R51",
-                            espresso_system=espresso_system,
-                            use_default_bond=True)
+        with self.assertRaises(ValueError):
+            pmb.create_residue(name="R51",
+                               espresso_system=espresso_system,
+                               use_default_bond=True)
         # If no particles have been created, the number of particles should be the same as before
         self.assertEqual(first=len(espresso_system.part.all()), 
                         second=starting_number_of_particles)

@@ -102,6 +102,11 @@ class Test(ut.TestCase):
                                  pmb.define_protein, 
                                  **input_parameters)
         espresso_system=espressomd.System(box_l = [Box_L.to('reduced_length').magnitude] * 3)
+        with self.assertRaises(ValueError):
+            pmb.create_protein(name="missing_protein_template",
+                               number_of_proteins=1,
+                               espresso_system=espresso_system,
+                               topology_dict=topology_dict)
         molecule_id = pmb.create_protein(name=protein_pdb,
                                         number_of_proteins=1,
                                         espresso_system=espresso_system,

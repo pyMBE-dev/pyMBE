@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added utility functions in `lib/handy_functions` to define residue and particle templates for aminoacids en peptides and residues: `define_protein_AA_particles`, `define_protein_AA_residues` and `define_peptide_AA_residues`. (#147)
 
 ## Changed
+- Create methods (`create_particle`, `create_residue`, `create_molecule`, `create_protein`, `create_hydrogel`) now raise a ValueError if no template is found for an input `name` instead than a warning.
 - Refactored core modules to use the new database schema based on templates and instances  for particles, residues, molecules, hydrogels, proteins and peptides. (#147)
 - Particle states now are independent templates and are now disentangled from particle templates. (#147)
 - Pka values are now stored as part of chemical reactions and no longer an attribute of particle templates. (#147)
@@ -24,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Fixed
 - Wrong handling of units in `get_radius_map` when the `dimensionless` argument was triggered. (#147)
-- Utility methods `get_particle_id_map`, `calculate_HH`, `calculate_net_charge`,  `center_object_in_simulation_box` now support all template types in pyMBE, including hydrogels. Some of these methods have been renamed to expose directly in the API this change in behavior.
+- Utility methods `get_particle_id_map`, `calculate_HH`, `calculate_net_charge`,  `center_object_in_simulation_box` now support all template types in pyMBE, including hydrogels. Some of these methods have been renamed to expose directly in the API this change in behavior. (#147)
 
 
 ### Removed

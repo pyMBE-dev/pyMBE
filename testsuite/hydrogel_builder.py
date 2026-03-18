@@ -114,6 +114,12 @@ hydrogel_inst = pmb.db.get_instance(pmb_type="hydrogel",
 
 
 class Test(ut.TestCase):
+    def test_create_hydrogel_missing_template(self):
+        """
+        Unit test that create_hydrogel raises if the template is missing.
+        """
+        with self.assertRaises(ValueError):
+            pmb.create_hydrogel("missing_hydrogel_template", espresso_system)
 
     def test_hydrogel_template_storage(self):
         """

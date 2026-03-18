@@ -432,9 +432,9 @@ class pymbe_library():
         registered_pmb_types_with_name = self.db._find_template_types(name=name)
         filtered_types = allowed_types.intersection(registered_pmb_types_with_name)
         if len(filtered_types) > 1:
-            raise ValueError(f"Ambiguous template name '{name}': found both 'molecule' and 'peptide' templates in the pyMBE database. Molecule creation aborted.")  
+            raise ValueError(f"Ambiguous template name '{name}': found {len(filtered_types)} templates in the pyMBE database. Molecule creation aborted.")  
         if len(filtered_types) == 0:
-            raise ValueError(f"No 'molecule' or 'peptide' template found with name '{name}'. Found templates of types: {filtered_types}.")
+            raise ValueError(f"No {allowed_types} template found with name '{name}'. Found templates of types: {filtered_types}.")
         return next(iter(filtered_types))
 
     def _delete_particles_from_espresso(self, particle_ids, espresso_system):
@@ -918,6 +918,8 @@ class pymbe_library():
         Returns:
             ('int'): id of the hydrogel instance created.
         """
+        if not self.db._has_template(name=name, pmb_type="hydrogel"):
+            raise ValueError(f"Hydrogel template with name '{name}' is not defined in the pyMBE database.")
         hydrogel_tpl = self.db.get_template(pmb_type="hydrogel",
                                             name=name)
         assembly_id = self.db._propose_instance_id(pmb_type="hydrogel")
@@ -987,6 +989,8 @@ class pymbe_library():
         Notes:
             - This function can be used to create both molecules and peptides.    
         """
+        pmb_type = self._get_template_type(name=name,
+                                           allowed_types={"molecule", "peptide"})
         if number_of_molecules <= 0:
             return {}
         if list_of_first_residue_positions is not None:
@@ -998,8 +1002,6 @@ class pymbe_library():
 
             if len(list_of_first_residue_positions) != number_of_molecules:
                 raise ValueError(f"Number of positions provided in {list_of_first_residue_positions} does not match number of molecules desired, {number_of_molecules}")
-        pmb_type = self._get_template_type(name=name,
-                                           allowed_types={"molecule", "peptide"})
         # Generate an arbitrary random unit vector
         if backbone_vector is None:
             backbone_vector = self.generate_random_points_in_a_sphere(center=[0,0,0],
@@ -1125,8 +1127,7 @@ class pymbe_library():
         if number_of_particles <=0:
             return []
         if not self.db._has_template(name=name, pmb_type="particle"):
-            logging.warning(f"Particle template with name '{name}' is not defined in the pyMBE database, no particle will be created.")
-            return []
+            raise ValueError(f"Particle template with name '{name}' is not defined in the pyMBE database.")
         
         part_tpl = self.db.get_template(pmb_type="particle",
                                         name=name)
@@ -1194,7 +1195,8 @@ class pymbe_library():
         """
         if number_of_proteins <= 0:
             return
-
+        if not self.db._has_template(name=name, pmb_type="protein"):
+            raise ValueError(f"Protein template with name '{name}' is not defined in the pyMBE database.")
         protein_tpl = self.db.get_template(pmb_type="protein", name=name)
         box_half = espresso_system.box_l[0] / 2.0
         # Create protein
@@ -1269,8 +1271,7 @@ class pymbe_library():
                 residue_id of the residue created.
         """
         if not self.db._has_template(name=name, pmb_type="residue"):
-            logging.warning(f"Residue template with name '{name}' is not defined in the pyMBE database, no residue will be created.")
-            return
+            raise ValueError(f"Residue template with name '{name}' is not defined in the pyMBE database.")
         res_tpl = self.db.get_template(pmb_type="residue",
                                        name=name)
         # Assign a residue_id
