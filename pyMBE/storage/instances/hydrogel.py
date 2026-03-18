@@ -44,7 +44,7 @@ class HydrogelInstance(PMBBaseModel):
     assembly_id: int
     name: str
     @validator("assembly_id")
-    def validate_bond_id(cls, aid):
+    def validate_assembly_id(cls, aid):
         if aid < 0:
             raise ValueError("assembly_id must be a non-negative integer.")
         return aid
