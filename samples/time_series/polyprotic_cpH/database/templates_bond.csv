@@ -1,0 +1,2 @@
+name,particle_name1,particle_name2,bond_type,parameters
+default,,,harmonic,"{""r_0"":{""magnitude"":0.4,""units"":""nm"",""dimension"":""length""},""k"":{""magnitude"":81547.56316948496,""units"":""meV/nm**2"",""dimension"":""energy/length**2""}}"

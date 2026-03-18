@@ -1,0 +1,4 @@
+name,participants,pK,reaction_type,metadata
+H3acid <-> H2acid + Na,"[{""particle_name"":""acid"",""state_name"":""H3acid"",""coefficient"":-1},{""particle_name"":""acid"",""state_name"":""H2acid"",""coefficient"":1},{""particle_name"":""Na"",""state_name"":""Na"",""coefficient"":1}]",2.16,polyprotic_acid,
+H2acid <-> Hacid + Na,"[{""particle_name"":""acid"",""state_name"":""H2acid"",""coefficient"":-1},{""particle_name"":""acid"",""state_name"":""Hacid"",""coefficient"":1},{""particle_name"":""Na"",""state_name"":""Na"",""coefficient"":1}]",7.21,polyprotic_acid,
+Hacid <-> Na + acid,"[{""particle_name"":""acid"",""state_name"":""Hacid"",""coefficient"":-1},{""particle_name"":""acid"",""state_name"":""acid"",""coefficient"":1},{""particle_name"":""Na"",""state_name"":""Na"",""coefficient"":1}]",12.32,polyprotic_acid,

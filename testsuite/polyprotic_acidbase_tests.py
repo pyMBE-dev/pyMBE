@@ -343,6 +343,31 @@ class TestPolyprotic(ut.TestCase):
                 pka_list=[2.0, 7.0],
                 acidity="acidic")
 
+    def test_define_polyprotic_particle_pka_count_mismatch(self):
+        """
+        Test that define_polyprotic_particle raises ValueError when len(pka_list) != n.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        with self.assertRaises(ValueError):
+            pmb.define_polyprotic_particle(name="Bad",
+                                           sigma=0.35*pmb.units.nm,
+                                           epsilon=1*pmb.units("reduced_energy"),
+                                           n=3,
+                                           acidity="acidic",
+                                           pka_list=[2.0, 7.0])
+
+    def test_define_polyprotic_acidbase_reactions_invalid_acidity(self):
+        """
+        Test that define_polyprotic_acidbase_reactions raises ValueError for invalid acidity.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        with self.assertRaises(ValueError):
+            pmb.define_polyprotic_acidbase_reactions(
+                particle_name="A",
+                state_names=["H2A", "HA", "A"],
+                pka_list=[2.0, 7.0],
+                acidity="neutral")
+
     def test_auto_naming_convention(self):
         """
         Test the H{k}{name} naming convention for various n values.

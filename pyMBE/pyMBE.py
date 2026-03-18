@@ -1807,6 +1807,9 @@ class pymbe_library():
         """
         if len(pka_list) != n:
             raise ValueError(f"Expected {n} pKa values for {n}-protic particle, got {len(pka_list)}.")
+        if list(pka_list) != sorted(pka_list):
+            logging.warning(f"pka_list {pka_list} is not in ascending order. Sorting automatically.")
+            pka_list = sorted(pka_list)
         if pd.isna(cutoff):
             cutoff=self.units.Quantity(2**(1./6.), "reduced_length")
         if pd.isna(offset):
@@ -2554,6 +2557,9 @@ class pymbe_library():
             acidity = entry["acidity"]
             if "pka_values" in entry:
                 pka_list = entry["pka_values"]
+                if list(pka_list) != sorted(pka_list):
+                    logging.warning(f"pka_values {pka_list} for '{particle_name}' is not in ascending order. Sorting automatically.")
+                    pka_list = sorted(pka_list)
                 n = len(pka_list)
                 state_names = self._polyprotic_state_names(particle_name, n)
                 self.define_polyprotic_acidbase_reactions(particle_name=particle_name,
