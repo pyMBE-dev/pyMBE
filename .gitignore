@@ -6,3 +6,6 @@ __pycache__
 traj*.vtf
 *_system.png
 testsuite/Testing/
+testsuite/.coverage*
+.coverage
+samples/time_series/

@@ -1,0 +1,7 @@
+name,particle_name1,particle_name2,bond_type,parameters
+CA-CA,CA,CA,harmonic,"{""r_0"":{""magnitude"":0.382,""units"":""nm"",""dimension"":""length""},""k"":{""magnitude"":10277.03164843434,""units"":""meV/nm**2"",""dimension"":""energy/length**2""}}"
+CA-D,CA,D,harmonic,"{""r_0"":{""magnitude"":0.329,""units"":""nm"",""dimension"":""length""},""k"":{""magnitude"":10277.03164843434,""units"":""meV/nm**2"",""dimension"":""energy/length**2""}}"
+CA-E,CA,E,harmonic,"{""r_0"":{""magnitude"":0.435,""units"":""nm"",""dimension"":""length""},""k"":{""magnitude"":10277.03164843434,""units"":""meV/nm**2"",""dimension"":""energy/length**2""}}"
+CA-H,CA,H,harmonic,"{""r_0"":{""magnitude"":0.452,""units"":""nm"",""dimension"":""length""},""k"":{""magnitude"":10277.03164843434,""units"":""meV/nm**2"",""dimension"":""energy/length**2""}}"
+CA-Y,CA,Y,harmonic,"{""r_0"":{""magnitude"":0.648,""units"":""nm"",""dimension"":""length""},""k"":{""magnitude"":10277.03164843434,""units"":""meV/nm**2"",""dimension"":""energy/length**2""}}"
+CA-K,CA,K,harmonic,"{""r_0"":{""magnitude"":0.558,""units"":""nm"",""dimension"":""length""},""k"":{""magnitude"":10277.03164843434,""units"":""meV/nm**2"",""dimension"":""energy/length**2""}}"

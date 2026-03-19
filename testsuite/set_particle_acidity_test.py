@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024-2025 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -17,125 +17,201 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 # Import pyMBE and other libraries
-import numpy as np
 import pandas as pd
 import pyMBE
-import pyMBE.storage.df_management as df_management
-
+import unittest as ut
+from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 # Create an instance of pyMBE library
-pmb = pyMBE.pymbe_library(seed=42)
 
-def check_acid_base_setup(input_parameters, acidity_setup):
-    """
-    Checks if pyMBE stores in the pmb.df the input parameters for acid/base particles correctly.
-
-    Args:
-        input_parameters (`dict`): dictionary with the input parameters for define_particle.
-        acidity_setup (`dict`): dictionary with the expected setup that pyMBE should do in the pmb.df for acid/base particles.
-    """
-    pmb.define_particle(**input_parameters)
-
-    # Handle pd.NA safely
-    if pd.isna(input_parameters.get("acidity", None)):  
-        input_parameters.pop("z", None)  # Use .pop with default to avoid KeyError
-
-    # Checks that the input parameters are stored properly
-    for parameter_key, expected_value in input_parameters.items():
-        actual_value = pmb.df[parameter_key].values[0]
-
-        # Use pd.isna() to compare safely, since pd.NA does not behave like regular values
-        if pd.isna(expected_value) and pd.isna(actual_value):
-            continue  # Skip this check, they are both missing (NA)
-
-        np.testing.assert_equal(actual=actual_value, desired=expected_value, verbose=True)
-
-    # Checks that the setup of the acid/base properties is done correctly
-    for state in ["state_one", "state_two"]:
-        for state_attribute in ["label", "z"]:
-            actual_value = pmb.df[state][state_attribute].values[0]
-            expected_value = acidity_setup[state][state_attribute]
-
-            if pd.isna(expected_value) and pd.isna(actual_value):
-                continue  # Skip this check if both are NA
-
-            np.testing.assert_equal(actual=actual_value, desired=expected_value, verbose=True)
-
-    # Checks that pyMBE assigns different espresso types to each state
-    np.testing.assert_raises(
-        AssertionError, 
-        np.testing.assert_equal, 
-        pmb.df["state_one"]["es_type"].values[0], 
-        pmb.df["state_two"]["es_type"].values[0]
-    )
+participants = [ReactionParticipant(particle_name="A",
+                                    state_name="HA",
+                                    coefficient=1),
+                ReactionParticipant(particle_name="A",
+                                    state_name="A",
+                                    coefficient=1)]
 
 
-print("*** Particle acidity unit tests ***")
-print("*** Unit test: check that all acid/base input parameters in define_particle for an inert particle are correctly stored in pmb.df***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"I", 
-                  "acidity": pd.NA,
-                  "pka": pd.NA,
-                  "z":2}
-acidity_setup={"state_one":{"label":f"{input_parameters['name']}",
-                         "z":2},
-            "state_two":{"label": pd.NA,
-                         "z": pd.NA},}
+class Test(ut.TestCase):
+    def test_inert_particles_setup(self):
+        """
+        Test that an inert particle is correctly set up in the pyMBE database.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        input_parameters={"name":"I", 
+                          "acidity": pd.NA,
+                          "pka": pd.NA,
+                          "z":2,
+                          "sigma": 1.0*pmb.units.reduced_length,
+                          "epsilon": 1.0*pmb.units.reduced_energy}
+        pmb.define_particle(**input_parameters)
+        state_tpl = pmb.db.get_template(name="I", 
+                                    pmb_type="particle_state")
 
-check_acid_base_setup(input_parameters=input_parameters,
-                      acidity_setup=acidity_setup)
+        self.assertEqual(state_tpl.name, "I")
+        self.assertEqual(state_tpl.z, 2)
+        pmb.db.delete_template(name="I", pmb_type="particle")   
+        pmb.db.delete_template(name="I", pmb_type="particle_state")   
 
-print("*** Unit test passed ***")
-print("*** Unit test: check that a deprecation warning is raised if the keyword 'inert' is used for acidity ***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"I", 
-                  "acidity": "inert",
-                  "pka": pd.NA,
-                  "z":2}
-pmb.define_particle(**input_parameters)
-print("*** Unit test passed ***")
-print("*** Unit test: check that all acid/base input parameters in define_particle for an acid are correctly stored in pmb.df***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"A", 
-                  "acidity": "acidic",
-                  "pka":4}
-acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
-                         "z":0},
-            "state_two":{"label":f"{input_parameters['name']}",
-                         "z":-1},}
+    def test_acidic_particles_setup(self):
+        """
+        Test that an acidic particle is correctly set up in the pyMBE database.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        input_parameters={"name":"A", 
+                          "acidity": "acidic",
+                          "pka":4,
+                          "sigma": 1.0*pmb.units.reduced_length,
+                          "epsilon": 1.0*pmb.units.reduced_energy}
+        pmb.define_particle(**input_parameters)
+        protonated_state = pmb.db.get_template(name="AH", 
+                                    pmb_type="particle_state")
+        deprotonated_state = pmb.db.get_template(name="A", 
+                                    pmb_type="particle_state")
+        self.assertEqual(protonated_state.name, "AH")
+        self.assertEqual(protonated_state.z, 0)
+        self.assertEqual(deprotonated_state.name, "A")
+        self.assertEqual(deprotonated_state.z, -1)
+        self.assertNotEqual(protonated_state.es_type, deprotonated_state.es_type)
+        pmb.db.delete_template(name="A", pmb_type="particle")
+        pmb.db.delete_template(name="AH", pmb_type="particle_state")
+        pmb.db.delete_template(name="A", pmb_type="particle_state")
 
-check_acid_base_setup(input_parameters=input_parameters,
-                      acidity_setup=acidity_setup)
-print("*** Unit test passed ***")
-print("*** Unit test: check that all acid/base input parameters in define_particle for a base are correctly stored in pmb.df***")
-# Clean pmb.df
-pmb.df = df_management._DFManagement._setup_df()
-input_parameters={"name":"B", 
-                  "acidity": "basic",
-                  "pka":9}
-acidity_setup={"state_one":{"label":f"{input_parameters['name']}H",
-                         "z":1},
-            "state_two":{"label":f"{input_parameters['name']}",
-                         "z":0},}
+    def test_basic_particles_setup(self):
+        """
+        Test that a basic particle is correctly set up in the pyMBE database.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        input_parameters={"name":"B", 
+                        "acidity": "basic",
+                        "pka":9,
+                        "sigma": 1.0*pmb.units.reduced_length,
+                        "epsilon": 1.0*pmb.units.reduced_energy}
+        pmb.define_particle(**input_parameters)
 
-check_acid_base_setup(input_parameters=input_parameters,
-                      acidity_setup=acidity_setup)
-print("*** Unit test passed ***")
+        protonated_state = pmb.db.get_template(name="BH", 
+                                               pmb_type="particle_state")
+        deprotonated_state = pmb.db.get_template(name="B", 
+                                                 pmb_type="particle_state")
 
-print("*** Unit test: check that set_particle_acidity raises a ValueError if pKa is not provided and pKa is acidic or basic  ***")
-input_parametersA={"name":"A", 
-                   "acidity": "acidic" }
+        self.assertEqual(protonated_state.name, 
+                         "BH")
+        self.assertEqual(protonated_state.z, 
+                         1)
+        self.assertEqual(deprotonated_state.name, 
+                         "B")
+        self.assertEqual(deprotonated_state.z, 
+                         0)
+        self.assertNotEqual(protonated_state.es_type, 
+                            deprotonated_state.es_type)
+        pmb.db.delete_template(name="B", 
+                               pmb_type="particle")
+        pmb.db.delete_template(name="BH", 
+                               pmb_type="particle_state")
+        pmb.db.delete_template(name="B", 
+                               pmb_type="particle_state")
 
-input_parametersB= {"name": "B",
-                   "acidity": "basic"}
-np.testing.assert_raises(ValueError, pmb.set_particle_acidity,**input_parametersA)
-np.testing.assert_raises(ValueError, pmb.set_particle_acidity, **input_parametersB)
-print("*** Unit test passed ***")
-print("*** Unit test: check that set_particle_acidity raises a ValueError if a non-supported acidity is provided  ***")
-input_parametersA={"name":"A", 
-                   "acidity": "random" }
-np.testing.assert_raises(ValueError, pmb.set_particle_acidity,**input_parametersA)
-print("*** Unit test passed ***")
-print("*** All unit tests passed ***")
+    def test_sanity_acidity(self):
+        """
+        Unit tests to check that define_monoprototic_acidbase_reaction raises ValueErrors when expected.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        # Check that define_monoprototic_acidbase_reaction raises a ValueError if a non-supported acidity is provided
+        input_parametersA={"particle_name":"A", 
+                           "acidity": "random",
+                           "pka":4,}
+        self.assertRaises(ValueError, 
+                          pmb.define_monoprototic_acidbase_reaction,
+                          **input_parametersA)
+        # Check that define_monoprototic_particle_states raises a ValueError if a non-supported acidity is provided
+        input_parametersA={"particle_name":"A", 
+                           "acidity": "random",}
+        self.assertRaises(ValueError, 
+                          pmb.define_monoprototic_particle_states,
+                          **input_parametersA)
+
+    def test_get_pka_set_empty(self):
+        """
+        Unit test to check that get_pka_set() returns an empty dict if no reactions have been defined
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        pka_set = pmb.get_pka_set()
+        self.assertEqual(pka_set, 
+                         {})
+
+    def test_get_pka_set_monoprotic_acid(self):
+        """
+        Unit test to check that get_pka_set() returns the right output for a monoprotic acid
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        reaction = Reaction(reaction_type="monoprotic_acid",
+                            pK=4.5,
+                            particle_name="A",
+                            participants=participants)
+        pmb.db._reactions["r1"] = reaction
+        pka_set = pmb.get_pka_set()
+        expected = {"A": {"pka_value": 4.5,
+                           "acidity": "acidic"}}
+        self.assertEqual(pka_set, expected)
+
+    def test_get_pka_set_monoprotic_base(self):
+        """
+        Unit test to check that get_pka_set() returns the right output for a monoprotic base
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        reaction = Reaction(reaction_type="monoprotic_base",
+                            pK=9.2,
+                            particle_name="A",
+                            participants=participants)
+        pmb.db._reactions["r1"] = reaction
+        pka_set = pmb.get_pka_set()
+        expected = {"A": {"pka_value": 9.2,
+                          "acidity": "basic"}}
+        self.assertEqual(pka_set, expected)
+
+    def test_get_pka_set_unsupported_reaction_skipped(self):
+        """
+        Unit test to check that get_pka_set() ignores unsupported reactions
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        supported = Reaction(reaction_type="monoprotic_acid",
+                            pK=5.0,
+                            particle_name="A",
+                            participants=participants)
+        unsupported = Reaction(reaction_type="redox",
+                                pK=1.0,
+                                particle_name="X",
+                                participants=participants)
+
+        pmb.db._reactions["r1"] = supported
+        pmb.db._reactions["r2"] = unsupported
+
+        pka_set = pmb.get_pka_set()
+
+        self.assertEqual(len(pka_set), 1)
+        self.assertIn("A", pka_set)
+        self.assertNotIn("X", pka_set)
+
+    
+    def test_get_pka_set_duplicate_particle_raises(self):
+        """
+        Checks the sanity test for particles involved in multiple reactions
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        r1 = Reaction(reaction_type="monoprotic_acid",
+                    pK=4.0,
+                    particle_name="A",
+                    participants=participants)
+        r2 = Reaction(reaction_type="monoprotic_base",
+                    pK=9.0,
+                    particle_name="A",
+                    participants=participants)
+
+        pmb.db._reactions["r1"] = r1
+        pmb.db._reactions["r2"] = r2
+
+        with self.assertRaisesRegex(ValueError, "Multiple acid/base reactions found for particle 'A'"):
+            pmb.get_pka_set()
+
+if __name__ == "__main__":
+    ut.main()
+

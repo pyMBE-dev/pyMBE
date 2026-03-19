@@ -18,6 +18,7 @@
 #
 
 import espressomd
+from espressomd.io.writer import vtf
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -77,6 +78,8 @@ parser.add_argument('--output',
 
 args = parser.parse_args()
 mode=args.mode
+data_path = args.output
+data_path.mkdir(parents=True, exist_ok=True)
 c_salt_res = args.csalt_res * pmb.units.mol/ pmb.units.L
 solvent_permittivity = 78.9
 seed=42
@@ -95,6 +98,11 @@ pmb.define_particle(name=BeadType,
 pmb.define_residue(name='Res', 
                    central_bead=BeadType, 
                    side_chains=[])
+
+residue_list = ["Res"]*args.mpc
+molecule_name = "hydrogel_chain"
+pmb.define_molecule(name=molecule_name,
+                    residue_list=residue_list)
 
 bond_type = 'FENE'
 bond_length = 0.966 * pmb.units("reduced_length")
@@ -135,7 +143,6 @@ pmb.define_particle(name=chloride_name,
 
 diamond_lattice = DiamondLattice(args.mpc, bond_length)
 espresso_system = espressomd.System(box_l = [diamond_lattice.box_l]*3)
-pmb.add_bonds_to_espresso(espresso_system = espresso_system)
 lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
 
 # Setting up node topology
@@ -147,19 +154,13 @@ for index in range(len(indices)):
                           "lattice_index": indices[index]})
 
 # Setting up chain topology
-node_labels = lattice_builder.node_labels
-chain_labels = lattice_builder.chain_labels
-reverse_node_labels = {v: k for k, v in node_labels.items()}
 chain_topology = []
-residue_list = ["Res"]*args.mpc
-
-for chain_data in chain_labels.items():
-    chain_label = chain_data[1]
-    node_label_pair = chain_data[0]
-    node_label_s, node_label_e = [int(x) for x in node_label_pair.strip("()").split(",")]
-    chain_topology.append({'node_start':reverse_node_labels[node_label_s],
-                              'node_end': reverse_node_labels[node_label_e],
-                              'residue_list':residue_list})
+for node_conectivity in diamond_lattice.connectivity:
+    node_start = str(diamond_lattice.indices[node_conectivity[0]])
+    node_end = str(diamond_lattice.indices[node_conectivity[1]])
+    chain_topology.append({'node_start':node_start,
+                           'node_end': node_end,
+                           'molecule_name':molecule_name})
 
 pmb.define_hydrogel("my_hydrogel", node_topology, chain_topology)
 hydrogel_info = pmb.create_hydrogel("my_hydrogel", espresso_system)
@@ -176,6 +177,13 @@ print("*** Setting LJ interactions ***")
 dt = 0.01  # Timestep 
 espresso_system.time_step = dt
 pmb.setup_lj_interactions(espresso_system=espresso_system)
+#Save the initial state 
+n_frame = 0
+frames_dir = data_path / "frames"
+frames_dir.mkdir(parents=True, exist_ok=True)
+with open(frames_dir / f"trajectory{n_frame}.vtf", mode='w+t') as coordinates:
+    vtf.writevsf(espresso_system, coordinates)
+    vtf.writevcf(espresso_system, coordinates)
 
 print("*** Relaxing the system... ***")
 relax_espresso_system(espresso_system=espresso_system,
@@ -220,14 +228,13 @@ activity_coefficient_monovalent_pair = lambda x: np.exp(excess_chemical_potentia
 pka_set = {BeadType: {"pka_value": args.pKa, 
                       "acidity": "acidic"}}
 
-grxmc, labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=args.pH_res, 
-                                                              c_salt_res=c_salt_res, 
-                                                              proton_name=proton_name, 
-                                                              hydroxide_name=hydroxide_name, 
-                                                              salt_cation_name=sodium_name, 
-                                                              salt_anion_name=chloride_name, 
-                                                              activity_coefficient=activity_coefficient_monovalent_pair, 
-                                                              pka_set=pka_set)
+grxmc, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=args.pH_res, 
+                                                    c_salt_res=c_salt_res, 
+                                                    proton_name=proton_name, 
+                                                    hydroxide_name=hydroxide_name, 
+                                                    salt_cation_name=sodium_name, 
+                                                    salt_anion_name=chloride_name, 
+                                                    activity_coefficient=activity_coefficient_monovalent_pair)
 
 # Setup espresso to track the ionization of the acid groups
 type_map = pmb.get_type_map()
@@ -289,8 +296,7 @@ inputs={"csalt": args.csalt_res,
         "pH": args.pH_res,
         "pKa": args.pKa}
 
-data_path = args.output
-data_path.mkdir(parents=True, exist_ok=True)
+
 
 time_series=pd.DataFrame(time_series)
 filename=analysis.built_output_name(input_dict=inputs)

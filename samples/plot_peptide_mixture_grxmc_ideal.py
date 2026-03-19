@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -22,6 +22,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import argparse
 import pathlib
+from pyMBE.lib.handy_functions import define_peptide_AA_residues
 
 parser = argparse.ArgumentParser(description='Plots the titration data from peptide.py and the corresponding analytical solution.')
 parser.add_argument('--sequence1',
@@ -65,6 +66,8 @@ args = parser.parse_args()
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
 c_salt=args.csalt * pmb.units.mol/ pmb.units.L
+model = "1beadAA"
+
 
 # Define peptide parameters
 sequence1 = args.sequence1
@@ -75,6 +78,13 @@ pep2_concentration = args.pep2_conc *pmb.units.mol/pmb.units.L
 
 # Define the peptides in the pyMBE data frame and load the pka set
 # This is necesary to calculate the analytical solution from the Henderson-Hasselbach equation
+
+define_peptide_AA_residues(sequence=sequence1,
+                           model=model,
+                           pmb=pmb)
+define_peptide_AA_residues(sequence=sequence2,
+                           model=model,
+                           pmb=pmb)
 peptide1 = 'generic_peptide1'
 pmb.define_peptide (name=peptide1, 
                     sequence=sequence1,
@@ -85,6 +95,7 @@ pmb.define_peptide (name=peptide2,
                     model="1beadAA") # not really relevant for plotting
 path_to_pka=pmb.root / "parameters" / "pka_sets" / "Hass2015.json"
 pmb.load_pka_set(path_to_pka)
+
 
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 if args.mode == "plot":
