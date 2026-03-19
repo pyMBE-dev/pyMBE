@@ -7,3 +7,4 @@ traj*.vtf
 *_system.png
 testsuite/Testing/
 testsuite/.coverage*
+samples/time_series/

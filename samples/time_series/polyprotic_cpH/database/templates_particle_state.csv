@@ -1,7 +1,0 @@
-pmb_type,name,particle_name,z,es_type
-particle_state,H3acid,acid,0,0
-particle_state,H2acid,acid,-1,1
-particle_state,Hacid,acid,-2,2
-particle_state,acid,acid,-3,3
-particle_state,Na,Na,1,4
-particle_state,Cl,Cl,-1,5

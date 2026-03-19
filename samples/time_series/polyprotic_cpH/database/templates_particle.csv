@@ -1,4 +1,0 @@
-name,sigma,epsilon,cutoff,offset,initial_state
-acid,"{""magnitude"":0.355,""units"":""nm"",""dimension"":""length""}","{""magnitude"":25.69257912108585,""units"":""meV"",""dimension"":""energy""}","{""magnitude"":0.3984740271498274,""units"":""nm"",""dimension"":""length""}","{""magnitude"":0.0,""units"":""nm"",""dimension"":""length""}",H3acid
-Na,"{""magnitude"":0.35,""units"":""nm"",""dimension"":""length""}","{""magnitude"":25.69257912108585,""units"":""meV"",""dimension"":""energy""}","{""magnitude"":0.3984740271498274,""units"":""nm"",""dimension"":""length""}","{""magnitude"":0.0,""units"":""nm"",""dimension"":""length""}",Na
-Cl,"{""magnitude"":0.35,""units"":""nm"",""dimension"":""length""}","{""magnitude"":25.69257912108585,""units"":""meV"",""dimension"":""energy""}","{""magnitude"":0.3984740271498274,""units"":""nm"",""dimension"":""length""}","{""magnitude"":0.0,""units"":""nm"",""dimension"":""length""}",Cl

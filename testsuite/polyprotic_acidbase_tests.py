@@ -212,9 +212,9 @@ class TestPolyprotic(ut.TestCase):
         self.assertEqual(pka_set["PO4"]["acidity"], "acidic")
         self.assertEqual(pka_set["PO4"]["pka_values"], [2.15, 7.20, 12.35])
 
-    def test_get_pka_set_polyprotic_preserves_pka_order(self):
+    def test_get_pka_set_polyprotic_sorts_pka_order(self):
         """
-        Test that get_pka_set preserves the user-provided pKa ordering.
+        Test that unsorted pKa values are automatically sorted to ascending order.
         """
         pmb = pyMBE.pymbe_library(seed=42)
         pka_values = [7.20, 2.15, 12.35]
@@ -225,7 +225,7 @@ class TestPolyprotic(ut.TestCase):
                                        acidity="acidic",
                                        pka_list=pka_values)
         pka_set = pmb.get_pka_set()
-        self.assertEqual(pka_set["PO4"]["pka_values"], pka_values)
+        self.assertEqual(pka_set["PO4"]["pka_values"], sorted(pka_values))
 
     def test_get_pka_set_mixed(self):
         """
