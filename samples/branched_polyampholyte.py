@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -81,43 +81,37 @@ volume = N_polyampholyte_chains/(pmb.N_A*polyampholyte_concentration)
 
 # Define different particles
 # Inert particle 
-pmb.define_particle(
-    name = "I",
-    z = 0,
-    sigma = 1*pmb.units('reduced_length'),
-    epsilon = 1*pmb.units('reduced_energy'))
+pmb.define_particle(name = "I",
+                    z = 0,
+                    sigma = 1*pmb.units('reduced_length'),
+                    epsilon = 1*pmb.units('reduced_energy'))
     
 # Acidic particle
-pmb.define_particle(
-    name = "A",
-    acidity = "acidic",
-    pka = 4,
-    sigma = 1*pmb.units('reduced_length'),
-    epsilon = 1*pmb.units('reduced_energy'))
+pmb.define_particle(name = "A",
+                    acidity = "acidic",
+                    pka = 4,
+                    sigma = 1*pmb.units('reduced_length'),
+                    epsilon = 1*pmb.units('reduced_energy'))
     
 # Basic particle
-pmb.define_particle(
-    name = "B",
-    acidity = "basic",
-    pka = 9,
-    sigma = 1*pmb.units('reduced_length'),
-    epsilon = 1*pmb.units('reduced_energy'))
+pmb.define_particle(name = "B",
+                    acidity = "basic",
+                    pka = 9,
+                    sigma = 1*pmb.units('reduced_length'),
+                    epsilon = 1*pmb.units('reduced_energy'))
 
 # Define different residues
-pmb.define_residue(
-    name = "Res_1",
-    central_bead = "I",
-    side_chains = ["A","B"])
+pmb.define_residue(name = "Res_1",
+                    central_bead = "I",
+                    side_chains = ["A","B"])
     
-pmb.define_residue(
-    name = "Res_2",
-    central_bead = "I",
-    side_chains = ["Res_1"])
+pmb.define_residue(name = "Res_2",
+                    central_bead = "I",
+                    side_chains = ["Res_1"])
 
 # Define the molecule
-pmb.define_molecule(
-    name = "polyampholyte",
-    residue_list = 2*["Res_1"] + ["Res_2"] + 2*["Res_1"] + 2*["Res_2"])
+pmb.define_molecule(name = "polyampholyte",
+                    residue_list = 2*["Res_1"] + ["Res_2"] + 2*["Res_1"] + 2*["Res_2"])
 
 # Define bonds
 bond_type = 'harmonic'
@@ -125,9 +119,7 @@ generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
 
 harmonic_bond = {'r_0'    : generic_bond_length,
-                 'k'      : generic_harmonic_constant,
-                 }
-
+                 'k'      : generic_harmonic_constant}
 
 pmb.define_default_bond(bond_type = bond_type, bond_parameters = harmonic_bond)
 
@@ -154,8 +146,6 @@ calculated_polyampholyte_concentration = N_polyampholyte_chains/(volume*pmb.N_A)
 espresso_system=espressomd.System(box_l = [L.to('reduced_length').magnitude]*3)
 espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
-# Add all bonds to espresso system
-pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
 pmb.create_molecule(name="polyampholyte", 
@@ -172,20 +162,22 @@ c_salt_calculated = pmb.create_added_salt(espresso_system=espresso_system,
                                           anion_name=anion_name,
                                           c_salt=c_salt)
 
-#List of ionisable groups
-basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
-acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
-list_ionisable_groups = basic_groups + acidic_groups
-total_ionisable_groups = len(list_ionisable_groups)
+# count acid/base particles
+pka_set = pmb.get_pka_set()
+acid_base_ids = []
+for name in pka_set.keys():
+    acid_base_ids+=pmb.db.find_instance_ids_by_name(pmb_type="particle",
+                                                    name=name)        
+total_ionisable_groups = len(acid_base_ids)
 
 if verbose:
     print(f"The box length of your system is {L.to('reduced_length')}, {L.to('nm')}")
     print(f"The polyampholyte concentration in your system is {calculated_polyampholyte_concentration.to('mol/L')} with {N_polyampholyte_chains} molecules")
-    print(f"The ionisable groups in your polyampholyte are {list_ionisable_groups}")
 
-cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
+cpH = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
 if verbose:
-    print(f"The acid-base reaction has been successfully set up for {labels}")
+    print("The acid-base reaction has been successfully set up for:")
+    print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid/basic groups 
 type_map = pmb.get_type_map()
@@ -227,8 +219,8 @@ setup_langevin_dynamics(espresso_system=espresso_system,
                         tune_skin=False)
 
 espresso_system.cell_system.skin=0.4
-#Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df (filename='df.csv')
+#Save the pyMBE database
+pmb.save_database (folder=args.output / 'database')
 
 # Main loop for performing simulations at different pH-values
 time_series={}
@@ -242,9 +234,9 @@ for step in tqdm.trange(N_samples):
     do_reaction(cpH, steps=total_ionisable_groups)   
     # Get polyampholyte net charge
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
-                                        molecule_name="polyampholyte",
+                                        object_name="polyampholyte",
+                                        pmb_type="molecule",
                                         dimensionless=True)
-    
     time_series["time"].append(espresso_system.time)
     time_series["charge"].append(charge_dict["mean"])
     if step % N_samples_print == 0:
@@ -252,7 +244,6 @@ for step in tqdm.trange(N_samples):
         with open(frames_path / f"trajectory{N_frame}.vtf", mode='w+t') as coordinates:
             vtf.writevsf(espresso_system, coordinates)
             vtf.writevcf(espresso_system, coordinates)
-
 # Store time series
 data_path=args.output
 data_path.mkdir(parents=True, exist_ok=True)

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -24,7 +24,7 @@ import argparse
 from espressomd.io.writer import vtf
 import pyMBE
 from pyMBE.lib.analysis import built_output_name
-from pyMBE.lib.handy_functions import do_reaction
+from pyMBE.lib.handy_functions import do_reaction, define_peptide_AA_residues
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -95,11 +95,27 @@ if args.test:
 # Note that this parameterization only includes some of the natural aminoacids
 # For the other aminoacids the user needs to use  a parametrization including all the aminoacids in the peptide sequence
 path_to_pka=pmb.root / "parameters" / "pka_sets" / "Hass2015.json"
-path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021.json"
+path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021"
 
-pmb.load_interaction_parameters(filename=path_to_interactions) 
+pmb.load_database(folder=path_to_interactions) 
+# define templates for the c and n ends
+pmb.define_particle(name="n",
+                    sigma=1*pmb.units.reduced_length,
+                    epsilon=1*pmb.units.reduced_energy,
+                    acidity="basic")
+pmb.define_particle(name="c",
+                    sigma=1*pmb.units.reduced_length,
+                    epsilon=1*pmb.units.reduced_energy,
+                    acidity="acidic")
 pmb.load_pka_set(path_to_pka)
 
+# Define acid/base particle states
+pka_set = pmb.get_pka_set()
+for particle_name in pka_set.keys():
+    if particle_name not in ["c", "n"]: # Avoid redefing the ends
+        pmb.define_monoprototic_particle_states(particle_name=particle_name,
+                                                acidity=pka_set[particle_name]["acidity"])
+    
 # Defines the bonds
 bond_type = 'harmonic'
 generic_bond_length=0.4 * pmb.units.nm
@@ -120,6 +136,12 @@ peptide2 = 'generic_peptide2'
 pmb.define_peptide (name=peptide2, 
                     sequence=sequence2, 
                     model=model)
+define_peptide_AA_residues(sequence=sequence1,
+                           model=model,
+                           pmb=pmb)
+define_peptide_AA_residues(sequence=sequence2,
+                           model=model,
+                           pmb=pmb)
 
 # Solution parameters
 c_salt=5e-3 * pmb.units.mol/ pmb.units.L
@@ -169,9 +191,6 @@ calculated_peptide_concentration = N_peptide1_chains/(volume*pmb.N_A)
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 
-# Add all bonds to espresso system
-pmb.add_bonds_to_espresso(espresso_system=espresso_system)
-
 # Create your molecules into the espresso system
 pmb.create_molecule(name=peptide1, 
                     number_of_molecules=N_peptide1_chains,
@@ -215,31 +234,35 @@ with open(frames_path / "trajectory0.vtf", mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
     vtf.writevcf(espresso_system, coordinates)
 
-#List of ionisable groups 
-basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
-acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
-list_ionisable_groups = basic_groups + acidic_groups
-total_ionisable_groups = len (list_ionisable_groups)
+# count acid/base particles
+pka_set = pmb.get_pka_set()
+acid_base_ids = []
+for name in pka_set.keys():
+    acid_base_ids+=pmb.db.find_instance_ids_by_name(pmb_type="particle",
+                                                    name=name)        
+total_ionisable_groups = len(acid_base_ids)
+
 # Get peptide net charge
 if verbose:
     print("The box length of your system is", L.to('reduced_length'), L.to('nm'))
 
 if args.mode == 'standard':
-    grxmc, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, 
-                                                                                   c_salt_res=c_salt, 
-                                                                                   proton_name=proton_name, 
-                                                                                   hydroxide_name=hydroxide_name, 
-                                                                                   salt_cation_name=sodium_name, 
-                                                                                   salt_anion_name=chloride_name,
-                                                                                   activity_coefficient=lambda x: 1.0)
+    grxmc, ionic_strength_res = pmb.setup_grxmc_reactions(pH_res=pH_value, 
+                                                        c_salt_res=c_salt, 
+                                                        proton_name=proton_name, 
+                                                        hydroxide_name=hydroxide_name, 
+                                                        salt_cation_name=sodium_name, 
+                                                        salt_anion_name=chloride_name,
+                                                        activity_coefficient=lambda x: 1.0)
 elif args.mode == 'unified':
-    grxmc, sucessful_reactions_labels, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, 
-                                                                                 c_salt_res=c_salt, 
-                                                                                 cation_name=cation_name, 
-                                                                                 anion_name=anion_name,
-                                                                                 activity_coefficient=lambda x: 1.0)
+    grxmc, ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, 
+                                                        c_salt_res=c_salt, 
+                                                        cation_name=cation_name, 
+                                                        anion_name=anion_name,
+                                                        activity_coefficient=lambda x: 1.0)
 if verbose:
-    print('The acid-base reaction has been sucessfully setup for ', sucessful_reactions_labels)
+    print("The acid-base reaction has been successfully set up for:")
+    print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 type_map =pmb.get_type_map()
@@ -265,8 +288,8 @@ espresso_system.integrator.set_vv()
 espresso_system.thermostat.set_langevin(kT=pmb.kT.to('reduced_energy').magnitude, gamma=0.1, seed=LANGEVIN_SEED)
 espresso_system.cell_system.skin=0.4
 
-#Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df (filename='df.csv')
+#Save the pyMBE database
+pmb.save_database(folder=args.output / 'database')
 time_series={}
 for label in ["time","charge_peptide1","charge_peptide2","num_plus","xi_plus"]:
     time_series[label]=[] 
@@ -279,11 +302,13 @@ for step in range(N_samples):
     time_series["time"].append(espresso_system.time)
     # Get net charge of peptide1 and peptide2
     charge_dict_peptide1=pmb.calculate_net_charge(espresso_system=espresso_system, 
-                                            molecule_name=peptide1,
-                                            dimensionless=True)
+                                                object_name=peptide1,
+                                                pmb_type="peptide",
+                                                dimensionless=True)
     charge_dict_peptide2=pmb.calculate_net_charge(espresso_system=espresso_system, 
-                                            molecule_name=peptide2,
-                                            dimensionless=True)
+                                                object_name=peptide2,
+                                                pmb_type="peptide",
+                                                dimensionless=True)
     time_series["charge_peptide1"].append(charge_dict_peptide1["mean"])
     time_series["charge_peptide2"].append(charge_dict_peptide2["mean"])
     if args.mode == 'standard':

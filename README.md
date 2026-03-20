@@ -232,7 +232,7 @@ If you use pyMBE in your research, please cite our paper:
 
 When using a released version of pyMBE, we recommend citing the corresponding
 [Zenodo record](https://doi.org/10.5281/zenodo.12102634) in addition to the pyMBE paper,
-for example: "We set up our coarse-grained models using pyMBE v0.8.0
+for example: "We set up our coarse-grained models using pyMBE v1.0.0
 \cite{beyer2024pymbe,zenodo2024pymbe}".
 
 Please also make sure to properly cite the original authors if you use the resources provided in the `pyMBE/parameters/` folder.
@@ -247,7 +247,7 @@ contribute to pyMBE and find our authorship policy and code of conduct.
 
 ## License
 
-Copyright (C) 2023-2025 pyMBE-dev team
+Copyright (C) 2023-2026 pyMBE-dev team
 
 pyMBE is free software: you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by

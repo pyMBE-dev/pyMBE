@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 import argparse
 import pathlib
 import pandas as pd
+import pyMBE.lib.handy_functions as hf
 # Create an instance of pyMBE library
 import pyMBE
 pmb = pyMBE.pymbe_library(seed=42)
@@ -52,22 +53,25 @@ args = parser.parse_args()
 
 # Define peptide parameters
 sequence = args.sequence
-# Define the peptide in the pyMBE dataframe and load the pka set
+# Define the peptide in the pyMBE database and load the pka set
 # This is necessary to calculate the analytical solution from the Henderson-Hasselbach equation
 peptide = 'generic_peptide'
-pmb.define_peptide (name=peptide, 
-                    sequence=sequence,
-                   model="1beadAA") # not really relevant for plotting
+model="1beadAA" # not really relevant for plotting
+pmb.define_peptide(name=peptide, 
+                   sequence=sequence,
+                   model=model) 
 path_to_pka=pmb.root / "parameters" / "pka_sets" / "Hass2015.json"
 pmb.load_pka_set(path_to_pka)
-
+hf.define_peptide_AA_residues(sequence=sequence,
+                              model=model,
+                              pmb=pmb)
 # Calculate the ideal titration curve of the peptide with Henderson-Hasselbach equation
 if args.mode == "plot":
     pH_range_HH = np.linspace(2, 12, num=100)
 elif args.mode == "store_HH":
     pH_range_HH = [2,4,5,6]
-Z_HH = pmb.calculate_HH(molecule_name=peptide, 
-                                  pH_list=pH_range_HH) 
+Z_HH = pmb.calculate_HH(template_name=peptide, 
+                        pH_list=pH_range_HH) 
 
 if args.mode == "plot":
     # Read the analyzed data produced with peptide_mixture_grxmc_ideal

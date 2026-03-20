@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -64,6 +64,12 @@ pmb.define_particle(
     sigma = 1*pmb.units('reduced_length'),
     epsilon = 1*pmb.units('reduced_energy'))
 
+# Inert particle
+pmb.define_particle(name = "I",
+                    z = 0,
+                    sigma = 1*pmb.units('reduced_length'),
+                    epsilon = 1*pmb.units('reduced_energy'))
+
 # Define different residues
 pmb.define_residue(
     name = "Res_1",
@@ -85,7 +91,7 @@ if args.mode == "plot":
     pH_range_HH = np.linspace(2, 12, num=100)
 elif args.mode == "store_HH":
     pH_range_HH = [3.5,4.5,8.5,9.5]
-Z_HH = pmb.calculate_HH(molecule_name="polyampholyte",
+Z_HH = pmb.calculate_HH(template_name="polyampholyte",
                         pH_list=pH_range_HH) 
 
 if args.mode == "plot":

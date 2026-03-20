@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -29,10 +29,7 @@ import argparse
 pmb = pyMBE.pymbe_library(seed=42)
 
 # Load some functions from the handy_scripts library for convenience
-from pyMBE.lib.handy_functions import setup_electrostatic_interactions
-from pyMBE.lib.handy_functions import relax_espresso_system
-from pyMBE.lib.handy_functions import setup_langevin_dynamics
-from pyMBE.lib.handy_functions import do_reaction
+from pyMBE.lib.handy_functions import setup_electrostatic_interactions, relax_espresso_system, setup_langevin_dynamics, do_reaction, define_peptide_AA_residues
 from pyMBE.lib.analysis import built_output_name
 
 parser = argparse.ArgumentParser(description='Sample script to run the pre-made peptide models with pyMBE')
@@ -94,10 +91,17 @@ calculated_peptide_concentration = N_peptide_chains/(volume*pmb.N_A)
 
 # Load peptide parametrization from Lunkad, R. et al.  Molecular Systems Design & Engineering (2021), 6(2), 122-131.
 
-path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021.json"
+path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021"
 path_to_pka=pmb.root / "parameters" / "pka_sets" / "Hass2015.json"
-pmb.load_interaction_parameters (filename=path_to_interactions) 
-pmb.load_pka_set (path_to_pka)
+pmb.load_database(folder=path_to_interactions) 
+pmb.load_pka_set(path_to_pka)
+
+# Define acid/base particle states
+pka_set = pmb.get_pka_set()
+for particle_name in pka_set.keys():
+    pmb.define_monoprototic_particle_states(particle_name=particle_name,
+                                            acidity=pka_set[particle_name]["acidity"])
+
 
 generic_bond_length=0.4 * pmb.units.nm
 generic_harmonic_constant = 400 * pmb.units('reduced_energy / reduced_length**2')
@@ -110,8 +114,11 @@ pmb.define_default_bond(bond_type = 'harmonic',
                         bond_parameters = HARMONIC_parameters)
 
 
-# Defines the peptide in the pyMBE data frame
+# Defines the peptide in the pyMBE database
 peptide_name = 'generic_peptide'
+define_peptide_AA_residues(sequence=sequence,
+                           model="2beadAA",
+                           pmb=pmb)
 pmb.define_peptide (name=peptide_name, 
                     sequence=sequence, 
                     model=model)
@@ -125,12 +132,12 @@ pmb.define_particle(name=anion_name,
                     sigma=0.35*pmb.units.nm,  
                     epsilon=1*pmb.units('reduced_energy'))
 
+
+
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = [L.to('reduced_length').magnitude]*3)
 espresso_system.time_step=dt
 espresso_system.cell_system.skin=0.4
-# Add all bonds to espresso system
-pmb.add_bonds_to_espresso(espresso_system=espresso_system)
 
 # Create your molecules into the espresso system
 pmb.create_molecule(name=peptide_name, 
@@ -154,20 +161,28 @@ with open(frames_path / "trajectory0.vtf", mode='w+t') as coordinates:
     vtf.writevsf(espresso_system, coordinates)
     vtf.writevcf(espresso_system, coordinates)
 
-#List of ionisable groups
-basic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='basic')].name.to_list()
-acidic_groups = pmb.df.loc[(~pmb.df['particle_id'].isna()) & (pmb.df['acidity']=='acidic')].name.to_list()
-list_ionisable_groups = basic_groups + acidic_groups
-total_ionisable_groups = len(list_ionisable_groups)
+# count acid/base particles
+pka_set = pmb.get_pka_set()
+acid_base_ids = []
+list_ionisable_groups = []
+for name in pka_set.keys():
+    part_ids = pmb.db.find_instance_ids_by_name(pmb_type="particle",
+                                                name=name)
+    if part_ids:
+        acid_base_ids+=part_ids
+        list_ionisable_groups+=[name]  
+total_ionisable_groups = len(acid_base_ids)
 
 if verbose:
     print(f"The box length of your system is {L.to('reduced_length')} {L.to('nm')}")
     print(f"The peptide concentration in your system is {calculated_peptide_concentration.to('mol/L')} with {N_peptide_chains} peptides")
     print(f"The ionisable groups in your peptide are {list_ionisable_groups}")
 
-cpH, labels = pmb.setup_cpH(counter_ion=cation_name, constant_pH=pH_value)
+cpH = pmb.setup_cpH(counter_ion=cation_name, 
+                    constant_pH=pH_value)
 if verbose:
-    print(f"The acid-base reaction has been successfully setup for {labels}")
+    print("The acid-base reaction has been successfully set up for:")
+    print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
 type_map =pmb.get_type_map()
@@ -209,8 +224,8 @@ setup_langevin_dynamics(espresso_system=espresso_system,
 # for this example, we use a hard-coded skin value; In general it should be optimized by tuning
 espresso_system.cell_system.skin=0.4
 
-#Save the pyMBE dataframe in a CSV file
-pmb.write_pmb_df(filename='df.csv')
+#Save the pyMBE database
+pmb.save_database(folder=args.output/'database')
 
 # Initialize the time series with arbitrary values at time = 0
 time_series={} # for convenience, here we save the whole time series in a python dictionary
@@ -221,16 +236,15 @@ time_series["charge"] = [0.0]
 # Main loop for performing simulations at different pH-values
 N_frame=0
 for sample in tqdm.trange(N_samples):
-
     # LD sampling of the configuration space
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
     # cpH sampling of the reaction space
     do_reaction(cpH, steps=total_ionisable_groups) # rule of thumb: one reaction step per titratable group (on average)
-    
     # Get peptide net charge
     charge_dict=pmb.calculate_net_charge(espresso_system=espresso_system, 
-                                            molecule_name=peptide_name,
-                                            dimensionless=True)
+                                        object_name=peptide_name,
+                                        pmb_type="peptide",
+                                        dimensionless=True)
     time_series["time"].append(espresso_system.time)
     time_series["charge"].append(charge_dict["mean"])
     if sample % N_samples_print == 0:
@@ -240,12 +254,10 @@ for sample in tqdm.trange(N_samples):
             vtf.writevcf(espresso_system, coordinates)
    
 # Store time series
-
 data_path=args.output
 data_path.mkdir(parents=True, exist_ok=True)
 time_series=pd.DataFrame(time_series)
 filename=built_output_name(input_dict={"sequence":sequence,"pH":pH_value})
-
 time_series.to_csv(data_path / f"{filename}_time_series.csv", index=False)
 
 
