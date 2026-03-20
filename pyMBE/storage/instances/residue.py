@@ -19,14 +19,14 @@
 
 from pyMBE.storage.base_type import PMBBaseModel
 from pydantic import validator
-from typing import Literal, Optional
+from typing import Optional
 
 class ResidueInstance(PMBBaseModel):
     """
     Instance of a residue placed within a molecule during a simulation.
 
     Attributes:
-        pmb_type ('Literal["residue"]'):
+        pmb_type ('str'):
             Fixed string identifying this object as a residue instance. Always ``"residue"``.
 
         name ('str'):
@@ -35,10 +35,10 @@ class ResidueInstance(PMBBaseModel):
         residue_id ('int'):
             Unique non-negative integer identifying this residue instance within the database.
 
-        molecule_id ('Optional[int]'):
+        molecule_id ('int' | 'None'):
             Identifier of the parent molecule to which this residue belongs. ``None`` indicates that the residue is not assigned to any molecule.
 
-        assembly_id ('Optional[int]'):
+        assembly_id ('int' | 'None'):
             Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs. ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
@@ -46,7 +46,7 @@ class ResidueInstance(PMBBaseModel):
         - Residues may be standalone (e.g., in coarse systems) or part of  polymers, proteins, peptides, or hydrogels.
         - The sequence ordering and topology of residues are encoded at the  molecule instance/template level, not here.
     """
-    pmb_type: Literal["residue"] = "residue"
+    pmb_type: str = "residue"
     name: str            # residue template name
     residue_id: int
     molecule_id: Optional[int] = None

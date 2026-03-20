@@ -456,13 +456,31 @@ class Test(ut.TestCase):
                           Reaction,
                           **inputs)
         # Reactions with a participant with a 0 stechiometric coeff. trigger a value error
-        inputs = {"particle_name":"A",
-                   "state_name":"A",
-                   "coefficient":0} 
-        self.assertRaises(ValueError,
-                          ReactionParticipant,
-                          **inputs)
+        inputs = {"participants":[ReactionParticipant(particle_name="A",
+                                                   state_name="A",
+                                                   coefficient=0),
+                                  ReactionParticipant(particle_name="B",
+                                                   state_name="B",
+                                                   coefficient=1)],
+                 "pK":1,
+                 "reaction_type":"test"}
         
+        self.assertRaises(ValueError,
+                          Reaction,
+                          **inputs)
+        # Reactions with a participant with a 0 stechiometric coeff. triggers a ValueError
+        inputs = {"participants":[ReactionParticipant(particle_name="A",
+                                                   state_name="A",
+                                                   coefficient=0),
+                                  ReactionParticipant(particle_name="B",
+                                                   state_name="B",
+                                                   coefficient=1)],
+                 "pK":1,
+                 "reaction_type":"test"}
+        
+        self.assertRaises(ValueError,
+                          Reaction,
+                          **inputs)
         # Adding a new participant with a 0 stechiometric coeff. triggers a ValueError
         react_tpl =Reaction(participants=[ReactionParticipant(particle_name="A",
                                                    state_name="A",

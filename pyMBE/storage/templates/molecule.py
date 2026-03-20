@@ -17,15 +17,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import List, Literal
 from pyMBE.storage.base_type import PMBBaseModel
+from pydantic import Field
 
 class MoleculeTemplate(PMBBaseModel):
     """
     Template defining a molecule in the pyMBE database.
 
     Attributes:
-        pmb_type ('Literal["molecule"]'):
+        pmb_type ('str'): 
             Fixed type identifier for this template. Always "molecule".
 
         name ('str'): 
@@ -34,6 +34,8 @@ class MoleculeTemplate(PMBBaseModel):
         residue_list ('List[str]'): 
             Ordered list of residue names that make up the molecule.
     """
-    pmb_type: Literal["molecule"] = "molecule"
+    pmb_type: str = Field(default="molecule", frozen=True)
     name: str
-    residue_list: List[str]
+    residue_list: list[str] 
+
+

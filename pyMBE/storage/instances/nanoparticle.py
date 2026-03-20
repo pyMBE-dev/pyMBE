@@ -21,35 +21,33 @@ from pyMBE.storage.base_type import PMBBaseModel
 from pydantic import validator
 from typing import Optional
 
-class MoleculeInstance(PMBBaseModel):
+class NanoparticleInstance(PMBBaseModel):
     """
-    Persistent instance representation of a molecule.
+    Persistent instance representation of a nanoparticle.
 
     Attributes:
         pmb_type ('str'):
-            Fixed string identifying this object as a molecule instance.  Always ``"molecule"``.
+            Fixed string identifying this object as a nanoparticle instance.
+            Always ``"nanoparticle"``.
         
         name ('str'):
-            Name of the molecule **template** from which this instance was created. This must correspond to an existing ``MoleculeTemplate`` in the database.
+            Name of the nanoparticle **template** from which this instance was
+            created. This must correspond to an existing
+            ``NanoparticleTemplate`` in the database.
 
         molecule_id ('int'):
-            Unique non-negative integer identifying this molecule instance within the database.
+            Unique non-negative integer identifying the nanoparticle instance within the database.
 
         assembly_id (int | None):
-            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs. ``None`` indicates that the residue is not assigned to any assembly.
-
-    Notes:
-        - Validation of whether ``name`` corresponds to a registered  molecule template is performed at the database level.
-        - Structural or connectivity information (e.g., residue ordering) is maintained outside this class in the instance registry.
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this nanoparticle belongs. ``None`` indicates that the nanoparticle is not assigned to any assembly.
     """
-
-    pmb_type: str = "molecule"
-    name: str            # molecule template name
+    pmb_type: str = "nanoparticle"
+    name: str
     molecule_id: int 
     assembly_id: Optional[int] = None
     
     @validator("molecule_id")
-    def validate_residue_id(cls, mid):
+    def validate_molecule_id(cls, mid):
         if mid < 0:
             raise ValueError("molecule_id must be a non-negative integer.")
         return mid

@@ -33,11 +33,11 @@ class ReactionParticipant(BaseModel):
         particle_name (str):
             The name of the particle template participating in the reaction.
         state_name (str):
-            The name of the particle state.
+            The state of the particle (e.g., protonation state, charge state).
         coefficient (int):
             Stoichiometric coefficient of the participant:
-            - ``coefficient ∈ {..., -3, -2, -1}`` → reactant
-            - ``coefficient ∈ {1, 2, 3, ...}`` → product
+            - ``coefficient < 0`` → reactant
+            - ``coefficient > 0`` → product
 
     Notes:
         - Coefficients of zero are forbidden.
@@ -47,23 +47,6 @@ class ReactionParticipant(BaseModel):
     particle_name: str
     state_name: str
     coefficient: int
-
-    @validator("coefficient")
-    def no_zero_coeff(cls, coefficient):
-        """
-        Ensures that the stoichiometric coefficient is non-zero.
-
-        Args:
-            coefficient ('int'):
-                Stoichiometric coefficient of the participant.
-
-        Returns:
-            ('int'):
-                The validated non-zero coefficient.
-        """
-        if coefficient == 0:
-            raise ValueError("Stoichiometric coefficient cannot be zero.")
-        return coefficient
 
 class Reaction(BaseModel):
     """
@@ -77,12 +60,12 @@ class Reaction(BaseModel):
             List of reactants and products with stoichiometric coefficients.
             Must include at least two participants.
 
+        pK ('float'):
+            Reaction equilibrium parameter (e.g., pKa, log K). The meaning
+            depends on ``reaction_type``.
+
         reaction_type ('str'):
             A categorical descriptor of the reaction, such as ``"acid_base"``
-
-        pK ('float'):
-            Reaction equilibrium parameter (e.g., pKa, -log K). The meaning
-            depends on ``reaction_type``.
 
         simulation_method ('str', optional):
             Simulation method used to study the reaction.
@@ -92,52 +75,56 @@ class Reaction(BaseModel):
             notes, or model-specific configuration.
     """
     participants: List[ReactionParticipant]
-    reaction_type: str 
     pK: float 
+    reaction_type: str 
     metadata: Optional[Dict] = None
     simulation_method: Optional[str] = None
     name: Optional[str] = None 
 
     @validator("participants")
-    def at_least_two_participants(cls, participants):
+    def at_least_two_participants(cls, v):
         """
         Ensures that the reaction contains at least two participants.
 
         Args:
-            participants ('List[ReactionParticipant]'):
+            v ('List[ReactionParticipant]'):
                 List of reaction participants.
 
         Returns:
             ('List[ReactionParticipant]'):
                 The validated list of participants.
-        """
-        if len(participants) < 2:
-            raise ValueError("A reaction must have at least 2 participants.")
-        return participants
 
-    @classmethod
-    def _build_name_from_participants(cls, participants):
+        Raises:
+            ValueError:
+                If fewer than two participants are provided.
         """
-        Builds a reaction name from a list of reaction participants.
+        if len(v) < 2:
+            raise ValueError("A reaction must have at least 2 participants.")
+        return v
+
+    @validator("participants")
+    def no_zero_coeff(cls, v):
+        """
+        Ensures that no participant has a zero stoichiometric coefficient.
 
         Args:
-            participants ('List[ReactionParticipant]'):
-                List of participants to split into reactants and products.
+            v ('List[ReactionParticipant]'):
+                List of reaction participants.
 
         Returns:
-            ('str'):
-                Reaction name in the format ``A + B <-> C + D``.
+            ('List[ReactionParticipant]'):
+                The validated list of participants.
+
+        Raises:
+            ValueError:
+                If any participant has a coefficient equal to zero.
         """
-        reactants = []
-        products = []
-        for participant in participants:
-            if participant.coefficient < 0:
-                reactants.append(participant.state_name)
-            else:
-                products.append(participant.state_name)
-        reactants.sort()
-        products.sort()
-        return f"{' + '.join(reactants)} <-> {' + '.join(products)}"
+        for p in v:
+            if p.coefficient == 0:
+                raise ValueError(
+                    f"Participant {p.state_name} has coefficient 0."
+                )
+        return v
 
     @root_validator
     def generate_name(cls, values):
@@ -153,7 +140,23 @@ class Reaction(BaseModel):
                 Updated model values including the generated reaction name.
         """
         participants = values.get("participants", [])
-        values["name"] = cls._build_name_from_participants(participants)
+
+        reactants = []
+        products = []
+
+        for p in participants:
+            if p.coefficient < 0:
+                reactants.append(p.state_name)
+            else:
+                products.append(p.state_name)
+
+        reactants = sorted(reactants)
+        products = sorted(products)
+
+        left = " + ".join(reactants)
+        right = " + ".join(products)
+
+        values["name"] = f"{left} <-> {right}"
         return values
 
     # ------------------------------------------------------------------
@@ -174,7 +177,14 @@ class Reaction(BaseModel):
             coefficient ('int'):
                 Stoichiometric coefficient of the participant.
                 Must be non-zero.
+
+        Raises:
+            ValueError:
+                If the coefficient is zero.
         """
+        if coefficient == 0:
+            raise ValueError("Stoichiometric coefficient cannot be zero.")
+
         new_participant = ReactionParticipant(
             particle_name=particle_name,
             state_name=state_name,
@@ -183,7 +193,29 @@ class Reaction(BaseModel):
         self.participants.append(new_participant)
 
         # Explicitly regenerate name after mutation
-        self.name = self._build_name_from_participants(self.participants)
+        self.name = self._generate_name_from_participants()
+
+    def _generate_name_from_participants(self):
+        """
+        Generates a reaction name from the current list of participants.
+
+        Returns:
+            ('str'):
+                Reaction name in the format ``A + B <-> C + D``.
+        """
+        reactants = []
+        products = []
+
+        for p in self.participants:
+            if p.coefficient < 0:
+                reactants.append(p.state_name)
+            else:
+                products.append(p.state_name)
+
+        reactants.sort()
+        products.sort()
+
+        return f"{' + '.join(reactants)} <-> {' + '.join(products)}"
 
     def add_simulation_method(self, simulation_method):
         """

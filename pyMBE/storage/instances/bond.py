@@ -17,7 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import Literal
 from pyMBE.storage.base_type import PMBBaseModel
 from pydantic import validator
 
@@ -26,7 +25,7 @@ class BondInstance(PMBBaseModel):
     Instance representation of a bond between two particles.
 
     Attributes:
-        pmb_type ('Literal["bond"]'):
+        pmb_type ('str'):
             Fixed identifier set to ``"bond"`` for all bond instances.
 
         bond_id ('int'):
@@ -48,7 +47,7 @@ class BondInstance(PMBBaseModel):
           objects (e.g., Espresso bond handles). Those should be created
           by a runtime builder separate from the persistent database.
     """
-    pmb_type: Literal["bond"] = "bond"
+    pmb_type: str = "bond"
     bond_id: int
     name : str            # bond template name
     particle_id1: int

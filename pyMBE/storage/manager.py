@@ -35,6 +35,8 @@ from pyMBE.storage.templates.protein import ProteinTemplate
 from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
+from pyMBE.storage.templates.nanoparticle import NanoparticleTemplate
+from pyMBE.storage.instances.nanoparticle import NanoparticleInstance
 from pyMBE.storage.templates.lj import LJInteractionTemplate
 from pyMBE.storage.pint_quantity import PintQuantity
 
@@ -86,7 +88,8 @@ class Manager:
         self._reactions: Dict[str, Reaction] = {}
         self._molecule_like_types = ["molecule",
                                      "peptide",
-                                     "protein"]
+                                     "protein",
+                                     "nanoparticle"]
         self._assembly_like_types = ["hydrogel"]
         self._pmb_types =  ["particle", "residue"] + self._molecule_like_types + self._assembly_like_types
         self.espresso_bond_instances= {}
@@ -146,6 +149,12 @@ class Manager:
         if pmb_type in self._molecule_like_types:
             tpl = self.get_template(name=name, 
                                     pmb_type=pmb_type)
+            if pmb_type == "nanoparticle":
+                counts[tpl.core_particle_name] += 1
+                counts[tpl.primary_site_particle_name] += 1
+                if tpl.secondary_site_particle_name is not None:
+                    counts[tpl.secondary_site_particle_name] += 1
+                return counts
             for res_name in tpl.residue_list:
                 sub = self._collect_particle_templates(name=res_name,
                                                        pmb_type="residue")
@@ -355,6 +364,15 @@ class Manager:
                              "particle_name1": tpl.particle_name1,
                              "particle_name2": tpl.particle_name2,
                              "parameters": parameters})
+            elif pmb_type == "nanoparticle":
+                rows.append({"pmb_type": tpl.pmb_type,
+                             "name": tpl.name,
+                             "core_particle_name": tpl.core_particle_name,
+                             "surface_density_of_sites": tpl.surface_density_of_sites.to_quantity(self._units),
+                             "primary_site_particle_name": tpl.primary_site_particle_name,
+                             "fraction_primary_sites": tpl.fraction_primary_sites,
+                             "number_of_patches_of_primary_sites": tpl.number_of_patches_of_primary_sites,
+                             "secondary_site_particle_name": tpl.secondary_site_particle_name})
             else:
                 # Generic representation for other types
                 rows.append(tpl.dict())
@@ -431,6 +449,9 @@ class Manager:
         elif isinstance(instance, HydrogelInstance):
             pmb_type = "hydrogel"
             iid = instance.assembly_id
+        elif isinstance(instance, NanoparticleInstance):
+            pmb_type = "nanoparticle"
+            iid = instance.molecule_id
         else:
             raise TypeError("Unsupported instance type")
         self._instances.setdefault(pmb_type, {})
@@ -612,7 +633,7 @@ class Manager:
             if not used_ids:
                 return 0
         else:
-            if pmb_type not in self._instances:
+            if pmb_type not in self._instances or len(self._instances[pmb_type]) == 0:
                 return 0
             used_ids = list(self._instances[pmb_type].keys())
         return max(used_ids) + 1
