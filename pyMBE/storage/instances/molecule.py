@@ -19,14 +19,14 @@
 
 from pyMBE.storage.base_type import PMBBaseModel
 from pydantic import validator
-from typing import Optional
+from typing import Literal, Optional
 
 class MoleculeInstance(PMBBaseModel):
     """
     Persistent instance representation of a molecule.
 
     Attributes:
-        pmb_type ('str'):
+        pmb_type ('Literal["molecule"]'):
             Fixed string identifying this object as a molecule instance.  Always ``"molecule"``.
         
         name ('str'):
@@ -35,15 +35,15 @@ class MoleculeInstance(PMBBaseModel):
         molecule_id ('int'):
             Unique non-negative integer identifying this molecule instance within the database.
 
-        assembly_id (int | None):
-            Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs. ``None`` indicates that the residue is not assigned to any assembly.
+        assembly_id (Optional[int]):
+            Identifier of the super-parent assembly (e.g. hydrogel) to which this molecule belongs. ``None`` indicates that the molecule is not assigned to any assembly.
 
     Notes:
         - Validation of whether ``name`` corresponds to a registered  molecule template is performed at the database level.
         - Structural or connectivity information (e.g., residue ordering) is maintained outside this class in the instance registry.
     """
 
-    pmb_type: str = "molecule"
+    pmb_type: Literal["molecule"] = "molecule"
     name: str            # molecule template name
     molecule_id: int 
     assembly_id: Optional[int] = None

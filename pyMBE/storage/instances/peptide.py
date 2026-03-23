@@ -19,7 +19,7 @@
 
 from pyMBE.storage.base_type import PMBBaseModel
 from pydantic import validator
-from typing import Optional
+from typing import Literal, Optional
 
 
 class PeptideInstance(PMBBaseModel):
@@ -27,7 +27,7 @@ class PeptideInstance(PMBBaseModel):
     Instance of a peptide molecule placed in the simulation.
 
     Attributes:
-        pmb_type ('str'):
+        pmb_type ('Literal["peptide"]'):
             Fixed string identifying this object as a peptide instance. Always ``"peptide"``.
         
         name ('str'):
@@ -36,14 +36,14 @@ class PeptideInstance(PMBBaseModel):
         molecule_id ('int'):
             Unique non-negative integer identifying this peptide within the database. 
 
-        assembly_id ('int' | 'None'):
+        assembly_id ('Optional[int]'):
             Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs. ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
         - This class only tracks the identity of the peptide instance. Residues and particles belonging to the peptide reference this instance through their ``molecule_id`` fields.
         - Connectivity (ordering of residues), spatial arrangement, and bonding interactions are managed separately by the database or simulation engine.
     """
-    pmb_type: str = "peptide"
+    pmb_type: Literal["peptide"] = "peptide"
     name: str            # molecule template name
     molecule_id: int 
     assembly_id: Optional[int] = None

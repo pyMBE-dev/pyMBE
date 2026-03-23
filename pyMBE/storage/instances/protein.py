@@ -19,7 +19,7 @@
 
 from pyMBE.storage.base_type import PMBBaseModel
 from pydantic import validator
-from typing import Optional
+from typing import Literal, Optional
 
 
 class ProteinInstance(PMBBaseModel):
@@ -27,7 +27,7 @@ class ProteinInstance(PMBBaseModel):
     Instance of a protein molecule placed in the simulation.
 
     Attributes:
-        pmb_type ('str'):
+        pmb_type ('Literal["protein"]'):
             Fixed string identifying this object as a protein instance. Always ``"protein"``.
         
         name ('str'):
@@ -36,7 +36,7 @@ class ProteinInstance(PMBBaseModel):
         molecule_id ('int'):
             Unique non-negative integer identifying this protein within the database. 
 
-        assembly_id ('int' | 'None'):
+        assembly_id ('Optional[int]'):
             Identifier of the super-parent assembly (e.g. hydrogel) to which this residue belongs. ``None`` indicates that the residue is not assigned to any assembly.
 
     Notes:
@@ -44,7 +44,7 @@ class ProteinInstance(PMBBaseModel):
         - Residues and particles that belong to the protein reference this instance through their ``molecule_id`` values.
         - The structural connectivity (residue sequence, domains) is  handled at the template level or by the builder modules.
     """
-    pmb_type: str = "protein"
+    pmb_type: Literal["protein"] = "protein"
     name: str            # molecule template name
     molecule_id: int 
     assembly_id: Optional[int] = None

@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import List
+from typing import List, Literal
 from pydantic import Field, BaseModel, validator
 from ..base_type import PMBBaseModel
 
@@ -66,7 +66,7 @@ class HydrogelTemplate(PMBBaseModel):
     Template defining a hydrogel network in the pyMBE database.
 
     Attributes:
-        pmb_type ('str'): 
+        pmb_type ('Literal["hydrogel"]'):
             Fixed type identifier for this template. Always "hydrogel".
 
         name ('str'): 
@@ -78,7 +78,7 @@ class HydrogelTemplate(PMBBaseModel):
         chain_map ('List[HydrogelChain]'): 
             List of polymer chains connecting nodes.
     """
-    pmb_type: str = Field(default="hydrogel", frozen=True)
+    pmb_type: Literal["hydrogel"] = "hydrogel"
     name: str
     node_map: List[HydrogelNode] = Field(default_factory=list)
     chain_map: List[HydrogelChain] = Field(default_factory=list)

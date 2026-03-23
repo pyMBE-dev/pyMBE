@@ -72,16 +72,6 @@ if fig_label == "9":
 
 
 if fig_label in labels_fig7:
-    time_series_folder_path=samples_path / "Beyer2024" / "time_series" / "peptides"
-    
-if fig_label in labels_fig8:    
-    time_series_folder_path=samples_path / "Beyer2024" / "time_series" / "globular_protein"
-    
-if fig_label == "9":
-    time_series_folder_path=samples_path / "Beyer2024" / "time_series" / "grxmc"
-
-
-if fig_label in labels_fig7:
     script_path=samples_path / "Beyer2024" / "peptide.py"
     if fig_label == "7a":
         sequence="K"*5+"D"*5

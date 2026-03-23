@@ -18,7 +18,6 @@
 #
 
 from typing import Literal, Optional 
-from pydantic import Field
 from ..base_type import PMBBaseModel
 from ..pint_quantity import PintQuantity
 
@@ -50,7 +49,7 @@ class ParticleTemplate(PMBBaseModel):
     Template describing a particle in the pyMBE database.
 
     Attributes:
-        pmb_type ('str'): 
+        pmb_type ('Literal["particle"]'):
             Fixed type identifier. Always "particle".
 
         sigma ('PintQuantity'): 
@@ -71,7 +70,7 @@ class ParticleTemplate(PMBBaseModel):
         initial_state ('Optional[str]'): 
             Name of the default particle state. If not provided explicitly, the first added state becomes the initial state.
     """
-    pmb_type: str = Field(default="particle", frozen=True)
+    pmb_type: Literal["particle"] = "particle"
     name : str
     sigma: PintQuantity
     cutoff: PintQuantity
@@ -95,4 +94,3 @@ class ParticleTemplate(PMBBaseModel):
                 "epsilon": self.epsilon.to_quantity(ureg),
                 "cutoff": self.cutoff.to_quantity(ureg),
                 "offset": self.offset.to_quantity(ureg)}
-

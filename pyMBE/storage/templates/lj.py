@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from typing import Literal, Union
 from pydantic import BaseModel, Field, root_validator
 from ..pint_quantity import PintQuantity
 
@@ -27,7 +28,7 @@ class LJInteractionTemplate(BaseModel):
     between two particle *states* stored in the pyMBE database.
 
     Attributes:
-        pmb_type ('str'):
+        pmb_type ('Literal["lj"]'):
             Fixed identifier for the template type. Always ``"lj"``.
 
         state1 ('str'):
@@ -48,7 +49,7 @@ class LJInteractionTemplate(BaseModel):
         offset ('PintQuantity'):
             Offset applied to the potential (ESPResSo parameter).
 
-        shift ('str | PintQuantity'):
+        shift ('Union[str, PintQuantity]'):
             Shift applied at the cutoff. May be ``"auto"`` or a PintQuantity value.
 
         name ('str'):
@@ -57,7 +58,7 @@ class LJInteractionTemplate(BaseModel):
     Notes:
         - The order of ``state1`` and ``state2`` does **not** matter. The name is always generated as ``"min(state1, state2)-max(state1, state2)"``.
     """
-    pmb_type: str = "lj"
+    pmb_type: Literal["lj"] = "lj"
     name: str = Field(default="", description="Automatically generated name")
     state1: str
     state2: str
@@ -65,7 +66,7 @@ class LJInteractionTemplate(BaseModel):
     epsilon: PintQuantity
     cutoff: PintQuantity
     offset: PintQuantity
-    shift: str | PintQuantity
+    shift: Union[str, PintQuantity]
 
     @classmethod
     def _make_name(cls, state1: str, state2: str) -> str:

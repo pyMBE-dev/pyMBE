@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from typing import Dict, Literal
+from typing import Dict, Literal, Optional
 from ..base_type import PMBBaseModel
 from ..pint_quantity import PintQuantity
 from pydantic import Field
@@ -45,8 +45,8 @@ class BondTemplate(PMBBaseModel):
     pmb_type: Literal["bond"] = "bond"
     name: str = Field(default="default")
     bond_type: str                      # "HARMONIC", "FENE"
-    particle_name1: str | None = None
-    particle_name2: str | None = None
+    particle_name1: Optional[str] = None
+    particle_name2: Optional[str] = None
     parameters: Dict[str, PintQuantity] # k, r0, d_r_max...
 
     @classmethod

@@ -17,15 +17,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
+from typing import List, Literal
 from pyMBE.storage.base_type import PMBBaseModel
-from pydantic import Field
 
 class ProteinTemplate(PMBBaseModel):
     """
     Template defining a protein in the pyMBE database.
 
     Attributes:
-        pmb_type ('str'): 
+        pmb_type ('Literal["protein"]'):
             Fixed type identifier. Always "protein".
 
         name ('str'): 
@@ -40,8 +40,8 @@ class ProteinTemplate(PMBBaseModel):
         sequence ('List[str]'): 
             Ordered sequence of residues representing the protein's structure.
     """
-    pmb_type: str = Field(default="protein", frozen=True)
+    pmb_type: Literal["protein"] = "protein"
     name: str
     model: str
-    residue_list: list[str] 
+    residue_list: List[str]
     sequence: str 
