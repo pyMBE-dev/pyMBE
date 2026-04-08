@@ -37,6 +37,7 @@ from pyMBE.storage.templates.peptide import PeptideTemplate
 from pyMBE.storage.templates.protein import ProteinTemplate
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
 from pyMBE.storage.templates.bond import BondTemplate
+from pyMBE.storage.templates.angle import AngleTemplate
 from pyMBE.storage.templates.lj import LJInteractionTemplate
 ## Instances
 from pyMBE.storage.instances.particle import ParticleInstance
@@ -45,6 +46,7 @@ from pyMBE.storage.instances.molecule import MoleculeInstance
 from pyMBE.storage.instances.peptide import PeptideInstance
 from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.instances.bond import BondInstance
+from pyMBE.storage.instances.angle import AngleInstance
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 ## Reactions
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
@@ -956,7 +958,7 @@ class pymbe_library():
                                                     assembly_id=assembly_id))
         return assembly_id
 
-    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False, reverse_residue_order = False):
+    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False, reverse_residue_order = False, gen_angle=False):
         """
         Creates instances of a given molecule template name into ESPResSo.
 
@@ -1095,6 +1097,11 @@ class pymbe_library():
                 inst = PeptideInstance(name=name,
                                        molecule_id=molecule_id)
             self.db._register_instance(inst)
+            if gen_angle:
+                self._generate_angles_for_entity(
+                    espresso_system=espresso_system,
+                    entity_id=molecule_id,
+                    entity_id_col='molecule_id')
             first_residue = True
             pos_index+=1
             molecule_ids.append(molecule_id)
@@ -1246,7 +1253,7 @@ class pymbe_library():
             mol_ids.append(molecule_id)
         return mol_ids
 
-    def create_residue(self, name, espresso_system, central_bead_position=None,use_default_bond=False, backbone_vector=None):
+    def create_residue(self, name, espresso_system, central_bead_position=None,use_default_bond=False, backbone_vector=None, gen_angle=False):
         """
         Creates a residue  into ESPResSo.
 
@@ -1370,8 +1377,12 @@ class pymbe_library():
                 self.create_bond(particle_id1=central_bead_id,
                                  particle_id2=side_chain_beads_ids[0],
                                  espresso_system=espresso_system,
-                                 use_default_bond=use_default_bond)        
-        return  residue_id  
+                                 use_default_bond=use_default_bond)
+        if gen_angle:
+            self._generate_angles_for_entity(espresso_system=espresso_system,
+                                             entity_id=residue_id,
+                                             entity_id_col="residue_id")
+        return  residue_id
 
     def define_bond(self, bond_type, bond_parameters, particle_pairs):
         """
@@ -1452,7 +1463,253 @@ class pymbe_library():
                                bond_type=bond_type)
         tpl.name = "default"
         self.db._register_template(tpl)
-    
+
+    def define_angle(self, angle_type, angle_parameters, particle_triplets):
+        """
+        Defines angle potential templates for each particle triplet in `particle_triplets`.
+
+        Args:
+            angle_type ('str'):
+                Type of angle potential. Supported: "harmonic", "cosine", "harmonic_cosine".
+
+            angle_parameters ('dict'):
+                Parameters of the angle potential. Must contain:
+                    - "k" ('pint.Quantity'): Bending stiffness with dimensions of energy.
+                    - "phi_0" ('float'): Equilibrium angle in radians.
+
+            particle_triplets ('list[tuple[str,str,str]]'):
+                List of (side_particle1, central_particle, side_particle2) triplets.
+        """
+        valid_angle_types = ["harmonic", "cosine", "harmonic_cosine"]
+        if angle_type not in valid_angle_types:
+            raise NotImplementedError(f"Angle potential type '{angle_type}' currently not implemented in pyMBE, accepted types are {valid_angle_types}")
+
+        if "k" not in angle_parameters:
+            raise ValueError("Magnitude of the angle potential (k) is missing")
+        if "phi_0" not in angle_parameters:
+            raise ValueError("Equilibrium angle (phi_0) is missing")
+
+        parameters_tpl = {
+            "k": PintQuantity.from_quantity(q=angle_parameters["k"],
+                                            expected_dimension="energy",
+                                            ureg=self.units),
+            "phi_0": PintQuantity.from_quantity(q=angle_parameters["phi_0"],
+                                                expected_dimension="dimensionless",
+                                                ureg=self.units),
+        }
+
+        angle_names = []
+        for side1, central, side2 in particle_triplets:
+            tpl = AngleTemplate(side_particle1=side1,
+                                central_particle=central,
+                                side_particle2=side2,
+                                parameters=parameters_tpl,
+                                angle_type=angle_type)
+            tpl._make_name()
+            if tpl.name in angle_names:
+                raise RuntimeError(f"Angle {tpl.name} has already been defined, please check the list of particle triplets")
+            angle_names.append(tpl.name)
+            self.db._register_template(tpl)
+
+    def define_default_angle(self, angle_type, angle_parameters):
+        """
+        Defines an angle template as a "default" template in the pyMBE database.
+
+        Args:
+            angle_type ('str'):
+                Type of angle potential. Supported: "harmonic", "cosine", "harmonic_cosine".
+
+            angle_parameters ('dict'):
+                Parameters of the angle potential (k, phi_0).
+        """
+        valid_angle_types = ["harmonic", "cosine", "harmonic_cosine"]
+        if angle_type not in valid_angle_types:
+            raise NotImplementedError(f"Angle potential type '{angle_type}' currently not implemented in pyMBE, accepted types are {valid_angle_types}")
+
+        if "k" not in angle_parameters:
+            raise ValueError("Magnitude of the angle potential (k) is missing")
+        if "phi_0" not in angle_parameters:
+            raise ValueError("Equilibrium angle (phi_0) is missing")
+
+        parameters_tpl = {
+            "k": PintQuantity.from_quantity(q=angle_parameters["k"],
+                                            expected_dimension="energy",
+                                            ureg=self.units),
+            "phi_0": PintQuantity.from_quantity(q=angle_parameters["phi_0"],
+                                                expected_dimension="dimensionless",
+                                                ureg=self.units),
+        }
+        tpl = AngleTemplate(parameters=parameters_tpl,
+                            angle_type=angle_type)
+        tpl.name = "default"
+        self.db._register_template(tpl)
+
+    def create_angle(self, particle_id1, particle_id2, particle_id3, espresso_system, use_default_angle=False):
+        """
+        Creates an angle between three particle instances in an ESPResSo system
+        and registers it in the pyMBE database.
+
+        Args:
+            particle_id1 ('int'): ID of the first side particle.
+            particle_id2 ('int'): ID of the central particle.
+            particle_id3 ('int'): ID of the second side particle.
+            espresso_system ('espressomd.system.System'): ESPResSo system.
+            use_default_angle ('bool', optional): If True, use the default angle if no specific one is found.
+        """
+        particle_inst_1 = self.db.get_instance(pmb_type="particle", instance_id=particle_id1)
+        particle_inst_2 = self.db.get_instance(pmb_type="particle", instance_id=particle_id2)
+        particle_inst_3 = self.db.get_instance(pmb_type="particle", instance_id=particle_id3)
+
+        # Verify that bonds exist between side particles and central particle
+        bond_instances = self.db.get_instances(pmb_type="bond")
+        bonded_pairs = set()
+        for bond in bond_instances.values():
+            pair = frozenset([bond.particle_id1, bond.particle_id2])
+            bonded_pairs.add(pair)
+        if frozenset([particle_id1, particle_id2]) not in bonded_pairs:
+            raise ValueError(f"Cannot create angle: no bond exists between particle {particle_id1} and central particle {particle_id2}.")
+        if frozenset([particle_id3, particle_id2]) not in bonded_pairs:
+            raise ValueError(f"Cannot create angle: no bond exists between particle {particle_id3} and central particle {particle_id2}.")
+
+        angle_tpl = self.get_angle_template(side_name1=particle_inst_1.name,
+                                            central_name=particle_inst_2.name,
+                                            side_name2=particle_inst_3.name,
+                                            use_default_angle=use_default_angle)
+        angle_inst = self._get_espresso_angle_instance(angle_template=angle_tpl, espresso_system=espresso_system)
+
+        # ESPResSo angle bonds are added to the central particle
+        espresso_system.part.by_id(particle_id2).add_bond((angle_inst, particle_id1, particle_id3))
+
+        angle_id = self.db._propose_instance_id(pmb_type="angle")
+        pmb_angle_instance = AngleInstance(angle_id=angle_id,
+                                           name=angle_tpl.name,
+                                           particle_id1=particle_id1,
+                                           particle_id2=particle_id2,
+                                           particle_id3=particle_id3)
+        self.db._register_instance(instance=pmb_angle_instance)
+
+    def get_angle_template(self, side_name1, central_name, side_name2, use_default_angle=False):
+        """
+        Retrieves an angle template connecting three particle templates.
+
+        Args:
+            side_name1 ('str'): Name of the first side particle.
+            central_name ('str'): Name of the central particle.
+            side_name2 ('str'): Name of the second side particle.
+            use_default_angle ('bool', optional): If True, fall back to the default angle template.
+
+        Returns:
+            ('AngleTemplate'): The matching angle template.
+        """
+        angle_key = AngleTemplate.make_angle_key(side1=side_name1, central=central_name, side2=side_name2)
+        try:
+            return self.db.get_template(name=angle_key, pmb_type="angle")
+        except ValueError:
+            pass
+
+        if use_default_angle:
+            return self.db.get_template(name="default", pmb_type="angle")
+
+        raise ValueError(f"No angle template found for '{side_name1}-{central_name}-{side_name2}', and default angles are deactivated.")
+
+    def _get_espresso_angle_instance(self, angle_template, espresso_system):
+        """
+        Retrieve or create an angle interaction in an ESPResSo system for a given angle template.
+
+        Args:
+            angle_template ('AngleTemplate'): The angle template to use.
+            espresso_system ('espressomd.system.System'): ESPResSo system.
+
+        Returns:
+            ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
+        """
+        if angle_template.name in self.db.espresso_angle_instances:
+            return self.db.espresso_angle_instances[angle_template.name]
+        angle_inst = self._create_espresso_angle_instance(angle_type=angle_template.angle_type,
+                                                          angle_parameters=angle_template.get_parameters(self.units))
+        self.db.espresso_angle_instances[angle_template.name] = angle_inst
+        espresso_system.bonded_inter.add(angle_inst)
+        return angle_inst
+
+    def _create_espresso_angle_instance(self, angle_type, angle_parameters):
+        """
+        Creates an ESPResSo angle interaction object.
+
+        Args:
+            angle_type ('str'): Type of angle potential ("harmonic", "cosine", "harmonic_cosine").
+            angle_parameters ('dict'): Parameters of the angle potential (k, phi_0).
+
+        Returns:
+            ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
+        """
+        from espressomd import interactions
+
+        k = angle_parameters["k"].m_as("reduced_energy")
+        phi_0 = float(angle_parameters["phi_0"].magnitude)
+
+        if angle_type == "harmonic":
+            return interactions.AngleHarmonic(bend=k, phi0=phi_0)
+        elif angle_type == "cosine":
+            return interactions.AngleCosine(bend=k, phi0=phi_0)
+        elif angle_type == "harmonic_cosine":
+            return interactions.AngleCossquare(bend=k, phi0=phi_0)
+        else:
+            raise NotImplementedError(f"Angle potential type '{angle_type}' currently not implemented in pyMBE")
+
+    def _generate_angles_for_entity(self, espresso_system, entity_id, entity_id_col):
+        """
+        Auto-generates angles from bond topology for an entity (molecule or residue).
+
+        For each particle in the entity that has two or more bonded neighbors,
+        this method finds all neighbor pairs and applies any matching angle potential.
+
+        Args:
+            espresso_system ('espressomd.system.System'): ESPResSo system.
+            entity_id ('int'): The molecule_id or residue_id to generate angles for.
+            entity_id_col ('str'): Either "molecule_id" or "residue_id".
+        """
+        # Get all particle IDs for this entity
+        particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                               attribute=entity_id_col,
+                                                               value=entity_id)
+        if not particle_ids:
+            return
+
+        # Build neighbor map from bond instances
+        neighbors = {pid: set() for pid in particle_ids}
+        pid_set = set(particle_ids)
+        bond_instances = self.db.get_instances(pmb_type="bond")
+        for bond in bond_instances.values():
+            i, j = bond.particle_id1, bond.particle_id2
+            if i in pid_set and j in pid_set:
+                neighbors[i].add(j)
+                neighbors[j].add(i)
+
+        # For each particle with 2+ neighbors, generate angles
+        for j in particle_ids:
+            nbs = sorted(neighbors[j])
+            if len(nbs) < 2:
+                continue
+
+            central_name = self.db.get_instance(pmb_type="particle", instance_id=j).name
+
+            for idx_i in range(len(nbs)):
+                for idx_k in range(idx_i + 1, len(nbs)):
+                    i = nbs[idx_i]
+                    k = nbs[idx_k]
+                    side0_name = self.db.get_instance(pmb_type="particle", instance_id=i).name
+                    side1_name = self.db.get_instance(pmb_type="particle", instance_id=k).name
+
+                    try:
+                        self.create_angle(particle_id1=i,
+                                          particle_id2=j,
+                                          particle_id3=k,
+                                          espresso_system=espresso_system,
+                                          use_default_angle=True)
+                    except ValueError:
+                        # No angle template defined for this triplet — skip
+                        continue
+
     def define_hydrogel(self, name, node_map, chain_map):
         """
         Defines a hydrogel template in the pyMBE database.
