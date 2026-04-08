@@ -1691,15 +1691,10 @@ class pymbe_library():
             if len(nbs) < 2:
                 continue
 
-            central_name = self.db.get_instance(pmb_type="particle", instance_id=j).name
-
             for idx_i in range(len(nbs)):
                 for idx_k in range(idx_i + 1, len(nbs)):
                     i = nbs[idx_i]
                     k = nbs[idx_k]
-                    side0_name = self.db.get_instance(pmb_type="particle", instance_id=i).name
-                    side1_name = self.db.get_instance(pmb_type="particle", instance_id=k).name
-
                     try:
                         self.create_angle(particle_id1=i,
                                           particle_id2=j,
