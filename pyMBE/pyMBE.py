@@ -1653,8 +1653,6 @@ class pymbe_library():
             return interactions.AngleCosine(bend=k, phi0=phi_0)
         elif angle_type == "harmonic_cosine":
             return interactions.AngleCossquare(bend=k, phi0=phi_0)
-        else:
-            raise NotImplementedError(f"Angle potential type '{angle_type}' currently not implemented in pyMBE")
 
     def _generate_angles_for_entity(self, espresso_system, entity_id, entity_id_col):
         """

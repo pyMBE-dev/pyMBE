@@ -57,6 +57,11 @@ class Test(ut.TestCase):
             'phi_0': np.pi / 2 * pmb.units(''),
         }
 
+        self.harmonic_cosine_angle_params = {
+            'k': 40 * pmb.units('reduced_energy'),
+            'phi_0': np.pi / 3 * pmb.units(''),
+        }
+
         self.harmonic_bond_params = {
             'r_0': 0.4 * pmb.units.nm,
             'k': 400 * pmb.units('reduced_energy / reduced_length**2'),
@@ -213,6 +218,82 @@ class Test(ut.TestCase):
                                            espresso_system=espresso_system)
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
+
+    def test_angle_setup_harmonic_cosine(self):
+        """
+        Unit test to check the setup of harmonic-cosine angle potentials in pyMBE.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        self.define_templates(pmb)
+
+        pmb.define_bond(bond_type="harmonic",
+                        bond_parameters=self.harmonic_bond_params,
+                        particle_pairs=[['A', 'B'], ['B', 'C']])
+
+        pmb.define_angle(angle_type="harmonic_cosine",
+                         angle_parameters=self.harmonic_cosine_angle_params,
+                         particle_triplets=[('A', 'B', 'C')])
+
+        pid_A = pmb.create_particle(name="A",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+        pid_B = pmb.create_particle(name="B",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+        pid_C = pmb.create_particle(name="C",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+
+        pmb.create_bond(particle_id1=pid_A[0],
+                        particle_id2=pid_B[0],
+                        espresso_system=espresso_system)
+        pmb.create_bond(particle_id1=pid_B[0],
+                        particle_id2=pid_C[0],
+                        espresso_system=espresso_system)
+
+        pmb.create_angle(particle_id1=pid_A[0],
+                         particle_id2=pid_B[0],
+                         particle_id3=pid_C[0],
+                         espresso_system=espresso_system)
+
+        angle_object = self.get_angle_object(central_particle_id=pid_B[0])
+        self.assertIsNotNone(angle_object, "No angle object found on the central particle")
+
+        self.check_angle_setup(angle_object=angle_object,
+                               input_parameters=self.harmonic_cosine_angle_params,
+                               angle_type="harmonic_cosine")
+
+        for inst_id in pid_A + pid_B + pid_C:
+            pmb.delete_instances_in_system(instance_id=inst_id,
+                                           pmb_type="particle",
+                                           espresso_system=espresso_system)
+        pmb.db.delete_templates(pmb_type="angle")
+        pmb.db.delete_templates(pmb_type="bond")
+
+    def test_get_espresso_angle_instance_reuses_cached_object(self):
+        """
+        Test that cached ESPResSo angle interactions are reused for the same template.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        self.define_templates(pmb)
+
+        pmb.define_angle(angle_type="harmonic",
+                         angle_parameters=self.harmonic_angle_params,
+                         particle_triplets=[('A', 'B', 'C')])
+
+        angle_template = pmb.get_angle_template(side_name1="A",
+                                                central_name="B",
+                                                side_name2="C")
+
+        first_angle_object = pmb._get_espresso_angle_instance(angle_template=angle_template,
+                                                              espresso_system=espresso_system)
+        second_angle_object = pmb._get_espresso_angle_instance(angle_template=angle_template,
+                                                               espresso_system=espresso_system)
+
+        self.assertIs(first_angle_object, second_angle_object)
+        self.assertEqual(len(pmb.db.espresso_angle_instances), 1)
+
+        pmb.db.delete_templates(pmb_type="angle")
 
     def test_default_angle(self):
         """
@@ -504,6 +585,203 @@ class Test(ut.TestCase):
             pmb.delete_instances_in_system(instance_id=inst_id,
                                            pmb_type="particle",
                                            espresso_system=espresso_system)
+        pmb.db.delete_templates(pmb_type="angle")
+        pmb.db.delete_templates(pmb_type="bond")
+
+    def test_generate_angles_for_entity_without_particles_returns(self):
+        """
+        Test that auto-generating angles for an empty entity returns without changes.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        self.define_templates(pmb)
+
+        pmb._generate_angles_for_entity(espresso_system=espresso_system,
+                                        entity_id=999,
+                                        entity_id_col="residue_id")
+
+        self.assertEqual(len(pmb.get_instances_df(pmb_type="angle")), 0)
+
+    def test_generate_angles_for_entity_creates_angle_from_bonds(self):
+        """
+        Test that auto-generating angles creates one angle from a bonded triplet.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        self.define_templates(pmb)
+
+        pmb.define_bond(bond_type="harmonic",
+                        bond_parameters=self.harmonic_bond_params,
+                        particle_pairs=[['A', 'B'], ['B', 'C']])
+        pmb.define_angle(angle_type="harmonic",
+                         angle_parameters=self.harmonic_angle_params,
+                         particle_triplets=[('A', 'B', 'C')])
+
+        pid_A = pmb.create_particle(name="A",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+        pid_B = pmb.create_particle(name="B",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+        pid_C = pmb.create_particle(name="C",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+
+        for particle_id in (pid_A[0], pid_B[0], pid_C[0]):
+            pmb.db._update_instance(instance_id=particle_id,
+                                    pmb_type="particle",
+                                    attribute="residue_id",
+                                    value=0)
+
+        pmb.create_bond(particle_id1=pid_A[0],
+                        particle_id2=pid_B[0],
+                        espresso_system=espresso_system)
+        pmb.create_bond(particle_id1=pid_B[0],
+                        particle_id2=pid_C[0],
+                        espresso_system=espresso_system)
+
+        pmb._generate_angles_for_entity(espresso_system=espresso_system,
+                                        entity_id=0,
+                                        entity_id_col="residue_id")
+
+        angle_object = self.get_angle_object(central_particle_id=pid_B[0])
+        self.assertIsNotNone(angle_object, "No angle object found on the central particle")
+        self.assertEqual(len(pmb.get_instances_df(pmb_type="angle")), 1)
+
+        for inst_id in pid_A + pid_B + pid_C:
+            pmb.delete_instances_in_system(instance_id=inst_id,
+                                           pmb_type="particle",
+                                           espresso_system=espresso_system)
+        pmb.db.delete_templates(pmb_type="angle")
+        pmb.db.delete_templates(pmb_type="bond")
+
+    def test_generate_angles_for_entity_skips_missing_templates(self):
+        """
+        Test that auto-generating angles skips bonded triplets without a matching angle template.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        self.define_templates(pmb)
+
+        pmb.define_bond(bond_type="harmonic",
+                        bond_parameters=self.harmonic_bond_params,
+                        particle_pairs=[['A', 'B'], ['B', 'C']])
+
+        pid_A = pmb.create_particle(name="A",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+        pid_B = pmb.create_particle(name="B",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+        pid_C = pmb.create_particle(name="C",
+                                    espresso_system=espresso_system,
+                                    number_of_particles=1)
+
+        for particle_id in (pid_A[0], pid_B[0], pid_C[0]):
+            pmb.db._update_instance(instance_id=particle_id,
+                                    pmb_type="particle",
+                                    attribute="residue_id",
+                                    value=0)
+
+        pmb.create_bond(particle_id1=pid_A[0],
+                        particle_id2=pid_B[0],
+                        espresso_system=espresso_system)
+        pmb.create_bond(particle_id1=pid_B[0],
+                        particle_id2=pid_C[0],
+                        espresso_system=espresso_system)
+
+        pmb._generate_angles_for_entity(espresso_system=espresso_system,
+                                        entity_id=0,
+                                        entity_id_col="residue_id")
+
+        self.assertIsNone(self.get_angle_object(central_particle_id=pid_B[0]))
+        self.assertEqual(len(pmb.get_instances_df(pmb_type="angle")), 0)
+
+        for inst_id in pid_A + pid_B + pid_C:
+            pmb.delete_instances_in_system(instance_id=inst_id,
+                                           pmb_type="particle",
+                                           espresso_system=espresso_system)
+        pmb.db.delete_templates(pmb_type="bond")
+
+    def test_create_residue_with_gen_angle_generates_angles(self):
+        """
+        Test that create_residue generates angles automatically when gen_angle is enabled.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        self.define_templates(pmb)
+
+        pmb.define_bond(bond_type="harmonic",
+                        bond_parameters=self.harmonic_bond_params,
+                        particle_pairs=[['A', 'B'], ['B', 'C']])
+        pmb.define_angle(angle_type="harmonic",
+                         angle_parameters=self.harmonic_angle_params,
+                         particle_triplets=[('A', 'B', 'C')])
+        pmb.define_residue(name="R_angle",
+                           central_bead="B",
+                           side_chains=["A", "C"])
+
+        residue_id = pmb.create_residue(name="R_angle",
+                                        espresso_system=espresso_system,
+                                        gen_angle=True)
+
+        particle_ids = pmb.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                              attribute="residue_id",
+                                                              value=residue_id)
+        central_particle_id = next(pid for pid in particle_ids
+                                   if pmb.db.get_instance(pmb_type="particle",
+                                                          instance_id=pid).name == "B")
+
+        angle_object = self.get_angle_object(central_particle_id=central_particle_id)
+        self.assertIsNotNone(angle_object, "No angle object found on the central particle")
+        self.assertEqual(len(pmb.get_instances_df(pmb_type="angle")), 1)
+
+        pmb.delete_instances_in_system(instance_id=residue_id,
+                                       pmb_type="residue",
+                                       espresso_system=espresso_system)
+        pmb.db.delete_templates(pmb_type="angle")
+        pmb.db.delete_templates(pmb_type="bond")
+
+    def test_create_molecule_with_gen_angle_generates_angles(self):
+        """
+        Test that create_molecule generates backbone angles automatically when gen_angle is enabled.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        self.define_templates(pmb)
+
+        pmb.define_bond(bond_type="harmonic",
+                        bond_parameters=self.harmonic_bond_params,
+                        particle_pairs=[['A', 'B'], ['B', 'C']])
+        pmb.define_angle(angle_type="harmonic",
+                         angle_parameters=self.harmonic_angle_params,
+                         particle_triplets=[('A', 'B', 'C')])
+        pmb.define_residue(name="R_A",
+                           central_bead="A",
+                           side_chains=[])
+        pmb.define_residue(name="R_B",
+                           central_bead="B",
+                           side_chains=[])
+        pmb.define_residue(name="R_C",
+                           central_bead="C",
+                           side_chains=[])
+        pmb.define_molecule(name="M_angle",
+                            residue_list=["R_A", "R_B", "R_C"])
+
+        molecule_ids = pmb.create_molecule(name="M_angle",
+                                           number_of_molecules=1,
+                                           espresso_system=espresso_system,
+                                           gen_angle=True)
+
+        particle_ids = pmb.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                              attribute="molecule_id",
+                                                              value=molecule_ids[0])
+        central_particle_id = next(pid for pid in particle_ids
+                                   if pmb.db.get_instance(pmb_type="particle",
+                                                          instance_id=pid).name == "B")
+
+        angle_object = self.get_angle_object(central_particle_id=central_particle_id)
+        self.assertIsNotNone(angle_object, "No angle object found on the central particle")
+        self.assertEqual(len(pmb.get_instances_df(pmb_type="angle")), 1)
+
+        pmb.delete_instances_in_system(instance_id=molecule_ids[0],
+                                       pmb_type="molecule",
+                                       espresso_system=espresso_system)
         pmb.db.delete_templates(pmb_type="angle")
         pmb.db.delete_templates(pmb_type="bond")
 
