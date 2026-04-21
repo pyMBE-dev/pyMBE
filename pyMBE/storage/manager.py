@@ -90,7 +90,7 @@ class Manager:
                                      "peptide",
                                      "protein"]
         self._assembly_like_types = ["hydrogel"]
-        self._pmb_types =  ["particle", "residue"] + self._molecule_like_types + self._assembly_like_types
+        self._pmb_types =  ["particle", "residue", "angle"] + self._molecule_like_types + self._assembly_like_types
         self.espresso_bond_instances= {}
         self.espresso_angle_instances= {}
 

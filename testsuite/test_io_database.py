@@ -293,6 +293,31 @@ class Test(ut.TestCase):
         pd.testing.assert_frame_equal(pmb.get_templates_df(pmb_type="bond"),
                                       new_pmb.get_templates_df(pmb_type="bond"))
 
+    def test_io_angle_templates(self):
+        """
+        Checks that information in the pyMBE database about
+        angle templates is stored to file and loaded back properly.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        parameters1 = {"k": 50.0 * pmb.units.reduced_energy,
+                       "phi_0": 1.0 * pmb.units("")}
+        parameters2 = {"k": 30.0 * pmb.units.reduced_energy,
+                       "phi_0": 0.5 * pmb.units("")}
+        pmb.define_angle(angle_type="harmonic",
+                         angle_parameters=parameters1,
+                         particle_triplets=[("Z", "X", "Z"),
+                                            ("X", "Z", "Y")])
+        pmb.define_default_angle(angle_type="cosine",
+                                 angle_parameters=parameters2)
+        new_pmb = pyMBE.pymbe_library(23)
+        with tempfile.TemporaryDirectory() as tmp_directory:
+            # Save and load the database
+            pmb.save_database(tmp_directory)
+            new_pmb.load_database(tmp_directory)
+        # Test that the loaded angle templates are equal to the original
+        pd.testing.assert_frame_equal(pmb.get_templates_df(pmb_type="angle"),
+                                      new_pmb.get_templates_df(pmb_type="angle"))
+
     def test_io_residues_templates(self):
         """
         Checks that information in the pyMBE database about 
@@ -755,4 +780,3 @@ class Test(ut.TestCase):
 
 if __name__ == '__main__':
     ut.main()
-
