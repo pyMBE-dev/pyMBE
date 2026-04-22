@@ -462,7 +462,8 @@ class Test(ut.TestCase):
         instances created into espresso is stored to file and loaded back properly.
         """
         pmb = pyMBE.pymbe_library(seed=42)
-        # Test instances of a hydrogel (tests hydrogel, molecule, residue, bond and particle instances)
+        # Test instances of a hydrogel plus a standalone residue with an angle
+        # (tests hydrogel, molecule, residue, bond, angle and particle instances)
         pmb.define_particle(name="Z",
                     sigma=3.5 * pmb.units.reduced_length,
                     cutoff=4  * pmb.units.reduced_length,
@@ -486,8 +487,16 @@ class Test(ut.TestCase):
                         particle_pairs=[["Z","Z"], 
                                         ["Z","X"],
                                         ["X","X"]])
+        angle_parameters = {"k": 50.0 * pmb.units.reduced_energy,
+                            "phi_0": 1.0 * pmb.units("")}
+        pmb.define_angle(angle_type="harmonic",
+                         angle_parameters=angle_parameters,
+                         particle_triplets=[("X", "Z", "Z")])
         pmb.define_molecule(name="M1", 
                             residue_list=["R1"]*1)
+        angle_residue_id = pmb.create_residue(name="R1",
+                                              espresso_system=espresso_system,
+                                              gen_angle=True)
         diamond_lattice = DiamondLattice(4, 3.5 * pmb.units.reduced_length)
         lattice_builder = pmb.initialize_lattice_builder(diamond_lattice)
         # Setting up node topology --> Nodes are particles of type "X"
@@ -522,16 +531,22 @@ class Test(ut.TestCase):
                                       new_pmb.get_instances_df(pmb_type="hydrogel"))
         pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="molecule"),
                                       new_pmb.get_instances_df(pmb_type="molecule"))
-        pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="residues"),
-                                      new_pmb.get_instances_df(pmb_type="residues"))
+        pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="residue"),
+                                      new_pmb.get_instances_df(pmb_type="residue"))
         pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="bond"),
                                       new_pmb.get_instances_df(pmb_type="bond"))
+        pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="angle"),
+                                      new_pmb.get_instances_df(pmb_type="angle"))
         pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="particle"),
                                       new_pmb.get_instances_df(pmb_type="particle"))
         # Clean up before the next test
         pmb.delete_instances_in_system(espresso_system=espresso_system,
                                        instance_id=assembly_id,
                                        pmb_type="hydrogel")
+        pmb.delete_instances_in_system(espresso_system=espresso_system,
+                                       instance_id=angle_residue_id,
+                                       pmb_type="residue")
+        pmb.db.delete_templates(pmb_type="angle")
         # Test instances of a peptide (tests peptide, residue, bond and particle instances)
         path_to_interactions=pmb.root / "parameters" / "peptides" / "Lunkad2021"
         path_to_pka=pmb.root / "parameters" / "pka_sets" / "Hass2015.json"
@@ -564,8 +579,8 @@ class Test(ut.TestCase):
         # Test that the loaded instances are equal to the original
         pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="peptide"),
                                       new_pmb.get_instances_df(pmb_type="peptide"))
-        pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="residues"),
-                                      new_pmb.get_instances_df(pmb_type="residues"))
+        pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="residue"),
+                                      new_pmb.get_instances_df(pmb_type="residue"))
         pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="bond"),
                                       new_pmb.get_instances_df(pmb_type="bond"))
         pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="particle"),
@@ -605,8 +620,8 @@ class Test(ut.TestCase):
         # Test that the loaded instances are equal to the original
         pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="protein"),
                                       new_pmb.get_instances_df(pmb_type="protein"))
-        pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="residues"),
-                                      new_pmb.get_instances_df(pmb_type="residues"))
+        pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="residue"),
+                                      new_pmb.get_instances_df(pmb_type="residue"))
         pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="bond"),
                                       new_pmb.get_instances_df(pmb_type="bond"))
         pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="particle"),
