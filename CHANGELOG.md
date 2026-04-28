@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Utility functions to load and save the new database via the pyMBE API, `pmb.save_database` and `pmb.load_database`. (#147)
 - Added functions to define particle states:  `pmb.define_particle_states`  and `pmb.define_monoprototic_particle_states`. (#147)
 - Added utility functions in `lib/handy_functions` to define residue and particle templates for aminoacids en peptides and residues: `define_protein_AA_particles`, `define_protein_AA_residues` and `define_peptide_AA_residues`. (#147)
+- Added support for nanoparticle templates and instances in the canonical storage layer via `NanoparticleTemplate` and `NanoparticleInstance`. (#148)
+- Added new API methods `pmb.define_nanoparticle` and `pmb.create_nanoparticle` to define and build nanoparticles with configurable core particles and surface site composition. (#148)
+- Added nanoparticle site-construction utilities in `pyMBE.lib.nanoparticle_tools` for spherical site distribution, patch construction, and overlap checks. (#148)
+- Added sample script `samples/nanoparticles_grxmc.py` to demonstrate nanoparticle setup and simulation workflows. (#148)
+- Added dedicated nanoparticle unit tests (`testsuite/nanoparticle_unit_tests.py`) and coverage for nanoparticle-related code paths. (#148)
 
 ## Changed
 - Create methods (`create_particle`, `create_residue`, `create_molecule`, `create_protein`, `create_hydrogel`) now raise a ValueError if no template is found for an input `name` instead than a warning. (#147)
@@ -22,10 +27,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pka values are now stored as part of chemical reactions and no longer an attribute of particle templates. (#147)
 - Amino acid residue templates are no longer defined internally in `define_peptide` and `define_protein`. Those definitions are now exposed to the user. (#147)
 - Molecule templates now need to be defined to be used as templates for hydrogel chains in hydrogels. (#147)
+- Rigid-body setup is now integrated into nanoparticle creation, allowing nanoparticles to be initialized as rigid objects directly from `pmb.create_nanoparticle`. (#148)
+- Nanoparticle construction now supports primary/secondary site partitioning and multi-patch layouts driven by template parameters. (#148)
 
 ## Fixed
 - Wrong handling of units in `get_radius_map` when the `dimensionless` argument was triggered. (#147)
 - Utility methods `get_particle_id_map`, `calculate_HH`, `calculate_net_charge`,  `center_object_in_simulation_box` now support all template types in pyMBE, including hydrogels. Some of these methods have been renamed to expose directly in the API this change in behavior. (#147)
+- Fixed edge cases in rigid-body initialization used by nanoparticle creation to improve robustness of newly created nanoparticle objects. (#148)
 
 
 ### Removed

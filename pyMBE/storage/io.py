@@ -40,6 +40,8 @@ from pyMBE.storage.templates.protein import ProteinTemplate
 from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
+from pyMBE.storage.templates.nanoparticle import NanoparticleTemplate
+from pyMBE.storage.instances.nanoparticle import NanoparticleInstance
 from pyMBE.storage.templates.lj import LJInteractionTemplate
 
 def _decode(s):
@@ -123,7 +125,8 @@ def _load_database_csv(db, folder):
 
     Notes:
         - PintQuantity objects are reconstructed from their dictionary representation.
-        - Supports particle, residue, molecule, peptide, protein, bond, and hydrogel types.
+        - Supports particle, residue, molecule, peptide, protein, bond, hydrogel,
+          nanoparticle, and lj types.
     """
     folder = Path(folder)
     if not folder.exists():
@@ -137,6 +140,7 @@ def _load_database_csv(db, folder):
                    "peptide",
                    "protein",
                    "hydrogel",
+                   "nanoparticle",
                    "lj"]
     # TEMPLATES
     for pmb_type in pyMBE_types:
@@ -228,6 +232,16 @@ def _load_database_csv(db, folder):
                                        node_map=node_map,
                                        chain_map=chain_map)
                 templates[tpl.name] = tpl
+            elif pmb_type == "nanoparticle":
+                secondary_site = row.get("secondary_site_particle_name", "") or None
+                tpl = NanoparticleTemplate(name=row["name"],
+                                           core_particle_name=row["core_particle_name"],
+                                           total_number_of_sites=int(row["total_number_of_sites"]),
+                                           primary_site_particle_name=row["primary_site_particle_name"],
+                                           fraction_primary_sites=float(row["fraction_primary_sites"]),
+                                           number_of_patches_of_primary_sites=int(row["number_of_patches_of_primary_sites"]),
+                                           secondary_site_particle_name=secondary_site)
+                templates[tpl.name] = tpl
             elif pmb_type == "lj":
                 sigma_d = _decode(row["sigma"])
                 epsilon_d = _decode(row["epsilon"])
@@ -312,6 +326,13 @@ def _load_database_csv(db, folder):
                 inst = HydrogelInstance(name=row["name"],
                                         assembly_id=int(row["assembly_id"]))
                 instances[inst.assembly_id] = inst
+            elif pmb_type == "nanoparticle":
+                molecule_val = row.get("molecule_id", "") or ""
+                assembly_val = row.get("assembly_id", "") or ""
+                inst = NanoparticleInstance(name=row["name"],
+                                            molecule_id=int(molecule_val),
+                                            assembly_id=None if assembly_val == "" else int(assembly_val))
+                instances[inst.molecule_id] = inst
         db._instances[pmb_type] = instances
 
     # REACTIONS
@@ -406,6 +427,14 @@ def _save_database_csv(db, folder):
                 rows.append({"name": tpl.name,
                             "node_map": _encode([node.dict() for node in tpl.node_map]),
                             "chain_map": _encode([chain.dict() for chain in tpl.chain_map])})
+            elif pmb_type == "nanoparticle" and isinstance(tpl, NanoparticleTemplate):
+                rows.append({"name": tpl.name,
+                            "core_particle_name": tpl.core_particle_name,
+                            "total_number_of_sites": tpl.total_number_of_sites,
+                            "primary_site_particle_name": tpl.primary_site_particle_name,
+                            "fraction_primary_sites": tpl.fraction_primary_sites,
+                            "number_of_patches_of_primary_sites": tpl.number_of_patches_of_primary_sites,
+                            "secondary_site_particle_name": tpl.secondary_site_particle_name if tpl.secondary_site_particle_name is not None else ""})
             # LJ TEMPLATE
             elif pmb_type == "lj" and isinstance(tpl, LJInteractionTemplate):
                 rows.append({"name":   tpl.name,
@@ -469,6 +498,11 @@ def _save_database_csv(db, folder):
                 rows.append({"pmb_type": pmb_type,
                             "name": inst.name,
                             "assembly_id": int(inst.assembly_id)})
+            elif pmb_type == "nanoparticle" and isinstance(inst, NanoparticleInstance):
+                rows.append({"pmb_type": pmb_type,
+                            "name": inst.name,
+                            "molecule_id": int(inst.molecule_id),
+                            "assembly_id": int(inst.assembly_id) if inst.assembly_id is not None else ""})
             else:
                 # fallback to dict
                 try:
