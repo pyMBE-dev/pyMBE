@@ -1688,7 +1688,7 @@ class pymbe_library():
                                chain_map=chains)
         self.db._register_template(tpl)
 
-    def define_nanoparticle(self, name, core_particle_name, surface_density_of_sites, primary_site_particle_name, fraction_primary_sites, number_of_patches_of_primary_sites, secondary_site_particle_name=None):
+    def define_nanoparticle(self, name, core_particle_name, total_number_of_sites, primary_site_particle_name, fraction_primary_sites, number_of_patches_of_primary_sites, secondary_site_particle_name=None):
         """
         Defines a nanoparticle template in the pyMBE database.
 
@@ -1699,9 +1699,9 @@ class pymbe_library():
             core_particle_name ('str'):
                 Name of the particle template used as the nanoparticle core.
 
-            surface_density_of_sites ('pint.Quantity'):
-                Surface density of sites on the nanoparticle surface.
-                Must have dimensionality ``[length]**-2``.
+            total_number_of_sites ('int'):
+                Total number of grafting/interaction sites on the nanoparticle surface.
+                The surface density is computed from this value and the core radius.
 
             primary_site_particle_name ('str'):
                 Particle template used for the primary site type.
@@ -1719,9 +1719,7 @@ class pymbe_library():
         """
         tpl = NanoparticleTemplate(name=name,
                                    core_particle_name=core_particle_name,
-                                   surface_density_of_sites=PintQuantity.from_quantity(q=surface_density_of_sites,
-                                                                                       expected_dimension="length**-2",
-                                                                                       ureg=self.units),
+                                   total_number_of_sites=total_number_of_sites,
                                    primary_site_particle_name=primary_site_particle_name,
                                    fraction_primary_sites=fraction_primary_sites,
                                    number_of_patches_of_primary_sites=number_of_patches_of_primary_sites,

@@ -74,7 +74,7 @@ ideal = False # Set to True to not consider electrostatic interactions in the sy
 vol_frac_of_nanoparticles = 0.1		# Volume fraction of the nanoparticle
 number_of_nanoparticles   = 20      # Total number of the nanoparticles
 nanoparticle_diameter     = 4*pmb.units.reduced_length		# Diameter of the nanoparticle in reduced units
-surface_denstity_of_sites = 0.2  	# Surface density of sites in sites/reduced units^2
+total_number_of_sites     = 10		# Equivalent to 0.2 sites/reduced_length^2 for a diameter-4 nanoparticle
 pka_A_site                = 4.0
 pka_B_site                = 10.0
 nanoparticle_lattice_type = "fcc"
@@ -99,11 +99,10 @@ cutoff_core_particle = 2**(1/6)*sigma_core_particle
 
 # Short simulation setup for testing
 
-if args.test: 
+if args.test:
     MD_steps_per_sample = 1
     phi_np              = 0.1
     np_diameter         = 4
-    surf_den_sites      = 0.2	
 
 # Defines the components of the nanoparticle (core particle, A and B type of sites) in the pyMBE data frame
 
@@ -127,13 +126,13 @@ pmb.define_particle(name    = B_site,
                     epsilon = epsilon)
 
 nanoparticle_name = "nanoparticle"
-pmb.define_nanoparticle(name                     = nanoparticle_name,
-                        core_particle_name       = core_particle,
-	                    surface_density_of_sites = surface_denstity_of_sites*pmb.units('reduced_length^-2'),
-                        primary_site_particle_name = A_site,
-                        fraction_primary_sites = sites_distribution["main"]["fraction"],
+pmb.define_nanoparticle(name                               = nanoparticle_name,
+                        core_particle_name                 = core_particle,
+                        total_number_of_sites              = total_number_of_sites,
+                        primary_site_particle_name         = A_site,
+                        fraction_primary_sites             = sites_distribution["main"]["fraction"],
                         number_of_patches_of_primary_sites = sites_distribution["main"]["number_of_patches"],
-                        secondary_site_particle_name = B_site)
+                        secondary_site_particle_name       = B_site)
 
 # Saline solution parameters
 

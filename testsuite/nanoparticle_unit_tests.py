@@ -83,7 +83,7 @@ class TestNanoparticleCreation(ut.TestCase):
         nanoparticle_name = "np"
         pmb.define_nanoparticle(name=nanoparticle_name,
                                 core_particle_name="core",
-                                surface_density_of_sites=0.2 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=10,
                                 primary_site_particle_name="A",
                                 fraction_primary_sites=0.5,
                                 number_of_patches_of_primary_sites=2,
@@ -142,7 +142,7 @@ class TestNanoparticleCreation(ut.TestCase):
         pmb = self._build_pmb_with_particles()
         pmb.define_nanoparticle(name="np",
                                 core_particle_name="core",
-                                surface_density_of_sites=0.2 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=10,
                                 primary_site_particle_name="A",
                                 fraction_primary_sites=0.5,
                                 number_of_patches_of_primary_sites=2,
@@ -172,7 +172,7 @@ class TestNanoparticleCreation(ut.TestCase):
         pmb = self._build_pmb_with_particles()
         pmb.define_nanoparticle(name="np",
                                 core_particle_name="core",
-                                surface_density_of_sites=0.2 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=10,
                                 primary_site_particle_name="A",
                                 fraction_primary_sites=0.5,
                                 number_of_patches_of_primary_sites=2,
@@ -206,7 +206,7 @@ class TestNanoparticleCreation(ut.TestCase):
         # Two primary patches + secondary sites
         pmb.define_nanoparticle(name="np_two",
                                 core_particle_name="core",
-                                surface_density_of_sites=0.2 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=10,
                                 primary_site_particle_name="A",
                                 fraction_primary_sites=0.5,
                                 number_of_patches_of_primary_sites=2,
@@ -222,7 +222,7 @@ class TestNanoparticleCreation(ut.TestCase):
         # here we stub overlap validation to exercise this branch deterministically.
         pmb.define_nanoparticle(name="np_three",
                                 core_particle_name="core",
-                                surface_density_of_sites=0.2 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=10,
                                 primary_site_particle_name="A",
                                 fraction_primary_sites=1.0,
                                 number_of_patches_of_primary_sites=3,
@@ -240,7 +240,7 @@ class TestNanoparticleCreation(ut.TestCase):
         # Zero sites (density = 0) should return an empty specification
         pmb.define_nanoparticle(name="np_zero",
                                 core_particle_name="core",
-                                surface_density_of_sites=0.0 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=0,
                                 primary_site_particle_name="A",
                                 fraction_primary_sites=1.0,
                                 number_of_patches_of_primary_sites=1,
@@ -255,7 +255,7 @@ class TestNanoparticleCreation(ut.TestCase):
         pmb = self._build_pmb_with_particles()
         pmb.define_nanoparticle(name="np",
                                 core_particle_name="core",
-                                surface_density_of_sites=0.2 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=10,
                                 primary_site_particle_name="A",
                                 fraction_primary_sites=0.5,
                                 number_of_patches_of_primary_sites=2,
@@ -337,7 +337,7 @@ class TestNanoparticleCreation(ut.TestCase):
         pmb = self._build_pmb_with_particles()
         pmb.define_nanoparticle(name="np",
                                 core_particle_name="core",
-                                surface_density_of_sites=0.2 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=10,
                                 primary_site_particle_name="A",
                                 fraction_primary_sites=0.5,
                                 number_of_patches_of_primary_sites=2,
@@ -368,7 +368,7 @@ class TestNanoparticleCreation(ut.TestCase):
                                    states=[{"name": "A_no_init_state", "z": 0}])
         pmb.define_nanoparticle(name="np_no_init_site",
                                 core_particle_name="core",
-                                surface_density_of_sites=0.1 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=5,
                                 primary_site_particle_name="A_no_init",
                                 fraction_primary_sites=1.0,
                                 number_of_patches_of_primary_sites=1,
@@ -385,7 +385,7 @@ class TestNanoparticleCreation(ut.TestCase):
                                                    initial_state=None))
         pmb.define_nanoparticle(name="np_bad_core",
                                 core_particle_name="core_no_init",
-                                surface_density_of_sites=0.1 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=5,
                                 primary_site_particle_name="A",
                                 fraction_primary_sites=1.0,
                                 number_of_patches_of_primary_sites=1,
@@ -403,7 +403,7 @@ class TestNanoparticleCreation(ut.TestCase):
                                                    initial_state=None))
         pmb.define_nanoparticle(name="np_no_states_site",
                                 core_particle_name="core",
-                                surface_density_of_sites=0.1 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=5,
                                 primary_site_particle_name="A_no_states",
                                 fraction_primary_sites=1.0,
                                 number_of_patches_of_primary_sites=1,
@@ -423,7 +423,7 @@ class TestNanoparticleCreation(ut.TestCase):
         pmb = self._build_pmb_with_particles()
         pmb.define_nanoparticle(name="np",
                                 core_particle_name="core",
-                                surface_density_of_sites=0.2 * pmb.units("reduced_length^-2"),
+                                total_number_of_sites=10,
                                 primary_site_particle_name="A",
                                 fraction_primary_sites=0.5,
                                 number_of_patches_of_primary_sites=2,

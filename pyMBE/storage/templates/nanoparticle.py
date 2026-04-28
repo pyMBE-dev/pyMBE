@@ -19,7 +19,6 @@
 
 from pyMBE.storage.base_type import PMBBaseModel
 from pydantic import Field
-from pyMBE.storage.pint_quantity import PintQuantity
 import numpy as np
 
 class NanoparticleTemplate(PMBBaseModel):
@@ -36,8 +35,9 @@ class NanoparticleTemplate(PMBBaseModel):
         core_particle_name ('str'):
             Name of the particle template used as the nanoparticle core.
 
-        surface_density_of_sites ('PintQuantity'):
-            Surface density of grafting/interaction sites on the nanoparticle core.
+        total_number_of_sites ('int'):
+            Total number of grafting/interaction sites on the nanoparticle surface.
+            The surface density is computed from this value and the core radius.
 
         primary_site_particle_name ('str'):
             Name of the particle template used for the primary site type.
@@ -57,7 +57,7 @@ class NanoparticleTemplate(PMBBaseModel):
     pmb_type: str = Field(default="nanoparticle", frozen=True)
     name: str
     core_particle_name: str
-    surface_density_of_sites: PintQuantity
+    total_number_of_sites: int
     primary_site_particle_name: str
     fraction_primary_sites: float
     number_of_patches_of_primary_sites: int 
@@ -126,11 +126,7 @@ class NanoparticleTemplate(PMBBaseModel):
         nanoparticle_surface_area = 4.0 * np.pi * core_radius**2
         nanoparticle_volume = (4.0 / 3.0) * np.pi * core_radius**3
 
-        surface_density_of_sites = self.surface_density_of_sites.to_quantity(pmb.units)
-        
-        total_number_of_sites = int(
-            np.round((nanoparticle_surface_area * surface_density_of_sites).to("dimensionless").magnitude)
-        )
+        total_number_of_sites = self.total_number_of_sites
         real_surface_density_of_sites = total_number_of_sites / nanoparticle_surface_area
 
         if self.secondary_site_particle_name is None:

@@ -233,12 +233,10 @@ def _load_database_csv(db, folder):
                                        chain_map=chain_map)
                 templates[tpl.name] = tpl
             elif pmb_type == "nanoparticle":
-                surface_density_d = _decode(row.get("surface_density_of_sites", ""))
-                surface_density = PintQuantity.from_dict(surface_density_d) if surface_density_d is not None else None
                 secondary_site = row.get("secondary_site_particle_name", "") or None
                 tpl = NanoparticleTemplate(name=row["name"],
                                            core_particle_name=row["core_particle_name"],
-                                           surface_density_of_sites=surface_density,
+                                           total_number_of_sites=int(row["total_number_of_sites"]),
                                            primary_site_particle_name=row["primary_site_particle_name"],
                                            fraction_primary_sites=float(row["fraction_primary_sites"]),
                                            number_of_patches_of_primary_sites=int(row["number_of_patches_of_primary_sites"]),
@@ -432,7 +430,7 @@ def _save_database_csv(db, folder):
             elif pmb_type == "nanoparticle" and isinstance(tpl, NanoparticleTemplate):
                 rows.append({"name": tpl.name,
                             "core_particle_name": tpl.core_particle_name,
-                            "surface_density_of_sites": _encode(tpl.surface_density_of_sites),
+                            "total_number_of_sites": tpl.total_number_of_sites,
                             "primary_site_particle_name": tpl.primary_site_particle_name,
                             "fraction_primary_sites": tpl.fraction_primary_sites,
                             "number_of_patches_of_primary_sites": tpl.number_of_patches_of_primary_sites,

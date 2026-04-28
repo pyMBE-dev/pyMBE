@@ -368,7 +368,7 @@ class Manager:
                 rows.append({"pmb_type": tpl.pmb_type,
                              "name": tpl.name,
                              "core_particle_name": tpl.core_particle_name,
-                             "surface_density_of_sites": tpl.surface_density_of_sites.to_quantity(self._units),
+                             "total_number_of_sites": tpl.total_number_of_sites,
                              "primary_site_particle_name": tpl.primary_site_particle_name,
                              "fraction_primary_sites": tpl.fraction_primary_sites,
                              "number_of_patches_of_primary_sites": tpl.number_of_patches_of_primary_sites,
