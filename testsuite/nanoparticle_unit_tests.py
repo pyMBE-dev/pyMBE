@@ -445,6 +445,95 @@ class TestNanoparticleCreation(ut.TestCase):
         self.assertFalse(new_pmb.get_templates_df(pmb_type="nanoparticle").empty)
         self.assertFalse(new_pmb.get_instances_df(pmb_type="nanoparticle").empty)
 
+    def test_get_nanoparticle_properties(self):
+        """
+        Unit test: verify ``get_nanoparticle_properties`` returns the correct properties.
+
+        Notes:
+            - Checks that the function returns the same result as calling
+              ``calculate_nanoparticle_properties`` directly on the template.
+            - Verifies that all expected keys are present in the returned dict.
+            - Verifies that a non-existent name raises an error.
+        """
+        pmb = self._build_pmb_with_particles()
+        pmb.define_nanoparticle(name="np",
+                                core_particle_name="core",
+                                total_number_of_sites=10,
+                                primary_site_particle_name="A",
+                                fraction_primary_sites=0.5,
+                                number_of_patches_of_primary_sites=2,
+                                secondary_site_particle_name="B")
+
+        properties = nanoparticle_tools.get_nanoparticle_properties(pmb, "np")
+
+        expected_keys = ["nanoparticle_surface_area",
+                         "nanoparticle_volume",
+                         "total_number_of_sites",
+                         "real_surface_density_of_sites",
+                         "number_of_primary_sites",
+                         "number_of_primary_sites_per_patch",
+                         "number_of_secondary_sites",
+                         "real_fraction_primary_sites",
+                         "primary_site_charge_number",
+                         "secondary_site_charge_number",
+                         "total_charge",
+                         "surface_charge_density",
+                         "volume_charge_density"]
+        for key in expected_keys:
+            self.assertIn(key, properties)
+
+        self.assertEqual(properties["total_number_of_sites"], 10)
+
+        tpl = pmb.db.get_template(pmb_type="nanoparticle", name="np")
+        direct = tpl.calculate_nanoparticle_properties(pmb)
+        self.assertEqual(properties, direct)
+
+        with self.assertRaises(Exception):
+            nanoparticle_tools.get_nanoparticle_properties(pmb, "nonexistent_np")
+
+    def test_print_nanoparticle_properties(self):
+        """
+        Unit test: verify ``print_nanoparticle_properties`` prints all keys.
+
+        Notes:
+            - Checks that every key in the properties dict appears in stdout.
+            - Verifies that the nanoparticle name appears in the header.
+            - Verifies that the function works without a name argument.
+        """
+        pmb = self._build_pmb_with_particles()
+        pmb.define_nanoparticle(name="np",
+                                core_particle_name="core",
+                                total_number_of_sites=10,
+                                primary_site_particle_name="A",
+                                fraction_primary_sites=0.5,
+                                number_of_patches_of_primary_sites=2,
+                                secondary_site_particle_name="B")
+
+        properties = nanoparticle_tools.get_nanoparticle_properties(pmb, "np")
+
+        import io
+        import sys
+        captured = io.StringIO()
+        sys.stdout = captured
+        try:
+            nanoparticle_tools.print_nanoparticle_properties(properties, name="np")
+        finally:
+            sys.stdout = sys.__stdout__
+        output = captured.getvalue()
+
+        self.assertIn("np", output)
+        for key in properties:
+            self.assertIn(key, output)
+
+        # Also verify it runs without a name (no error, generic header)
+        captured2 = io.StringIO()
+        sys.stdout = captured2
+        try:
+            nanoparticle_tools.print_nanoparticle_properties(properties)
+        finally:
+            sys.stdout = sys.__stdout__
+        self.assertGreater(len(captured2.getvalue()), 0)
+
 
 if __name__ == "__main__":
     ut.main()

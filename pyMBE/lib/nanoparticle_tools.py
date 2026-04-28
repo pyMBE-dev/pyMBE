@@ -233,6 +233,48 @@ def calculate_dipole_moment(charges, positions):
     dipole_magnitude = np.linalg.norm(dipole_moment)
     return dipole_moment, dipole_magnitude
 
+def get_nanoparticle_properties(pmb, name):
+    """
+    Return the computed properties of a nanoparticle template.
+
+    Args:
+        pmb ('pyMBE.pymbe_library'):
+            Active pyMBE object with a populated template database.
+
+        name ('str'):
+            Name of the nanoparticle template.
+
+    Returns:
+        ('dict'): Dictionary with geometric, compositional, and electrostatic
+            properties as returned by
+            :meth:`~pyMBE.storage.templates.nanoparticle.NanoparticleTemplate.calculate_nanoparticle_properties`.
+
+    Raises:
+        ValueError:
+            If no nanoparticle template with the given name exists in the database.
+    """
+    tpl = pmb.db.get_template(name=name, pmb_type="nanoparticle")
+    return tpl.calculate_nanoparticle_properties(pmb)
+
+
+def print_nanoparticle_properties(properties, name=""):
+    """
+    Print nanoparticle properties in a human-readable format.
+
+    Args:
+        properties ('dict'):
+            Dictionary of nanoparticle properties as returned by
+            :func:`get_nanoparticle_properties`.
+
+        name ('str', optional):
+            Nanoparticle name shown in the header. Defaults to empty string.
+    """
+    header = f"Properties of nanoparticle '{name}'" if name else "Nanoparticle properties"
+    print(header)
+    for key, value in properties.items():
+        print(f"  {key}: {value}")
+
+
 def calculate_quadrupole_moment(charges, positions):
     """
     Compute quadrupole moment tensor for a set of point charges.

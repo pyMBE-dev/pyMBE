@@ -25,6 +25,7 @@ from espressomd.io.writer import vtf
 import pyMBE
 from pyMBE.lib.analysis import built_output_name
 from pyMBE.lib.handy_functions import do_reaction, setup_electrostatic_interactions, relax_espresso_system, generate_lattice_positions
+from pyMBE.lib.nanoparticle_tools import get_nanoparticle_properties, print_nanoparticle_properties
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
@@ -59,8 +60,7 @@ frames_path.mkdir(parents=True, exist_ok=True)
 
 # Simulation parameters
 verbose = args.no_verbose
-pmb.set_reduced_units(unit_length=0.4*pmb.units.nm, 
-                      Kw=1e-14)
+pmb.set_reduced_units(unit_length=0.4*pmb.units.nm)
 N_samples           = 1000	# to make the demonstration quick, we set this to a very low value
 MD_steps_per_sample = 1000
 N_samples_print     = 1	# Write the trajectory every 100 samples
@@ -100,7 +100,8 @@ cutoff_core_particle = 2**(1/6)*sigma_core_particle
 # Short simulation setup for testing
 
 if args.test:
-    MD_steps_per_sample = 1
+    MD_steps_per_sample = 100
+    N_samples           = 10
     phi_np              = 0.1
     np_diameter         = 4
 
@@ -175,11 +176,15 @@ elif args.mode == 'unified':
                         epsilon = 1*pmb.units('reduced_energy'))
 
 # System parameters
-nanoparticle_tpl      = pmb.db.get_template(name=nanoparticle_name, pmb_type="nanoparticle")
-properties            = nanoparticle_tpl.calculate_nanoparticle_properties(pmb)
+properties            = get_nanoparticle_properties(pmb, nanoparticle_name)
 nanoparticle_volume   = properties["nanoparticle_volume"].to(pmb.units('reduced_length**3'))
 volume                = number_of_nanoparticles * nanoparticle_volume / vol_frac_of_nanoparticles
 L                     = volume ** (1./3.) # Length of the simulation box
+
+# Print nanoparticle properties
+if verbose:
+    print_nanoparticle_properties(properties, name=nanoparticle_name)
+
 
 # Create an instance of an espresso system
 
@@ -239,20 +244,21 @@ if args.mode == 'standard':
                                                            hydroxide_name=hydroxide_name, 
                                                            salt_cation_name=sodium_name, 
                                                            salt_anion_name=chloride_name,
-                                                           activity_coefficient=lambda x: 1.0)
+                                                           activity_coefficient=lambda x: 1.0,
+                                                           use_exclusion_radius_per_type=True)    
 elif args.mode == 'unified':
     grxmc,  ionic_strength_res = pmb.setup_grxmc_unified(pH_res=pH_value, 
                                                          c_salt_res=c_salt, 
                                                          cation_name=cation_name, 
                                                          anion_name=anion_name,
-                                                         activity_coefficient=lambda x: 1.0)
+                                                         activity_coefficient=lambda x: 1.0,
+                                                         use_exclusion_radius_per_type=True)
+    
 if verbose:
     print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid/basic groups in nanoparticle sites
 type_map =pmb.get_type_map()
-print(type_map)
-
 types = list (type_map.values())
 espresso_system.setup_type_map(type_list = types)
 
