@@ -286,8 +286,6 @@ class pymbe_library():
                                               name=molecule_name).residue_list
         part_start_chain_name = self.db.get_template(pmb_type="residue",
                                                      name=chain_residues[0]).central_bead
-        part_end_chain_name = self.db.get_template(pmb_type="residue",
-                                                   name=chain_residues[-1]).central_bead
         lj_parameters = self.get_lj_parameters(particle_name1=nodes[node_start_label]["name"],
                                                particle_name2=part_start_chain_name)
         bond_tpl = self.get_bond_template(particle_name1=nodes[node_start_label]["name"],
