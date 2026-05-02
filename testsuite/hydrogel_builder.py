@@ -111,8 +111,6 @@ hydrogel_tpl = pmb.db.get_template(pmb_type="hydrogel",
                                    name=hydrogel_name)
 hydrogel_inst = pmb.db.get_instance(pmb_type="hydrogel", 
                                     instance_id=hydrogel_id)
-
-
 class Test(ut.TestCase):
     def test_create_hydrogel_missing_template(self):
         """

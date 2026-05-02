@@ -227,7 +227,7 @@ class pymbe_library():
                                                       d_r_max = bond_parameters["d_r_max"].m_as("reduced_length"))    
         return bond_instance
 
-    def _create_hydrogel_chain(self, hydrogel_chain, nodes, espresso_system, use_default_bond=False):
+    def _create_hydrogel_chain(self, hydrogel_chain, nodes, espresso_system, use_default_bond=False, gen_angle=False):
         """
         Creates a chain between two nodes of a hydrogel.
 
@@ -242,6 +242,11 @@ class pymbe_library():
 
             use_default_bond ('bool', optional): 
                 If True, use a default bond template if no specific template exists. Defaults to False.
+
+            gen_angle ('bool', optional):
+                If True, generate the angle potentials internal to the created
+                chain molecule. Junction angles near the hydrogel crosslinkers
+                are handled separately at the hydrogel level.
 
         Return:
             ('int'): 
@@ -262,8 +267,8 @@ class pymbe_library():
         node_start_label = self.lattice_builder._create_node_label(node_start)
         node_end_label = self.lattice_builder._create_node_label(node_end)
         _, reverse = self.lattice_builder._get_node_vector_pair(node_start, node_end)
-        if node_start != node_end or residue_list == residue_list[::-1]:
-            ValueError(f"Aborted creation of hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
+        if node_start == node_end and residue_list != residue_list[::-1]:
+            raise ValueError(f"Aborted creation of hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
         if reverse:
             reverse_residue_order=True
         else:
@@ -298,24 +303,82 @@ class pymbe_library():
                                       list_of_first_residue_positions=[first_bead_pos.tolist()], #Start at the first node
                                       backbone_vector=np.array(backbone_vector)/l0,
                                       use_default_bond=use_default_bond,
-                                      reverse_residue_order=reverse_residue_order)[0]
+                                      reverse_residue_order=reverse_residue_order,
+                                      gen_angle=gen_angle)[0]
         # Bond chain to the hydrogel nodes
         chain_pids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                              attribute="molecule_id",
                                                              value=mol_id)
-        bond_tpl1 = self.get_bond_template(particle_name1=nodes[node_start_label]["name"],
-                                            particle_name2=part_start_chain_name,
-                                            use_default_bond=use_default_bond)
-        start_bond_instance = self._get_espresso_bond_instance(bond_template=bond_tpl1,
-                                                              espresso_system=espresso_system) 
-        bond_tpl2 = self.get_bond_template(particle_name1=nodes[node_end_label]["name"],
-                                           particle_name2=part_end_chain_name,
-                                           use_default_bond=use_default_bond)   
-        end_bond_instance = self._get_espresso_bond_instance(bond_template=bond_tpl2,
-                                                             espresso_system=espresso_system)
-        espresso_system.part.by_id(start_node_id).add_bond((start_bond_instance, chain_pids[0]))
-        espresso_system.part.by_id(chain_pids[-1]).add_bond((end_bond_instance, end_node_id))
+        self.create_bond(particle_id1=start_node_id,
+                         particle_id2=chain_pids[0],
+                         espresso_system=espresso_system,
+                         use_default_bond=use_default_bond)
+        self.create_bond(particle_id1=chain_pids[-1],
+                         particle_id2=end_node_id,
+                         espresso_system=espresso_system,
+                         use_default_bond=use_default_bond)
         return mol_id
+
+    def _generate_hydrogel_crosslinker_angles(self, espresso_system, central_particle_ids):
+        """
+        Generate hydrogel angles centered on crosslinkers and adjacent terminal beads.
+
+        If the user defines any explicit angle template for such junction
+        triplets, then all required junction triplets must be defined. If none
+        are defined, hydrogel construction proceeds without crosslinker-adjacent
+        angles.
+        """
+        particle_instances = self.db.get_instances(pmb_type="particle")
+        bonded_neighbors = {}
+        for bond in self.db.get_instances(pmb_type="bond").values():
+            bonded_neighbors.setdefault(bond.particle_id1, set()).add(bond.particle_id2)
+            bonded_neighbors.setdefault(bond.particle_id2, set()).add(bond.particle_id1)
+
+        triplets = []
+        for central_particle_id in sorted(set(central_particle_ids)):
+            neighbors = sorted(bonded_neighbors.get(central_particle_id, set()))
+            central_name = particle_instances[central_particle_id].name
+            for idx_i in range(len(neighbors)):
+                for idx_k in range(idx_i + 1, len(neighbors)):
+                    side_particle_id1 = neighbors[idx_i]
+                    side_particle_id3 = neighbors[idx_k]
+                    side_name1 = particle_instances[side_particle_id1].name
+                    side_name3 = particle_instances[side_particle_id3].name
+                    angle_key = AngleTemplate.make_angle_key(side1=side_name1,
+                                                             central=central_name,
+                                                             side2=side_name3)
+                    triplets.append((side_particle_id1,
+                                     central_particle_id,
+                                     side_particle_id3,
+                                     angle_key))
+
+        defined_angle_templates = self.db.get_templates(pmb_type="angle")
+        defined_angle_keys = {
+            angle_key
+            for _, _, _, angle_key in triplets
+            if angle_key in defined_angle_templates
+        }
+        if not defined_angle_keys:
+            logging.warning("No angle templates defined for hydrogel crosslinkers")
+            return
+
+        missing_angle_keys = sorted({
+            angle_key
+            for _, _, _, angle_key in triplets
+            if angle_key not in defined_angle_keys
+        })
+        if missing_angle_keys:
+            raise ValueError(
+                "Hydrogel crosslinker-adjacent angle templates must be defined for all required triplets. "
+                f"Missing definitions for: {missing_angle_keys}"
+            )
+
+        for side_particle_id1, central_particle_id, side_particle_id3, _ in triplets:
+            self.create_angle(particle_id1=side_particle_id1,
+                              particle_id2=central_particle_id,
+                              particle_id3=side_particle_id3,
+                              espresso_system=espresso_system,
+                              use_default_angle=False)
 
     def _create_hydrogel_node(self, node_index, node_name, espresso_system):
         """
@@ -903,7 +966,7 @@ class pymbe_library():
             logging.info(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
 
-    def create_hydrogel(self, name, espresso_system, use_default_bond=False):
+    def create_hydrogel(self, name, espresso_system, use_default_bond=False, gen_angle=False):
         """ 
         Creates a hydrogel in espresso_system using a pyMBE hydrogel template given by 'name'
 
@@ -917,6 +980,11 @@ class pymbe_library():
             use_default_bond ('bool', optional): 
                 If True, use a default bond template if no specific template exists. Defaults to False.
 
+            gen_angle ('bool', optional):
+                If True, generate angle potentials for the internal hydrogel
+                chains and, when explicitly defined, for all crosslinker-adjacent
+                triplets. Defaults to False.
+
         Returns:
             ('int'): id of the hydrogel instance created.
         """
@@ -927,6 +995,7 @@ class pymbe_library():
         assembly_id = self.db._propose_instance_id(pmb_type="hydrogel")
         # Create the nodes
         nodes = {}
+        hydrogel_angle_centers = set()
         node_topology = hydrogel_tpl.node_map
         for node in node_topology:
             node_index = node.lattice_index
@@ -944,15 +1013,59 @@ class pymbe_library():
             molecule_id = self._create_hydrogel_chain(hydrogel_chain=hydrogel_chain,
                                                       nodes=nodes, 
                                                       espresso_system=espresso_system,
-                                                      use_default_bond=use_default_bond)
+                                                      use_default_bond=use_default_bond,
+                                                      gen_angle=gen_angle)
             self.db._update_instance(instance_id=molecule_id,
                                      pmb_type="molecule",
                                      attribute="assembly_id",
                                      value=assembly_id)
+            if gen_angle:
+                residue_ids = self.db._find_instance_ids_by_attribute(pmb_type="residue",
+                                                                      attribute="molecule_id",
+                                                                      value=molecule_id)
+                first_residue_id = min(residue_ids)
+                last_residue_id = max(residue_ids)
+                first_residue = self.db.get_instance(pmb_type="residue",
+                                                     instance_id=first_residue_id)
+                last_residue = self.db.get_instance(pmb_type="residue",
+                                                    instance_id=last_residue_id)
+                first_central_bead_name = self.db.get_template(pmb_type="residue",
+                                                               name=first_residue.name).central_bead
+                last_central_bead_name = self.db.get_template(pmb_type="residue",
+                                                              name=last_residue.name).central_bead
+                particle_instances = self.db.get_instances(pmb_type="particle")
+                first_residue_particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                                                      attribute="residue_id",
+                                                                                      value=first_residue_id)
+                last_residue_particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                                                     attribute="residue_id",
+                                                                                     value=last_residue_id)
+                first_bead_id = None
+                for particle_id in first_residue_particle_ids:
+                    if particle_instances[particle_id].name == first_central_bead_name:
+                        first_bead_id = particle_id
+                        break
+
+                last_bead_id = None
+                for particle_id in last_residue_particle_ids:
+                    if particle_instances[particle_id].name == last_central_bead_name:
+                        last_bead_id = particle_id
+                        break
+                node_start_label = self.lattice_builder._create_node_label(hydrogel_chain.node_start)
+                node_end_label = self.lattice_builder._create_node_label(hydrogel_chain.node_end)
+                hydrogel_angle_centers.update({
+                    nodes[node_start_label]["id"],
+                    nodes[node_end_label]["id"],
+                    first_bead_id,
+                    last_bead_id,
+                })
         self.db._propagate_id(root_type="hydrogel", 
                                 root_id=assembly_id, 
                                 attribute="assembly_id", 
                                 value=assembly_id)
+        if gen_angle:
+            self._generate_hydrogel_crosslinker_angles(espresso_system=espresso_system,
+                                                       central_particle_ids=hydrogel_angle_centers)
         # Register an hydrogel instance in the pyMBE databasegit 
         self.db._register_instance(HydrogelInstance(name=name,
                                                     assembly_id=assembly_id))

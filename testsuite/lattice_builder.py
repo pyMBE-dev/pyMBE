@@ -226,13 +226,17 @@ class Test(ut.TestCase):
                                                   "k": 400 * pmb2.units('reduced_energy / reduced_length**2')})
         
         # Define nodes dictionary as expected by _create_hydrogel_chain
+        # using actual hydrogel node particles registered in pyMBE.
         nodes = {}
-        id = 0
         for label, index in lattice.node_labels.items():
-            nodes[label] = {"name": lattice.get_node(label),
-                            "pos": lattice.lattice.indices[index],
-                            "id": id}
-            id +=1
+            node_index = lattice.lattice.indices[index]
+            node_name = lattice.get_node(label)
+            node_pos, node_id = pmb2._create_hydrogel_node(node_index=node_index,
+                                                           node_name=node_name,
+                                                           espresso_system=espresso_system)
+            nodes[label] = {"name": node_name,
+                            "pos": node_pos,
+                            "id": node_id}
         from pyMBE.storage.templates.hydrogel import HydrogelChain
         # Define hydrogel chain template (reverse geometry)
         hydrogel_chain = HydrogelChain(node_start=node_b,   # reversed on purpose
@@ -251,6 +255,38 @@ class Test(ut.TestCase):
         created_residues    = [pmb2.db.get_instance("residue",  rid).name  for rid in created_residues_id]
         # Reverse branch MUST reverse the residue list
         np.testing.assert_equal(actual=created_residues, desired=sequence[::-1], verbose=True)
+
+    def test_non_palindromic_self_loop_chain_raises(self):
+        """
+        A self-loop hydrogel chain with a non-palindromic residue sequence is
+        ambiguous and must be rejected by _create_hydrogel_chain.
+        """
+        espresso_system.part.clear()
+        espresso_system.bonded_inter.clear()
+        espresso_system.non_bonded_inter.reset()
+
+        pmb = pyMBE.pymbe_library(seed=11)
+        define_templates(pmb=pmb)
+        lattice = pmb.initialize_lattice_builder(diamond)
+        lattice.strict = False
+
+        non_palindromic_sequence = [Res1, Res2, Res3, Res1]
+        pmb.define_molecule(name="self_loop_chain",
+                            residue_list=non_palindromic_sequence)
+
+        from pyMBE.storage.templates.hydrogel import HydrogelChain
+        hydrogel_chain = HydrogelChain(node_start="[0 0 0]",
+                                       node_end="[0 0 0]",
+                                       molecule_name="self_loop_chain")
+
+        with self.assertRaisesRegex(
+            ValueError,
+            "could not resolve a unique topology for that chain",
+        ):
+            pmb._create_hydrogel_chain(hydrogel_chain=hydrogel_chain,
+                                       nodes={},
+                                       espresso_system=espresso_system,
+                                       use_default_bond=False)
 
     def test_plot(self):
         pmb = pyMBE.pymbe_library(seed=42)
@@ -304,4 +340,3 @@ class Test(ut.TestCase):
 
 if __name__ == "__main__":
     ut.main()
-
