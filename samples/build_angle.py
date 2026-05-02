@@ -1,17 +1,32 @@
 #
+# Copyright (C) 2026 pyMBE-dev team
+#
+# This file is part of pyMBE.
+#
+# pyMBE is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# pyMBE is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
 # Example: demonstrating angle potential support in pyMBE.
 #
-# This script shows two complementary usages of `gen_angle=True`:
+# This script shows three usages of `gen_angle=True`:
 #   1. create_residue with gen_angle=True
 #        - builds a single residue with auto-generated angles
 #   2. create_molecule with gen_angle=True
 #        - builds a chain of residues; angles are auto-generated across the
 #          full molecule, including angles that span residue boundaries
-#
-# Note: angle auto-generation is currently supported only in `create_residue`
-# and `create_molecule`. Other higher-level builders (e.g. `create_hydrogel`)
-# do not yet propagate `gen_angle`.
-#
+#   3. create_residue with a nested residue as side chain
+#        - builds a residue whose side chain is itself a residue; verifies
+#          that all bonded triplets (intra- and cross-level) are generated
 
 import pyMBE
 import numpy as np
@@ -37,6 +52,11 @@ pmb.define_particle(name='B',
                     epsilon=1 * pmb.units('reduced_energy'))
 
 pmb.define_particle(name='C',
+                    z=0,
+                    sigma=0.4 * pmb.units.nm,
+                    epsilon=1 * pmb.units('reduced_energy'))
+
+pmb.define_particle(name='D',
                     z=0,
                     sigma=0.4 * pmb.units.nm,
                     epsilon=1 * pmb.units('reduced_energy'))
@@ -108,11 +128,71 @@ pmb.define_residue(name="Res_2",
 pmb.define_molecule(name="Mol_1",
                     residue_list=["Res_2"] * 4)
 
-pmb.create_molecule(name="Mol_1",
-                    number_of_molecules=1,
-                    espresso_system=espresso_system,
-                    backbone_vector=[1.0, 0.0, 0.0],
-                    use_default_bond=True,
-                    gen_angle=True)
+molecule_ids = pmb.create_molecule(name="Mol_1",
+                                   number_of_molecules=1,
+                                   espresso_system=espresso_system,
+                                   backbone_vector=[1.0, 0.0, 0.0],
+                                   use_default_bond=True,
+                                   gen_angle=True)
 
 show_database("Demo 2: linear molecule with gen_angle=True")
+
+pmb.delete_instances_in_system(instance_id=molecule_ids[0],
+                               pmb_type="molecule",
+                               espresso_system=espresso_system)
+
+# ======================================================================
+# Demo 3: create_residue with a nested residue as side chain
+# ======================================================================
+# Topology:  D₁       where SubRes_3 = B bonded to C and D₂
+#             \
+#              A
+#              |
+#              B -- C
+#              |
+#              D₂
+#
+# SubRes_3 (central B, side chains C and D) is passed as a side chain of
+# the outer residue NestedRes_3 (central A, direct side chain D).
+# D₁ and D₂ are distinct instances of particle type D.
+#
+# All bonded triplets and their canonical angle names:
+#   centered at A:  D₁ -- A -- B  →  "B-A-D"  (outer {B,D} sorted)
+#   centered at B:  A  -- B -- C  →  "A-B-C"
+#   centered at B:  A  -- B -- D₂ →  "A-B-D"
+#   centered at B:  C  -- B -- D₂ →  "C-B-D"
+pmb.define_residue(name="SubRes_3",
+                   central_bead="B",
+                   side_chains=["C", "D"])
+
+pmb.define_residue(name="NestedRes_3",
+                   central_bead="A",
+                   side_chains=["D", "SubRes_3"])
+
+nested_residue_id = pmb.create_residue(name="NestedRes_3",
+                                       espresso_system=espresso_system,
+                                       use_default_bond=True,
+                                       gen_angle=True)
+
+show_database("Demo 3: nested residue with gen_angle=True")
+
+angle_instances_df = pmb.get_instances_df(pmb_type="angle")
+particle_instances_df = pmb.get_instances_df(pmb_type="particle")
+print(f"\nAngle instance count: {len(angle_instances_df)}")
+
+id_to_type = dict(zip(particle_instances_df["particle_id"],
+                      particle_instances_df["name"]))
+actual_triplets = set()
+for _, row in angle_instances_df.iterrows():
+    p1 = id_to_type[row["particle_id1"]]
+    center = id_to_type[row["particle_id2"]]
+    p3 = id_to_type[row["particle_id3"]]
+    outer = sorted([p1, p3])
+    actual_triplets.add(f"{outer[0]}-{center}-{outer[1]}")
+
+print("Resolved angle triplets:", sorted(actual_triplets))
+expected_triplets = {"A-B-C", "A-B-D", "B-A-D", "C-B-D"}
+assert actual_triplets == expected_triplets, (
+    f"Demo 3: expected {sorted(expected_triplets)}, got {sorted(actual_triplets)}"
+)
+print("Demo 3: all expected angle triplets generated OK")
