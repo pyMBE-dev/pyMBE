@@ -303,11 +303,11 @@ class Test(ut.TestCase):
                        "phi_0": 1.0 * pmb.units("")}
         parameters2 = {"k": 30.0 * pmb.units.reduced_energy,
                        "phi_0": 0.5 * pmb.units("")}
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=parameters1,
                          particle_triplets=[("Z", "X", "Z"),
                                             ("X", "Z", "Y")])
-        pmb.define_default_angle(angle_type="cosine",
+        pmb.define_default_angular_potential(angle_type="cosine",
                                  angle_parameters=parameters2)
         new_pmb = pyMBE.pymbe_library(23)
         with tempfile.TemporaryDirectory() as tmp_directory:
@@ -489,7 +489,7 @@ class Test(ut.TestCase):
                                         ["X","X"]])
         angle_parameters = {"k": 50.0 * pmb.units.reduced_energy,
                             "phi_0": 1.0 * pmb.units("")}
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=angle_parameters,
                          particle_triplets=[("X", "Z", "Z")])
         pmb.define_molecule(name="M1", 

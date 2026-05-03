@@ -119,7 +119,7 @@ class Test(ut.TestCase):
                         particle_pairs=[['A', 'B'], ['B', 'C']])
 
         # Define harmonic angle for triplet A-B-C
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=self.harmonic_angle_params,
                          particle_triplets=[('A', 'B', 'C')])
 
@@ -143,7 +143,7 @@ class Test(ut.TestCase):
                         espresso_system=espresso_system)
 
         # Create the angle: A-B-C (B is central)
-        pmb.create_angle(particle_id1=pid_A[0],
+        pmb.create_angular_potential(particle_id1=pid_A[0],
                          particle_id2=pid_B[0],
                          particle_id3=pid_C[0],
                          espresso_system=espresso_system)
@@ -176,7 +176,7 @@ class Test(ut.TestCase):
                         particle_pairs=[['A', 'B']])
 
         # Define cosine angle for triplet A-B-A
-        pmb.define_angle(angle_type="cosine",
+        pmb.define_angular_potential(angle_type="cosine",
                          angle_parameters=self.cosine_angle_params,
                          particle_triplets=[('A', 'B', 'A')])
 
@@ -199,7 +199,7 @@ class Test(ut.TestCase):
                         particle_id2=pid_A2[0],
                         espresso_system=espresso_system)
 
-        pmb.create_angle(particle_id1=pid_A1[0],
+        pmb.create_angular_potential(particle_id1=pid_A1[0],
                          particle_id2=pid_B[0],
                          particle_id3=pid_A2[0],
                          espresso_system=espresso_system)
@@ -230,7 +230,7 @@ class Test(ut.TestCase):
                         bond_parameters=self.harmonic_bond_params,
                         particle_pairs=[['A', 'B'], ['B', 'C']])
 
-        pmb.define_angle(angle_type="harmonic_cosine",
+        pmb.define_angular_potential(angle_type="harmonic_cosine",
                          angle_parameters=self.harmonic_cosine_angle_params,
                          particle_triplets=[('A', 'B', 'C')])
 
@@ -251,7 +251,7 @@ class Test(ut.TestCase):
                         particle_id2=pid_C[0],
                         espresso_system=espresso_system)
 
-        pmb.create_angle(particle_id1=pid_A[0],
+        pmb.create_angular_potential(particle_id1=pid_A[0],
                          particle_id2=pid_B[0],
                          particle_id3=pid_C[0],
                          espresso_system=espresso_system)
@@ -277,7 +277,7 @@ class Test(ut.TestCase):
         pmb = pyMBE.pymbe_library(seed=42)
         self.define_templates(pmb)
 
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=self.harmonic_angle_params,
                          particle_triplets=[('A', 'B', 'C')])
 
@@ -308,7 +308,7 @@ class Test(ut.TestCase):
                         particle_pairs=[['A', 'B'], ['B', 'C']])
 
         # Define only a default angle (no specific triplet)
-        pmb.define_default_angle(angle_type="harmonic",
+        pmb.define_default_angular_potential(angle_type="harmonic",
                                  angle_parameters=self.harmonic_angle_params)
 
         # Create three particles
@@ -331,7 +331,7 @@ class Test(ut.TestCase):
                         espresso_system=espresso_system)
 
         # Create angle using default (no specific A-B-C template exists)
-        pmb.create_angle(particle_id1=pid_A[0],
+        pmb.create_angular_potential(particle_id1=pid_A[0],
                          particle_id2=pid_B[0],
                          particle_id3=pid_C[0],
                          espresso_system=espresso_system,
@@ -365,11 +365,11 @@ class Test(ut.TestCase):
                         particle_pairs=[['A', 'B'], ['B', 'C']])
 
         # Define default angle with cosine parameters
-        pmb.define_default_angle(angle_type="cosine",
+        pmb.define_default_angular_potential(angle_type="cosine",
                                  angle_parameters=self.cosine_angle_params)
 
         # Define specific angle for A-B-C with harmonic parameters
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=self.harmonic_angle_params,
                          particle_triplets=[('A', 'B', 'C')])
 
@@ -392,7 +392,7 @@ class Test(ut.TestCase):
                         espresso_system=espresso_system)
 
         # Should use the specific A-B-C template, not the default
-        pmb.create_angle(particle_id1=pid_A[0],
+        pmb.create_angular_potential(particle_id1=pid_A[0],
                          particle_id2=pid_B[0],
                          particle_id3=pid_C[0],
                          espresso_system=espresso_system,
@@ -421,7 +421,7 @@ class Test(ut.TestCase):
         pmb = pyMBE.pymbe_library(seed=42)
         self.define_templates(pmb)
 
-        for callback in [pmb.define_angle, pmb.define_default_angle]:
+        for callback in [pmb.define_angular_potential, pmb.define_default_angular_potential]:
             with self.subTest(msg=f'using method {callback.__qualname__}()'):
                 self.check_angle_exceptions(callback, pmb)
 
@@ -432,7 +432,7 @@ class Test(ut.TestCase):
                         'phi_0': np.pi * pmb.units('')}
 
         input_parameters = {"angle_type": angle_type, "angle_parameters": angle_params}
-        if callback == pmb.define_angle:
+        if callback == pmb.define_angular_potential:
             input_parameters["particle_triplets"] = [('A', 'B', 'C')]
 
         np.testing.assert_raises(NotImplementedError, callback, **input_parameters)
@@ -442,7 +442,7 @@ class Test(ut.TestCase):
         angle_params = {'phi_0': np.pi * pmb.units('')}
 
         input_parameters = {"angle_type": angle_type, "angle_parameters": angle_params}
-        if callback == pmb.define_angle:
+        if callback == pmb.define_angular_potential:
             input_parameters["particle_triplets"] = [('A', 'B', 'C')]
 
         np.testing.assert_raises(ValueError, callback, **input_parameters)
@@ -452,19 +452,19 @@ class Test(ut.TestCase):
         angle_params = {'k': 50 * pmb.units('reduced_energy')}
 
         input_parameters = {"angle_type": angle_type, "angle_parameters": angle_params}
-        if callback == pmb.define_angle:
+        if callback == pmb.define_angular_potential:
             input_parameters["particle_triplets"] = [('A', 'B', 'C')]
 
         np.testing.assert_raises(ValueError, callback, **input_parameters)
 
-        # Check exception for duplicate triplet in define_angle
-        if callback == pmb.define_angle:
+        # Check exception for duplicate triplet in define_angular_potential
+        if callback == pmb.define_angular_potential:
             test = {"angle_type": "harmonic",
                     "angle_parameters": self.harmonic_angle_params,
                     "particle_triplets": [("A", "B", "A"), ("A", "B", "A")]}
 
             np.testing.assert_raises(RuntimeError,
-                                     pmb.define_angle,
+                                     pmb.define_angular_potential,
                                      **test)
 
     def test_sanity_get_angle_template(self):
@@ -487,7 +487,7 @@ class Test(ut.TestCase):
         self.define_templates(pmb)
 
         # Define angle with C-B-A order — should produce same template as A-B-C
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=self.harmonic_angle_params,
                          particle_triplets=[('C', 'B', 'A')])
 
@@ -513,7 +513,7 @@ class Test(ut.TestCase):
         self.define_templates(pmb)
 
         # Define angle template but no bond templates
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=self.harmonic_angle_params,
                          particle_triplets=[('A', 'B', 'C')])
 
@@ -529,8 +529,8 @@ class Test(ut.TestCase):
                                     number_of_particles=1)
 
         # Attempting to create angle without bonds should raise ValueError
-        with self.assertRaises(ValueError, msg="create_angle should raise ValueError when no bonds exist"):
-            pmb.create_angle(particle_id1=pid_A[0],
+        with self.assertRaises(ValueError, msg="create_angular_potential should raise ValueError when no bonds exist"):
+            pmb.create_angular_potential(particle_id1=pid_A[0],
                              particle_id2=pid_B[0],
                              particle_id3=pid_C[0],
                              espresso_system=espresso_system)
@@ -554,7 +554,7 @@ class Test(ut.TestCase):
                         bond_parameters=self.harmonic_bond_params,
                         particle_pairs=[['A', 'B']])
 
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=self.harmonic_angle_params,
                          particle_triplets=[('A', 'B', 'C')])
 
@@ -574,8 +574,8 @@ class Test(ut.TestCase):
                         espresso_system=espresso_system)
 
         # Should raise ValueError because B-C bond is missing
-        with self.assertRaises(ValueError, msg="create_angle should raise ValueError when a bond is missing"):
-            pmb.create_angle(particle_id1=pid_A[0],
+        with self.assertRaises(ValueError, msg="create_angular_potential should raise ValueError when a bond is missing"):
+            pmb.create_angular_potential(particle_id1=pid_A[0],
                              particle_id2=pid_B[0],
                              particle_id3=pid_C[0],
                              espresso_system=espresso_system)
@@ -611,7 +611,7 @@ class Test(ut.TestCase):
         pmb.define_bond(bond_type="harmonic",
                         bond_parameters=self.harmonic_bond_params,
                         particle_pairs=[['A', 'B'], ['B', 'C']])
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=self.harmonic_angle_params,
                          particle_triplets=[('A', 'B', 'C')])
 
@@ -710,7 +710,7 @@ class Test(ut.TestCase):
         pmb.define_bond(bond_type="harmonic",
                         bond_parameters=self.harmonic_bond_params,
                         particle_pairs=[['A', 'B'], ['B', 'C']])
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=self.harmonic_angle_params,
                          particle_triplets=[('A', 'B', 'C')])
         pmb.define_residue(name="R_angle",
@@ -748,7 +748,7 @@ class Test(ut.TestCase):
         pmb.define_bond(bond_type="harmonic",
                         bond_parameters=self.harmonic_bond_params,
                         particle_pairs=[['A', 'B'], ['B', 'C']])
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=self.harmonic_angle_params,
                          particle_triplets=[('A', 'B', 'C')])
         pmb.define_residue(name="R_A",

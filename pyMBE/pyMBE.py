@@ -372,7 +372,7 @@ class pymbe_library():
             )
 
         for side_particle_id1, central_particle_id, side_particle_id3, _ in triplets:
-            self.create_angle(particle_id1=side_particle_id1,
+            self.create_angular_potential(particle_id1=side_particle_id1,
                               particle_id2=central_particle_id,
                               particle_id3=side_particle_id3,
                               espresso_system=espresso_system,
@@ -1575,7 +1575,7 @@ class pymbe_library():
         tpl.name = "default"
         self.db._register_template(tpl)
 
-    def define_angle(self, angle_type, angle_parameters, particle_triplets):
+    def define_angular_potential(self, angle_type, angle_parameters, particle_triplets):
         """
         Defines angle potential templates for each particle triplet in `particle_triplets`.
 
@@ -1622,7 +1622,7 @@ class pymbe_library():
             angle_names.append(tpl.name)
             self.db._register_template(tpl)
 
-    def define_default_angle(self, angle_type, angle_parameters):
+    def define_default_angular_potential(self, angle_type, angle_parameters):
         """
         Defines an angle template as a "default" template in the pyMBE database.
 
@@ -1655,7 +1655,7 @@ class pymbe_library():
         tpl.name = "default"
         self.db._register_template(tpl)
 
-    def create_angle(self, particle_id1, particle_id2, particle_id3, espresso_system, use_default_angle=False):
+    def create_angular_potential(self, particle_id1, particle_id2, particle_id3, espresso_system, use_default_angle=False):
         """
         Creates an angle between three particle instances in an ESPResSo system
         and registers it in the pyMBE database.
@@ -1805,7 +1805,7 @@ class pymbe_library():
                     i = nbs[idx_i]
                     k = nbs[idx_k]
                     try:
-                        self.create_angle(particle_id1=i,
+                        self.create_angular_potential(particle_id1=i,
                                           particle_id2=j,
                                           particle_id3=k,
                                           espresso_system=espresso_system,

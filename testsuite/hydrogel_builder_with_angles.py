@@ -29,6 +29,32 @@ espresso_system = espressomd.System(box_l=[10] * 3)
 def build_simple_hydrogel_with_optional_angles(junction_angle_mode="none", mpc_local=4):
     """
     Build a simple hydrogel used to validate hydrogel-specific angle support.
+
+    Defines two particle types: chain beads (C) and crosslinker nodes (N),
+    connected in a diamond lattice. Always defines the chain-internal C-C-C
+    angular potential template. Crosslinker-adjacent templates are added
+    depending on junction_angle_mode.
+
+    Args:
+        junction_angle_mode (str): Controls which crosslinker angular potential
+            templates are defined. Accepted values:
+            - ``"none"``: no crosslinker angles defined (default).
+            - ``"partial"``: only C-N-C defined (missing N-C-C, triggers error
+              on hydrogel creation with gen_angle=True).
+            - ``"full"``: both C-N-C and C-C-N defined.
+        mpc_local (int): Number of monomers per chain in the diamond lattice.
+            Defaults to 4.
+
+    Returns:
+        tuple:
+            - pmb_local (pyMBE.pymbe_library): pyMBE instance with all
+              templates and topology defined but hydrogel not yet created.
+            - espresso_system (espressomd.system.System): ESPResSo system
+              where the hydrogel will be created.
+            - hydrogel_name_local (str): Name under which the hydrogel is
+              registered in pmb_local (``"simple_hydrogel"``).
+            - diamond_lattice_local (DiamondLattice): The diamond lattice
+              instance used to build the topology.
     """
     pmb_local = pyMBE.pymbe_library(seed=7)
     node_type = "N"
@@ -61,7 +87,7 @@ def build_simple_hydrogel_with_optional_angles(junction_angle_mode="none", mpc_l
         "k": 5 * pmb_local.units("reduced_energy"),
         "phi_0": np.pi * pmb_local.units(""),
     }
-    pmb_local.define_angle(angle_type="harmonic",
+    pmb_local.define_angular_potential(angle_type="harmonic",
                            angle_parameters=angle_parameters,
                            particle_triplets=[(bead_type, bead_type, bead_type)])
 
@@ -69,7 +95,7 @@ def build_simple_hydrogel_with_optional_angles(junction_angle_mode="none", mpc_l
         particle_triplets = [(bead_type, node_type, bead_type)]
         if junction_angle_mode == "full":
             particle_triplets.append((node_type, bead_type, bead_type))
-        pmb_local.define_angle(angle_type="harmonic",
+        pmb_local.define_angular_potential(angle_type="harmonic",
                                angle_parameters=angle_parameters,
                                particle_triplets=particle_triplets)
 
@@ -100,7 +126,15 @@ def build_simple_hydrogel_with_optional_angles(junction_angle_mode="none", mpc_l
 
 def get_angle_counts(pmb_local):
     """
-    Return counts of angle instances by canonical angle name.
+    Return counts of angular potential instances grouped by canonical angle name.
+
+    Args:
+        pmb_local (pyMBE.pymbe_library): pyMBE instance whose database will
+            be queried for angular potential instances.
+
+    Returns:
+        collections.Counter: Maps each canonical angle name (str) to the
+            number of instances of that angular potential in the system.
     """
     return Counter(
         angle.name
@@ -110,7 +144,16 @@ def get_angle_counts(pmb_local):
 
 def expected_crosslinker_angle_counts(diamond_lattice_local):
     """
-    Return expected chain and crosslinker angle counts for the simple hydrogel.
+    Return the expected angular potential instance counts for the simple hydrogel
+    when all crosslinker templates are defined (junction_angle_mode="full").
+
+    Args:
+        diamond_lattice_local (DiamondLattice): The diamond lattice instance
+            used to build the hydrogel, providing mpc and connectivity info.
+
+    Returns:
+        dict: Maps canonical angle name (str) to the expected instance count
+            (int). Keys are ``"C-C-C"``, ``"C-C-N"``, and ``"C-N-C"``.
     """
     number_of_nodes = 8
     number_of_chains = 16

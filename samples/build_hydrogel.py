@@ -30,8 +30,17 @@ import pyMBE
 from pyMBE.lib.lattice import DiamondLattice
 
 
-def run_original_hydrogel(espresso_system):
-    """Build and visualize the original hydrogel (mpc=40, no angles)."""
+def run_simple_hydrogel(espresso_system):
+    """
+    Build and visualize a simple hydrogel with no angular potential (mpc=40).
+
+    Defines two bead types (C, M) and one node type, builds the diamond-lattice
+    hydrogel, and displays a 3D plot of the lattice.
+
+    Args:
+        espresso_system (espressomd.system.System): ESPResSo system object in
+            which the hydrogel particles and bonds will be created.
+    """
     pmb = pyMBE.pymbe_library(seed=42)
     mpc = 40
     NodeType = "node_type"
@@ -99,8 +108,29 @@ def run_original_hydrogel(espresso_system):
     plt.show()
 
 
-def define_angle_hydrogel_system(espresso_system, include_crosslinker_angles):
-    """Build the angle-potential hydrogel (mpc=4)."""
+def define_hydrogel_with_angular_potential(espresso_system, include_crosslinker_angles):
+    """
+    Build a hydrogel with angular potentials on the diamond lattice (mpc=4).
+
+    Defines three bead types: crosslinker nodes (D), chain-end beads (C), and
+    internal chain beads (A). Always defines the chain-internal angle A-A-C.
+    When include_crosslinker_angles is True, also defines D-C-A and C-D-C angles.
+
+    Args:
+        espresso_system (espressomd.system.System): ESPResSo system object in
+            which the hydrogel particles, bonds, and angles will be created.
+            Its box_l is updated to match the diamond lattice dimensions.
+        include_crosslinker_angles (bool): If True, also define angle templates
+            for the crosslinker-adjacent triplets D-C-A (canonical: A-C-D) and
+            C-D-C in addition to the chain-internal A-A-C angle.
+
+    Returns:
+        tuple:
+            - pmb (pyMBE.pymbe_library): pyMBE instance holding all templates
+              and instances for this hydrogel.
+            - hydrogel_id (int): Assembly ID of the created hydrogel, as
+              returned by pmb.create_hydrogel.
+    """
     pmb = pyMBE.pymbe_library(seed=42)
 
     node_type = "D"
@@ -153,12 +183,12 @@ def define_angle_hydrogel_system(espresso_system, include_crosslinker_angles):
         "k": 25 * pmb.units("reduced_energy"),
         "phi_0": np.pi * pmb.units(""),
     }
-    pmb.define_angle(angle_type="harmonic",
+    pmb.define_angular_potential(angle_type="harmonic",
                      angle_parameters=angle_parameters,
                      particle_triplets=[(chain_end_bead_type, internal_bead_type, internal_bead_type)])
 
     if include_crosslinker_angles:
-        pmb.define_angle(angle_type="harmonic",
+        pmb.define_angular_potential(angle_type="harmonic",
                          angle_parameters=angle_parameters,
                          particle_triplets=[
                              (node_type, chain_end_bead_type, internal_bead_type),  # canonical: A-C-D
@@ -193,21 +223,51 @@ def define_angle_hydrogel_system(espresso_system, include_crosslinker_angles):
 
 
 def summarize_angles(pmb):
-    """Return angle templates, instances, and counts by canonical angle name."""
+    """
+    Return angle templates, instances, and per-name counts from a pyMBE instance.
+
+    Args:
+        pmb (pyMBE.pymbe_library): pyMBE instance whose database will be queried.
+
+    Returns:
+        tuple:
+            - angle_templates_df (pandas.DataFrame): DataFrame of all defined
+              angle templates.
+            - angle_instances_df (pandas.DataFrame): DataFrame of all angle
+              instances currently in the system.
+            - angle_counts (pandas.Series): Count of angle instances grouped
+              by canonical angle name, sorted alphabetically by name.
+    """
     angle_templates_df = pmb.get_templates_df(pmb_type="angle")
     angle_instances_df = pmb.get_instances_df(pmb_type="angle")
     angle_counts = angle_instances_df["name"].value_counts().sort_index()
     return angle_templates_df, angle_instances_df, angle_counts
 
 
-def run_angle_case(label, include_crosslinker_angles, expected_angle_names, espresso_system):
-    """Clear the system, build one angle-hydrogel case, and assert expected angle names."""
+def run_hydrogel_with_angular_potential(label, include_crosslinker_angles, expected_angle_names, espresso_system):
+    """
+    Clear the ESPResSo system, build one angle-hydrogel case, and assert the
+    expected set of canonical angle names is generated.
+
+    Args:
+        label (str): Human-readable name for this case, printed as a section
+            header and in assertion error messages.
+        include_crosslinker_angles (bool): Passed directly to
+            define_hydrogel_with_angular_potential; controls whether
+            crosslinker-adjacent angle templates are included.
+        expected_angle_names (set of str): Set of canonical angle names
+            (e.g. ``{"A-A-C", "A-C-D"}``}) that must be present in the angle
+            instance DataFrame.  An AssertionError is raised if the actual set
+            differs.
+        espresso_system (espressomd.system.System): ESPResSo system object to
+            clear and reuse for this case.
+    """
     espresso_system.part.clear()
     espresso_system.bonded_inter.clear()
     espresso_system.non_bonded_inter.reset()
 
     print(f"\n############ {label} ############")
-    pmb, hydrogel_id = define_angle_hydrogel_system(espresso_system, include_crosslinker_angles)
+    pmb, hydrogel_id = define_hydrogel_with_angular_potential(espresso_system, include_crosslinker_angles)
     angle_templates_df, angle_instances_df, angle_counts = summarize_angles(pmb)
     print(f"Hydrogel assembly id: {hydrogel_id}")
     print("\nAngle templates:")
@@ -239,17 +299,17 @@ if __name__ == "__main__":
 
     espresso_system = espressomd.System(box_l=[1.0] * 3)
 
-    # Part 1: original hydrogel (mpc=40, no angles)
-    run_original_hydrogel(espresso_system)
+    # Part 1: simple hydrogel (mpc=40, no angles)
+    run_simple_hydrogel(espresso_system)
 
-    # Part 2: angle-potential hydrogel (mpc=4); clearing is done inside run_angle_case
+    # Part 2: angle-potential hydrogel (mpc=4); clearing is done inside run_hydrogel_with_angular_potential
     if args.include:
-        run_angle_case(label="Chain + crosslinker angles",
+        run_hydrogel_with_angular_potential(label="Chain + crosslinker angles",
                        include_crosslinker_angles=True,
                        expected_angle_names={"A-A-C", "A-C-D", "C-D-C"},
                        espresso_system=espresso_system)
     else:
-        run_angle_case(label="Chain angles only",
+        run_hydrogel_with_angular_potential(label="Chain angles only",
                        include_crosslinker_angles=False,
                        expected_angle_names={"A-A-C"},
                        espresso_system=espresso_system)
