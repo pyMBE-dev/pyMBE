@@ -37,6 +37,7 @@ from pyMBE.storage.templates.peptide import PeptideTemplate
 from pyMBE.storage.templates.protein import ProteinTemplate
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
 from pyMBE.storage.templates.bond import BondTemplate
+from pyMBE.storage.templates.angle import AngleTemplate
 from pyMBE.storage.templates.lj import LJInteractionTemplate
 ## Instances
 from pyMBE.storage.instances.particle import ParticleInstance
@@ -45,6 +46,7 @@ from pyMBE.storage.instances.molecule import MoleculeInstance
 from pyMBE.storage.instances.peptide import PeptideInstance
 from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.instances.bond import BondInstance
+from pyMBE.storage.instances.angle import AngleInstance
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 ## Reactions
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
@@ -225,7 +227,7 @@ class pymbe_library():
                                                       d_r_max = bond_parameters["d_r_max"].m_as("reduced_length"))    
         return bond_instance
 
-    def _create_hydrogel_chain(self, hydrogel_chain, nodes, espresso_system, use_default_bond=False):
+    def _create_hydrogel_chain(self, hydrogel_chain, nodes, espresso_system, use_default_bond=False, gen_angle=False):
         """
         Creates a chain between two nodes of a hydrogel.
 
@@ -240,6 +242,11 @@ class pymbe_library():
 
             use_default_bond ('bool', optional): 
                 If True, use a default bond template if no specific template exists. Defaults to False.
+
+            gen_angle ('bool', optional):
+                If True, generate the angle potentials internal to the created
+                chain molecule. Junction angles near the hydrogel crosslinkers
+                are handled separately at the hydrogel level.
 
         Return:
             ('int'): 
@@ -260,8 +267,8 @@ class pymbe_library():
         node_start_label = self.lattice_builder._create_node_label(node_start)
         node_end_label = self.lattice_builder._create_node_label(node_end)
         _, reverse = self.lattice_builder._get_node_vector_pair(node_start, node_end)
-        if node_start != node_end or residue_list == residue_list[::-1]:
-            ValueError(f"Aborted creation of hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
+        if node_start == node_end and residue_list != residue_list[::-1]:
+            raise ValueError(f"Aborted creation of hydrogel chain between '{node_start}' and '{node_end}' because pyMBE could not resolve a unique topology for that chain")
         if reverse:
             reverse_residue_order=True
         else:
@@ -279,8 +286,6 @@ class pymbe_library():
                                               name=molecule_name).residue_list
         part_start_chain_name = self.db.get_template(pmb_type="residue",
                                                      name=chain_residues[0]).central_bead
-        part_end_chain_name = self.db.get_template(pmb_type="residue",
-                                                   name=chain_residues[-1]).central_bead
         lj_parameters = self.get_lj_parameters(particle_name1=nodes[node_start_label]["name"],
                                                particle_name2=part_start_chain_name)
         bond_tpl = self.get_bond_template(particle_name1=nodes[node_start_label]["name"],
@@ -296,24 +301,82 @@ class pymbe_library():
                                       list_of_first_residue_positions=[first_bead_pos.tolist()], #Start at the first node
                                       backbone_vector=np.array(backbone_vector)/l0,
                                       use_default_bond=use_default_bond,
-                                      reverse_residue_order=reverse_residue_order)[0]
+                                      reverse_residue_order=reverse_residue_order,
+                                      gen_angle=gen_angle)[0]
         # Bond chain to the hydrogel nodes
         chain_pids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                              attribute="molecule_id",
                                                              value=mol_id)
-        bond_tpl1 = self.get_bond_template(particle_name1=nodes[node_start_label]["name"],
-                                            particle_name2=part_start_chain_name,
-                                            use_default_bond=use_default_bond)
-        start_bond_instance = self._get_espresso_bond_instance(bond_template=bond_tpl1,
-                                                              espresso_system=espresso_system) 
-        bond_tpl2 = self.get_bond_template(particle_name1=nodes[node_end_label]["name"],
-                                           particle_name2=part_end_chain_name,
-                                           use_default_bond=use_default_bond)   
-        end_bond_instance = self._get_espresso_bond_instance(bond_template=bond_tpl2,
-                                                             espresso_system=espresso_system)
-        espresso_system.part.by_id(start_node_id).add_bond((start_bond_instance, chain_pids[0]))
-        espresso_system.part.by_id(chain_pids[-1]).add_bond((end_bond_instance, end_node_id))
+        self.create_bond(particle_id1=start_node_id,
+                         particle_id2=chain_pids[0],
+                         espresso_system=espresso_system,
+                         use_default_bond=use_default_bond)
+        self.create_bond(particle_id1=chain_pids[-1],
+                         particle_id2=end_node_id,
+                         espresso_system=espresso_system,
+                         use_default_bond=use_default_bond)
         return mol_id
+
+    def _generate_hydrogel_crosslinker_angles(self, espresso_system, central_particle_ids):
+        """
+        Generate hydrogel angles centered on crosslinkers and adjacent terminal beads.
+
+        If the user defines any explicit angle template for such junction
+        triplets, then all required junction triplets must be defined. If none
+        are defined, hydrogel construction proceeds without crosslinker-adjacent
+        angles.
+        """
+        particle_instances = self.db.get_instances(pmb_type="particle")
+        bonded_neighbors = {}
+        for bond in self.db.get_instances(pmb_type="bond").values():
+            bonded_neighbors.setdefault(bond.particle_id1, set()).add(bond.particle_id2)
+            bonded_neighbors.setdefault(bond.particle_id2, set()).add(bond.particle_id1)
+
+        triplets = []
+        for central_particle_id in sorted(set(central_particle_ids)):
+            neighbors = sorted(bonded_neighbors.get(central_particle_id, set()))
+            central_name = particle_instances[central_particle_id].name
+            for idx_i in range(len(neighbors)):
+                for idx_k in range(idx_i + 1, len(neighbors)):
+                    side_particle_id1 = neighbors[idx_i]
+                    side_particle_id3 = neighbors[idx_k]
+                    side_name1 = particle_instances[side_particle_id1].name
+                    side_name3 = particle_instances[side_particle_id3].name
+                    angle_key = AngleTemplate.make_angle_key(side1=side_name1,
+                                                             central=central_name,
+                                                             side2=side_name3)
+                    triplets.append((side_particle_id1,
+                                     central_particle_id,
+                                     side_particle_id3,
+                                     angle_key))
+
+        defined_angle_templates = self.db.get_templates(pmb_type="angle")
+        defined_angle_keys = {
+            angle_key
+            for _, _, _, angle_key in triplets
+            if angle_key in defined_angle_templates
+        }
+        if not defined_angle_keys:
+            logging.warning("No angle templates defined for hydrogel crosslinkers")
+            return
+
+        missing_angle_keys = sorted({
+            angle_key
+            for _, _, _, angle_key in triplets
+            if angle_key not in defined_angle_keys
+        })
+        if missing_angle_keys:
+            raise ValueError(
+                "Hydrogel crosslinker-adjacent angle templates must be defined for all required triplets. "
+                f"Missing definitions for: {missing_angle_keys}"
+            )
+
+        for side_particle_id1, central_particle_id, side_particle_id3, _ in triplets:
+            self.create_angular_potential(particle_id1=side_particle_id1,
+                              particle_id2=central_particle_id,
+                              particle_id3=side_particle_id3,
+                              espresso_system=espresso_system,
+                              use_default_angle=False)
 
     def _create_hydrogel_node(self, node_index, node_name, espresso_system):
         """
@@ -901,7 +964,7 @@ class pymbe_library():
             logging.info(f'Ion type: {name} created number: {counterion_number[name]}')
         return counterion_number
 
-    def create_hydrogel(self, name, espresso_system, use_default_bond=False):
+    def create_hydrogel(self, name, espresso_system, use_default_bond=False, gen_angle=False):
         """ 
         Creates a hydrogel in espresso_system using a pyMBE hydrogel template given by 'name'
 
@@ -915,6 +978,11 @@ class pymbe_library():
             use_default_bond ('bool', optional): 
                 If True, use a default bond template if no specific template exists. Defaults to False.
 
+            gen_angle ('bool', optional):
+                If True, generate angle potentials for the internal hydrogel
+                chains and, when explicitly defined, for all crosslinker-adjacent
+                triplets. Defaults to False.
+
         Returns:
             ('int'): id of the hydrogel instance created.
         """
@@ -925,6 +993,7 @@ class pymbe_library():
         assembly_id = self.db._propose_instance_id(pmb_type="hydrogel")
         # Create the nodes
         nodes = {}
+        hydrogel_angle_centers = set()
         node_topology = hydrogel_tpl.node_map
         for node in node_topology:
             node_index = node.lattice_index
@@ -942,21 +1011,65 @@ class pymbe_library():
             molecule_id = self._create_hydrogel_chain(hydrogel_chain=hydrogel_chain,
                                                       nodes=nodes, 
                                                       espresso_system=espresso_system,
-                                                      use_default_bond=use_default_bond)
+                                                      use_default_bond=use_default_bond,
+                                                      gen_angle=gen_angle)
             self.db._update_instance(instance_id=molecule_id,
                                      pmb_type="molecule",
                                      attribute="assembly_id",
                                      value=assembly_id)
+            if gen_angle:
+                residue_ids = self.db._find_instance_ids_by_attribute(pmb_type="residue",
+                                                                      attribute="molecule_id",
+                                                                      value=molecule_id)
+                first_residue_id = min(residue_ids)
+                last_residue_id = max(residue_ids)
+                first_residue = self.db.get_instance(pmb_type="residue",
+                                                     instance_id=first_residue_id)
+                last_residue = self.db.get_instance(pmb_type="residue",
+                                                    instance_id=last_residue_id)
+                first_central_bead_name = self.db.get_template(pmb_type="residue",
+                                                               name=first_residue.name).central_bead
+                last_central_bead_name = self.db.get_template(pmb_type="residue",
+                                                              name=last_residue.name).central_bead
+                particle_instances = self.db.get_instances(pmb_type="particle")
+                first_residue_particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                                                      attribute="residue_id",
+                                                                                      value=first_residue_id)
+                last_residue_particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                                                     attribute="residue_id",
+                                                                                     value=last_residue_id)
+                first_bead_id = None
+                for particle_id in first_residue_particle_ids:
+                    if particle_instances[particle_id].name == first_central_bead_name:
+                        first_bead_id = particle_id
+                        break
+
+                last_bead_id = None
+                for particle_id in last_residue_particle_ids:
+                    if particle_instances[particle_id].name == last_central_bead_name:
+                        last_bead_id = particle_id
+                        break
+                node_start_label = self.lattice_builder._create_node_label(hydrogel_chain.node_start)
+                node_end_label = self.lattice_builder._create_node_label(hydrogel_chain.node_end)
+                hydrogel_angle_centers.update({
+                    nodes[node_start_label]["id"],
+                    nodes[node_end_label]["id"],
+                    first_bead_id,
+                    last_bead_id,
+                })
         self.db._propagate_id(root_type="hydrogel", 
                                 root_id=assembly_id, 
                                 attribute="assembly_id", 
                                 value=assembly_id)
+        if gen_angle:
+            self._generate_hydrogel_crosslinker_angles(espresso_system=espresso_system,
+                                                       central_particle_ids=hydrogel_angle_centers)
         # Register an hydrogel instance in the pyMBE databasegit 
         self.db._register_instance(HydrogelInstance(name=name,
                                                     assembly_id=assembly_id))
         return assembly_id
 
-    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False, reverse_residue_order = False):
+    def create_molecule(self, name, number_of_molecules, espresso_system, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False, reverse_residue_order = False, gen_angle=False):
         """
         Creates instances of a given molecule template name into ESPResSo.
 
@@ -1095,6 +1208,11 @@ class pymbe_library():
                 inst = PeptideInstance(name=name,
                                        molecule_id=molecule_id)
             self.db._register_instance(inst)
+            if gen_angle:
+                self._generate_angles_for_entity(
+                    espresso_system=espresso_system,
+                    entity_id=molecule_id,
+                    entity_id_col='molecule_id')
             first_residue = True
             pos_index+=1
             molecule_ids.append(molecule_id)
@@ -1246,7 +1364,7 @@ class pymbe_library():
             mol_ids.append(molecule_id)
         return mol_ids
 
-    def create_residue(self, name, espresso_system, central_bead_position=None,use_default_bond=False, backbone_vector=None):
+    def create_residue(self, name, espresso_system, central_bead_position=None,use_default_bond=False, backbone_vector=None, gen_angle=False):
         """
         Creates a residue  into ESPResSo.
 
@@ -1370,8 +1488,12 @@ class pymbe_library():
                 self.create_bond(particle_id1=central_bead_id,
                                  particle_id2=side_chain_beads_ids[0],
                                  espresso_system=espresso_system,
-                                 use_default_bond=use_default_bond)        
-        return  residue_id  
+                                 use_default_bond=use_default_bond)
+        if gen_angle:
+            self._generate_angles_for_entity(espresso_system=espresso_system,
+                                             entity_id=residue_id,
+                                             entity_id_col="residue_id")
+        return  residue_id
 
     def define_bond(self, bond_type, bond_parameters, particle_pairs):
         """
@@ -1452,7 +1574,246 @@ class pymbe_library():
                                bond_type=bond_type)
         tpl.name = "default"
         self.db._register_template(tpl)
-    
+
+    def define_angular_potential(self, angle_type, angle_parameters, particle_triplets):
+        """
+        Defines angle potential templates for each particle triplet in `particle_triplets`.
+
+        Args:
+            angle_type ('str'):
+                Type of angle potential. Supported: "harmonic", "cosine", "harmonic_cosine".
+
+            angle_parameters ('dict'):
+                Parameters of the angle potential. Must contain:
+                    - "k" ('pint.Quantity'): Bending stiffness with dimensions of energy.
+                    - "phi_0" ('float'): Equilibrium angle in radians.
+
+            particle_triplets ('list[tuple[str,str,str]]'):
+                List of (side_particle1, central_particle, side_particle2) triplets.
+        """
+        valid_angle_types = ["harmonic", "cosine", "harmonic_cosine"]
+        if angle_type not in valid_angle_types:
+            raise NotImplementedError(f"Angle potential type '{angle_type}' currently not implemented in pyMBE, accepted types are {valid_angle_types}")
+
+        if "k" not in angle_parameters:
+            raise ValueError("Magnitude of the angle potential (k) is missing")
+        if "phi_0" not in angle_parameters:
+            raise ValueError("Equilibrium angle (phi_0) is missing")
+
+        parameters_tpl = {
+            "k": PintQuantity.from_quantity(q=angle_parameters["k"],
+                                            expected_dimension="energy",
+                                            ureg=self.units),
+            "phi_0": PintQuantity.from_quantity(q=angle_parameters["phi_0"],
+                                                expected_dimension="dimensionless",
+                                                ureg=self.units),
+        }
+
+        angle_names = []
+        for side1, central, side2 in particle_triplets:
+            tpl = AngleTemplate(side_particle1=side1,
+                                central_particle=central,
+                                side_particle2=side2,
+                                parameters=parameters_tpl,
+                                angle_type=angle_type)
+            tpl._make_name()
+            if tpl.name in angle_names:
+                raise RuntimeError(f"Angle {tpl.name} has already been defined, please check the list of particle triplets")
+            angle_names.append(tpl.name)
+            self.db._register_template(tpl)
+
+    def define_default_angular_potential(self, angle_type, angle_parameters):
+        """
+        Defines an angle template as a "default" template in the pyMBE database.
+
+        Args:
+            angle_type ('str'):
+                Type of angle potential. Supported: "harmonic", "cosine", "harmonic_cosine".
+
+            angle_parameters ('dict'):
+                Parameters of the angle potential (k, phi_0).
+        """
+        valid_angle_types = ["harmonic", "cosine", "harmonic_cosine"]
+        if angle_type not in valid_angle_types:
+            raise NotImplementedError(f"Angle potential type '{angle_type}' currently not implemented in pyMBE, accepted types are {valid_angle_types}")
+
+        if "k" not in angle_parameters:
+            raise ValueError("Magnitude of the angle potential (k) is missing")
+        if "phi_0" not in angle_parameters:
+            raise ValueError("Equilibrium angle (phi_0) is missing")
+
+        parameters_tpl = {
+            "k": PintQuantity.from_quantity(q=angle_parameters["k"],
+                                            expected_dimension="energy",
+                                            ureg=self.units),
+            "phi_0": PintQuantity.from_quantity(q=angle_parameters["phi_0"],
+                                                expected_dimension="dimensionless",
+                                                ureg=self.units),
+        }
+        tpl = AngleTemplate(parameters=parameters_tpl,
+                            angle_type=angle_type)
+        tpl.name = "default"
+        self.db._register_template(tpl)
+
+    def create_angular_potential(self, particle_id1, particle_id2, particle_id3, espresso_system, use_default_angle=False):
+        """
+        Creates an angle between three particle instances in an ESPResSo system
+        and registers it in the pyMBE database.
+
+        Args:
+            particle_id1 ('int'): ID of the first side particle.
+            particle_id2 ('int'): ID of the central particle.
+            particle_id3 ('int'): ID of the second side particle.
+            espresso_system ('espressomd.system.System'): ESPResSo system.
+            use_default_angle ('bool', optional): If True, use the default angle if no specific one is found.
+        """
+        particle_inst_1 = self.db.get_instance(pmb_type="particle", instance_id=particle_id1)
+        particle_inst_2 = self.db.get_instance(pmb_type="particle", instance_id=particle_id2)
+        particle_inst_3 = self.db.get_instance(pmb_type="particle", instance_id=particle_id3)
+
+        # Verify that bonds exist between side particles and central particle
+        bond_instances = self.db.get_instances(pmb_type="bond")
+        bonded_pairs = set()
+        for bond in bond_instances.values():
+            pair = frozenset([bond.particle_id1, bond.particle_id2])
+            bonded_pairs.add(pair)
+        if frozenset([particle_id1, particle_id2]) not in bonded_pairs:
+            raise ValueError(f"Cannot create angle: no bond exists between particle {particle_id1} and central particle {particle_id2}.")
+        if frozenset([particle_id3, particle_id2]) not in bonded_pairs:
+            raise ValueError(f"Cannot create angle: no bond exists between particle {particle_id3} and central particle {particle_id2}.")
+
+        angle_tpl = self.get_angle_template(side_name1=particle_inst_1.name,
+                                            central_name=particle_inst_2.name,
+                                            side_name2=particle_inst_3.name,
+                                            use_default_angle=use_default_angle)
+        angle_inst = self._get_espresso_angle_instance(angle_template=angle_tpl, espresso_system=espresso_system)
+
+        # ESPResSo angle bonds are added to the central particle
+        espresso_system.part.by_id(particle_id2).add_bond((angle_inst, particle_id1, particle_id3))
+
+        angle_id = self.db._propose_instance_id(pmb_type="angle")
+        pmb_angle_instance = AngleInstance(angle_id=angle_id,
+                                           name=angle_tpl.name,
+                                           particle_id1=particle_id1,
+                                           particle_id2=particle_id2,
+                                           particle_id3=particle_id3)
+        self.db._register_instance(instance=pmb_angle_instance)
+
+    def get_angle_template(self, side_name1, central_name, side_name2, use_default_angle=False):
+        """
+        Retrieves an angle template connecting three particle templates.
+
+        Args:
+            side_name1 ('str'): Name of the first side particle.
+            central_name ('str'): Name of the central particle.
+            side_name2 ('str'): Name of the second side particle.
+            use_default_angle ('bool', optional): If True, fall back to the default angle template.
+
+        Returns:
+            ('AngleTemplate'): The matching angle template.
+        """
+        angle_key = AngleTemplate.make_angle_key(side1=side_name1, central=central_name, side2=side_name2)
+        try:
+            return self.db.get_template(name=angle_key, pmb_type="angle")
+        except ValueError:
+            pass
+
+        if use_default_angle:
+            return self.db.get_template(name="default", pmb_type="angle")
+
+        raise ValueError(f"No angle template found for '{side_name1}-{central_name}-{side_name2}', and default angles are deactivated.")
+
+    def _get_espresso_angle_instance(self, angle_template, espresso_system):
+        """
+        Retrieve or create an angle interaction in an ESPResSo system for a given angle template.
+
+        Args:
+            angle_template ('AngleTemplate'): The angle template to use.
+            espresso_system ('espressomd.system.System'): ESPResSo system.
+
+        Returns:
+            ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
+        """
+        if angle_template.name in self.db.espresso_angle_instances:
+            return self.db.espresso_angle_instances[angle_template.name]
+        angle_inst = self._create_espresso_angle_instance(angle_type=angle_template.angle_type,
+                                                          angle_parameters=angle_template.get_parameters(self.units))
+        self.db.espresso_angle_instances[angle_template.name] = angle_inst
+        espresso_system.bonded_inter.add(angle_inst)
+        return angle_inst
+
+    def _create_espresso_angle_instance(self, angle_type, angle_parameters):
+        """
+        Creates an ESPResSo angle interaction object.
+
+        Args:
+            angle_type ('str'): Type of angle potential ("harmonic", "cosine", "harmonic_cosine").
+            angle_parameters ('dict'): Parameters of the angle potential (k, phi_0).
+
+        Returns:
+            ('espressomd.interactions.BondedInteraction'): The ESPResSo angle interaction object.
+        """
+        from espressomd import interactions
+
+        k = angle_parameters["k"].m_as("reduced_energy")
+        phi_0 = float(angle_parameters["phi_0"].magnitude)
+
+        if angle_type == "harmonic":
+            return interactions.AngleHarmonic(bend=k, phi0=phi_0)
+        elif angle_type == "cosine":
+            return interactions.AngleCosine(bend=k, phi0=phi_0)
+        elif angle_type == "harmonic_cosine":
+            return interactions.AngleCossquare(bend=k, phi0=phi_0)
+
+    def _generate_angles_for_entity(self, espresso_system, entity_id, entity_id_col):
+        """
+        Auto-generates angles from bond topology for an entity (molecule or residue).
+
+        For each particle in the entity that has two or more bonded neighbors,
+        this method finds all neighbor pairs and applies any matching angle potential.
+
+        Args:
+            espresso_system ('espressomd.system.System'): ESPResSo system.
+            entity_id ('int'): The molecule_id or residue_id to generate angles for.
+            entity_id_col ('str'): Either "molecule_id" or "residue_id".
+        """
+        # Get all particle IDs for this entity
+        particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                               attribute=entity_id_col,
+                                                               value=entity_id)
+        if not particle_ids:
+            return
+
+        # Build neighbor map from bond instances
+        neighbors = {pid: set() for pid in particle_ids}
+        pid_set = set(particle_ids)
+        bond_instances = self.db.get_instances(pmb_type="bond")
+        for bond in bond_instances.values():
+            i, j = bond.particle_id1, bond.particle_id2
+            if i in pid_set and j in pid_set:
+                neighbors[i].add(j)
+                neighbors[j].add(i)
+
+        # For each particle with 2+ neighbors, generate angles
+        for j in particle_ids:
+            nbs = sorted(neighbors[j])
+            if len(nbs) < 2:
+                continue
+
+            for idx_i in range(len(nbs)):
+                for idx_k in range(idx_i + 1, len(nbs)):
+                    i = nbs[idx_i]
+                    k = nbs[idx_k]
+                    try:
+                        self.create_angular_potential(particle_id1=i,
+                                          particle_id2=j,
+                                          particle_id3=k,
+                                          espresso_system=espresso_system,
+                                          use_default_angle=True)
+                    except ValueError:
+                        # No angle template defined for this triplet — skip
+                        continue
+
     def define_hydrogel(self, name, node_map, chain_map):
         """
         Defines a hydrogel template in the pyMBE database.

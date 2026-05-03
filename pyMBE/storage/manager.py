@@ -24,10 +24,12 @@ from pyMBE.storage.templates.particle import ParticleTemplate
 from pyMBE.storage.templates.residue import ResidueTemplate
 from pyMBE.storage.templates.molecule import MoleculeTemplate
 from pyMBE.storage.templates.bond import BondTemplate
+from pyMBE.storage.templates.angle import AngleTemplate
 from pyMBE.storage.instances.particle import ParticleInstance
 from pyMBE.storage.instances.residue import ResidueInstance
 from pyMBE.storage.instances.molecule import MoleculeInstance
 from pyMBE.storage.instances.bond import BondInstance
+from pyMBE.storage.instances.angle import AngleInstance
 from pyMBE.storage.reactions.reaction import Reaction
 from pyMBE.storage.templates.peptide import PeptideTemplate
 from pyMBE.storage.instances.peptide import PeptideInstance
@@ -88,8 +90,9 @@ class Manager:
                                      "peptide",
                                      "protein"]
         self._assembly_like_types = ["hydrogel"]
-        self._pmb_types =  ["particle", "residue"] + self._molecule_like_types + self._assembly_like_types
+        self._pmb_types =  ["particle", "residue", "angle"] + self._molecule_like_types + self._assembly_like_types
         self.espresso_bond_instances= {}
+        self.espresso_angle_instances= {}
 
     def _collect_particle_templates(self, name, pmb_type):
         """
@@ -175,6 +178,28 @@ class Manager:
             del self._instances["bond"][b_id]
         if "bond" in self._instances and not self._instances["bond"]:
             del self._instances["bond"]
+
+    def _delete_angles_of_particle(self, pid):
+        """
+        Delete all angle instances involving a given particle instance.
+
+        Args:
+            pid ('int'):
+                The particle ID whose associated angles should be deleted.
+
+        Notes:
+            - If no `"angle"` instances are present in the database, the method
+            exits immediately.
+            - This method does not raise errors if no angles involve the particle.
+            - It is intended for internal use by cascade-deletion routines.
+        """
+        if "angle" not in self._instances:
+            return
+        angles_to_delete = [a_id for a_id, a in list(self._instances["angle"].items()) if a.particle_id1 == pid or a.particle_id2 == pid or a.particle_id3 == pid]
+        for a_id in angles_to_delete:
+            del self._instances["angle"][a_id]
+        if "angle" in self._instances and not self._instances["angle"]:
+            del self._instances["angle"]
 
     def _find_instance_ids_by_attribute(self, pmb_type, attribute, value):
         """
@@ -355,6 +380,17 @@ class Manager:
                              "particle_name1": tpl.particle_name1,
                              "particle_name2": tpl.particle_name2,
                              "parameters": parameters})
+            elif pmb_type == "angle":
+                parameters = {}
+                for key in tpl.parameters.keys():
+                    parameters[key] = tpl.parameters[key].to_quantity(self._units)
+                rows.append({"pmb_type": tpl.pmb_type,
+                             "name": tpl.name,
+                             "angle_type": tpl.angle_type,
+                             "side_particle1": tpl.side_particle1,
+                             "central_particle": tpl.central_particle,
+                             "side_particle2": tpl.side_particle2,
+                             "parameters": parameters})
             else:
                 # Generic representation for other types
                 rows.append(tpl.dict())
@@ -428,6 +464,9 @@ class Manager:
         elif isinstance(instance, BondInstance):
             pmb_type = "bond"
             iid = instance.bond_id
+        elif isinstance(instance, AngleInstance):
+            pmb_type = "angle"
+            iid = instance.angle_id
         elif isinstance(instance, HydrogelInstance):
             pmb_type = "hydrogel"
             iid = instance.assembly_id
@@ -679,6 +718,7 @@ class Manager:
         # --- Delete children of PARTICLE (only bonds) ---
         if pmb_type == "particle":
             self._delete_bonds_of_particle(instance_id)
+            self._delete_angles_of_particle(instance_id)
         # ===============  FINAL DELETION STEP  ======================
         del self._instances[pmb_type][instance_id]
         if not self._instances[pmb_type]:
@@ -754,6 +794,10 @@ class Manager:
         if pmb_type == "bond":
             if name in self.espresso_bond_instances.keys():
                 del self.espresso_bond_instances[name]
+        # if it is an angle template delete also stored espresso angle instances
+        if pmb_type == "angle":
+            if name in self.espresso_angle_instances.keys():
+                del self.espresso_angle_instances[name]
         # Delete empty groups
         if not self._templates[pmb_type]:
             del self._templates[pmb_type]

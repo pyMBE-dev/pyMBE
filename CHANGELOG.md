@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## Added
+- Support to setup angular potentials with pyMBE. All flexible pyMBE templates now support angula potentials: hydrogels, molecules, peptides and residues (including residues with nested residues). (#150)
+- Sample scripts and tests for the new functionality. (#150)
+- Template and instance `Angle` to store information about angular potentials in the pyMBE database. (#150)
+- Functions `define_angle` and ``define_default_angle` to define a templates of  angular potentials in pyMBE. (#150)
+- Function `create_angle` to create instances of angular potential in pyMBE. (#150)
+- Function `get_angle_template` to retrieve a template of an angle potential in the pyMBE database. (#150)
 - Introduced a canonical pyMBE database backend replacing the previous monolithic Pandas DataFrame storage approach. This lays the foundation for more robust, extensible, and normalized data handling across pyMBE. (#147)
 - Added support to define reaction templates  in the pyMBE database. (#147)
 - Utility functions to cast information about templates and instances in the pyMBE database into pandas dataframe `pmb.get_templates_df`, `pmb.get_instances_df` and `pmb.get_reactions_df`. (#147)

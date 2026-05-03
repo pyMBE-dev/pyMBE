@@ -26,8 +26,10 @@ from pyMBE.storage.instances.molecule import MoleculeInstance
 from pyMBE.storage.instances.peptide import PeptideInstance
 from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.instances.bond import BondInstance
+from pyMBE.storage.instances.angle import AngleInstance
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 from pyMBE.storage.templates.bond import BondTemplate
+from pyMBE.storage.templates.angle import AngleTemplate
 from pyMBE.storage.templates.hydrogel import HydrogelNode
 from pyMBE.storage.pint_quantity import PintQuantity
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
@@ -410,6 +412,14 @@ class Test(ut.TestCase):
         self.assertRaises(ValueError,
                           BondInstance,
                           **inputs)
+        inputs = {"name":"A",
+                  "angle_id":-1,
+                  "particle_id1":1,
+                  "particle_id2":2,
+                  "particle_id3":3}
+        self.assertRaises(ValueError,
+                          AngleInstance,
+                          **inputs)
         
     def test_make_name_bond_template(self):
         inputs = {"bond_type": "harmonic",
@@ -419,6 +429,18 @@ class Test(ut.TestCase):
         bond_tpl = BondTemplate(**inputs)
         self.assertRaises(RuntimeError,
                           bond_tpl._make_name)
+
+    def test_make_name_angle_template(self):
+        inputs = {"angle_type": "harmonic",
+                  "parameters": {"k": PintQuantity(magnitude=1,
+                                                   units="reduced_energy",
+                                                   dimension="energy"),
+                                 "phi_0": PintQuantity(magnitude=1,
+                                                        units="dimensionless",
+                                                        dimension="dimensionless")}}
+        angle_tpl = AngleTemplate(**inputs)
+        self.assertRaises(RuntimeError,
+                          angle_tpl._make_name)
         
     def test_exceptions_pint_quantity(self):
         units = pint.UnitRegistry()
