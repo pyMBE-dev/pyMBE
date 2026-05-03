@@ -21,12 +21,13 @@
 # This script shows three usages of `gen_angle=True`:
 #   1. create_residue with gen_angle=True
 #        - builds a single residue with auto-generated angles
-#   2. create_molecule with gen_angle=True
-#        - builds a chain of residues; angles are auto-generated across the
-#          full molecule, including angles that span residue boundaries
-#   3. create_residue with a nested residue as side chain
+#   2. create_residue with a nested residue as side chain
 #        - builds a residue whose side chain is itself a residue; verifies
 #          that all bonded triplets (intra- and cross-level) are generated
+#   3. create_molecule with gen_angle=True
+#        - builds a chain of residues; angles are auto-generated across the
+#          full molecule, including angles that span residue boundaries
+
 
 import pyMBE
 import numpy as np
