@@ -11,7 +11,6 @@ runs:
   using: "composite"
   steps:
     - run: |
-        test "${RUNNER_ARCH}" = "X64" && module use /cvmfs/dev.eessi.io/espresso/versions/2023.06/software/linux/x86_64/amd/zen2/modules/all
         module load ${{ inputs.modules }}
         module save pymbe
         python3 -m venv --system-site-packages venv
@@ -22,5 +21,5 @@ runs:
         python3 -m pip install -r requirements.txt
         git checkout requirements.txt
         deactivate
-        module purge
+        module --force purge
       shell: bash

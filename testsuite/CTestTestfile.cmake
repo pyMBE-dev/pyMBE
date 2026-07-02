@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2024 pyMBE-dev team
+# Copyright (C) 2024-2026 pyMBE-dev team
 #
 # This file is part of pyMBE.
 #
@@ -18,7 +18,7 @@
 #
 
 cmake_minimum_required(VERSION 3.22.1)
-find_package(Python 3.8 REQUIRED COMPONENTS Interpreter NumPy)
+find_package(Python 3.8 REQUIRED COMPONENTS Interpreter)
 
 file(REAL_PATH "CTestTestfile.cmake" CMAKE_CURRENT_SOURCE_FILE)
 cmake_path(GET CMAKE_CURRENT_SOURCE_FILE PARENT_PATH CMAKE_CURRENT_SOURCE_DIR)
