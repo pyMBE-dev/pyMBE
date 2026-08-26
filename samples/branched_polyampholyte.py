@@ -16,16 +16,14 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-# Load espresso, pyMBE and other necessary libraries
 from pathlib import Path
 import espressomd
+import espressomd.version
 import argparse
 import tqdm
 import pandas as pd
 from espressomd.io.writer import vtf
 import pyMBE
-
-# Load some functions from the handy_scripts library for convenience
 from pyMBE.lib.analysis import built_output_name
 
 
@@ -181,12 +179,11 @@ if verbose:
     print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid/basic groups 
-type_map = pmb.get_type_map()
-types = list(type_map.values())
-espresso_system.setup_type_map(type_list = types)
+if espressomd.version.version() < (5, 1, 0):
+    espresso_system.setup_type_map(type_list = pmb.get_type_map().values())
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
-non_interacting_type = max(type_map.values())+1
+non_interacting_type = max(pmb.get_type_map().values())+1
 cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
     print(f"The non interacting type is set to {non_interacting_type}")
@@ -232,9 +229,9 @@ for label in ["time","charge"]:
 
 # Production loop
 N_frame=0
-for step in tqdm.trange(N_samples):
+for step in tqdm.trange(N_samples, disable=args.test):
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
-    pmb.simulation_engine.do_reaction(cpH, steps=total_ionisable_groups)   
+    cpH.reaction(steps=total_ionisable_groups)
     # Get polyampholyte net charge
     charge_dict=pmb.calculate_net_charge(
                                         object_name="polyampholyte",

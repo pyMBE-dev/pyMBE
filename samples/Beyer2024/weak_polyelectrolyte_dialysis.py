@@ -16,12 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#######################################################
-# Loading modules 
-#######################################################
-
 # Load python modules
 import espressomd
+import espressomd.version
 from pathlib import Path
 import numpy as np
 import pandas as pd
@@ -35,8 +32,6 @@ from pyMBE.lib import analysis
 
 # Create an instance of pyMBE library
 pmb = pyMBE.pymbe_library(seed=42)
-
-# Load some functions from the handy_scripts library for convenience
 
 
 #######################################################
@@ -209,13 +204,12 @@ if verbose:
     print("The acid-base reaction has been successfully set up for:")
     print(pmb.get_reactions_df())
 
-# Setup espresso to track the ionization of the acid groups
-type_map = pmb.get_type_map()
-types = list(type_map.values())
-espresso_system.setup_type_map(type_list = types)
+# Setup espresso to track the ionization of the acid/basic groups in peptide
+if espressomd.version.version() < (5, 1, 0):
+    espresso_system.setup_type_map(type_list = pmb.get_type_map().values())
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
-non_interacting_type = max(type_map.values())+1
+non_interacting_type = max(pmb.get_type_map().values())+1
 grxmc.set_non_interacting_type (type=non_interacting_type)
 
 #Set up the interactions
@@ -233,7 +227,7 @@ if verbose:
     print("Running warmup without electrostatics")
 for i in tqdm.trange(100, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    pmb.simulation_engine.do_reaction(grxmc, steps=1000)
+    grxmc.reaction(steps=1000)
 
 pmb.simulation_engine.setup_electrostatic_interactions(units=pmb.units,
                                 kT=pmb.kT,
@@ -257,7 +251,7 @@ else:
     N_warmup_loops = 100
 for i in tqdm.trange(N_warmup_loops, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    pmb.simulation_engine.do_reaction(grxmc, steps=100)
+    grxmc.reaction(steps=100)
 
 # Main loop
 print("Started production run.")
@@ -273,7 +267,7 @@ else:
     N_production_loops = 100
 for i in tqdm.trange(N_production_loops, disable=not verbose):
     espresso_system.integrator.run(steps=1000)
-    pmb.simulation_engine.do_reaction(grxmc, steps=100)
+    grxmc.reaction(steps=100)
     # Measure time
     time_series["time"].append(espresso_system.time)
     # Measure degree of ionization
