@@ -68,8 +68,8 @@ git clone git@github.com:pyMBE-dev/pyMBE.git
 
 Please, be aware that pyMBE is intended to be a supporting tool to setup simulations with ESPResSo.
 Thus, for most of its functionalities ESPResSo must also be available.
-pyMBE supports ESPResSo 4.2 and ESPResSo 4.3-dev.
-Following the NEP29 guidelines, we recommend using Python3.10+.
+pyMBE supports ESPResSo 5.0 and ESPResSo 5.1-dev.
+Following the NEP29 guidelines, we recommend using Python3.11+.
 Both NumPy 1 and NumPy 2 are supported.
 
 The pyMBE module needs a Python virtual environment to avoid compatibility issues with its dependencies.
@@ -99,7 +99,7 @@ python3 -m pip install -r requirements.txt "numpy>=2.1" "pandas>=2.0"
 We highlight that the path `/home/user/espresso/build` is just an example of a possible path to the ESPResSo build folder. 
 The user should change this path to match the local absolute path where ESPResSo was built.
 Also, ESPResSo must be built with the same NumPy version as the one installed in the environment to avoid API version mismatch.
-For more details on how to install ESPResSo, please consult the [ESPResSo installation guide](https://espressomd.github.io/doc4.2.2/installation.html).
+For more details on how to install ESPResSo, please consult the [ESPResSo installation guide](https://espressomd.github.io/doc5.0.1/installation.html).
 
 The pyMBE virtual environment can be deactivated at any moment as follows:
 
@@ -111,7 +111,7 @@ Cluster users who rely on module files to load dependencies should opt for the
 following alternative:
 
 ```sh
-module load ESPResSo/4.2.2-foss-2023a # adapt release if needed
+module load ESPResSo/5.0.1-foss-2025a # adapt release if needed
 python3 -m venv --system-site-packages pymbe
 source pymbe/bin/activate
 python3 maintainer/configure_venv.py
@@ -128,7 +128,7 @@ Now you can use pyMBE and ESPResSo by activating the virtual environment:
 ```sh
 $ source pymbe/bin/activate
 (pymbe) $ python3 -c "import espressomd.version; print(espressomd.version.friendly())"
-4.2
+5.0.1
 (pymbe) $ python3 -c "import pyMBE; print(pyMBE.__file__)"
 /home/user/Documents/pyMBE/pyMBE/__init__.py
 $ deactivate
