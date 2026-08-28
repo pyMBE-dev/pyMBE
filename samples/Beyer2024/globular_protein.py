@@ -19,6 +19,7 @@
 from pathlib import Path
 import tqdm
 import espressomd
+import espressomd.version
 import argparse
 import numpy as np
 import pandas as pd 
@@ -268,8 +269,8 @@ if verbose:
     print(pmb.get_reactions_df())
 
 type_map = pmb.get_type_map()
-types = list (type_map.values())
-espresso_system.setup_type_map( type_list = types)
+if espressomd.version.version() < (5, 1, 0):
+    espresso_system.setup_type_map(type_list = type_map.values())
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
 non_interacting_type = max(type_map.values())+1
@@ -320,7 +321,7 @@ for amino in list_ionisable_groups:
 
 for step in tqdm.trange(N_samples, disable=not verbose):
     espresso_system.integrator.run (steps = integ_steps)
-    pmb.simulation_engine.do_reaction(cpH, steps=total_ionisable_groups)
+    cpH.reaction(steps=total_ionisable_groups)
     protein_net_charge = pmb.calculate_net_charge(
                                                 object_name=protein_name,
                                                 pmb_type="protein",

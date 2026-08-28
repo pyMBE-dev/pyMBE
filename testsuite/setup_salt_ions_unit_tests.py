@@ -44,7 +44,6 @@ pmb.define_particle(name="SO4",
                     sigma=0.3*pmb.units.nm,
                     epsilon=1*pmb.units.Quantity(1,"reduced_energy"))
 
-type_map=pmb.get_type_map()
 # System parameters
 c_salt_input = 0.01 * pmb.units.mol/ pmb.units.L
 N_SALT_ION_PAIRS = 50
@@ -53,7 +52,8 @@ L = volume ** (1./3.) # Side of the simulation box
 box_l=[L.to('reduced_length').magnitude]*3
 # Create an instance of an espresso system
 espresso_system=espressomd.System (box_l = box_l )
-espresso_system.setup_type_map(type_list=type_map.values())
+if espressomd.version.version() < (5, 1, 0):
+    espresso_system.setup_type_map(type_list = pmb.get_type_map().values())
 
 pmb.define_particle(name='0P',
                     z=0,
@@ -124,14 +124,13 @@ class Test(ut.TestCase):
         def check_salt_concentration(espresso_system,cation_name,anion_name,c_salt,N_SALT_ION_PAIRS):
             charge_number_map=pmb.get_charge_number_map()
             type_map=pmb.get_type_map()
-            espresso_system.setup_type_map(type_list=type_map.values())
             c_salt_calculated = pmb.create_added_salt(box_l=box_l,
                                                     cation_name=cation_name,
                                                     anion_name=anion_name,
                                                     c_salt=c_salt)
             pmb.add_instances_to_engine()
-            self.assertEqual(pmb.simulation_engine.get_number_of_particles(type_map[cation_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[anion_name]]))
-            self.assertEqual(pmb.simulation_engine.get_number_of_particles(type_map[anion_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[cation_name]]))
+            self.assertEqual(espresso_system.number_of_particles(type=type_map[cation_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[anion_name]]))
+            self.assertEqual(espresso_system.number_of_particles(type=type_map[anion_name]),N_SALT_ION_PAIRS*abs(charge_number_map[type_map[cation_name]]))
             self.assertAlmostEqual(c_salt_calculated.m_as("mol/L"), c_salt.m_as("mol/L"))
             cation_ids = pmb.get_particle_id_map(object_name=cation_name)["all"]
             anion_ids  = pmb.get_particle_id_map(object_name=anion_name)["all"]
@@ -168,15 +167,15 @@ class Test(ut.TestCase):
         """
         Unit test: check that create_added_salt works for an input c_salt in [particle/lenght**3]. 
         """
+        type_map=pmb.get_type_map()
         c_salt_part=c_salt_input*pmb.N_A
-        espresso_system.setup_type_map(type_list=type_map.values())
         c_salt_calculated = pmb.create_added_salt(box_l=box_l,
                                                     cation_name="Na",
                                                     anion_name="Cl",
                                                     c_salt=c_salt_part)
         pmb.add_instances_to_engine()
-        self.assertEqual(pmb.simulation_engine.get_number_of_particles(type_map["Na"]),N_SALT_ION_PAIRS)
-        self.assertEqual(pmb.simulation_engine.get_number_of_particles(type_map["Cl"]),N_SALT_ION_PAIRS)
+        self.assertEqual(espresso_system.number_of_particles(type=type_map["Na"]),N_SALT_ION_PAIRS)
+        self.assertEqual(espresso_system.number_of_particles(type=type_map["Cl"]),N_SALT_ION_PAIRS)
         self.assertAlmostEqual(c_salt_calculated.m_as("reduced_length**-3"), c_salt_part.m_as("reduced_length**-3"))
         cation_ids = pmb.get_particle_id_map(object_name="Na")["all"]
         anion_ids = pmb.get_particle_id_map(object_name="Cl")["all"]
@@ -233,13 +232,13 @@ class Test(ut.TestCase):
                                     anion_name=anion_name,
                                     box_l=box_l)
             pmb.add_instances_to_engine()
-            espresso_system.setup_type_map(type_list=type_map.values())
-            self.assertEqual(pmb.simulation_engine.get_number_of_particles(
-                                                     type_map[cation_name]),
-                                                     expected_numbers[cation_name])
-            self.assertEqual(pmb.simulation_engine.get_number_of_particles(
-                                                     type_map[anion_name]),
-                                                     expected_numbers[anion_name])
+            type_map=pmb.get_type_map()
+            self.assertEqual(
+                espresso_system.number_of_particles(type=type_map[cation_name]),
+                expected_numbers[cation_name])
+            self.assertEqual(
+                espresso_system.number_of_particles(type=type_map[anion_name]),
+                expected_numbers[anion_name])
             molecule_ids = list(pmb.get_particle_id_map(object_name=molecule_name)["molecule_map"].keys())
             for mol_id in molecule_ids:
                 pmb.delete_instances_in_system(instance_id=mol_id,
@@ -289,6 +288,7 @@ class Test(ut.TestCase):
                                 box_l=box_l,
                                 use_default_bond=True)
         pmb.add_instances_to_engine()
+        type_map=pmb.get_type_map()
         input_parameters={"cation_name":"Ca",
                             "anion_name":"Cl",
                             "object_name":'isoelectric_polyampholyte',
@@ -312,10 +312,9 @@ class Test(ut.TestCase):
                                     anion_name="Cl",
                                     box_l=box_l)
         pmb.add_instances_to_engine()
-        espresso_system.setup_type_map(type_list=type_map.values())
 
-        self.assertEqual(pmb.simulation_engine.get_number_of_particles(type_map["Na"]),0)
-        self.assertEqual(pmb.simulation_engine.get_number_of_particles(type_map["Cl"]),0)
+        self.assertEqual(espresso_system.number_of_particles(type=type_map["Na"]),0)
+        self.assertEqual(espresso_system.number_of_particles(type=type_map["Cl"]),0)
         # Assert that no counterions are created if the wrong object names are provided
         inputs = {"object_name":'test',
                 "cation_name":"Na",

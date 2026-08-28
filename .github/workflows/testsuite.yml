@@ -17,12 +17,12 @@ jobs:
     strategy:
       matrix:
         software:
-          - label: "ESPResSo 4.2.2, LAMMPS 2024"
-            eessi_modules: ESPResSo/4.2.2-foss-2023b LAMMPS/29Aug2024-foss-2023b-kokkos
-            eessi_stack_version: "2023.06"
-            upload_artifact: true
           - label: "ESPResSo 5.0.1"
             eessi_modules: ESPResSo/5.0.1-foss-2025a
+            eessi_stack_version: "2025.06"
+            upload_artifact: true
+          - label: "ESPResSo 5.1-dev"
+            eessi_modules: ESPResSo/cd7547c43b2dae8e96487bf149d049d701dddd43-foss-2025a
             eessi_stack_version: "2025.06"
             upload_artifact: false
     name: ubuntu - ${{ matrix.software.label }}
@@ -37,6 +37,7 @@ jobs:
         uses: eessi/github-action-eessi@v3
         with:
           eessi_stack_version: ${{ matrix.software.eessi_stack_version }}
+          use_eessi_module: false
       - name: Install dependencies
         uses: ./.github/actions/dependencies
         with:

@@ -17,28 +17,29 @@ jobs:
       OMPI_MCA_mtl_ofi_provider_exclude: psm3
     strategy:
       matrix:
-        espresso:
-          - version: "4.2.2"
-            eessi_modules: ESPResSo/4.2.2-foss-2023b
-            eessi_stack_version: "2023.06"
-            upload_artifact: true
-          - version: "5.0.1"
+        software:
+          - label: "ESPResSo 5.0.1"
             eessi_modules: ESPResSo/5.0.1-foss-2025a
             eessi_stack_version: "2025.06"
+            upload_artifact: true
+          - label: "ESPResSo 5.1-dev"
+            eessi_modules: ESPResSo/cd7547c43b2dae8e96487bf149d049d701dddd43-foss-2025a
+            eessi_stack_version: "2025.06"
             upload_artifact: false
-    name: ubuntu - ESPResSo ${{ matrix.espresso.version }}
+    name: ubuntu - ${{ matrix.software.label }}
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@main
       - name: Setup EESSI
         uses: eessi/github-action-eessi@v3
         with:
-          eessi_stack_version: ${{ matrix.espresso.eessi_stack_version }}
-      - name: Checkout repository
-        uses: actions/checkout@main
+          eessi_stack_version: ${{ matrix.software.eessi_stack_version }}
+          use_eessi_module: false
       - name: Install dependencies
         uses: ./.github/actions/dependencies
         with:
           modules: |-
-            ${{ matrix.espresso.eessi_modules }}
+            ${{ matrix.software.eessi_modules }}
       - name: Run testsuite
         run: |
           export NUM_PROC=$(nproc)

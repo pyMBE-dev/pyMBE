@@ -16,8 +16,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#Load espresso, pyMBE and other necessary libraries
 import espressomd
+import espressomd.version
 from pathlib import Path
 import pandas as pd
 import argparse
@@ -269,11 +269,11 @@ if verbose:
     print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
-type_map =pmb.get_type_map()
-types = list (type_map.values())
-espresso_system.setup_type_map(type_list = types)
+if espressomd.version.version() < (5, 1, 0):
+    espresso_system.setup_type_map(type_list = pmb.get_type_map().values())
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
+type_map = pmb.get_type_map()
 non_interacting_type = max(type_map.values())+1
 grxmc.set_non_interacting_type (type=non_interacting_type)
 if verbose:
@@ -302,7 +302,7 @@ for label in ["time","charge_peptide1","charge_peptide2","num_plus","xi_plus"]:
 N_frame=0
 for step in range(N_samples):
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
-    pmb.simulation_engine.do_reaction(grxmc, steps=total_ionisable_groups)
+    grxmc.reaction(steps=total_ionisable_groups)
     time_series["time"].append(espresso_system.time)
     # Get net charge of peptide1 and peptide2
     charge_dict_peptide1=pmb.calculate_net_charge(

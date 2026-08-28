@@ -37,7 +37,6 @@ class EspressoSimulation(SimulationEngine):
         self.kT=kT
         self.Kw=Kw
         self.seed=seed
-        pass
 
     def _add_angle(self,particle_id1,particle_id2,particle_id3, angle_inst):
         """ 
@@ -365,36 +364,6 @@ class EspressoSimulation(SimulationEngine):
             
         self.espresso_system.change_volume_and_rescale_particles(d_new=d_new,
                                                                  dir=dir)
-    
-    
-    def do_reaction(self,algorithm, steps):
-        """
-        Executes reaction steps using an ESPResSo reaction algorithm with
-        version-compatible calling semantics.
-
-        This function wraps the `reaction` method of an ESPResSo reaction
-        algorithm to account for differences in the method signature between
-        ESPResSo versions.
-
-        Args:
-            algorithm ('espressomd.reaction_methods'):
-                ESPResSo reaction algorithm object (e.g. constant pH,
-                reaction ensemble, or similar).
-            steps ('int'):
-                Number of reaction steps to perform.
-
-        Notes:
-            - In ESPResSo 4.2, the `reaction` method expects the number of steps
-            to be passed as the keyword argument `reaction_steps`.
-            - In newer ESPResSo versions, the keyword argument is `steps`.
-            - This helper function provides a stable interface across ESPResSo
-            versions by dispatching to the appropriate keyword internally.
-        """
-        import espressomd.version
-        if espressomd.version.friendly() == '4.2':
-            algorithm.reaction(reaction_steps=steps)
-        else:
-            algorithm.reaction(steps=steps)
 
     def enable_motion_of_rigid_object(self, instance_id, pmb_type):
         """
@@ -442,35 +411,6 @@ class EspressoSimulation(SimulationEngine):
             pid = self.espresso_system.part.by_id(particle_id)
             pid.vs_auto_relate_to(rigid_object_center.id)
 
-    def get_number_of_particles(self, ptype):
-        """
-        Returns the number of particles of a given ESPResSo particle type.
-
-        Args:
-            ptype ('int'):
-                ESPResSo particle type identifier.
-
-        Returns:
-            ('int'):
-                Number of particles in `espresso_system` with particle type `ptype`.
-
-        Notes:
-            - In ESPResSo 4.2, `number_of_particles` expects the particle type
-            as a positional argument.
-            - In later ESPResSo versions, the particle type must be passed as a
-            keyword argument (`type=ptype`).
-            - This helper function hides these API differences and provides
-            a uniform interface across ESPResSo versions.
-        """
-        import espressomd.version
-        if espressomd.version.friendly() == "4.2":
-            args = (ptype,)
-            kwargs = {}
-        else:
-            args = ()
-            kwargs = {"type": ptype}
-        return self.espresso_system.number_of_particles(*args, **kwargs)
-    
     def relax_espresso_system(self, seed, gamma=1e-3, Nsteps_steepest_descent=5000, max_displacement=0.01, Nsteps_iter_relax=500):
         """
         Relaxes the energy of the given ESPResSo system by performing the following steps:
@@ -610,19 +550,13 @@ class EspressoSimulation(SimulationEngine):
 
             if tune_p3m:
                 self.espresso_system.time_step=0.01
-                if espressomd.version.friendly() == "4.2":
-                    self.espresso_system.actors.add(coulomb)
-                else:
-                    self.espresso_system.electrostatics.solver = coulomb
+                self.espresso_system.electrostatics.solver = coulomb
 
 
                 # save the optimal parameters and add them by hand
 
                 p3m_params = coulomb.get_params()
-                if espressomd.version.friendly() == "4.2":
-                    self.espresso_system.actors.remove(coulomb)
-                else:
-                    self.espresso_system.electrostatics.solver = None
+                self.espresso_system.electrostatics.solver = None
                 coulomb = espressomd.electrostatics.P3M(prefactor = COULOMB_PREFACTOR.m_as("reduced_length * reduced_energy"),
                                                         accuracy = accuracy,
                                                         mesh = p3m_params['mesh'],
@@ -641,10 +575,7 @@ class EspressoSimulation(SimulationEngine):
             coulomb = espressomd.electrostatics.DH(prefactor = COULOMB_PREFACTOR.m_as("reduced_length * reduced_energy"), 
                                                 kappa = (1./KAPPA).to('1/ reduced_length').magnitude, 
                                                 r_cut = r_cut)
-        if espressomd.version.friendly() == "4.2":
-            self.espresso_system.actors.add(coulomb)
-        else:
-            self.espresso_system.electrostatics.solver = coulomb
+        self.espresso_system.electrostatics.solver = coulomb
         logging.debug("*** Electrostatics successfully added to the system ***")
 
     def setup_cpH (self, counter_ion, constant_pH, exclusion_range=None, use_exclusion_radius_per_type = False):
@@ -676,11 +607,15 @@ class EspressoSimulation(SimulationEngine):
             exclusion_radius_per_type = self.db.get_radius_map()
         else:
             exclusion_radius_per_type = {}
+        kwargs = {}
+        if espressomd.version.version() >= (5, 1, 0):
+            kwargs["system"] = self.espresso_system
         RE = reaction_methods.ConstantpHEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                 exclusion_range=exclusion_range, 
                                                 seed=self.seed, 
                                                 constant_pH=constant_pH,
-                                                exclusion_radius_per_type = exclusion_radius_per_type)
+                                                exclusion_radius_per_type = exclusion_radius_per_type,
+                                                **kwargs)
         conterion_tpl = self.db.get_template(name=counter_ion,
                                              pmb_type="particle")
         conterion_state = self.db.get_template(name=conterion_tpl.initial_state,
@@ -749,10 +684,14 @@ class EspressoSimulation(SimulationEngine):
             exclusion_radius_per_type = self.db.get_radius_map()
         else:
             exclusion_radius_per_type = {}
+        kwargs = {}
+        if espressomd.version.version() >= (5, 1, 0):
+            kwargs["system"] = self.espresso_system
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                exclusion_range=exclusion_range, 
                                                seed=self.seed, 
-                                               exclusion_radius_per_type = exclusion_radius_per_type)
+                                               exclusion_radius_per_type = exclusion_radius_per_type,
+                                               **kwargs)
         # Determine the concentrations of the various species in the reservoir and the equilibrium constants
         determined_activity_coefficient = activity_coefficient(c_salt_res)
         K_salt = (c_salt_res.to('1/(N_A * reduced_length**3)')**2) * determined_activity_coefficient
@@ -846,10 +785,14 @@ class EspressoSimulation(SimulationEngine):
             exclusion_radius_per_type = self.db.get_radius_map()
         else:
             exclusion_radius_per_type = {}
+        kwargs = {}
+        if espressomd.version.version() >= (5, 1, 0):
+            kwargs["system"] = self.espresso_system
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                exclusion_range=exclusion_range, 
                                                seed=self.seed, 
-                                               exclusion_radius_per_type = exclusion_radius_per_type)
+                                               exclusion_radius_per_type = exclusion_radius_per_type,
+                                               **kwargs)
         # Determine the concentrations of the various species in the reservoir and the equilibrium constants
         cH_res, cOH_res, cNa_res, cCl_res = self.determine_reservoir_concentrations(pH_res, c_salt_res, activity_coefficient)
         ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
@@ -1142,10 +1085,14 @@ class EspressoSimulation(SimulationEngine):
             exclusion_radius_per_type = self.db.get_radius_map()
         else:
             exclusion_radius_per_type = {}
+        kwargs = {}
+        if espressomd.version.version() >= (5, 1, 0):
+            kwargs["system"] = self.espresso_system
         RE = reaction_methods.ReactionEnsemble(kT=self.kT.to('reduced_energy').magnitude,
                                                exclusion_range=exclusion_range, 
                                                seed=self.seed, 
-                                               exclusion_radius_per_type = exclusion_radius_per_type)
+                                               exclusion_radius_per_type = exclusion_radius_per_type,
+                                               **kwargs)
         # Determine the concentrations of the various species in the reservoir and the equilibrium constants
         cH_res, cOH_res, cNa_res, cCl_res = self.determine_reservoir_concentrations(pH_res, c_salt_res, activity_coefficient)
         ionic_strength_res = 0.5*(cNa_res+cCl_res+cOH_res+cH_res)
@@ -1319,7 +1266,7 @@ class EspressoSimulation(SimulationEngine):
 
         Notes:
             - Currently, the only 'combining_rule' supported is Lorentz-Berthelot.
-            - Check the documentation of ESPResSo for more info about the potential https://espressomd.github.io/doc4.2.0/inter_non-bonded.html
+            - Check the documentation of ESPResSo for more info about the potential https://espressomd.github.io/doc5.0.1/inter_non-bonded.html
 
         """
         from itertools import combinations_with_replacement

@@ -18,6 +18,7 @@
 
 # Load espresso, pyMBE and other necessary libraries
 import espressomd
+import espressomd.version
 import pandas as pd
 import tqdm
 from espressomd.io.writer import vtf
@@ -72,7 +73,7 @@ ideal=False
 if args.test:
     MD_steps_per_sample = 1
     ideal=True
-    N_samples = 2000 # improve sampling for testing
+    N_samples = 3200 # improve sampling for testing
 
 # Peptide parameters
 sequence = args.sequence
@@ -191,12 +192,11 @@ if verbose:
     print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
-type_map =pmb.get_type_map()
-types = list (type_map.values())
-espresso_system.setup_type_map( type_list = types)
+if espressomd.version.version() < (5, 1, 0):
+    espresso_system.setup_type_map(type_list = pmb.get_type_map().values())
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
-non_interacting_type = max(type_map.values())+1
+non_interacting_type = max(pmb.get_type_map().values())+1
 cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
     print('The non-interacting type is set to ', non_interacting_type)
@@ -240,11 +240,11 @@ time_series["charge"] = [0.0]
 
 # Main loop for performing simulations at different pH-values
 N_frame=0
-for sample in tqdm.trange(N_samples):
+for sample in tqdm.trange(N_samples, disable=args.test):
     # LD sampling of the configuration space
     espresso_system.integrator.run(steps=MD_steps_per_sample)        
     # cpH sampling of the reaction space
-    pmb.simulation_engine.do_reaction(cpH, steps=total_ionisable_groups) # rule of thumb: one reaction step per titratable group (on average)
+    cpH.reaction(steps=total_ionisable_groups) # rule of thumb: one reaction step per titratable group (on average)
     # Get peptide net charge
     charge_dict=pmb.calculate_net_charge(
                                         object_name=peptide_name,

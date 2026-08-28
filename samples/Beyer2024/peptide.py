@@ -19,6 +19,7 @@
 # Load espresso, pyMBE and other necessary libraries
 from pathlib import Path
 import espressomd
+import espressomd.version
 import pandas as pd
 import argparse
 import tqdm
@@ -184,11 +185,11 @@ if verbose:
     print(pmb.get_reactions_df())
 
 # Setup espresso to track the ionization of the acid/basic groups in peptide
-type_map =pmb.get_type_map()
-espresso_system.setup_type_map(type_list = list(type_map.values()))
+if espressomd.version.version() < (5, 1, 0):
+    espresso_system.setup_type_map(type_list = pmb.get_type_map().values())
 
 # Setup the non-interacting type for speeding up the sampling of the reactions
-non_interacting_type = max(type_map.values())+1
+non_interacting_type = max(pmb.get_type_map().values())+1
 cpH.set_non_interacting_type (type=non_interacting_type)
 if verbose:
     print(f"The non-interacting type is set to {non_interacting_type}")
@@ -224,7 +225,7 @@ for sample in tqdm.trange(Nsamples,disable=not verbose):
     # Run LD
     espresso_system.integrator.run(steps=MD_steps_per_sample)
     # Run MC
-    pmb.simulation_engine.do_reaction(cpH, steps=len(sequence))
+    cpH.reaction(steps=len(sequence))
     # Sample observables
     charge_dict=pmb.calculate_net_charge(
                                         object_name=sequence,
