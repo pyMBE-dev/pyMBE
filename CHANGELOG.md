@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## Added
+- Support to setup dihedral (torsion) potentials with pyMBE, completing the bonded-potential support tracked in #143. All flexible pyMBE templates support dihedral potentials: molecules, peptides, residues (including residues with nested residues) and the internal chains of hydrogels. (#156)
+- Template and instance `Dihedral` to store information about dihedral potentials in the pyMBE database, including support for multi-term (stacked multiplicity) dihedrals on the same quadruplet. (#156)
+- Functions `define_dihedral_potential` and `define_default_dihedral_potential` to define templates of dihedral potentials in pyMBE. (#156)
+- Function `create_dihedral_potential` to create instances of dihedral potentials in pyMBE. (#156)
+- Function `get_dihedral_template` to retrieve a template of a dihedral potential in the pyMBE database. (#156)
+- `gen_dihedral` keyword argument in `create_residue`, `create_molecule` and `create_hydrogel` to auto-generate dihedral potentials from the bond topology. (#156)
+- Sample script `samples/setup_dihedral_potential.py` and test suite `testsuite/dihedral_tests.py` for the new functionality. (#156)
 - Simulation-engine abstraction layer to decouple pyMBE molecular-building logic from simulation-engine-specific implementation details. (#151)
 - Added `EspressoEngine` to delegate ESPResSo-specific operations, including reaction methods, setup utilities, and particle/bond/angle insertion. (#151)
 - Added `add_instances_to_engine()` to transfer pyMBE particles, bonds, and angles to the selected simulation engine. (#151)

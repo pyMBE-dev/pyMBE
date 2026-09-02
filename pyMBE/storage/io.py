@@ -20,7 +20,7 @@
 import os
 import json
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 import pandas as pd
 import numpy as np
 import logging
@@ -31,11 +31,13 @@ from pyMBE.storage.templates.residue import ResidueTemplate
 from pyMBE.storage.templates.molecule import MoleculeTemplate
 from pyMBE.storage.templates.bond import BondTemplate
 from pyMBE.storage.templates.angle import AngleTemplate
+from pyMBE.storage.templates.dihedral import DihedralTemplate
 from pyMBE.storage.instances.particle import ParticleInstance
 from pyMBE.storage.instances.residue import ResidueInstance
 from pyMBE.storage.instances.molecule import MoleculeInstance
 from pyMBE.storage.instances.bond import BondInstance
 from pyMBE.storage.instances.angle import AngleInstance
+from pyMBE.storage.instances.dihedral import DihedralInstance
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
 from pyMBE.storage.templates.peptide import PeptideTemplate
 from pyMBE.storage.instances.peptide import PeptideInstance
@@ -126,7 +128,7 @@ def _load_database_csv(db, folder):
 
     Notes:
         - PintQuantity objects are reconstructed from their dictionary representation.
-        - Supports particle, residue, molecule, peptide, protein, bond, angle, and hydrogel types.
+        - Supports particle, residue, molecule, peptide, protein, bond, angle, dihedral, and hydrogel types.
     """
     folder = Path(folder)
     if not folder.exists():
@@ -136,8 +138,9 @@ def _load_database_csv(db, folder):
                    "particle_state",
                    "residue", 
                    "molecule", 
-                   "bond", 
+                   "bond",
                    "angle",
+                   "dihedral",
                    "peptide",
                    "protein",
                    "hydrogel",
@@ -237,6 +240,24 @@ def _load_database_csv(db, folder):
                                     central_particle=None if central_particle == "" else central_particle,
                                     side_particle2=None if side_particle2 == "" else side_particle2,
                                     parameters=parameters)
+                templates[tpl.name] = tpl
+            elif pmb_type == "dihedral":
+                terms_raw = _decode(row.get("terms", "")) or []
+                terms: List[Dict[str, Any]] = []
+                for term_raw in terms_raw:
+                    term: Dict[str, Any] = {}
+                    for k, v in term_raw.items():
+                        if isinstance(v, dict) and {"magnitude", "units", "dimension"}.issubset(v.keys()):
+                            term[k] = PintQuantity.from_dict(v)
+                    terms.append(term)
+                particle_names = [row.get(f"particle_name{i}", "") or "" for i in range(1, 5)]
+                tpl = DihedralTemplate(name=row["name"],
+                                       dihedral_type=row.get("dihedral_type", ""),
+                                       particle_name1=None if particle_names[0] == "" else particle_names[0],
+                                       particle_name2=None if particle_names[1] == "" else particle_names[1],
+                                       particle_name3=None if particle_names[2] == "" else particle_names[2],
+                                       particle_name4=None if particle_names[3] == "" else particle_names[3],
+                                       terms=terms)
                 templates[tpl.name] = tpl
             elif pmb_type == "hydrogel":
                 node_map_raw = _decode(row.get("node_map", "")) or []
@@ -340,6 +361,15 @@ def _load_database_csv(db, folder):
                                      particle_id3=int(row["particle_id3"]),
                                      added_to_engine=row["added_to_engine"])
                 instances[inst.angle_id] = inst
+            elif pmb_type == "dihedral":
+                inst = DihedralInstance(name=row["name"],
+                                        dihedral_id=int(row["dihedral_id"]),
+                                        particle_id1=int(row["particle_id1"]),
+                                        particle_id2=int(row["particle_id2"]),
+                                        particle_id3=int(row["particle_id3"]),
+                                        particle_id4=int(row["particle_id4"]),
+                                        added_to_engine=row["added_to_engine"])
+                instances[inst.dihedral_id] = inst
             elif pmb_type == "hydrogel":
                 inst = HydrogelInstance(name=row["name"],
                                         assembly_id=int(row["assembly_id"]))
@@ -444,6 +474,18 @@ def _save_database_csv(db, folder):
                             "side_particle2": tpl.side_particle2,
                             "angle_type": tpl.angle_type,
                             "parameters": _encode(params_serial)})
+            elif pmb_type == "dihedral" and isinstance(tpl, DihedralTemplate):
+                terms_serial = []
+                for term in tpl.terms:
+                    terms_serial.append({k: v.to_dict() for k, v in term.items()
+                                         if isinstance(v, PintQuantity)})
+                rows.append({"name": tpl.name,
+                            "particle_name1": tpl.particle_name1,
+                            "particle_name2": tpl.particle_name2,
+                            "particle_name3": tpl.particle_name3,
+                            "particle_name4": tpl.particle_name4,
+                            "dihedral_type": tpl.dihedral_type,
+                            "terms": _encode(terms_serial)})
             # HYDROGEL TEMPLATE
             elif pmb_type == "hydrogel" and isinstance(tpl, HydrogelTemplate):
                 rows.append({"name": tpl.name,
@@ -523,6 +565,15 @@ def _save_database_csv(db, folder):
                             "particle_id1": int(inst.particle_id1),
                             "particle_id2": int(inst.particle_id2),
                             "particle_id3": int(inst.particle_id3),
+                            "added_to_engine":inst.added_to_engine,})
+            elif pmb_type == "dihedral" and isinstance(inst, DihedralInstance):
+                rows.append({"pmb_type": pmb_type,
+                            "name": inst.name,
+                            "dihedral_id": int(inst.dihedral_id),
+                            "particle_id1": int(inst.particle_id1),
+                            "particle_id2": int(inst.particle_id2),
+                            "particle_id3": int(inst.particle_id3),
+                            "particle_id4": int(inst.particle_id4),
                             "added_to_engine":inst.added_to_engine,})
             elif pmb_type == "hydrogel" and isinstance(inst, HydrogelInstance):
                 rows.append({"pmb_type": pmb_type,

@@ -27,11 +27,13 @@ from pyMBE.storage.templates.residue import ResidueTemplate
 from pyMBE.storage.templates.molecule import MoleculeTemplate
 from pyMBE.storage.templates.bond import BondTemplate
 from pyMBE.storage.templates.angle import AngleTemplate
+from pyMBE.storage.templates.dihedral import DihedralTemplate
 from pyMBE.storage.instances.particle import ParticleInstance
 from pyMBE.storage.instances.residue import ResidueInstance
 from pyMBE.storage.instances.molecule import MoleculeInstance
 from pyMBE.storage.instances.bond import BondInstance
 from pyMBE.storage.instances.angle import AngleInstance
+from pyMBE.storage.instances.dihedral import DihedralInstance
 from pyMBE.storage.reactions.reaction import Reaction
 from pyMBE.storage.templates.peptide import PeptideTemplate
 from pyMBE.storage.instances.peptide import PeptideInstance
@@ -92,9 +94,10 @@ class Manager:
                                      "peptide",
                                      "protein"]
         self._assembly_like_types = ["hydrogel"]
-        self._pmb_types =  ["particle", "residue", "angle"] + self._molecule_like_types + self._assembly_like_types
+        self._pmb_types =  ["particle", "residue", "angle", "dihedral"] + self._molecule_like_types + self._assembly_like_types
         self.espresso_bond_instances= {}
         self.espresso_angle_instances= {}
+        self.espresso_dihedral_instances= {}
 
     def _collect_particle_templates(self, name, pmb_type):
         """
@@ -202,6 +205,28 @@ class Manager:
             del self._instances["angle"][a_id]
         if "angle" in self._instances and not self._instances["angle"]:
             del self._instances["angle"]
+
+    def _delete_dihedrals_of_particle(self, pid):
+        """
+        Delete all dihedral instances involving a given particle instance.
+
+        Args:
+            pid ('int'):
+                The particle ID whose associated dihedrals should be deleted.
+
+        Notes:
+            - If no `"dihedral"` instances are present in the database, the method
+            exits immediately.
+            - This method does not raise errors if no dihedrals involve the particle.
+            - It is intended for internal use by cascade-deletion routines.
+        """
+        if "dihedral" not in self._instances:
+            return
+        dihedrals_to_delete = [d_id for d_id, d in list(self._instances["dihedral"].items()) if pid in (d.particle_id1, d.particle_id2, d.particle_id3, d.particle_id4)]
+        for d_id in dihedrals_to_delete:
+            del self._instances["dihedral"][d_id]
+        if "dihedral" in self._instances and not self._instances["dihedral"]:
+            del self._instances["dihedral"]
 
     def _find_instance_ids_by_attribute(self, pmb_type, attribute, value):
         """
@@ -415,6 +440,17 @@ class Manager:
                              "central_particle": tpl.central_particle,
                              "side_particle2": tpl.side_particle2,
                              "parameters": parameters})
+            elif pmb_type == "dihedral":
+                terms = [{key: value.to_quantity(self._units) for key, value in term.items()}
+                         for term in tpl.terms]
+                rows.append({"pmb_type": tpl.pmb_type,
+                             "name": tpl.name,
+                             "dihedral_type": tpl.dihedral_type,
+                             "particle_name1": tpl.particle_name1,
+                             "particle_name2": tpl.particle_name2,
+                             "particle_name3": tpl.particle_name3,
+                             "particle_name4": tpl.particle_name4,
+                             "terms": terms})
             else:
                 # Generic representation for other types
                 rows.append(tpl.dict())
@@ -491,6 +527,9 @@ class Manager:
         elif isinstance(instance, AngleInstance):
             pmb_type = "angle"
             iid = instance.angle_id
+        elif isinstance(instance, DihedralInstance):
+            pmb_type = "dihedral"
+            iid = instance.dihedral_id
         elif isinstance(instance, HydrogelInstance):
             pmb_type = "hydrogel"
             iid = instance.assembly_id
@@ -574,6 +613,8 @@ class Manager:
             allowed = ["particle_id1","particle_id2","added_to_engine"]
         elif pmb_type =="angle":
             allowed = ["particle_id1","particle_id2","particle_id3","added_to_engine"]
+        elif pmb_type =="dihedral":
+            allowed = ["particle_id1","particle_id2","particle_id3","particle_id4","added_to_engine"]
         else:
             allowed = [None]  # No attributes allowed for other types        
         if attribute not in allowed:
@@ -747,6 +788,7 @@ class Manager:
         if pmb_type == "particle":
             self._delete_bonds_of_particle(instance_id)
             self._delete_angles_of_particle(instance_id)
+            self._delete_dihedrals_of_particle(instance_id)
         # ===============  FINAL DELETION STEP  ======================
         del self._instances[pmb_type][instance_id]
         if not self._instances[pmb_type]:
@@ -826,6 +868,10 @@ class Manager:
         if pmb_type == "angle":
             if name in self.espresso_angle_instances.keys():
                 del self.espresso_angle_instances[name]
+        # if it is a dihedral template delete also stored espresso dihedral instances
+        if pmb_type == "dihedral":
+            if name in self.espresso_dihedral_instances.keys():
+                del self.espresso_dihedral_instances[name]
         # Delete empty groups
         if not self._templates[pmb_type]:
             del self._templates[pmb_type]
