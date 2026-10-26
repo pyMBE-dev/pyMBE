@@ -18,7 +18,7 @@
 #
 
 from typing import List, Literal
-from pydantic import Field, BaseModel, validator
+from pydantic import Field, BaseModel, field_validator, ValidationInfo
 from ..base_type import PMBBaseModel
 
 class HydrogelNode(BaseModel):
@@ -34,7 +34,9 @@ class HydrogelNode(BaseModel):
     """
     particle_name: str
     lattice_index: List[int]  # must be length 3
-    @validator("lattice_index", pre=True)
+
+    @field_validator("lattice_index")
+    @classmethod
     def coerce_lattice_index(cls, v):
         # Accept tuple, list, numpy array, etc.
         try:

@@ -44,6 +44,7 @@ jobs:
         run: |
           export NUM_PROC=$(nproc)
           export OMP_PROC_BIND=false OMP_NUM_THREADS=1
+          export PRTE_MCA_hwloc_default_binding_policy=none
           module restore pymbe
           source venv/bin/activate
           make functional_tests -j${NUM_PROC}

@@ -44,13 +44,14 @@ jobs:
           modules: |-
             ${{ matrix.software.eessi_modules }}
           extra-python-packages: |-
-            pdoc==15.0.3
-            pylint==3.0.3
-            coverage==7.4.4
+            pdoc==16.0.0
+            pylint==4.0.5
+            coverage==7.13.5
       - name: Run testsuite
         run: |
           export NUM_PROC=$(nproc)
           export OMP_PROC_BIND=false OMP_NUM_THREADS=1
+          export PRTE_MCA_hwloc_default_binding_policy=none
           module restore pymbe
           source venv/bin/activate
           make pylint

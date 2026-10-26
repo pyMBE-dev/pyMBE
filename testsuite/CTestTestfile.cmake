@@ -17,8 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-cmake_minimum_required(VERSION 3.22.1)
-find_package(Python 3.8 REQUIRED COMPONENTS Interpreter)
+cmake_minimum_required(VERSION 4.0.3)
+find_package(Python 3.12 REQUIRED COMPONENTS Interpreter)
 
 file(REAL_PATH "CTestTestfile.cmake" CMAKE_CURRENT_SOURCE_FILE)
 cmake_path(GET CMAKE_CURRENT_SOURCE_FILE PARENT_PATH CMAKE_CURRENT_SOURCE_DIR)

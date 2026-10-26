@@ -19,7 +19,7 @@
 
 from typing import Literal
 from pyMBE.storage.base_type import PMBBaseModel
-from pydantic import validator
+from pydantic import field_validator, ValidationInfo
 
 class BondInstance(PMBBaseModel):
     """
@@ -55,9 +55,10 @@ class BondInstance(PMBBaseModel):
     particle_id2: int
     added_to_engine: bool = False
 
-    @validator("bond_id", "particle_id1", "particle_id2")
-    def validate_non_negative_int(cls, value, field):
+    @field_validator("bond_id", "particle_id1", "particle_id2")
+    @classmethod
+    def validate_non_negative_int(cls, value, info: ValidationInfo):
         if value < 0:
-            raise ValueError(f"{field.name} must be a non-negative integer.")
+            raise ValueError(f"{info.field_name} must be a non-negative integer.")
         return value
     
