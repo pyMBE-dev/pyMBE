@@ -482,7 +482,7 @@ class Test(ut.TestCase):
                   "terms": [{"k": PintQuantity(magnitude=1,
                                                units="reduced_energy",
                                                dimension="energy"),
-                             "phi_0": PintQuantity(magnitude=1,
+                             "phi_s": PintQuantity(magnitude=1,
                                                    units="dimensionless",
                                                    dimension="dimensionless"),
                              "mult": PintQuantity(magnitude=1,

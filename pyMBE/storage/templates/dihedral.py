@@ -35,8 +35,8 @@ class DihedralTemplate(PMBBaseModel):
             quadruplet is canonicalised under full reversal (see `make_dihedral_key`).
 
         dihedral_type ('str'):
-            Type of dihedral potential. Supported: "periodic" (the ESPResSo
-            ``Dihedral`` bond ``V(phi) = k*[1 - cos(n*phi - phi_0)]``). "tabulated"
+            Type of dihedral potential. Supported: "periodic" (the GROMACS
+            proper dihedral, type 1, ``V(phi) = k*[1 + cos(n*phi - phi_s)]``). "tabulated"
             is reserved for force fields that need Ryckaert-Bellemans or improper
             dihedrals and is not implemented yet.
 
@@ -57,7 +57,7 @@ class DihedralTemplate(PMBBaseModel):
             ``[dihedrals]`` lines (different multiplicities) on the same
             quadruplet, so a dihedral template holds a list of terms. For
             ``dihedral_type == "periodic"`` each term is a dictionary with keys
-            ``k`` (energy), ``phi_0`` (dimensionless, radians) and ``mult``
+            ``k`` (energy), ``phi_s`` (dimensionless, radians) and ``mult``
             (dimensionless, the integer multiplicity).
 
     Notes:
@@ -68,9 +68,10 @@ class DihedralTemplate(PMBBaseModel):
         - The canonical name is invariant under full reversal of the
           quadruplet: ``make_dihedral_key("A", "B", "C", "D")`` equals
           ``make_dihedral_key("D", "C", "B", "A")``.
-        - GROMACS proper dihedral type 1, ``V(phi) = k*[1 + cos(n*phi - phi_s)]``,
-          maps onto the ``"periodic"`` type with ``k`` unchanged, ``mult = n``
-          and ``phi_0 = phi_s + pi`` (``phi_s`` converted from degrees to radians).
+        - The parameters are stored in the GROMACS proper dihedral (type 1)
+          convention, ``V(phi) = k*[1 + cos(n*phi - phi_s)]`` with ``phi_s``
+          in radians and ``phi`` in the IUPAC convention (cis = 0). The
+          simulation-engine adapter converts them to the engine's own form.
     """
     pmb_type: Literal["dihedral"] = "dihedral"
     name: str = Field(default="default")

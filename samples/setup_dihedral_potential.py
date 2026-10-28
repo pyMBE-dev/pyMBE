@@ -27,9 +27,10 @@
 #          different multiplicities) on the same four atoms; pyMBE registers one
 #          ESPResSo Dihedral object per term
 #   3. validation of the ESPResSo <-> GROMACS proper-dihedral (type 1) mapping
-#        - ESPResSo Dihedral: V(phi) = k*[1 - cos(n*phi - phi_0)]
-#        - GROMACS type 1:    V(phi) = k*[1 + cos(n*phi - phi_s)]
-#        - identical for phi_0 = phi_s + pi (phi_s converted from degrees)
+#        - pyMBE takes the GROMACS type 1 parameters as they appear in a topology:
+#          V(phi) = k*[1 + cos(n*phi - phi_s)], phi in the IUPAC convention (cis = 0)
+#        - the ESPResSo engine adapter converts them to the ESPResSo Dihedral form
+#          V(phi) = k*[1 - cos(n*phi - phase)] internally, phase = -(phi_s + pi)
 
 
 import numpy as np
@@ -59,7 +60,7 @@ pmb.define_default_bond(bond_type='harmonic',
 
 
 def dihedral_terms_on_particle(particle_id):
-    """Return the ESPResSo Dihedral interaction objects bonded to `particle_id`."""
+    """Return the ESPResSo Dihedral interaction objects bonded to `particle_id` (the second particle of the quadruplet)."""
     terms = []
     for bond_tuple in espresso_system.part.by_id(particle_id).bonds:
         if len(bond_tuple) == 4 and type(bond_tuple[0]).__name__ == "Dihedral":
@@ -74,7 +75,7 @@ def dihedral_terms_on_particle(particle_id):
 # (A, B, C, D) picks up the periodic dihedral defined below.
 pmb.define_dihedral_potential(dihedral_type="periodic",
                               dihedral_parameters={'k': 5 * pmb.units('reduced_energy'),
-                                                   'phi_0': np.pi * pmb.units(''),
+                                                   'phi_s': np.pi * pmb.units(''),
                                                    'mult': 1},
                               particle_quadruplets=[('A', 'B', 'C', 'D')])
 
@@ -98,7 +99,7 @@ molecule_pids = pmb.db._find_instance_ids_by_attribute(pmb_type="particle",
 print("\n############ Demo 1: linear molecule with gen_dihedral=True ############")
 print(pmb.get_instances_df(pmb_type="dihedral"))
 assert len(pmb.get_instances_df(pmb_type="dihedral")) == 1, "Demo 1: expected one dihedral"
-assert len(dihedral_terms_on_particle(min(molecule_pids))) == 1
+assert len(dihedral_terms_on_particle(sorted(molecule_pids)[1])) == 1
 print("Demo 1: one backbone dihedral generated OK")
 
 pmb.delete_instances_in_system(instance_id=molecule_ids[0], pmb_type="molecule")
@@ -109,8 +110,8 @@ pmb.db.delete_templates(pmb_type="dihedral")
 # Demo 2: multi-term dihedral on one quadruplet
 # ======================================================================
 multi_term_parameters = [
-    {'k': 4 * pmb.units('reduced_energy'), 'phi_0': 0.0 * pmb.units(''), 'mult': 1},
-    {'k': 2 * pmb.units('reduced_energy'), 'phi_0': np.pi * pmb.units(''), 'mult': 3},
+    {'k': 4 * pmb.units('reduced_energy'), 'phi_s': 0.0 * pmb.units(''), 'mult': 1},
+    {'k': 2 * pmb.units('reduced_energy'), 'phi_s': np.pi * pmb.units(''), 'mult': 3},
 ]
 pmb.define_dihedral_potential(dihedral_type="periodic",
                               dihedral_parameters=multi_term_parameters,
@@ -128,9 +129,9 @@ pmb.create_dihedral_potential(particle_id1=pids[0],
 pmb.add_instances_to_engine()
 
 print("\n############ Demo 2: multi-term dihedral ############")
-print(f"registered {len(dihedral_terms_on_particle(pids[0]))} ESPResSo Dihedral objects "
+print(f"registered {len(dihedral_terms_on_particle(pids[1]))} ESPResSo Dihedral objects "
       f"for a {len(multi_term_parameters)}-term dihedral")
-assert len(dihedral_terms_on_particle(pids[0])) == len(multi_term_parameters)
+assert len(dihedral_terms_on_particle(pids[1])) == len(multi_term_parameters)
 print("Demo 2: one Dihedral object per term OK")
 
 for inst_id in pids:
@@ -141,16 +142,17 @@ pmb.db.delete_templates(pmb_type="dihedral")
 # ======================================================================
 # Demo 3: ESPResSo <-> GROMACS proper dihedral (type 1) mapping
 # ======================================================================
-# A GROMACS proper dihedral line "phi_s k n" (phi_s in degrees) maps onto a
-# pyMBE "periodic" dihedral with the same k, mult = n and phi_0 = radians(phi_s) + pi.
+# A GROMACS proper dihedral line "phi_s k n" (phi_s in degrees) is passed to pyMBE as it is:
+# same k, mult = n and phi_s converted to radians. The ESPResSo engine applies the conversion
+# to the ESPResSo Dihedral form internally (phase = -(phi_s + pi)).
 gromacs_phi_s_deg = 180.0
 gromacs_k = 3.5          # reduced units here; kJ/mol in a real GROMACS topology
 gromacs_n = 2
-phi_0 = np.deg2rad(gromacs_phi_s_deg) + np.pi
+phi_s = np.deg2rad(gromacs_phi_s_deg)
 
 pmb.define_dihedral_potential(dihedral_type="periodic",
                               dihedral_parameters={'k': gromacs_k * pmb.units('reduced_energy'),
-                                                   'phi_0': phi_0 * pmb.units(''),
+                                                   'phi_s': phi_s * pmb.units(''),
                                                    'mult': gromacs_n},
                               particle_quadruplets=[('A', 'B', 'C', 'D')])
 
@@ -165,14 +167,14 @@ pmb.create_dihedral_potential(particle_id1=pids[0],
                               particle_id4=pids[3])
 pmb.add_instances_to_engine()
 
-params = dihedral_terms_on_particle(pids[0])[0].get_params()
+params = dihedral_terms_on_particle(pids[1])[0].get_params()
 print("\n############ Demo 3: GROMACS proper dihedral (type 1) mapping ############")
 print(f"  bend  = {params['bend']}   (GROMACS k = {gromacs_k})")
 print(f"  mult  = {params['mult']}   (GROMACS n = {gromacs_n})")
-print(f"  phase = {params['phase']:.6f}   (radians(phi_s) + pi = {phi_0:.6f})")
+print(f"  phase = {params['phase']:.6f}   (-(radians(phi_s) + pi) = {-(phi_s + np.pi):.6f}, converted by the ESPResSo engine)")
 assert np.isclose(params['bend'], gromacs_k)
 assert params['mult'] == gromacs_n
-assert np.isclose(params['phase'], phi_0)
+assert np.isclose(params["phase"], -(phi_s + np.pi))
 print("Demo 3: GROMACS proper dihedral (type 1) mapping verified OK")
 
 for inst_id in pids:

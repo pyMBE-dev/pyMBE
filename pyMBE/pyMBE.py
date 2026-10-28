@@ -1662,7 +1662,7 @@ class pymbe_library():
                 dictionary is treated as a one-term dihedral. For the "periodic"
                 type each term must contain:
                     - "k" ('pint.Quantity'): Torsion stiffness with dimensions of energy.
-                    - "phi_0" ('pint.Quantity'): Equilibrium phase, dimensionless (radians).
+                    - "phi_s" ('pint.Quantity'): Phase of the GROMACS proper dihedral (type 1), dimensionless (radians). The dihedral angle follows the IUPAC convention (cis = 0, trans = pi).
                     - "mult" ('int'): Multiplicity (number of minima).
 
         Returns:
@@ -1685,8 +1685,8 @@ class pymbe_library():
         for term in term_list:
             if "k" not in term:
                 raise ValueError("Magnitude of the dihedral potential (k) is missing")
-            if "phi_0" not in term:
-                raise ValueError("Equilibrium phase of the dihedral potential (phi_0) is missing")
+            if "phi_s" not in term:
+                raise ValueError("Phase of the dihedral potential (phi_s) is missing")
             if "mult" not in term:
                 raise ValueError("Multiplicity of the dihedral potential (mult) is missing")
             mult = term["mult"]
@@ -1695,7 +1695,7 @@ class pymbe_library():
             terms.append({"k": PintQuantity.from_quantity(q=term["k"],
                                                           expected_dimension="energy",
                                                           ureg=self.units),
-                          "phi_0": PintQuantity.from_quantity(q=term["phi_0"],
+                          "phi_s": PintQuantity.from_quantity(q=term["phi_s"],
                                                               expected_dimension="dimensionless",
                                                               ureg=self.units),
                           "mult": PintQuantity.from_quantity(q=mult,
@@ -1709,8 +1709,8 @@ class pymbe_library():
 
         Args:
             dihedral_type ('str'):
-                Type of dihedral potential. Supported: "periodic", which maps onto
-                the ESPResSo ``Dihedral`` bond ``V(phi) = k*[1 - cos(n*phi - phi_0)]``.
+                Type of dihedral potential. Supported: "periodic", the GROMACS proper
+                dihedral (type 1) ``V(phi) = k*[1 + cos(n*phi - phi_s)]``.
 
             dihedral_parameters ('dict' or 'list[dict]'):
                 Parameters of the dihedral potential, or a list of such
@@ -1718,16 +1718,20 @@ class pymbe_library():
                 on the same quadruplet. For the "periodic" type each term must
                 contain:
                     - "k" ('pint.Quantity'): Torsion stiffness with dimensions of energy.
-                    - "phi_0" ('pint.Quantity'): Equilibrium phase, dimensionless (radians).
+                    - "phi_s" ('pint.Quantity'): Phase of the GROMACS proper dihedral (type 1), dimensionless (radians). The dihedral angle follows the IUPAC convention (cis = 0, trans = pi).
                     - "mult" ('int'): Multiplicity (number of minima).
 
             particle_quadruplets ('list[tuple[str,str,str,str]]'):
                 List of (particle1, particle2, particle3, particle4) name quadruplets.
 
         Notes:
-            GROMACS proper dihedral type 1, ``V(phi) = k*[1 + cos(n*phi - phi_s)]``,
-            is recovered by passing ``k`` unchanged, ``mult = n`` and
-            ``phi_0 = phi_s + pi`` (with ``phi_s`` converted from degrees to radians).
+            Parameters follow the GROMACS proper dihedral (type 1) convention,
+            ``V(phi) = k*[1 + cos(n*phi - phi_s)]``: pass ``k``, ``mult = n`` and
+            ``phi_s`` (converted from degrees to radians) exactly as written in a
+            GROMACS topology. The dihedral angle ``phi`` follows the IUPAC/GROMACS
+            convention (cis = 0, trans = pi, right-handed rotation positive).
+            Any conversion needed by a simulation engine is applied internally by
+            the engine adapter, see `EspressoSimulation._create_dihedral_instance`.
         """
         terms = self._build_dihedral_terms(dihedral_type=dihedral_type,
                                            dihedral_parameters=dihedral_parameters)
@@ -1754,7 +1758,7 @@ class pymbe_library():
                 Type of dihedral potential. Supported: "periodic".
 
             dihedral_parameters ('dict' or 'list[dict]'):
-                Parameters of the dihedral potential (k, phi_0, mult), or a list
+                Parameters of the dihedral potential (k, phi_s, mult), or a list
                 of such dictionaries for a multi-term dihedral.
         """
         terms = self._build_dihedral_terms(dihedral_type=dihedral_type,

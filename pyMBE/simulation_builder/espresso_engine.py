@@ -73,8 +73,9 @@ class EspressoSimulation(SimulationEngine):
                                           pmb_type="dihedral")
         espresso_dihedral_insts=self._get_dihedral_instance(dihedral_template=dihedral_tpl)
 
+        # ESPResSo stores a dihedral bond on the second particle of the quadruplet: p2.add_bond((dihedral, p1, p3, p4))
         for espresso_dihedral_inst in espresso_dihedral_insts:
-            self.espresso_system.part.by_id(particle_id1).add_bond((espresso_dihedral_inst, particle_id2, particle_id3, particle_id4))
+            self.espresso_system.part.by_id(particle_id2).add_bond((espresso_dihedral_inst, particle_id1, particle_id3, particle_id4))
         self.db._update_instance(instance_id=dihedral_inst.dihedral_id,
                                     pmb_type='dihedral',
                                     attribute='added_to_engine',
@@ -301,10 +302,18 @@ class EspressoSimulation(SimulationEngine):
 
         Args:
             dihedral_type ('str'): Type of dihedral potential ("periodic").
-            dihedral_terms ('list[dict]'): List of term dictionaries (k, phi_0, mult).
+            dihedral_terms ('list[dict]'): List of term dictionaries (k, phi_s, mult).
 
         Returns:
             ('list[espressomd.interactions.BondedInteraction]'): The ESPResSo dihedral interaction objects.
+
+        Notes:
+            pyMBE stores dihedrals in the IUPAC/GROMACS convention, ``V = k*[1 + cos(n*phi - phi_s)]``
+            with phi = 0 at the cis conformation. ESPResSo implements ``V = k*[1 - cos(n*phi_E - phase)]``
+            and, for a bond stored on the second particle of the quadruplet, its angle ``phi_E`` has the
+            opposite sign to the IUPAC angle. The conversion applied here is therefore
+            ``phase = -(phi_s + pi)``: the ``pi`` turns ``1 + cos`` into ``1 - cos`` and the minus
+            sign compensates the sign of ``phi_E``.
         """
         from espressomd import interactions
 
@@ -312,9 +321,14 @@ class EspressoSimulation(SimulationEngine):
             dihedral_insts = []
             for term in dihedral_terms:
                 k = term["k"].m_as("reduced_energy")
-                phi_0 = float(term["phi_0"].magnitude)
+                phi_s = float(term["phi_s"].magnitude)
                 mult = int(round(float(term["mult"].magnitude)))
-                dihedral_insts.append(interactions.Dihedral(bend=k, mult=mult, phase=phi_0))
+                # pyMBE uses the GROMACS proper dihedral (type 1), V = k[1 + cos(n*phi - phi_s)],
+                # with the IUPAC angle phi (cis = 0). ESPResSo implements V = k[1 - cos(n*phi_E - phase)]:
+                #  - 1 + cos(x) = 1 - cos(x - pi), so the phase is shifted by pi: phi_0 = phi_s + pi
+                #  - with the bond stored on the second particle (see _add_dihedral), ESPResSo's angle
+                #    phi_E has the opposite sign to the IUPAC angle, so phase = -phi_0
+                dihedral_insts.append(interactions.Dihedral(bend=k, mult=mult, phase=-(phi_s + np.pi)))
             return dihedral_insts
         if dihedral_type == "tabulated":
             raise NotImplementedError("tabulated dihedrals not yet supported")

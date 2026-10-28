@@ -328,10 +328,10 @@ class Test(ut.TestCase):
         """
         pmb = pyMBE.pymbe_library(seed=42)
         parameters1 = {"k": 5.0 * pmb.units.reduced_energy,
-                       "phi_0": 1.0 * pmb.units(""),
+                       "phi_s": 1.0 * pmb.units(""),
                        "mult": 1}
-        parameters2 = [{"k": 3.0 * pmb.units.reduced_energy, "phi_0": 0.0 * pmb.units(""), "mult": 1},
-                       {"k": 2.0 * pmb.units.reduced_energy, "phi_0": 0.5 * pmb.units(""), "mult": 3}]
+        parameters2 = [{"k": 3.0 * pmb.units.reduced_energy, "phi_s": 0.0 * pmb.units(""), "mult": 1},
+                       {"k": 2.0 * pmb.units.reduced_energy, "phi_s": 0.5 * pmb.units(""), "mult": 3}]
         pmb.define_dihedral_potential(dihedral_type="periodic",
                                      dihedral_parameters=parameters1,
                                      particle_quadruplets=[("Z", "X", "Z", "Y"),
@@ -364,7 +364,7 @@ class Test(ut.TestCase):
                         particle_pairs=[["A", "B"], ["B", "C"], ["C", "D"]])
         pmb.define_dihedral_potential(dihedral_type="periodic",
                                      dihedral_parameters={"k": 5.0 * pmb.units.reduced_energy,
-                                                          "phi_0": 1.0 * pmb.units(""),
+                                                          "phi_s": 1.0 * pmb.units(""),
                                                           "mult": 2},
                                      particle_quadruplets=[("A", "B", "C", "D")])
         pids = [pmb.create_particle(name=name, box_l=box_l, number_of_particles=1)[0]
