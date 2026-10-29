@@ -39,6 +39,7 @@ from pyMBE.storage.templates.protein import ProteinTemplate
 from pyMBE.storage.templates.hydrogel import HydrogelTemplate, HydrogelNode, HydrogelChain
 from pyMBE.storage.templates.bond import BondTemplate
 from pyMBE.storage.templates.angle import AngleTemplate
+from pyMBE.storage.templates.dihedral import DihedralTemplate
 ## Instances
 from pyMBE.storage.instances.particle import ParticleInstance
 from pyMBE.storage.instances.residue import ResidueInstance
@@ -47,6 +48,7 @@ from pyMBE.storage.instances.peptide import PeptideInstance
 from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.instances.bond import BondInstance
 from pyMBE.storage.instances.angle import AngleInstance
+from pyMBE.storage.instances.dihedral import DihedralInstance
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 
 from pyMBE.simulation_builder.espresso_engine import EspressoSimulation
@@ -193,7 +195,7 @@ class pymbe_library():
                 if required_key not in pka_entry:
                     raise ValueError(f'missing a required key "{required_key}" in entry "{pka_name}" of pka_set ("{pka_entry}")')
 
-    def _create_hydrogel_chain(self, hydrogel_chain, nodes,box_l, use_default_bond=False, gen_angle=False):
+    def _create_hydrogel_chain(self, hydrogel_chain, nodes,box_l, use_default_bond=False, gen_angle=False, gen_dihedral=False):
         """
         Creates a chain between two nodes of a hydrogel.
 
@@ -210,6 +212,10 @@ class pymbe_library():
                 If True, generate the angle potentials internal to the created
                 chain molecule. Junction angles near the hydrogel crosslinkers
                 are handled separately at the hydrogel level.
+
+            gen_dihedral ('bool', optional):
+                If True, generate the dihedral potentials internal to the created
+                chain molecule.
 
         Return:
             ('int'): 
@@ -265,7 +271,8 @@ class pymbe_library():
                                       backbone_vector=np.array(backbone_vector)/l0,
                                       use_default_bond=use_default_bond,
                                       reverse_residue_order=reverse_residue_order,
-                                      gen_angle=gen_angle)[0]
+                                      gen_angle=gen_angle,
+                                      gen_dihedral=gen_dihedral)[0]
         chain_pids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
                                                              attribute="molecule_id",
                                                              value=mol_id)
@@ -833,7 +840,7 @@ class pymbe_library():
         return counterion_number
 
 
-    def create_hydrogel(self, name, box_l, use_default_bond=False, gen_angle=False):
+    def create_hydrogel(self, name, box_l, use_default_bond=False, gen_angle=False, gen_dihedral=False):
         """ 
         Creates a hydrogel in espresso_system using a pyMBE hydrogel template given by 'name'
 
@@ -850,6 +857,11 @@ class pymbe_library():
                 If True, generate angle potentials for the internal hydrogel
                 chains and, when explicitly defined, for all crosslinker-adjacent
                 triplets. Defaults to False.
+
+            gen_dihedral ('bool', optional):
+                If True, generate dihedral potentials for the internal hydrogel
+                chains. Crosslinker-adjacent dihedrals are not generated.
+                Defaults to False.
 
         Returns:
             ('int'): id of the hydrogel instance created.
@@ -881,6 +893,7 @@ class pymbe_library():
                                                       box_l=box_l,
                                                       use_default_bond=use_default_bond,
                                                       gen_angle=gen_angle,
+                                                      gen_dihedral=gen_dihedral,
                                                       )
             self.db._update_instance(instance_id=molecule_id,
                                      pmb_type="molecule",
@@ -939,7 +952,7 @@ class pymbe_library():
         return assembly_id
 
 
-    def create_molecule(self, name, number_of_molecules, box_l, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False, reverse_residue_order = False, gen_angle=False):
+    def create_molecule(self, name, number_of_molecules, box_l, list_of_first_residue_positions=None, backbone_vector=None, use_default_bond=False, reverse_residue_order = False, gen_angle=False, gen_dihedral=False):
         """
         Creates instances of a given molecule template name into ESPResSo.
 
@@ -1079,6 +1092,10 @@ class pymbe_library():
             self.db._register_instance(inst)
             if gen_angle:
                 self._generate_angles_for_entity(
+                    entity_id=molecule_id,
+                    entity_id_col='molecule_id')
+            if gen_dihedral:
+                self._generate_dihedrals_for_entity(
                     entity_id=molecule_id,
                     entity_id_col='molecule_id')
             first_residue = True
@@ -1230,7 +1247,7 @@ class pymbe_library():
             mol_ids.append(molecule_id)
         return mol_ids
 
-    def create_residue(self, name, box_l, central_bead_position=None,use_default_bond=False, backbone_vector=None, gen_angle=False):
+    def create_residue(self, name, box_l, central_bead_position=None,use_default_bond=False, backbone_vector=None, gen_angle=False, gen_dihedral=False):
         """
         Creates a residue  into ESPResSo.
 
@@ -1361,6 +1378,10 @@ class pymbe_library():
             self._generate_angles_for_entity(
                                              entity_id=residue_id,
                                              entity_id_col="residue_id")
+        if gen_dihedral:
+            self._generate_dihedrals_for_entity(
+                                                entity_id=residue_id,
+                                                entity_id_col="residue_id")
         return  residue_id
 
     def define_bond(self, bond_type, bond_parameters, particle_pairs):
@@ -1624,6 +1645,248 @@ class pymbe_library():
                     except ValueError:
                         # No angle template defined for this triplet — skip
                         continue
+
+    def _build_dihedral_terms(self, dihedral_type, dihedral_parameters):
+        """
+        Validate user input for a dihedral potential and cast it into the list
+        of ``PintQuantity`` terms stored in a `DihedralTemplate`.
+
+        Args:
+            dihedral_type ('str'):
+                Type of dihedral potential. Supported: "periodic".
+
+            dihedral_parameters ('dict' or 'list[dict]'):
+                Parameters of the dihedral potential. GROMACS-style force fields
+                stack several terms (with different multiplicities) on the same
+                quadruplet, so a list of term dictionaries is accepted. A single
+                dictionary is treated as a one-term dihedral. For the "periodic"
+                type each term must contain:
+                    - "k" ('pint.Quantity'): Torsion stiffness with dimensions of energy.
+                    - "phi_s" ('pint.Quantity'): Phase of the GROMACS proper dihedral (type 1), dimensionless (radians). The dihedral angle follows the IUPAC convention (cis = 0, trans = pi).
+                    - "mult" ('int'): Multiplicity (number of minima).
+
+        Returns:
+            ('list[dict[str, PintQuantity]]'): One dictionary per dihedral term.
+        """
+        valid_dihedral_types = ["periodic", "tabulated"]
+        if dihedral_type not in valid_dihedral_types:
+            raise NotImplementedError(f"Dihedral potential type '{dihedral_type}' currently not implemented in pyMBE, accepted types are {valid_dihedral_types}")
+        if dihedral_type == "tabulated":
+            raise NotImplementedError("Tabulated dihedral potentials are not supported yet")
+
+        if isinstance(dihedral_parameters, dict):
+            term_list = [dihedral_parameters]
+        else:
+            term_list = list(dihedral_parameters)
+        if not term_list:
+            raise ValueError("At least one dihedral term must be provided")
+
+        terms = []
+        for term in term_list:
+            if "k" not in term:
+                raise ValueError("Magnitude of the dihedral potential (k) is missing")
+            if "phi_s" not in term:
+                raise ValueError("Phase of the dihedral potential (phi_s) is missing")
+            if "mult" not in term:
+                raise ValueError("Multiplicity of the dihedral potential (mult) is missing")
+            mult = term["mult"]
+            if not isinstance(mult, self.units.Quantity):
+                mult = mult * self.units("")
+            terms.append({"k": PintQuantity.from_quantity(q=term["k"],
+                                                          expected_dimension="energy",
+                                                          ureg=self.units),
+                          "phi_s": PintQuantity.from_quantity(q=term["phi_s"],
+                                                              expected_dimension="dimensionless",
+                                                              ureg=self.units),
+                          "mult": PintQuantity.from_quantity(q=mult,
+                                                             expected_dimension="dimensionless",
+                                                             ureg=self.units)})
+        return terms
+
+    def define_dihedral_potential(self, dihedral_type, dihedral_parameters, particle_quadruplets):
+        """
+        Defines dihedral potential templates for each particle quadruplet in `particle_quadruplets`.
+
+        Args:
+            dihedral_type ('str'):
+                Type of dihedral potential. Supported: "periodic", the GROMACS proper
+                dihedral (type 1) ``V(phi) = k*[1 + cos(n*phi - phi_s)]``.
+
+            dihedral_parameters ('dict' or 'list[dict]'):
+                Parameters of the dihedral potential, or a list of such
+                dictionaries to register several terms (different multiplicities)
+                on the same quadruplet. For the "periodic" type each term must
+                contain:
+                    - "k" ('pint.Quantity'): Torsion stiffness with dimensions of energy.
+                    - "phi_s" ('pint.Quantity'): Phase of the GROMACS proper dihedral (type 1), dimensionless (radians). The dihedral angle follows the IUPAC convention (cis = 0, trans = pi).
+                    - "mult" ('int'): Multiplicity (number of minima).
+
+            particle_quadruplets ('list[tuple[str,str,str,str]]'):
+                List of (particle1, particle2, particle3, particle4) name quadruplets.
+
+        Notes:
+            Parameters follow the GROMACS proper dihedral (type 1) convention,
+            ``V(phi) = k*[1 + cos(n*phi - phi_s)]``: pass ``k``, ``mult = n`` and
+            ``phi_s`` (converted from degrees to radians) exactly as written in a
+            GROMACS topology. The dihedral angle ``phi`` follows the IUPAC/GROMACS
+            convention (cis = 0, trans = pi, right-handed rotation positive).
+            Any conversion needed by a simulation engine is applied internally by
+            the engine adapter, see `EspressoSimulation._create_dihedral_instance`.
+        """
+        terms = self._build_dihedral_terms(dihedral_type=dihedral_type,
+                                           dihedral_parameters=dihedral_parameters)
+        dihedral_names = []
+        for name1, name2, name3, name4 in particle_quadruplets:
+            tpl = DihedralTemplate(particle_name1=name1,
+                                   particle_name2=name2,
+                                   particle_name3=name3,
+                                   particle_name4=name4,
+                                   terms=terms,
+                                   dihedral_type=dihedral_type)
+            tpl._make_name()
+            if tpl.name in dihedral_names:
+                raise RuntimeError(f"Dihedral {tpl.name} has already been defined, please check the list of particle quadruplets")
+            dihedral_names.append(tpl.name)
+            self.db._register_template(tpl)
+
+    def define_default_dihedral_potential(self, dihedral_type, dihedral_parameters):
+        """
+        Defines a dihedral template as a "default" template in the pyMBE database.
+
+        Args:
+            dihedral_type ('str'):
+                Type of dihedral potential. Supported: "periodic".
+
+            dihedral_parameters ('dict' or 'list[dict]'):
+                Parameters of the dihedral potential (k, phi_s, mult), or a list
+                of such dictionaries for a multi-term dihedral.
+        """
+        terms = self._build_dihedral_terms(dihedral_type=dihedral_type,
+                                           dihedral_parameters=dihedral_parameters)
+        tpl = DihedralTemplate(terms=terms,
+                               dihedral_type=dihedral_type)
+        tpl.name = "default"
+        self.db._register_template(tpl)
+
+    def create_dihedral_potential(self, particle_id1, particle_id2, particle_id3, particle_id4, use_default_dihedral=False):
+        """
+        Creates a dihedral between four particle instances in an ESPResSo system
+        and registers it in the pyMBE database.
+
+        Args:
+            particle_id1 ('int'): ID of the first particle in the quadruplet.
+            particle_id2 ('int'): ID of the second particle in the quadruplet.
+            particle_id3 ('int'): ID of the third particle in the quadruplet.
+            particle_id4 ('int'): ID of the fourth particle in the quadruplet.
+            use_default_dihedral ('bool', optional): If True, use the default dihedral if no specific one is found.
+        """
+        particle_inst_1 = self.db.get_instance(pmb_type="particle", instance_id=particle_id1)
+        particle_inst_2 = self.db.get_instance(pmb_type="particle", instance_id=particle_id2)
+        particle_inst_3 = self.db.get_instance(pmb_type="particle", instance_id=particle_id3)
+        particle_inst_4 = self.db.get_instance(pmb_type="particle", instance_id=particle_id4)
+
+        # Verify that the i-j, j-k and k-l bonds of the quadruplet exist
+        bond_instances = self.db.get_instances(pmb_type="bond")
+        bonded_pairs = set()
+        for bond in bond_instances.values():
+            bonded_pairs.add(frozenset([bond.particle_id1, bond.particle_id2]))
+        chain = [(particle_id1, particle_id2),
+                 (particle_id2, particle_id3),
+                 (particle_id3, particle_id4)]
+        for pid_a, pid_b in chain:
+            if frozenset([pid_a, pid_b]) not in bonded_pairs:
+                raise ValueError(f"Cannot create dihedral: no bond exists between particle {pid_a} and particle {pid_b}.")
+
+        dihedral_tpl = self.get_dihedral_template(name1=particle_inst_1.name,
+                                                  name2=particle_inst_2.name,
+                                                  name3=particle_inst_3.name,
+                                                  name4=particle_inst_4.name,
+                                                  use_default_dihedral=use_default_dihedral)
+        dihedral_id = self.db._propose_instance_id(pmb_type="dihedral")
+        pmb_dihedral_instance = DihedralInstance(dihedral_id=dihedral_id,
+                                                 name=dihedral_tpl.name,
+                                                 particle_id1=particle_id1,
+                                                 particle_id2=particle_id2,
+                                                 particle_id3=particle_id3,
+                                                 particle_id4=particle_id4)
+        self.db._register_instance(instance=pmb_dihedral_instance)
+
+    def get_dihedral_template(self, name1, name2, name3, name4, use_default_dihedral=False):
+        """
+        Retrieves a dihedral template connecting four particle templates.
+
+        Args:
+            name1 ('str'): Name of the first particle in the quadruplet.
+            name2 ('str'): Name of the second particle in the quadruplet.
+            name3 ('str'): Name of the third particle in the quadruplet.
+            name4 ('str'): Name of the fourth particle in the quadruplet.
+            use_default_dihedral ('bool', optional): If True, fall back to the default dihedral template.
+
+        Returns:
+            ('DihedralTemplate'): The matching dihedral template.
+        """
+        dihedral_key = DihedralTemplate.make_dihedral_key(name1, name2, name3, name4)
+        try:
+            return self.db.get_template(name=dihedral_key, pmb_type="dihedral")
+        except ValueError:
+            pass
+
+        if use_default_dihedral:
+            return self.db.get_template(name="default", pmb_type="dihedral")
+
+        raise ValueError(f"No dihedral template found for '{name1}-{name2}-{name3}-{name4}', and default dihedrals are deactivated.")
+
+    def _generate_dihedrals_for_entity(self, entity_id, entity_id_col):
+        """
+        Auto-generates dihedrals from bond topology for an entity (molecule or residue).
+
+        For each bond ``(j, k)`` internal to the entity, this method forms the
+        candidate quadruplets ``(i, j, k, l)`` with ``i`` a bonded neighbour of
+        ``j`` and ``l`` a bonded neighbour of ``k``, and applies any matching
+        dihedral potential.
+
+        Args:
+            entity_id ('int'): The molecule_id or residue_id to generate dihedrals for.
+            entity_id_col ('str'): Either "molecule_id" or "residue_id".
+        """
+        # Get all particle IDs for this entity
+        particle_ids = self.db._find_instance_ids_by_attribute(pmb_type="particle",
+                                                               attribute=entity_id_col,
+                                                               value=entity_id)
+        if not particle_ids:
+            return
+
+        # Build neighbor map from bond instances
+        neighbors = {pid: set() for pid in particle_ids}
+        pid_set = set(particle_ids)
+        bond_instances = self.db.get_instances(pmb_type="bond")
+        for bond in bond_instances.values():
+            i, j = bond.particle_id1, bond.particle_id2
+            if i in pid_set and j in pid_set:
+                neighbors[i].add(j)
+                neighbors[j].add(i)
+
+        seen_quadruplets = set()
+        for j in particle_ids:
+            for k in sorted(neighbors[j]):
+                # Iterate over each internal bond (j, k) once
+                for i in sorted(neighbors[j] - {k}):
+                    for l in sorted(neighbors[k] - {j}):
+                        if i == l:
+                            continue
+                        quad = (i, j, k, l)
+                        if quad in seen_quadruplets or (l, k, j, i) in seen_quadruplets:
+                            continue
+                        seen_quadruplets.add(quad)
+                        try:
+                            self.create_dihedral_potential(particle_id1=i,
+                                                           particle_id2=j,
+                                                           particle_id3=k,
+                                                           particle_id4=l,
+                                                           use_default_dihedral=True)
+                        except ValueError:
+                            # No dihedral template defined for this quadruplet — skip
+                            continue
 
     def define_hydrogel(self, name, node_map, chain_map):
         """

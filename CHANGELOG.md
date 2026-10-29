@@ -8,6 +8,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ## Added
+- Support to setup dihedral (torsion) potentials with pyMBE, completing the bonded-potential support tracked in #143. All flexible pyMBE templates support dihedral potentials: molecules, peptides, residues (including residues with nested residues) and the internal chains of hydrogels. (#157)
+- Template and instance `Dihedral` to store information about dihedral potentials in the pyMBE database, including support for multi-term (stacked multiplicity) dihedrals on the same quadruplet. (#157)
+- Functions `define_dihedral_potential` and `define_default_dihedral_potential` to define templates of dihedral potentials in pyMBE. (#157)
+- Function `create_dihedral_potential` to create instances of dihedral potentials in pyMBE. (#157)
+- Function `get_dihedral_template` to retrieve a template of a dihedral potential in the pyMBE database. (#157)
+- `gen_dihedral` keyword argument in `create_residue`, `create_molecule` and `create_hydrogel` to auto-generate dihedral potentials from the bond topology. (#157)
+- Dihedral potentials follow the IUPAC/GROMACS convention at the API level: users pass the parameters of the GROMACS proper dihedral (type 1), `V(phi) = k*[1 + cos(n*phi - phi_s)]` with `phi = 0` at the cis conformation, as `k`, `phi_s` and `mult`. The conversion to the ESPResSo `Dihedral` interaction is applied internally by the ESPResSo engine adapter. (#157)
+- Sample script `samples/setup_dihedral_potential.py` and test suite `testsuite/dihedral_tests.py` for the new functionality, including tests that compare the energies and forces set up in ESPResSo with the analytical GROMACS expression. (#157)
 - Simulation-engine abstraction layer to decouple pyMBE molecular-building logic from simulation-engine-specific implementation details. (#151)
 - Added `EspressoEngine` to delegate ESPResSo-specific operations, including reaction methods, setup utilities, and particle/bond/angle insertion. (#151)
 - Added `add_instances_to_engine()` to transfer pyMBE particles, bonds, and angles to the selected simulation engine. (#151)

@@ -154,7 +154,8 @@ class Test(ut.TestCase):
         local_pmb.set_simulation_engine(espresso_system)
         engine = local_pmb.simulation_engine
         engine.db = Mock()
-        engine.db._find_instance_ids_by_attribute.side_effect = [[1], [2], [], []]
+        # particle (missing), particle (added), bond, angle, dihedral lookups
+        engine.db._find_instance_ids_by_attribute.side_effect = [[1], [2], [], [], []]
         engine._get_particle_ids_in_espresso = Mock(return_value=[1, 2])
         engine.update_particle_id = Mock()
         engine._add_particle = Mock()

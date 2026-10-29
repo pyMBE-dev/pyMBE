@@ -57,7 +57,30 @@ class EspressoSimulation(SimulationEngine):
                                     pmb_type='angle',
                                     attribute='added_to_engine',
                                     value=True)
-        
+
+    def _add_dihedral(self,particle_id1,particle_id2,particle_id3,particle_id4, dihedral_inst):
+        """
+        Helper function to add dihedral instances to ESPResSo.
+
+        Args:
+            particle_id1 (int): pid of the particle instance 1 that composes the dihedral
+            particle_id2 (int): pid of the particle instance 2 that composes the dihedral
+            particle_id3 (int): pid of the particle instance 3 that composes the dihedral
+            particle_id4 (int): pid of the particle instance 4 that composes the dihedral
+            dihedral_inst (pmb.DihedralInstance): dataclass containing information of a dihedral instance
+        """
+        dihedral_tpl=self.db.get_template(name=dihedral_inst.name,
+                                          pmb_type="dihedral")
+        espresso_dihedral_insts=self._get_dihedral_instance(dihedral_template=dihedral_tpl)
+
+        # ESPResSo stores a dihedral bond on the second particle of the quadruplet: p2.add_bond((dihedral, p1, p3, p4))
+        for espresso_dihedral_inst in espresso_dihedral_insts:
+            self.espresso_system.part.by_id(particle_id2).add_bond((espresso_dihedral_inst, particle_id1, particle_id3, particle_id4))
+        self.db._update_instance(instance_id=dihedral_inst.dihedral_id,
+                                    pmb_type='dihedral',
+                                    attribute='added_to_engine',
+                                    value=True)
+
     def _add_bond(self,particle_id1,particle_id2,bond_inst):
         """
         Helper function to add bond instances to ESPResSo.
@@ -248,7 +271,70 @@ class EspressoSimulation(SimulationEngine):
         elif angle_type == "harmonic_cosine":
             return interactions.AngleCossquare(bend=k, phi0=phi_0)
 
-    
+    def _get_dihedral_instance(self,dihedral_template):
+        """
+        Retrieve or create the ESPResSo dihedral interactions for a given dihedral template.
+
+        A dihedral template can hold several terms (different multiplicities on
+        the same quadruplet), so this returns a list of ESPResSo interaction
+        objects, one per term.
+
+        Args:
+            dihedral_template ('DihedralTemplate'): The dihedral template to use.
+
+        Returns:
+            ('list[espressomd.interactions.BondedInteraction]'): The ESPResSo dihedral interaction objects.
+        """
+        if dihedral_template.name in self.db.espresso_dihedral_instances:
+            return self.db.espresso_dihedral_instances[dihedral_template.name]
+
+        dihedral_insts = self._create_dihedral_instance(dihedral_type=dihedral_template.dihedral_type,
+                                                        dihedral_terms=dihedral_template.get_terms(self.units))
+        self.db.espresso_dihedral_instances[dihedral_template.name] = dihedral_insts
+        for dihedral_inst in dihedral_insts:
+            self.espresso_system.bonded_inter.add(dihedral_inst)
+
+        return dihedral_insts
+
+    def _create_dihedral_instance(self, dihedral_type, dihedral_terms):
+        """
+        Creates the ESPResSo dihedral interaction objects for a list of terms.
+
+        Args:
+            dihedral_type ('str'): Type of dihedral potential ("periodic").
+            dihedral_terms ('list[dict]'): List of term dictionaries (k, phi_s, mult).
+
+        Returns:
+            ('list[espressomd.interactions.BondedInteraction]'): The ESPResSo dihedral interaction objects.
+
+        Notes:
+            pyMBE stores dihedrals in the IUPAC/GROMACS convention, ``V = k*[1 + cos(n*phi - phi_s)]``
+            with phi = 0 at the cis conformation. ESPResSo implements ``V = k*[1 - cos(n*phi_E - phase)]``
+            and, for a bond stored on the second particle of the quadruplet, its angle ``phi_E`` has the
+            opposite sign to the IUPAC angle. The conversion applied here is therefore
+            ``phase = -(phi_s + pi)``: the ``pi`` turns ``1 + cos`` into ``1 - cos`` and the minus
+            sign compensates the sign of ``phi_E``.
+        """
+        from espressomd import interactions
+
+        if dihedral_type == "periodic":
+            dihedral_insts = []
+            for term in dihedral_terms:
+                k = term["k"].m_as("reduced_energy")
+                phi_s = float(term["phi_s"].magnitude)
+                mult = int(round(float(term["mult"].magnitude)))
+                # pyMBE uses the GROMACS proper dihedral (type 1), V = k[1 + cos(n*phi - phi_s)],
+                # with the IUPAC angle phi (cis = 0). ESPResSo implements V = k[1 - cos(n*phi_E - phase)]:
+                #  - 1 + cos(x) = 1 - cos(x - pi), so the phase is shifted by pi: phi_0 = phi_s + pi
+                #  - with the bond stored on the second particle (see _add_dihedral), ESPResSo's angle
+                #    phi_E has the opposite sign to the IUPAC angle, so phase = -phi_0
+                dihedral_insts.append(interactions.Dihedral(bend=k, mult=mult, phase=-(phi_s + np.pi)))
+            return dihedral_insts
+        if dihedral_type == "tabulated":
+            raise NotImplementedError("tabulated dihedrals not yet supported")
+        raise NotImplementedError(f"Dihedral potential type '{dihedral_type}' currently not implemented in pyMBE")
+
+
     def _get_particle_ids_in_espresso(self):
         """
         Gets a list of all the particles_id in espresso_system instance.
@@ -1354,8 +1440,8 @@ class EspressoSimulation(SimulationEngine):
     
     def add_instances_to_engine(self):
         """
-            This method adds the set of particles instances and bond instances and angle instances
-            that are not present in the pymbe data base 
+            This method adds the set of particles instances, bond instances, angle instances
+            and dihedral instances that are not present in the pymbe data base
         """
         
         missing_particle_ids=self.db._find_instance_ids_by_attribute(pmb_type='particle', 
@@ -1413,4 +1499,21 @@ class EspressoSimulation(SimulationEngine):
                                particle_id2,
                                particle_id3,
                                angle_instance)
+
+        missing_dihedral_ids=self.db._find_instance_ids_by_attribute(pmb_type='dihedral',
+                                                                 attribute='added_to_engine',
+                                                                 value=False)
+        if len(missing_dihedral_ids)>0:
+            for id in missing_dihedral_ids:
+                dihedral_instance=self.db.get_instance(pmb_type='dihedral',
+                                                   instance_id=id)
+                particle_id1=dihedral_instance.particle_id1
+                particle_id2=dihedral_instance.particle_id2
+                particle_id3=dihedral_instance.particle_id3
+                particle_id4=dihedral_instance.particle_id4
+                self._add_dihedral(particle_id1,
+                               particle_id2,
+                               particle_id3,
+                               particle_id4,
+                               dihedral_instance)
     

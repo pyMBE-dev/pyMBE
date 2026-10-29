@@ -27,9 +27,11 @@ from pyMBE.storage.instances.peptide import PeptideInstance
 from pyMBE.storage.instances.protein import ProteinInstance
 from pyMBE.storage.instances.bond import BondInstance
 from pyMBE.storage.instances.angle import AngleInstance
+from pyMBE.storage.instances.dihedral import DihedralInstance
 from pyMBE.storage.instances.hydrogel import HydrogelInstance
 from pyMBE.storage.templates.bond import BondTemplate
 from pyMBE.storage.templates.angle import AngleTemplate
+from pyMBE.storage.templates.dihedral import DihedralTemplate
 from pyMBE.storage.templates.hydrogel import HydrogelNode
 from pyMBE.storage.pint_quantity import PintQuantity
 from pyMBE.storage.reactions.reaction import Reaction, ReactionParticipant
@@ -444,7 +446,16 @@ class Test(ut.TestCase):
         self.assertRaises(ValueError,
                           AngleInstance,
                           **inputs)
-        
+        inputs = {"name":"A",
+                  "dihedral_id":-1,
+                  "particle_id1":1,
+                  "particle_id2":2,
+                  "particle_id3":3,
+                  "particle_id4":4}
+        self.assertRaises(ValueError,
+                          DihedralInstance,
+                          **inputs)
+
     def test_make_name_bond_template(self):
         inputs = {"bond_type": "harmonic",
                   "parameters": {"r": PintQuantity(magnitude=1,
@@ -465,7 +476,29 @@ class Test(ut.TestCase):
         angle_tpl = AngleTemplate(**inputs)
         self.assertRaises(RuntimeError,
                           angle_tpl._make_name)
-        
+
+    def test_make_name_dihedral_template(self):
+        inputs = {"dihedral_type": "periodic",
+                  "terms": [{"k": PintQuantity(magnitude=1,
+                                               units="reduced_energy",
+                                               dimension="energy"),
+                             "phi_s": PintQuantity(magnitude=1,
+                                                   units="dimensionless",
+                                                   dimension="dimensionless"),
+                             "mult": PintQuantity(magnitude=1,
+                                                  units="dimensionless",
+                                                  dimension="dimensionless")}]}
+        dihedral_tpl = DihedralTemplate(**inputs)
+        self.assertRaises(RuntimeError,
+                          dihedral_tpl._make_name)
+
+    def test_canonical_dihedral_key(self):
+        """The canonical dihedral key is invariant under full reversal."""
+        self.assertEqual(DihedralTemplate.make_dihedral_key("A", "B", "C", "D"),
+                         DihedralTemplate.make_dihedral_key("D", "C", "B", "A"))
+        self.assertEqual(DihedralTemplate.make_dihedral_key("D", "C", "B", "A"),
+                         "A-B-C-D")
+
     def test_exceptions_pint_quantity(self):
         units = pint.UnitRegistry()
         inputs = {"q":1,

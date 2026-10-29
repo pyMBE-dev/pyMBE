@@ -320,6 +320,72 @@ class Test(ut.TestCase):
         pd.testing.assert_frame_equal(pmb.get_templates_df(pmb_type="angle"),
                                       new_pmb.get_templates_df(pmb_type="angle"))
 
+    def test_io_dihedral_templates(self):
+        """
+        Checks that information in the pyMBE database about
+        dihedral templates is stored to file and loaded back properly,
+        including multi-term dihedrals.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        parameters1 = {"k": 5.0 * pmb.units.reduced_energy,
+                       "phi_s": 1.0 * pmb.units(""),
+                       "mult": 1}
+        parameters2 = [{"k": 3.0 * pmb.units.reduced_energy, "phi_s": 0.0 * pmb.units(""), "mult": 1},
+                       {"k": 2.0 * pmb.units.reduced_energy, "phi_s": 0.5 * pmb.units(""), "mult": 3}]
+        pmb.define_dihedral_potential(dihedral_type="periodic",
+                                     dihedral_parameters=parameters1,
+                                     particle_quadruplets=[("Z", "X", "Z", "Y"),
+                                                           ("X", "Z", "Y", "W")])
+        pmb.define_default_dihedral_potential(dihedral_type="periodic",
+                                             dihedral_parameters=parameters2)
+        new_pmb = pyMBE.pymbe_library(23)
+        with tempfile.TemporaryDirectory() as tmp_directory:
+            pmb.save_database(tmp_directory)
+            new_pmb.load_database(tmp_directory)
+        pd.testing.assert_frame_equal(pmb.get_templates_df(pmb_type="dihedral"),
+                                      new_pmb.get_templates_df(pmb_type="dihedral"))
+
+    def test_io_dihedral_instances(self):
+        """
+        Checks that dihedral instances are stored to file and loaded back properly.
+        """
+        pmb = pyMBE.pymbe_library(seed=42)
+        for name in ("A", "B", "C", "D"):
+            pmb.define_particle(name=name,
+                                sigma=3.5 * pmb.units.reduced_length,
+                                cutoff=4 * pmb.units.reduced_length,
+                                offset=0 * pmb.units.reduced_length,
+                                epsilon=0.2 * pmb.units.reduced_energy,
+                                z=0)
+        parameters = {"k": 100.0 * pmb.units.reduced_energy / (pmb.units.reduced_length**2),
+                      "r_0": 1.0 * pmb.units.reduced_length}
+        pmb.define_bond(bond_type="harmonic",
+                        bond_parameters=parameters,
+                        particle_pairs=[["A", "B"], ["B", "C"], ["C", "D"]])
+        pmb.define_dihedral_potential(dihedral_type="periodic",
+                                     dihedral_parameters={"k": 5.0 * pmb.units.reduced_energy,
+                                                          "phi_s": 1.0 * pmb.units(""),
+                                                          "mult": 2},
+                                     particle_quadruplets=[("A", "B", "C", "D")])
+        pids = [pmb.create_particle(name=name, box_l=box_l, number_of_particles=1)[0]
+                for name in ("A", "B", "C", "D")]
+        pmb.create_bond(particle_id1=pids[0], particle_id2=pids[1])
+        pmb.create_bond(particle_id1=pids[1], particle_id2=pids[2])
+        pmb.create_bond(particle_id1=pids[2], particle_id2=pids[3])
+        pmb.create_dihedral_potential(particle_id1=pids[0],
+                                      particle_id2=pids[1],
+                                      particle_id3=pids[2],
+                                      particle_id4=pids[3])
+
+        new_pmb = pyMBE.pymbe_library(23)
+        with tempfile.TemporaryDirectory() as tmp_directory:
+            pmb.save_database(tmp_directory)
+            new_pmb.load_database(tmp_directory)
+        pd.testing.assert_frame_equal(pmb.get_instances_df(pmb_type="dihedral"),
+                                      new_pmb.get_instances_df(pmb_type="dihedral"))
+        pd.testing.assert_frame_equal(pmb.get_templates_df(pmb_type="dihedral"),
+                                      new_pmb.get_templates_df(pmb_type="dihedral"))
+
     def test_io_residues_templates(self):
         """
         Checks that information in the pyMBE database about 
