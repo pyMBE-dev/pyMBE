@@ -1,12 +1,12 @@
-numpy>=1.23
-pandas>=1.5.3
-pint>=0.20.01
-pint-pandas>=0.3
-biopandas==0.5.1.dev0
-scipy>=1.8.0
-matplotlib>=3.5.1
-pydantic<2.0.0
+numpy>=2.2.4
+pandas>=3.0.3
+pint>=0.25.2
+pint-pandas>=0.8.0
+biopandas==0.5.2
+scipy>=1.16.0
+matplotlib>=3.10.5
+pydantic>=2.11.9
 # soft dependencies to run the samples
-tqdm>=4.57.0
+tqdm>=4.67.1
 # soft dependencies to run the testsuite
-cmake>=3.22.1 # for CTest
+cmake>=4.0.3 # for CTest

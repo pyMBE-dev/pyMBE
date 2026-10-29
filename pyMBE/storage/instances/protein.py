@@ -18,7 +18,7 @@
 #
 
 from pyMBE.storage.base_type import PMBBaseModel
-from pydantic import validator
+from pydantic import field_validator
 from typing import Literal, Optional
 
 
@@ -49,7 +49,8 @@ class ProteinInstance(PMBBaseModel):
     molecule_id: int 
     assembly_id: Optional[int] = None
     
-    @validator("molecule_id")
+    @field_validator("molecule_id")
+    @classmethod
     def validate_residue_id(cls, mid):
         if mid < 0:
             raise ValueError("molecule_id must be a non-negative integer.")

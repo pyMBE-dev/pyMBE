@@ -18,7 +18,7 @@
 #
 
 from typing import List, Dict, Optional
-from pydantic import BaseModel, validator, root_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 class ReactionParticipant(BaseModel):
     """
@@ -48,7 +48,8 @@ class ReactionParticipant(BaseModel):
     state_name: str
     coefficient: int
 
-    @validator("coefficient")
+    @field_validator("coefficient")
+    @classmethod
     def no_zero_coeff(cls, coefficient):
         """
         Ensures that the stoichiometric coefficient is non-zero.
@@ -98,7 +99,8 @@ class Reaction(BaseModel):
     simulation_method: Optional[str] = None
     name: Optional[str] = None 
 
-    @validator("participants")
+    @field_validator("participants")
+    @classmethod
     def at_least_two_participants(cls, participants):
         """
         Ensures that the reaction contains at least two participants.
@@ -139,7 +141,8 @@ class Reaction(BaseModel):
         products.sort()
         return f"{' + '.join(reactants)} <-> {' + '.join(products)}"
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def generate_name(cls, values):
         """
         Automatically generates a reaction name from the participants.

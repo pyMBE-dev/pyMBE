@@ -19,7 +19,7 @@
 
 from typing import Literal
 from ..base_type import PMBBaseModel
-from pydantic import validator
+from pydantic import field_validator
 
 class HydrogelInstance(PMBBaseModel):
     """
@@ -43,7 +43,9 @@ class HydrogelInstance(PMBBaseModel):
     pmb_type: Literal["hydrogel"] = "hydrogel"
     assembly_id: int
     name: str
-    @validator("assembly_id")
+
+    @field_validator("assembly_id")
+    @classmethod
     def validate_assembly_id(cls, aid):
         if aid < 0:
             raise ValueError("assembly_id must be a non-negative integer.")

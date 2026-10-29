@@ -17,7 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 class PMBBaseModel(BaseModel):
     """
@@ -36,7 +36,4 @@ class PMBBaseModel(BaseModel):
 
     pmb_type: str = Field(frozen=True)
     name: str
-    
-    class Config:
-        validate_assignment = True
-        extra = "forbid"
+    model_config = ConfigDict(validate_assignment=True, extra="forbid")

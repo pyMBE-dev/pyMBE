@@ -19,7 +19,7 @@
 
 from typing import Literal, Optional,List
 from numpy.typing import NDArray
-from pydantic import validator
+from pydantic import field_validator, ConfigDict
 from ..base_type import PMBBaseModel
 
 class ParticleInstance(PMBBaseModel):
@@ -62,13 +62,10 @@ class ParticleInstance(PMBBaseModel):
     molecule_id: Optional[int] = None
     assembly_id: Optional[int] = None
     added_to_engine: bool = False
-    
-    class Config:
-        arbitrary_types_allowed=True
-        validate_assignment = True
-        extra = "forbid"
-        
-    @validator("particle_id")
+    model_config = ConfigDict(arbitrary_types_allowed=True, validate_assignment=True, extra="forbid")
+
+    @field_validator("particle_id")
+    @classmethod
     def validate_particle_id(cls, pid):
         if pid < 0:
             raise ValueError("particle_id must be a non-negative integer.")

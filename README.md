@@ -69,8 +69,8 @@ git clone git@github.com:pyMBE-dev/pyMBE.git
 Please, be aware that pyMBE is intended to be a supporting tool to setup simulations with ESPResSo.
 Thus, for most of its functionalities ESPResSo must also be available.
 pyMBE supports ESPResSo 5.0 and ESPResSo 5.1-dev.
-Following the NEP29 guidelines, we recommend using Python3.11+.
-Both NumPy 1 and NumPy 2 are supported.
+Following the NEP29 guidelines, we recommend using Python3.12+.
+Only NumPy 2 is supported.
 
 The pyMBE module needs a Python virtual environment to avoid compatibility issues with its dependencies.
 Any virtual environment manager should work, but this readme will use `venv`, which can be installed on Ubuntu as follows:
@@ -84,16 +84,10 @@ To set up pyMBE, users need to configure a virtual environment. This is achieved
 ```sh
 python3 -m venv pymbe  # create a local folder named pymbe containing the environment files
 source pymbe/bin/activate  # activate the virtual environment
-python3 -m pip install -r requirements.txt "numpy<2.0" "pandas<2.0"
+python3 -m pip install -r requirements.txt
 python3 maintainer/configure_venv.py --espresso_path=/home/user/espresso/build # please adapt the espresso path accordingly
 python3 simulation_script.py # run a simulation script
 deactivate  # deactivate the virtual environment
-```
-
-NumPy 2 users should adapt the pip command as follows:
-
-```sh
-python3 -m pip install -r requirements.txt "numpy>=2.1" "pandas>=2.0"
 ```
 
 We highlight that the path `/home/user/espresso/build` is just an example of a possible path to the ESPResSo build folder. 
@@ -138,7 +132,7 @@ To use pyMBE in JupyterLab, install extra dependencies and register the virtual 
 
 ```sh
 source pymbe/bin/activate
-python3 -m pip install ipykernel "jupyterlab>=4.0.8" "PyOpenGL>=3.1.5" "ipympl>=0.9.3"
+python3 -m pip install ipykernel "jupyterlab>=4.4.9" "PyOpenGL>=3.1.10" "ipympl>=0.10.0"
 python3 -m ipykernel install --user --name=pyMBE
 deactivate
 ```

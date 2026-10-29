@@ -18,7 +18,7 @@
 #
 
 from typing import Literal, Union
-from pydantic import BaseModel, Field, root_validator
+from pydantic import BaseModel, Field, model_validator
 from ..pint_quantity import PintQuantity
 
 
@@ -92,7 +92,8 @@ class LJInteractionTemplate(BaseModel):
     # Validators
     # ------------------------------------------------------------------
 
-    @root_validator
+    @model_validator(mode="before")
+    @classmethod
     def _auto_generate_name(cls, values):
         """
         Automatically generates and enforces a standardized interaction name.
